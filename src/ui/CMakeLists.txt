@@ -15,7 +15,7 @@ target_link_libraries(tinysprite_imgui PUBLIC SDL2::SDL2)
 target_compile_options(tinysprite_imgui PRIVATE -w)
 
 add_library(tinysprite_ui STATIC
-  editor.cpp editor_layers.cpp editor_palette.cpp editor_selection.cpp editor_settings.cpp drags.cpp
+  editor.cpp editor_internal.cpp editor_layers.cpp editor_palette.cpp editor_selection.cpp editor_settings.cpp drags.cpp
   app.cpp app_menus.cpp app_shortcuts.cpp app_dialogs.cpp app_files.cpp
   canvas.cpp panels.cpp tools_panel.cpp layers_panel.cpp layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -2,6 +2,7 @@
 
 #include "editor.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>

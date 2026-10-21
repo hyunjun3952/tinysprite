@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include <cstdio>
+#include <memory>
 #include <string>
 
 #include "backends/imgui_impl_sdl2.h"

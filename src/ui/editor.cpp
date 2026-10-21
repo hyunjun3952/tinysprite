@@ -1,6 +1,8 @@
 #include "editor.h"
 
 #include <algorithm>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 

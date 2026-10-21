@@ -3,26 +3,13 @@
 #include "editor.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "editor_internal.h"
 
 #include "tinysprite/layer_ops.h"
-
-namespace editor_detail
-{
-
-int indexOfLayer(const Sprite &sprite, const Layer *layer)
-{
-    for (int i = 0; i < sprite.layerCount(); i++) {
-        if (sprite.layer(i) == layer) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-} // namespace editor_detail
 
 void Editor::setActiveLayer(int index)
 {

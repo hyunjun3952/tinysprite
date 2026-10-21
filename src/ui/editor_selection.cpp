@@ -2,6 +2,7 @@
 
 #include "editor.h"
 
+#include <optional>
 #include <utility>
 
 void Editor::selectAll()
