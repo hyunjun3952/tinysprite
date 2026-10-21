@@ -54,6 +54,9 @@ headless CLI export, optional Aseprite import.
   (core was already converted — see `CMakeLists.txt`).
 - UI build: `cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON`; lint it with `scripts/lint.sh build-ui`
   (the default `build/` compile database has no `src/ui`). CI still builds core only.
+- Zoom ranges 1/16x..64x (`VIEWPORT_ZOOM_MIN/MAX`); Fit picks a whole-number zoom, or a power of two below 1x for
+  sprites larger than the canvas.
+- Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh .githooks/*`).
 - `tinysprite_core` links `libm` (viewport uses `floorf`).
 - The canvas draws only layer 0 / frame 0 edits for now (`Editor.active_layer`, `Editor.frame`); the layer
   panel arrives in milestone 6. The tools panel is drawn before the canvas, so its zoom readout lags one frame.

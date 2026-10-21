@@ -83,7 +83,18 @@ void viewport_fit(Viewport *view, int sprite_w, int sprite_h, float area_w, floa
     }
     float fit_x = area_w / (float)sprite_w;
     float fit_y = area_h / (float)sprite_h;
-    float zoom = clamp_zoom(floorf(fit_x < fit_y ? fit_x : fit_y));
+    float fit = fit_x < fit_y ? fit_x : fit_y;
+    float zoom;
+    if (fit >= 1.0f) {
+        zoom = clamp_zoom(floorf(fit));
+    } else {
+        /* Halve from 1x so downscaled views stay on power-of-two steps. */
+        zoom = 1.0f;
+        while (zoom > fit && zoom > VIEWPORT_ZOOM_MIN) {
+            zoom /= 2.0f;
+        }
+        zoom = clamp_zoom(zoom);
+    }
     view->zoom = zoom;
     view->pan_x = (area_w - (float)sprite_w * zoom) / 2.0f;
     view->pan_y = (area_h - (float)sprite_h * zoom) / 2.0f;

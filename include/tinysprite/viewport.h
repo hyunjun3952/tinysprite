@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_VIEWPORT_H
 #define TINYSPRITE_VIEWPORT_H
 
-#define VIEWPORT_ZOOM_MIN 1.0f
+#define VIEWPORT_ZOOM_MIN 0.0625f /* 1/16: a 4096 px sprite still fits in 256 px */
 #define VIEWPORT_ZOOM_MAX 64.0f
 
 /* viewport_screen_to_cel_* saturates at +-VIEWPORT_CEL_LIMIT (2^24, exact in a float) so that
@@ -34,8 +34,9 @@ void viewport_zoom_at(Viewport *view, float zoom, float anchor_x, float anchor_y
 /* Next zoom level one step in/out (direction > 0 doubles, < 0 halves), clamped. */
 float viewport_next_zoom(float zoom, int direction);
 
-/* Largest whole-number zoom that fits the sprite into an area_w x area_h screen area (at least
- * VIEWPORT_ZOOM_MIN), with the sprite centered in that area. Does nothing if the sprite has no
+/* Largest zoom that fits the sprite into an area_w x area_h screen area, with the sprite centered
+ * in that area: a whole number when the sprite fits at 1x or more, otherwise a power of two below
+ * 1 (never below VIEWPORT_ZOOM_MIN). Does nothing if the sprite has no
  * pixels. */
 void viewport_fit(Viewport *view, int sprite_w, int sprite_h, float area_w, float area_h);
 

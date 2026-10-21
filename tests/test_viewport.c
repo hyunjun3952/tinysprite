@@ -150,6 +150,34 @@ TEST(fit_ignores_empty_sprite_or_area)
     ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MIN);
 }
 
+TEST(zoom_can_go_below_one)
+{
+    ASSERT_TRUE(VIEWPORT_ZOOM_MIN < 1.0f);
+    ASSERT_TRUE(viewport_next_zoom(1.0f, -1) == 0.5f);
+    ASSERT_TRUE(viewport_next_zoom(0.5f, -1) == 0.25f);
+    ASSERT_TRUE(viewport_next_zoom(0.25f, 1) == 0.5f);
+}
+
+TEST(fractional_zoom_maps_many_cels_per_screen_pixel)
+{
+    Viewport v = viewport_default();
+    v.zoom = 0.25f;
+    ASSERT_EQ_INT(15, viewport_screen_to_cel_x(&v, 3.9f));
+    ASSERT_EQ_INT(4, viewport_screen_to_cel_x(&v, 1.0f));
+    ASSERT_TRUE(viewport_cel_to_screen_x(&v, 8) == 2.0f);
+}
+
+TEST(fit_shrinks_to_a_power_of_two_for_large_sprites)
+{
+    Viewport v = viewport_default();
+    viewport_fit(&v, 4096, 4096, 512.0f, 600.0f);
+    ASSERT_TRUE(v.zoom == 0.125f);
+    ASSERT_TRUE(v.pan_x == 0.0f);
+    ASSERT_TRUE(v.pan_y == (600.0f - 512.0f) / 2.0f);
+    viewport_fit(&v, 100, 100, 30.0f, 30.0f);
+    ASSERT_TRUE(v.zoom == 0.25f);
+}
+
 int main(void)
 {
     RUN(default_view_maps_origin_to_screen_origin);
@@ -167,5 +195,8 @@ int main(void)
     RUN(huge_pan_is_clamped);
     RUN(nan_zoom_falls_back_to_minimum);
     RUN(fit_ignores_empty_sprite_or_area);
+    RUN(zoom_can_go_below_one);
+    RUN(fractional_zoom_maps_many_cels_per_screen_pixel);
+    RUN(fit_shrinks_to_a_power_of_two_for_large_sprites);
     return TEST_SUMMARY();
 }
