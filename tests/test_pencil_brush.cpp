@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "minitest.h"
+#include "tinysprite/raster.h"
 #include "tinysprite/tools.h"
 
 #define W 8
@@ -165,6 +166,44 @@ TEST(brush_helpers_describe_the_footprint)
     ASSERT_EQ_INT(1, (PencilOptions{false, Symmetry{}, 4}).brushOrigin());
 }
 
+/* The stroke only paints the cels a step newly uncovers; the result must equal stamping the whole
+ * brush at every point of the path. */
+TEST(big_brush_stroke_equals_stamping_every_point)
+{
+    for (bool round : {false, true}) {
+        for (int size : {2, 5, 6}) {
+            PencilOptions options{false, Symmetry{}, size, round};
+            const ToolPoint path[] = {{3, 3}, {20, 9}, {8, 18}, {8, 18}, {25, 25}};
+
+            Cel actual(32, 32);
+            History h;
+            auto stroke = PencilStroke::begin(h, actual, RED, options, path[0].x, path[0].y);
+            for (const ToolPoint &p : path) {
+                stroke->extend(p.x, p.y);
+            }
+            stroke->end();
+
+            Cel expected(32, 32);
+            auto stamp = [&](int x, int y) {
+                for (int j = 0; j < size; j++) {
+                    for (int i = 0; i < size; i++) {
+                        if (options.brushContains(i, j)) {
+                            expected.set(x - options.brushOrigin() + i,
+                                         y - options.brushOrigin() + j, RED);
+                        }
+                    }
+                }
+            };
+            stamp(path[0].x, path[0].y);
+            for (size_t k = 1; k < sizeof(path) / sizeof(path[0]); k++) {
+                raster_line(path[k - 1].x, path[k - 1].y, path[k].x, path[k].y, stamp);
+            }
+            ASSERT_EQ_INT(0, memcmp(actual.pixels(), expected.pixels(),
+                                    static_cast<size_t>(32 * 32) * sizeof(Rgba)));
+        }
+    }
+}
+
 int main(void)
 {
     RUN(brush_helpers_describe_the_footprint);
@@ -177,6 +216,7 @@ int main(void)
     RUN(mirrored_brush_reflects_every_pixel_of_the_stamp);
     RUN(eraser_uses_the_brush_too);
     RUN(pixel_perfect_is_ignored_for_a_big_brush);
+    RUN(big_brush_stroke_equals_stamping_every_point);
     RUN(oversized_brushes_are_capped);
     return TEST_SUMMARY();
 }

@@ -115,20 +115,26 @@ void Canvas::drawBrushPreview(ImDrawList *draw, ImVec2 origin) const
     options.round = editor_.options().brush_round;
     int size = options.brushSize();
     int first = options.brushOrigin();
+    const Viewport &view = editor_.view().viewport;
+    /* Both brush shapes are convex, so each row is one run: a rectangle per row, not per cel. */
     for (int j = 0; j < size; j++) {
-        for (int i = 0; i < size; i++) {
-            if (!options.brushContains(i, j)) {
-                continue;
-            }
-            float x0 =
-                origin.x + editor_.view().viewport.celToScreenX(editor_.hoverX() - first + i);
-            float y0 =
-                origin.y + editor_.view().viewport.celToScreenY(editor_.hoverY() - first + j);
-            draw->AddRectFilled(
-                ImVec2(x0, y0),
-                ImVec2(x0 + editor_.view().viewport.zoom, y0 + editor_.view().viewport.zoom),
-                IM_COL32(255, 255, 255, 70));
+        int left = 0;
+        while (left < size && !options.brushContains(left, j)) {
+            left++;
         }
+        int right = size - 1;
+        while (right >= left && !options.brushContains(right, j)) {
+            right--;
+        }
+        if (left > right) {
+            continue;
+        }
+        float x0 = origin.x + view.celToScreenX(editor_.hoverX() - first + left);
+        float y0 = origin.y + view.celToScreenY(editor_.hoverY() - first + j);
+        draw->AddRectFilled(
+            ImVec2(x0, y0),
+            ImVec2(x0 + view.zoom * static_cast<float>(right - left + 1), y0 + view.zoom),
+            IM_COL32(255, 255, 255, 70));
     }
 }
 

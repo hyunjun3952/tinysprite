@@ -11,14 +11,18 @@
 namespace
 {
 
-/* Marks a stroke's bounding box dirty, `pad` cels beyond it. Mirrored copies land outside the box
- * of the new points, so symmetry re-composites everything. */
+/* Marks a stroke's bounding box dirty, `pad` cels beyond it, together with its reflections. */
 void markStroke(Editor &editor, int x0, int y0, int x1, int y1, int pad)
 {
-    if (symmetry_count(editor.options().symmetry) > 1) {
-        editor.markAllDirty();
-    } else {
-        editor.markDirty(rect_grow(rect_from_corners(x0, y0, x1, y1), pad));
+    Rect box = rect_grow(rect_from_corners(x0, y0, x1, y1), pad);
+    const Symmetry &symmetry = editor.options().symmetry;
+    int width = editor.sprite().width();
+    int height = editor.sprite().height();
+    for (int copy = 0; copy < symmetry_count(symmetry); copy++) {
+        ToolPoint a = symmetry_copy(symmetry, width, height, {box.x, box.y}, copy);
+        ToolPoint b =
+            symmetry_copy(symmetry, width, height, {box.x + box.w - 1, box.y + box.h - 1}, copy);
+        editor.markDirty(rect_from_corners(a.x, a.y, b.x, b.y));
     }
 }
 

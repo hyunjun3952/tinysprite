@@ -649,6 +649,22 @@ TEST(set_sprite_is_refused_while_dragging)
     delete e;
 }
 
+TEST(mirrored_stroke_marks_only_the_reflected_area_dirty)
+{
+    Editor *e = make_editor(); /* 8 x 6 */
+    e->options().symmetry.mirror_x = true;
+    e->selectTool(ToolKind::Pencil);
+    e->updateTexture(); /* clears the initial full dirty rect */
+    e->press(0, 0);
+    e->release();
+    ASSERT_TRUE(e->dirty());
+    Rect r = e->dirtyRect();
+    ASSERT_TRUE(rect_contains(r, 0, 0));
+    ASSERT_TRUE(rect_contains(r, 7, 0));  /* the reflected pixel */
+    ASSERT_TRUE(!rect_contains(r, 0, 5)); /* but not the whole sprite */
+    delete e;
+}
+
 int main(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -700,6 +716,7 @@ int main(void)
     RUN(duplicate_and_merge_are_held_off_while_dragging_or_invalid);
     RUN(set_sprite_replaces_the_document_and_starts_over);
     RUN(set_sprite_is_refused_while_dragging);
+    RUN(mirrored_stroke_marks_only_the_reflected_area_dirty);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

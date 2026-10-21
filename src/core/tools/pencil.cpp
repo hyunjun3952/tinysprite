@@ -55,6 +55,29 @@ PencilStroke::PencilStroke(History &history, Cel &cel, Rgba color, PencilOptions
                            int y)
     : LiveStroke(history, cel), color_(color), options_(options), lastX_(x), lastY_(y)
 {
+    int size = options_.brushSize();
+    int origin = options_.brushOrigin();
+    for (int j = 0; j < size; j++) {
+        for (int i = 0; i < size; i++) {
+            if (options_.brushContains(i, j)) {
+                brush_.push_back({i - origin, j - origin});
+            }
+        }
+    }
+    for (int step = 0; step < 9; step++) {
+        ToolPoint d = {step % 3 - 1, step / 3 - 1};
+        for (ToolPoint c : brush_) {
+            /* c is covered by the previous stamp if it lies inside the brush when shifted back. */
+            bool covered = options_.brushContains(c.x + d.x + options_.brushOrigin(),
+                                                  c.y + d.y + options_.brushOrigin());
+            if (!covered) {
+                leadingEdge_[static_cast<size_t>(step)].push_back(c);
+            }
+        }
+    }
+    if (!usesPixelPerfect()) {
+        painted_.assign(static_cast<size_t>(cel.width()) * static_cast<size_t>(cel.height()), 0);
+    }
     plotPixel(x, y);
 }
 
@@ -91,15 +114,26 @@ void PencilStroke::unplacePixel(const Placed &placed)
     }
 }
 
-/* Paints the whole brush at (x, y), mirroring each of its pixels separately so a reflected stamp
- * is the exact mirror image even for an even size. */
-void PencilStroke::stampBrush(int size, int x, int y)
+/* Paints the whole brush at (x, y), reflecting each of its cels separately so a reflected stamp is
+ * the exact mirror image even for an even size. A cel is painted once per stroke: consecutive
+ * stamps overlap almost entirely, and painting the same color again changes nothing, so skipping
+ * them is what keeps a big brush fast. */
+void PencilStroke::paint(int x, int y, const std::vector<ToolPoint> &cels)
 {
-    int origin = options_.brushOrigin();
-    for (int j = 0; j < size; j++) {
-        for (int i = 0; i < size; i++) {
-            if (options_.brushContains(i, j)) {
-                placePixel(x - origin + i, y - origin + j);
+    int width = cel_.width();
+    int copies = symmetry_count(options_.symmetry);
+    for (ToolPoint offset : cels) {
+        for (int copy = 0; copy < copies; copy++) {
+            ToolPoint at = symmetry_copy(options_.symmetry, width, cel_.height(),
+                                         {x + offset.x, y + offset.y}, copy);
+            if (!cel_.inBounds(at.x, at.y)) {
+                continue;
+            }
+            unsigned char &done = painted_[static_cast<size_t>(at.y) * static_cast<size_t>(width) +
+                                           static_cast<size_t>(at.x)];
+            if (!done) {
+                done = 1;
+                history_.setPixel(at.x, at.y, color_);
             }
         }
     }
@@ -139,14 +173,20 @@ void PencilStroke::plotPixelPerfect(int x, int y)
 
 void PencilStroke::plotPixel(int x, int y)
 {
-    int size = options_.brushSize();
-    if (size > 1) {
-        stampBrush(size, x, y);
-    } else if (options_.pixel_perfect) {
+    if (usesPixelPerfect()) {
         plotPixelPerfect(x, y);
-    } else {
-        placePixel(x, y);
+        return;
     }
+    /* After a one-cel step only the brush's leading edge is new. */
+    int dx = x - plotX_;
+    int dy = y - plotY_;
+    bool step = hasPlotted_ && std::abs(dx) <= 1 && std::abs(dy) <= 1;
+    paint(x, y,
+          step ? leadingEdge_[static_cast<size_t>(dy + 1) * 3 + static_cast<size_t>(dx + 1)]
+               : brush_);
+    hasPlotted_ = true;
+    plotX_ = x;
+    plotY_ = y;
 }
 
 void PencilStroke::extend(int x, int y)

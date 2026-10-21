@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_TOOLS_H
 #define TINYSPRITE_TOOLS_H
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -67,16 +68,29 @@ class PencilStroke : public LiveStroke
 
     PencilStroke(History &history, Cel &cel, Rgba color, PencilOptions options, int x, int y);
 
+    /* Pixel-perfect only applies to a one-pixel brush. */
+    bool usesPixelPerfect() const
+    {
+        return options_.pixel_perfect && options_.brushSize() == 1;
+    }
+
     void plotPixel(int x, int y);
     Placed placePixel(int x, int y);
     void unplacePixel(const Placed &placed);
-    void stampBrush(int size, int x, int y);
+    void paint(int x, int y, const std::vector<ToolPoint> &cels);
     void plotPixelPerfect(int x, int y);
 
     Rgba color_;
     PencilOptions options_;
     int lastX_, lastY_;
-    std::vector<Placed> window_; /* pixel-perfect: the last two kept pixels, oldest first */
+    std::vector<ToolPoint> brush_; /* the brush's cels relative to the plotted point */
+    /* For a one-cel step (dx, dy) of the brush: its cels the previous stamp did not cover, indexed
+     * by (dy + 1) * 3 + (dx + 1). */
+    std::array<std::vector<ToolPoint>, 9> leadingEdge_;
+    bool hasPlotted_ = false;
+    int plotX_ = 0, plotY_ = 0;          /* the last plotted point */
+    std::vector<unsigned char> painted_; /* cels this stroke painted (non-pixel-perfect) */
+    std::vector<Placed> window_;         /* pixel-perfect: the last two kept pixels, oldest first */
 };
 
 enum class ShapeKind {
