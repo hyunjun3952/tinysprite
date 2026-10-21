@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_CEL_H
 #define TINYSPRITE_CEL_H
 
+#include <cstddef>
 #include <vector>
 
 #include "tinysprite/palette.h"
@@ -26,6 +27,12 @@ class Cel
     bool inBounds(int x, int y) const
     {
         return x >= 0 && x < width_ && y >= 0 && y < height_;
+    }
+
+    /* Position of (x, y) in the pixels() buffer; the caller checks inBounds first. */
+    size_t indexOf(int x, int y) const
+    {
+        return static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x);
     }
 
     /* Returns transparent black for out-of-bounds coordinates. */

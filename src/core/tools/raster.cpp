@@ -225,11 +225,9 @@ static void push_runs(std::vector<std::pair<int, int>> &stack, const Cel &cel,
     if (y < 0 || y >= cel.height()) {
         return;
     }
-    size_t w = static_cast<size_t>(cel.width());
     bool inRun = false;
     for (int x = x0; x <= x1; x++) {
-        bool fillable =
-            !seen[static_cast<size_t>(y) * w + static_cast<size_t>(x)] && cel.get(x, y) == target;
+        bool fillable = !seen[cel.indexOf(x, y)] && cel.get(x, y) == target;
         if (fillable && !inRun) {
             stack.emplace_back(x, y);
         }
@@ -251,22 +249,20 @@ bool raster_flood_fill(const Cel &cel, int x, int y, const RasterPlotFn &plot)
     while (!stack.empty()) {
         auto [sx, sy] = stack.back();
         stack.pop_back();
-        size_t row = static_cast<size_t>(sy) * w;
-        if (seen[row + static_cast<size_t>(sx)]) {
+        if (seen[cel.indexOf(sx, sy)]) {
             continue;
         }
         int left = sx;
         int right = sx;
-        while (left > 0 && !seen[row + static_cast<size_t>(left) - 1] &&
-               cel.get(left - 1, sy) == target) {
+        while (left > 0 && !seen[cel.indexOf(left - 1, sy)] && cel.get(left - 1, sy) == target) {
             left--;
         }
-        while (right < cel.width() - 1 && !seen[row + static_cast<size_t>(right) + 1] &&
+        while (right < cel.width() - 1 && !seen[cel.indexOf(right + 1, sy)] &&
                cel.get(right + 1, sy) == target) {
             right++;
         }
         for (int i = left; i <= right; i++) {
-            seen[row + static_cast<size_t>(i)] = 1;
+            seen[cel.indexOf(i, sy)] = 1;
         }
         push_runs(stack, cel, seen, target, left, right, sy - 1);
         push_runs(stack, cel, seen, target, left, right, sy + 1);
