@@ -3,6 +3,10 @@
 
 #include "tinysprite/cel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Undo/redo log. One undo step is one stroke; internally a stroke is a list of pixel deltas
  * (index, old, new). Every pixel edit must go through history_set_pixel. Edits that are not pixel
  * deltas (layer operations) are recorded as actions, see history_push_action.
@@ -61,5 +65,9 @@ int history_redo(History *history);
  * so the cel can be destroyed. The remaining steps keep their order and the undo/redo boundary.
  * Steps on other cels are assumed independent of the dropped ones. */
 void history_forget_cel(History *history, Cel *cel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

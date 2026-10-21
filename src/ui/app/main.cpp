@@ -4,9 +4,7 @@
 #include <cstring>
 
 #include "app/app.h"
-extern "C" {
 #include "tinysprite/cel.h"
-}
 
 namespace
 {

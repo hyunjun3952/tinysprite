@@ -3,6 +3,10 @@
 
 #include "tinysprite/cel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define LAYER_NAME_MAX 63
 
 typedef struct Layer Layer;
@@ -28,5 +32,9 @@ int layer_frame_count(const Layer *layer);
 
 /* Returns NULL if frame is out of range. */
 Cel *layer_cel(Layer *layer, int frame);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

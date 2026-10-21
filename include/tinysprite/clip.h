@@ -4,6 +4,10 @@
 #include "tinysprite/history.h"
 #include "tinysprite/rect.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* A rectangle of pixels copied out of a cel: the clipboard behind copy / cut / paste, and the
  * scratch buffer for flipping and rotating a selection. Independent of the cel it came from. */
 typedef struct Clip Clip;
@@ -36,5 +40,9 @@ int clip_paste(History *history, Cel *cel, const Clip *clip, int x, int y);
  * step. This is how a selection is flipped or rotated in place. Same return values as
  * clip_paste. */
 int clip_replace(History *history, Cel *cel, Rect cleared, const Clip *clip, int x, int y);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

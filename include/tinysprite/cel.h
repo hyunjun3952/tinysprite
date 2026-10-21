@@ -3,6 +3,10 @@
 
 #include "tinysprite/palette.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CEL_MAX_DIMENSION 4096
 
 typedef struct Cel Cel;
@@ -25,5 +29,9 @@ int cel_set(Cel *cel, int x, int y, Rgba color);
 
 /* Row-major pixel buffer of width * height entries, owned by the cel. */
 Rgba *cel_pixels(Cel *cel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

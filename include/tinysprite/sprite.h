@@ -4,6 +4,10 @@
 #include "tinysprite/layer.h"
 #include "tinysprite/palette.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Sprite Sprite;
 
 /* Creates a sprite with one frame, an empty palette and one layer named "Layer 1".
@@ -42,5 +46,9 @@ int sprite_insert_layer(Sprite *sprite, int index, Layer *layer);
 /* Moves the layer at `from` so it ends up at index `to`, shifting the layers in between. Returns 0
  * on success, -1 if either index is out of range. */
 int sprite_move_layer(Sprite *sprite, int from, int to);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

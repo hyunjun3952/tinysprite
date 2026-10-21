@@ -4,6 +4,10 @@
 #include "tinysprite/history.h"
 #include "tinysprite/symmetry.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Draws one stroke through the points: a single point plots a pixel, several points are joined by
  * straight lines. Pixels outside the cel are skipped. Returns 0 on success (including strokes
  * that changed nothing), -1 on invalid arguments, an active stroke, or allocation failure. */
@@ -56,5 +60,9 @@ int pencil_stroke_end(PencilStroke *stroke);
 
 /* Reverts the stroke's pixels, records no undo step, and frees it. */
 void pencil_stroke_cancel(PencilStroke *stroke);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

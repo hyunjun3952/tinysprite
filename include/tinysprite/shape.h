@@ -4,6 +4,10 @@
 #include "tinysprite/history.h"
 #include "tinysprite/symmetry.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum ShapeKind {
     SHAPE_LINE,
     SHAPE_RECT,
@@ -42,5 +46,9 @@ int shape_stroke_end(ShapeStroke *stroke);
 
 /* Reverts the shape's pixels, records no undo step, and frees the stroke. */
 void shape_stroke_cancel(ShapeStroke *stroke);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

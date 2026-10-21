@@ -3,6 +3,10 @@
 
 #include "tinysprite/cel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Rasterizers never touch a cel: they report pixels through a callback so that tools can route
  * every edit through the history module. Coordinates may lie outside any cel; callers clip.
  * Line, rectangle and flood fill report each pixel once; ellipses may report a pixel more than
@@ -22,5 +26,9 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, RasterPlotFn pl
  * order. The cel is only read, so the callback may edit it. Returns 0 on success, -1 if (x, y)
  * is out of bounds or on allocation failure (nothing is reported then). */
 int raster_flood_fill(const Cel *cel, int x, int y, RasterPlotFn plot, void *user);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

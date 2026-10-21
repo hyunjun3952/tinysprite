@@ -52,7 +52,7 @@ headless CLI export, optional Aseprite import.
 
 ## Decisions and gotchas
 - Rasterizers clip nothing; the caller (tool/history layer) must bounds-check plotted points.
-- UI stack is SDL2 + Dear ImGui (native C++ API, `third_party/imgui`); the UI is C++17 on top of the C core, which stays pure C and is included through `extern "C"`. (It was C via cimgui until the C++ port.)
+- UI stack is SDL2 + Dear ImGui (native C++ API, `third_party/imgui`); the UI is C++17 on top of the C core, which stays pure C (its public headers have `extern "C"` guards). (It was C via cimgui until the C++ port.)
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
 - Cel is RGBA now; the indexed-color mode from the original design is deferred.
 - `scripts/lint.sh` and `scripts/format.sh` use `git ls-files -co`, so untracked files are checked too.

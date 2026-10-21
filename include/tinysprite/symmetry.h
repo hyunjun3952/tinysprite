@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct ToolPoint {
     int x, y;
 } ToolPoint;
@@ -27,5 +31,9 @@ ToolPoint symmetry_copy(Symmetry symmetry, int width, int height, ToolPoint poin
 /* The distinct copies of one point, the point itself first, written to `out`. A point on an axis
  * is its own reflection, so it is listed once. Returns how many were written. */
 int symmetry_points(Symmetry symmetry, int width, int height, ToolPoint point, ToolPoint out[4]);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

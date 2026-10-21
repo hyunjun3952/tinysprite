@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* An axis-aligned block of cels: (x, y) is its top-left cel and it spans w x h cels. */
 typedef struct Rect {
     int x, y, w, h;
@@ -31,5 +35,9 @@ Rect rect_union(Rect a, Rect b);
 
 /* `r` with `amount` more cels on every side. */
 Rect rect_grow(Rect r, int amount);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

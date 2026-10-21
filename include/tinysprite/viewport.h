@@ -1,6 +1,10 @@
 #ifndef TINYSPRITE_VIEWPORT_H
 #define TINYSPRITE_VIEWPORT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VIEWPORT_ZOOM_MIN 0.0625f /* 1/16: a 4096 px sprite still fits in 256 px */
 #define VIEWPORT_ZOOM_MAX 64.0f
 
@@ -38,5 +42,9 @@ float viewport_next_zoom(float zoom, int direction);
  * in that area: a whole number when the sprite fits at 1x or more, otherwise a power of two below
  * 1 (never below VIEWPORT_ZOOM_MIN). Does nothing if the sprite has no pixels. */
 void viewport_fit(Viewport *view, int sprite_w, int sprite_h, float area_w, float area_h);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

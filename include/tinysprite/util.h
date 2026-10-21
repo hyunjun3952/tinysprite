@@ -1,6 +1,10 @@
 #ifndef TINYSPRITE_UTIL_H
 #define TINYSPRITE_UTIL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ARRAY_LEN(array) (sizeof(array) / sizeof((array)[0]))
 
 static inline int min_int(int a, int b)
@@ -17,5 +21,9 @@ static inline int clamp_int(int value, int low, int high)
 {
     return max_int(low, min_int(value, high));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

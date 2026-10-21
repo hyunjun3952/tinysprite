@@ -8,10 +8,8 @@
 #include "editor/drag.h"
 #include "editor/tools.h"
 
-extern "C" {
 #include "tinysprite/layer_ops.h"
 #include "tinysprite/util.h"
-}
 
 namespace
 {

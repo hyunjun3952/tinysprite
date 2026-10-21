@@ -7,6 +7,10 @@
 #include "tinysprite/history.h"
 #include "tinysprite/sprite.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Undoable layer edits: each call applies the change and records it as one undo step. All of them
  * fail without changing anything while a stroke is active. A layer removed (or added and then
  * undone) stays alive inside the history, so its cels and the pixel steps recorded on them remain
@@ -46,5 +50,9 @@ int layer_op_set_opacity(History *history, Layer *layer, uint8_t opacity);
  * or allocation failure. */
 int layer_op_record_name(History *history, Layer *layer, const char *before);
 int layer_op_record_opacity(History *history, Layer *layer, uint8_t before);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

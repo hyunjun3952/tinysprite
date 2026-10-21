@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PALETTE_MAX_COLORS 256
 
 typedef struct Rgba {
@@ -40,5 +44,9 @@ int palette_remove(Palette *palette, int index);
 
 /* Returns the index of the first color equal to `color` (all four channels), or -1. */
 int palette_find(const Palette *palette, Rgba color);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

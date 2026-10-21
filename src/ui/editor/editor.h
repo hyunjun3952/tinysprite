@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-extern "C" {
 #include "tinysprite/clip.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
@@ -17,7 +16,6 @@ extern "C" {
 #include "tinysprite/shape.h"
 #include "tinysprite/sprite.h"
 #include "tinysprite/viewport.h"
-}
 
 enum class ToolKind {
     Pencil,

@@ -4,6 +4,10 @@
 #include "tinysprite/history.h"
 #include "tinysprite/rect.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Moves the pixels of a rectangular selection: the selected area is cleared and its non-transparent
  * pixels are written at the offset, over whatever is there (transparent pixels leave the
  * destination alone). Pixels moved outside the cel are lost. The selection is clipped to the cel
@@ -31,5 +35,9 @@ int move_stroke_end(MoveStroke *stroke);
 
 /* Reverts the cel, records no undo step, and frees the stroke. */
 void move_stroke_cancel(MoveStroke *stroke);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

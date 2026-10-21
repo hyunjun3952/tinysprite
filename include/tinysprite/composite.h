@@ -4,6 +4,10 @@
 #include "tinysprite/rect.h"
 #include "tinysprite/sprite.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Flattens the visible layers of `frame` (bottom to top, straight-alpha "over", scaled by layer
  * opacity) into `out`, a sprite_width x sprite_height row-major buffer. Only the pixels inside
  * `region` (clipped to the sprite) are written, so callers can re-composite a dirty rect. Does
@@ -17,5 +21,9 @@ Rgba composite_pixel(Sprite *sprite, int frame, int x, int y);
 /* Straight-alpha "over": `src`, its alpha scaled by `opacity` (0..255), drawn onto `dst`. This is
  * the blend composite_sprite uses for every layer. */
 Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

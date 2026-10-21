@@ -3,9 +3,7 @@
 
 #include "imgui.h"
 
-extern "C" {
 #include "tinysprite/palette.h"
-}
 
 inline ImVec4 imvec4FromRgba(Rgba color)
 {

@@ -2,11 +2,9 @@
 
 #include <algorithm>
 
-extern "C" {
 #include "tinysprite/bucket.h"
 #include "tinysprite/eyedropper.h"
 #include "tinysprite/util.h"
-}
 
 namespace
 {
