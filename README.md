@@ -5,7 +5,7 @@
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)
 ![platforms](https://img.shields.io/badge/platform-linux%20%7C%20windows-lightgrey)
 
-A small pixel art / 2D sprite animation editor written in C++17, with a UI built on SDL2 and Dear ImGui.
+A small pixel art and sprite editor written in C++17, with SDL2 and Dear ImGui.
 
 ## Features
 
@@ -13,7 +13,7 @@ A small pixel art / 2D sprite animation editor written in C++17, with a UI built
 - Layers with undo / redo
 - Import and export of `.pxa` (native), png, bmp, tga and jpg
 
-## Building
+## Build
 
 Requirements: CMake 3.16+ and a C++17 compiler. The UI also needs SDL2 (`sudo apt install libsdl2-dev`).
 
@@ -27,7 +27,7 @@ ctest --test-dir build --output-on-failure
 The UI is built whenever SDL2 is installed; `-DTINYSPRITE_BUILD_UI=OFF` gives a core-only build. ASan/UBSan are on by
 default; `-DTINYSPRITE_SANITIZE=OFF` turns them off.
 
-## Development
+## Contributing
 
 Development is test-first; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the code. Format and lint before committing:
 
