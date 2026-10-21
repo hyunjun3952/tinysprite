@@ -19,9 +19,22 @@ int eraser_stroke(History *history, Cel *cel, const ToolPoint *points, int count
  * from pencil_stroke_begin until pencil_stroke_end / pencil_stroke_cancel. */
 typedef struct PencilStroke PencilStroke;
 
+/* Options for live strokes. Symmetry mirrors every pixel across the cel's center line(s); a
+ * mirrored copy that falls outside the cel is clipped. Pixel-perfect drops the middle pixel of
+ * every L-shaped corner so diagonal runs stay one pixel wide. All fields default to 0 (off). */
+typedef struct PencilOptions {
+    int pixel_perfect;
+    int mirror_x; /* reflect left <-> right */
+    int mirror_y; /* reflect top <-> bottom */
+} PencilOptions;
+
 /* Starts a stroke at (x, y), plotting that pixel; `erase` plots fully transparent pixels instead
  * of `color`. Returns NULL on invalid arguments, an active stroke, or allocation failure. */
 PencilStroke *pencil_stroke_begin(History *history, Cel *cel, Rgba color, int erase, int x, int y);
+
+/* pencil_stroke_begin with symmetry / pixel-perfect options. */
+PencilStroke *pencil_stroke_begin_ex(History *history, Cel *cel, Rgba color, int erase,
+                                     PencilOptions options, int x, int y);
 
 /* Joins the previous point to (x, y) with a line. Pixels outside the cel are skipped. Returns 0 on
  * success, -1 if stroke is NULL. */
