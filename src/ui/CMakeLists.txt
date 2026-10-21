@@ -1,7 +1,7 @@
 find_package(SDL2 REQUIRED)
 
-# Dear ImGui is vendored (third_party/cimgui/imgui). Warnings from vendored code are silenced.
-set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/third_party/cimgui/imgui)
+# Dear ImGui is vendored (third_party/imgui). Warnings from vendored code are silenced.
+set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/third_party/imgui)
 add_library(tinysprite_imgui STATIC
   ${IMGUI_DIR}/imgui.cpp
   ${IMGUI_DIR}/imgui_demo.cpp

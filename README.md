@@ -1,6 +1,6 @@
 # tinysprite
 
-A small pixel art / 2D sprite animation editor written in C11, with a UI built on SDL2 and Dear ImGui (via cimgui).
+A small pixel art / 2D sprite animation editor written in C11 (core and file I/O), with a C++17 UI built on SDL2 and Dear ImGui.
 
 > **Status:** early development. Phase 1 (drawing tools) is mostly done; file I/O (`.pxa`, PNG) is next.
 > Animation and game-pipeline features are planned. See [docs/MILESTONES.md](docs/MILESTONES.md).

@@ -7,7 +7,7 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
 ## Phase 1
 
 - [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.h`, smoke test.
-      SDL2/cimgui are only checked for availability here (SDL2 is not installed yet: `sudo apt install libsdl2-dev`).
+      SDL2/ImGui are only checked for availability here (SDL2 is not installed yet: `sudo apt install libsdl2-dev`).
 - [x] **1b. Format / lint automation** — K&R `.clang-format` (4-space indent), `.clang-tidy`,
       `scripts/{format,lint,setup-hooks}.sh`, `.githooks/`, GitHub Actions CI.
 - [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, opaque types, public headers in `include/tinysprite/`.
@@ -25,8 +25,8 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       (needs `libsdl2-dev`; the `tinysprite` binary lands in `<build>/src/ui/`).
       Core additions: `viewport.h` (zoom/pan/fit + screen<->cel transform), `composite.h` (flatten visible layers
       into an RGBA buffer, dirty-rect aware), `pencil_stroke_begin/extend/end/cancel` (live stroke for dragging)
-      and `history_cancel_stroke`. UI: `src/ui/{app/main,canvas/canvas,editor/editor}.c`; `app/imgui_backend.cpp` is the only C++ of
-      ours (wraps the SDL2 + SDL_Renderer backends that cimgui does not expose).
+      and `history_cancel_stroke`. UI: `src/ui/{app/app,canvas/canvas,editor/editor}.cpp` (ported from C to C++ later; the backends are called from `App`
+      directly).
       Controls: left drag draws, wheel zooms at the cursor, middle drag pans, Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo/redo.
       `tinysprite [width [height]] [--frames N]` — `--frames` exits after N frames (smoke runs, e.g.
       `SDL_VIDEODRIVER=dummy`).
@@ -37,7 +37,7 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       batch `shape_stroke` plus live `shape_stroke_begin/update/end/cancel`), `move.h` (rectangular selection move,
       batch `move_stroke` plus live `move_stroke_*`), `PencilOptions` + `pencil_stroke_begin` (pixel-perfect,
       mirror X / Y), `sprite_remove_layer` / `sprite_move_layer`, `layer_set_name`, `history_forget_cel`.
-      UI: `src/ui/editor/tools.c` (press / drag / release / cancel per tool), `src/ui/panels/layers_panel.c`; the tools panel
+      UI: `src/ui/editor/tools.cpp` (one `Drag` subclass per tool), `src/ui/panels/layers_panel.cpp`; the tools panel
       lists all eight tools plus Pixel-perfect / Mirror X / Mirror Y / Filled options.
       Controls: Esc cancels a drag (or clears the selection), Delete clears the selection, Ctrl+A selects all.
 - [ ] **7. File I/O** — `.pxa` (versioned, length-prefixed chunks, round-trip tests) and PNG via stb.
@@ -52,7 +52,7 @@ headless CLI export, optional Aseprite import.
 
 ## Decisions and gotchas
 - Rasterizers clip nothing; the caller (tool/history layer) must bounds-check plotted points.
-- UI stack is SDL2 + Dear ImGui via cimgui; the app code stays pure C.
+- UI stack is SDL2 + Dear ImGui (native C++ API, `third_party/imgui`); the UI is C++17 on top of the C core, which stays pure C and is included through `extern "C"`. (It was C via cimgui until the C++ port.)
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
 - Cel is RGBA now; the indexed-color mode from the original design is deferred.
 - `scripts/lint.sh` and `scripts/format.sh` use `git ls-files -co`, so untracked files are checked too.
@@ -84,33 +84,31 @@ headless CLI export, optional Aseprite import.
   transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
   it, unless the click only dismisses an existing selection. There is no selection copy / paste yet.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
-- `third_party/cimgui` declares `ImDrawList_AddRect(..., rounding, thickness, flags)`; the order differs from
-  upstream ImGui's `(rounding, flags, thickness)`, and clang-tidy's narrowing check is what caught the swap.
-- `tests/ui/ui_editor.c` (ctest `ui_editor`, only with `-DTINYSPRITE_BUILD_UI=ON`, runs under
-  `SDL_VIDEODRIVER=dummy`) covers `editor.c` and `tools.c`; `layers_panel.c` (ImGui widgets) is still not covered.
+- `tests/ui/ui_editor.cpp` (ctest `ui_editor`, only with `-DTINYSPRITE_BUILD_UI=ON`, runs under
+  `SDL_VIDEODRIVER=dummy`) covers `editor.cpp` and `tools.cpp`; `layers_panel.cpp` (ImGui widgets) is still not covered.
   CI builds core only, so the UI tests run locally. `scripts/lint.sh` skips `tests/ui` like `src/ui`.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
 
 ## Convenience features (outside the milestones)
-- Shortcuts live in `src/ui/app/main.c` (`plain_shortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
+- Shortcuts live in `src/ui/app/app.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
   `+` / `-` zoom, `[` / `]` brush size, Alt = temporary eyedropper (`editor_temp_pick`), Space + drag pans.
 - Clipboard (`clip.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
-- Palette edits (`palette_remove`, add / pick in `editor.c`) and `RecentColors` are not part of undo. Recent
+- Palette edits (`palette_remove`, add / pick in `editor.cpp`) and `RecentColors` are not part of undo. Recent
   colors are recorded on press by every drawing tool except the eraser and the eyedropper.
 - Brush (`PencilOptions.size` / `round`): square or round, 1..`PENCIL_BRUSH_MAX`; each stamp pixel is mirrored
   separately. Pixel-perfect is ignored above size 1. Shapes and the bucket do not use the brush.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
-- UI layout (`src/ui/panels/panels.c`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
+- UI layout (`src/ui/panels/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
   floating windows; dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`). Open / Save / Export in the File menu are disabled
   until `src/io` has the `.pxa` reader / writer.
-- Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icons/icon_font.c`, regenerate with
+- Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icons/icon_font.cpp`, regenerate with
   `scripts/gen-icon-font.py`; needs `pip install fonttools`). ImGui sizes a font by its line height, so the script
   makes the line box exactly one em (descent 1 unit, not 0: ImGui `ImCeil`s the scaled ascent and an exact fit can
-  round up a pixel). That is what lets `icons/icons.c` center a glyph with plain arithmetic instead of per-size fudge
+  round up a pixel). That is what lets `icons/icons.cpp` center a glyph with plain arithmetic instead of per-size fudge
   factors. Material Symbols have 2-unit strokes on a 24-unit grid, so glyphs are crispest at a 12 px multiple (24 px has about
   half as many smeared edge pixels as 16 px; buttons use 20 px, a little softer, because 24 px looked too big). For the same reason `OversampleH = 1`; oversampling blurs aligned strokes and shifts the glyph
   by about half a pixel. Re-check centering and crispness if the ImGui version changes.
