@@ -111,5 +111,7 @@ headless CLI export, optional Aseprite import.
   `scripts/gen-icon-font.py`; needs `pip install fonttools`). ImGui sizes a font by its line height, so the script
   makes the line box exactly one em (descent 1 unit, not 0: ImGui `ImCeil`s the scaled ascent and an exact fit can
   round up a pixel). That is what lets `icons/icons.c` center a glyph with plain arithmetic instead of per-size fudge
-  factors. Whole-pixel sizes and an even margin keep the center from landing half a pixel off; `OversampleH = 1`
-  stops ImGui from blurring and shifting the glyph. Re-check centering if the ImGui version changes.
+  factors. Glyphs are drawn at a 12 px multiple (24 px in buttons): Material Symbols have 2-unit strokes on a 24-unit
+  grid, so only then do strokes cover whole pixels instead of being smeared (about half as many partial-coverage edge
+  pixels as at 16 px). For the same reason `OversampleH = 1`; oversampling blurs aligned strokes and shifts the glyph
+  by about half a pixel. Re-check centering and crispness if the ImGui version changes.
