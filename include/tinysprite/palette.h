@@ -43,6 +43,16 @@ class Palette
     /* Returns the index of the first color equal to `color` (all four channels), or -1. */
     int find(Rgba color) const;
 
+    /* Same colors in the same order. */
+    friend bool operator==(const Palette &a, const Palette &b)
+    {
+        return a.colors_ == b.colors_;
+    }
+    friend bool operator!=(const Palette &a, const Palette &b)
+    {
+        return !(a == b);
+    }
+
   private:
     std::vector<Rgba> colors_;
 };

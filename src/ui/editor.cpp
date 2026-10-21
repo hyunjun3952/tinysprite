@@ -215,6 +215,9 @@ void Editor::afterHistoryStep(const Layer *active)
     if (selectedTag_ >= static_cast<int>(sprite().tags().size())) {
         selectedTag_ = -1;
     }
+    if (paletteSelected_ >= sprite().palette().count()) {
+        paletteSelected_ = -1; /* the palette it pointed into changed with the step */
+    }
     markAllDirty();
 }
 

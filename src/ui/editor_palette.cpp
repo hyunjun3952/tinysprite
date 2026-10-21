@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "editor_internal.h"
+#include "tinysprite/palette_ops.h"
 
 Rgba Editor::foreground() const
 {
@@ -20,12 +21,15 @@ void Editor::setForeground(Rgba rgba)
 
 int Editor::paletteAdd()
 {
-    Palette &palette = sprite().palette();
+    const Palette &palette = sprite().palette();
     Rgba current = foreground();
     int index = palette.find(current);
     if (index < 0) {
-        index = palette.add(current);
-        modifiedOutsideHistory_ = modifiedOutsideHistory_ || index >= 0;
+        Palette next = palette;
+        index = next.add(current);
+        if (index >= 0 && !palette_op_set(history(), sprite(), std::move(next))) {
+            index = -1;
+        }
     }
     if (index >= 0) {
         paletteSelected_ = index;
@@ -40,9 +44,9 @@ void Editor::paletteReset()
 
 void Editor::setPalette(Palette palette)
 {
-    sprite().palette() = std::move(palette);
-    paletteSelected_ = -1;
-    modifiedOutsideHistory_ = true;
+    if (palette_op_set(history(), sprite(), std::move(palette))) {
+        paletteSelected_ = -1;
+    }
 }
 
 void Editor::palettePick(int index)
@@ -57,10 +61,10 @@ void Editor::palettePick(int index)
 
 void Editor::paletteRemove(int index)
 {
-    if (!sprite().palette().remove(index)) {
+    Palette next = sprite().palette();
+    if (!next.remove(index) || !palette_op_set(history(), sprite(), std::move(next))) {
         return;
     }
-    modifiedOutsideHistory_ = true;
     if (paletteSelected_ == index) {
         paletteSelected_ = -1;
     } else if (paletteSelected_ > index) {

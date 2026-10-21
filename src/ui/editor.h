@@ -315,7 +315,7 @@ class Editor
     Rgba foreground() const;
     void setForeground(Rgba color);
 
-    /* Sprite palette helpers (the palette is not part of undo). Add puts the foreground color in
+    /* Sprite palette helpers (each edit is one undo step). Add puts the foreground color in
      * the palette unless it is already there and returns its index, or -1 if the palette is full.
      * Pick makes a swatch the foreground color. Remove deletes a swatch; the selection stays on
      * the same color, or is cleared when that color was removed. Out-of-range indexes are
@@ -333,17 +333,16 @@ class Editor
     /* A blank document of the given size with the default palette, replacing the current one.
      * Returns false (nothing changes) for an invalid size or while a tool is being dragged. */
     bool newDocument(int width, int height);
-    /* Replaces the sprite's palette (not undoable); the selection is dropped and the document
-     * counts as modified. */
+    /* Replaces the sprite's palette (one undo step); the swatch selection is dropped. */
     void setPalette(Palette palette);
-    /* True when something changed since the last save that the undo history does not know about:
-     * the palette, or a document that was recovered from an autosave. */
+    /* True when the document counts as changed although the undo history is at its save point: one
+     * that was recovered from an autosave (see markModified). */
     bool modifiedOutsideHistory() const
     {
         return modifiedOutsideHistory_;
     }
     void palettePick(int index);
-    /* Replaces the palette with the default colors (not undoable, like the other palette edits). */
+    /* Replaces the palette with the default colors. */
     void paletteReset();
     void paletteRemove(int index);
 

@@ -122,17 +122,67 @@ TEST(pick_palette_color_sets_the_foreground)
     delete e;
 }
 
-TEST(palette_edits_make_the_document_modified_until_saved)
+TEST(palette_edits_are_unsaved_changes_until_saved_or_undone)
 {
     Editor *e = make_editor();
-    ASSERT_TRUE(!e->modifiedOutsideHistory());
+    ASSERT_TRUE(e->history().atSavePoint());
     e->setForeground(Rgba{1, 2, 3, 255});
     e->paletteAdd();
-    ASSERT_TRUE(e->modifiedOutsideHistory());
+    ASSERT_TRUE(!e->history().atSavePoint());
     e->markSaved();
-    ASSERT_TRUE(!e->modifiedOutsideHistory());
+    ASSERT_TRUE(e->history().atSavePoint());
     e->paletteRemove(0);
-    ASSERT_TRUE(e->modifiedOutsideHistory());
+    ASSERT_TRUE(!e->history().atSavePoint());
+    e->undo();
+    ASSERT_TRUE(e->history().atSavePoint());
+    ASSERT_TRUE(!e->modifiedOutsideHistory());
+    delete e;
+}
+
+TEST(palette_add_remove_and_reset_undo_and_redo)
+{
+    Editor *e = make_editor();
+    Palette original = e->sprite().palette();
+    e->setForeground(Rgba{9, 8, 7, 255});
+    e->paletteAdd();
+    Palette added = e->sprite().palette();
+    e->paletteRemove(0);
+    Palette removed = e->sprite().palette();
+    e->paletteReset();
+    e->undo();
+    ASSERT_TRUE(e->sprite().palette() == removed);
+    e->undo();
+    ASSERT_TRUE(e->sprite().palette() == added);
+    e->undo();
+    ASSERT_TRUE(e->sprite().palette() == original);
+    e->redo();
+    e->redo();
+    ASSERT_TRUE(e->sprite().palette() == removed);
+    delete e;
+}
+
+TEST(undoing_a_palette_edit_drops_a_swatch_selection_that_no_longer_exists)
+{
+    Editor *e = make_editor();
+    e->setForeground(Rgba{9, 8, 7, 255});
+    int index = e->paletteAdd();
+    ASSERT_EQ_INT(index, e->paletteSelected());
+    e->undo();
+    ASSERT_EQ_INT(-1, e->paletteSelected());
+    delete e;
+}
+
+TEST(a_palette_edit_during_a_stroke_is_refused)
+{
+    Editor *e = make_editor();
+    int count = e->sprite().palette().count();
+    e->selectTool(ToolKind::Pencil);
+    e->press(1, 1);
+    e->setForeground(Rgba{9, 8, 7, 255});
+    ASSERT_EQ_INT(-1, e->paletteAdd());
+    e->paletteRemove(0);
+    ASSERT_EQ_INT(count, e->sprite().palette().count());
+    e->release();
     delete e;
 }
 
@@ -147,12 +197,12 @@ TEST(palette_reset_restores_the_default_colors)
     e->paletteReset();
     ASSERT_EQ_INT(defaults, e->sprite().palette().count());
     ASSERT_EQ_INT(-1, e->paletteSelected());
-    ASSERT_TRUE(e->modifiedOutsideHistory());
+    ASSERT_TRUE(!e->history().atSavePoint());
     ASSERT_TRUE(e->sprite().palette().get(0) == (Rgba{0, 0, 0, 255}));
     delete e;
 }
 
-TEST(set_palette_replaces_it_and_marks_the_document_modified)
+TEST(set_palette_replaces_it_as_an_undoable_unsaved_change)
 {
     Editor *e = make_editor();
     Palette p;
@@ -161,7 +211,10 @@ TEST(set_palette_replaces_it_and_marks_the_document_modified)
     e->setPalette(p);
     ASSERT_EQ_INT(1, e->sprite().palette().count());
     ASSERT_EQ_INT(-1, e->paletteSelected());
-    ASSERT_TRUE(e->modifiedOutsideHistory());
+    ASSERT_TRUE(!e->history().atSavePoint());
+    e->undo();
+    ASSERT_TRUE(e->sprite().palette().count() > 1);
+    e->redo();
     e->markSaved();
     e->markModified();
     ASSERT_TRUE(e->modifiedOutsideHistory());
@@ -181,9 +234,12 @@ int main(void)
     RUN(palette_add_uses_the_current_color_once);
     RUN(palette_remove_keeps_the_selection_on_the_same_color);
     RUN(pick_palette_color_sets_the_foreground);
-    RUN(palette_edits_make_the_document_modified_until_saved);
+    RUN(palette_edits_are_unsaved_changes_until_saved_or_undone);
+    RUN(palette_add_remove_and_reset_undo_and_redo);
+    RUN(undoing_a_palette_edit_drops_a_swatch_selection_that_no_longer_exists);
+    RUN(a_palette_edit_during_a_stroke_is_refused);
     RUN(palette_reset_restores_the_default_colors);
-    RUN(set_palette_replaces_it_and_marks_the_document_modified);
+    RUN(set_palette_replaces_it_as_an_undoable_unsaved_change);
     ui_quit();
     return TEST_SUMMARY();
 }
