@@ -1,0 +1,14 @@
+{
+    "name": "tinysprite",
+    "image": "mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04",
+    "postCreateCommand": "scripts/install-deps.sh && scripts/setup-hooks.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cmake-tools",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "xaver.clang-format"
+            ]
+        }
+    }
+}

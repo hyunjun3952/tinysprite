@@ -34,6 +34,13 @@ cmake --build build-ui
 
 ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable them.
 
+### Devcontainer
+
+`.devcontainer/` sets up an Ubuntu container with the build tools, `clang-format`, `clang-tidy`, `shellcheck` and
+SDL2 (`scripts/install-deps.sh`, also used by CI), and enables the git hooks. Open the folder in VS Code and pick
+"Reopen in Container". Building, tests, format and lint work out of the box; showing the UI window needs a display
+forwarded into the container (e.g. WSLg), which is not configured by default.
+
 ## Controls
 
 | Input | Action |

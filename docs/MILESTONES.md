@@ -181,3 +181,5 @@ headless CLI export, optional Aseprite import.
   Export image dialog has a Scale field that is remembered. File > Open recent keeps ten `.pxa` paths (`recent_add`,
   `recent.N` keys), the New dialog has 16 / 32 / 64 / 128 / 256 presets and remembers its size, Ctrl + / - / 0 zoom.
 - F1 / `?` opens the keyboard shortcut list (`App::helpWindow`, also in the Help menu).
+- Dev packages are listed once in `scripts/install-deps.sh` (CI and `.devcontainer/` both call it); add new apt
+  dependencies there. The devcontainer does not forward a display, so the UI window is not shown from inside it.
