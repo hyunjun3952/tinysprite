@@ -228,6 +228,29 @@ TEST(many_strokes_grow_storage)
     history_destroy(h);
 }
 
+TEST(cancel_stroke_restores_pixels_and_keeps_history)
+{
+    History *h = history_create();
+    Cel *c = cel_create(4, 4);
+    Rgba red = {255, 0, 0, 255}, blue = {0, 0, 255, 255};
+    ASSERT_EQ_INT(0, history_begin_stroke(h, c));
+    ASSERT_EQ_INT(0, history_set_pixel(h, 1, 1, red));
+    ASSERT_EQ_INT(0, history_end_stroke(h));
+    ASSERT_EQ_INT(0, history_begin_stroke(h, c));
+    ASSERT_EQ_INT(0, history_set_pixel(h, 1, 1, blue));
+    ASSERT_EQ_INT(0, history_set_pixel(h, 2, 2, blue));
+    ASSERT_EQ_INT(0, history_cancel_stroke(h));
+    ASSERT_EQ_INT(red.r, cel_get(c, 1, 1).r);
+    ASSERT_EQ_INT(0, cel_get(c, 1, 1).b);
+    ASSERT_EQ_INT(0, cel_get(c, 2, 2).a);
+    ASSERT_EQ_INT(-1, history_end_stroke(h));
+    ASSERT_EQ_INT(-1, history_cancel_stroke(h));
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_TRUE(!history_can_undo(h));
+    cel_destroy(c);
+    history_destroy(h);
+}
+
 int main(void)
 {
     RUN(starts_empty);
@@ -242,5 +265,6 @@ int main(void)
     RUN(strokes_on_different_cels);
     RUN(destroy_with_active_stroke_and_redo_is_clean);
     RUN(many_strokes_grow_storage);
+    RUN(cancel_stroke_restores_pixels_and_keeps_history);
     return TEST_SUMMARY();
 }

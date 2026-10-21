@@ -11,7 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy shellcheck
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh .githooks/pre-commit .githooks/pre-push
       - name: Format check
         run: scripts/format.sh --check
       - name: Configure

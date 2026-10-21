@@ -12,7 +12,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ctest --test-dir build -R history          # one test (ctest name = file name minus "test_")
 ./build/tests/test_history                 # or run a test binary directly
-cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON   # SDL2/cimgui frontend (off by default; needs libsdl2-dev)
+cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON   # SDL2/cimgui frontend (off by default; needs libsdl2-dev)
 ```
 
 Format/lint (needs `clang-format` and `clang-tidy`; K&R style, 4-space indent, config in `.clang-format` / `.clang-tidy`):
