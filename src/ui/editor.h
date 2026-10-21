@@ -17,25 +17,7 @@
 #include "tinysprite/sprite.h"
 #include "tinysprite/tools.h"
 #include "tinysprite/viewport.h"
-
-enum class ToolKind {
-    Pencil,
-    Eraser,
-    Bucket,
-    Eyedropper,
-    Line,
-    Rect,
-    Ellipse,
-    Select,
-    Triangle,
-    Diamond,
-    Hexagon,
-    Star,
-    Cross,
-    Count,
-};
-
-inline constexpr int TOOL_COUNT = static_cast<int>(ToolKind::Count);
+#include "tool.h"
 
 class Drag;
 

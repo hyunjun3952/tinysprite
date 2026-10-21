@@ -135,25 +135,14 @@ void ToolsPanel::colorWidget()
     }
 }
 
-static bool isClosedShape(ToolKind tool)
-{
-    switch (tool) {
-    case ToolKind::Rect:
-    case ToolKind::Ellipse:
-    case ToolKind::Triangle:
-    case ToolKind::Diamond:
-    case ToolKind::Hexagon:
-    case ToolKind::Star:
-    case ToolKind::Cross:
-        return true;
-    default:
-        return false;
-    }
-}
-
 static bool isShapeTool(ToolKind tool)
 {
-    return tool == ToolKind::Line || isClosedShape(tool);
+    return tool_traits(tool).group == ToolGroup::Shape;
+}
+
+static bool isClosedShape(ToolKind tool)
+{
+    return isShapeTool(tool) && shape_has_fill(tool_traits(tool).shape);
 }
 
 void ToolsPanel::toolGrid()
@@ -219,7 +208,7 @@ void ToolsPanel::toolOptions()
 {
     Editor::ToolOptions &options = editor_.options();
     ToolKind tool = editor_.tool();
-    bool brush = tool == ToolKind::Pencil || tool == ToolKind::Eraser;
+    bool brush = tool_traits(tool).group == ToolGroup::Brush;
     bool closedShape = isClosedShape(tool);
     if (brush) {
         /* The name on the left, the slider filling the rest of the row. */

@@ -140,19 +140,20 @@ void Editor::tempPick(bool on)
 
 void Editor::press(int cx, int cy, bool shift)
 {
-    if (!stroking()) {
-        /* Drawing tools stay inside the selection; the select tool moves it and must not be
-         * clipped by it. */
-        bool draws = tool_ != ToolKind::Select && tool_ != ToolKind::Eyedropper;
-        history_.setClip(draws && hasSelection_ ? std::optional<Rect>(selection_) : std::nullopt);
-        if (shift && (tool_ == ToolKind::Pencil || tool_ == ToolKind::Eraser)) {
-            lineFrom_ = lastDrawPoint_;
-        }
-        drag_ = beginDrag(*this, cx, cy);
-        lineFrom_.reset();
-        if (!drag_) {
-            history_.setClip(std::nullopt);
-        }
+    if (stroking()) {
+        return;
+    }
+    /* Drawing tools stay inside the selection; the select tool moves it and must not be clipped by
+     * it. */
+    history_.setClip(tool_draws(tool_) && hasSelection_ ? std::optional<Rect>(selection_)
+                                                        : std::nullopt);
+    if (shift && tool_traits(tool_).group == ToolGroup::Brush) {
+        lineFrom_ = lastDrawPoint_;
+    }
+    drag_ = beginDrag(*this, cx, cy);
+    lineFrom_.reset();
+    if (!drag_) {
+        history_.setClip(std::nullopt);
     }
 }
 

@@ -2,6 +2,7 @@
 #include "editor.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -31,28 +32,6 @@ void markStroke(Editor &editor, int x0, int y0, int x1, int y1, int pad)
 void markBrushStroke(Editor &editor, int x0, int y0, int x1, int y1)
 {
     markStroke(editor, x0, y0, x1, y1, std::max(1, editor.options().brush_size));
-}
-
-ShapeKind shapeKind(ToolKind tool)
-{
-    switch (tool) {
-    case ToolKind::Rect:
-        return ShapeKind::Rect;
-    case ToolKind::Ellipse:
-        return ShapeKind::Ellipse;
-    case ToolKind::Triangle:
-        return ShapeKind::Triangle;
-    case ToolKind::Diamond:
-        return ShapeKind::Diamond;
-    case ToolKind::Hexagon:
-        return ShapeKind::Hexagon;
-    case ToolKind::Star:
-        return ShapeKind::Star;
-    case ToolKind::Cross:
-        return ShapeKind::Cross;
-    default:
-        return ShapeKind::Line;
-    }
 }
 
 void pickColor(Editor &editor, int cx, int cy)
@@ -284,7 +263,12 @@ class SelectDrag : public Drag
     bool outside_; /* pressed beside the sprite: a plain click there selects nothing */
 };
 
-std::unique_ptr<Drag> beginSelect(Editor &editor, int cx, int cy)
+std::unique_ptr<Drag> beginPick(Editor &editor, Cel *, int cx, int cy)
+{
+    return std::make_unique<PickDrag>(editor, cx, cy);
+}
+
+std::unique_ptr<Drag> beginSelect(Editor &editor, Cel *, int cx, int cy)
 {
     if (editor.hasSelection() && rect_contains(editor.selection(), cx, cy)) {
         /* On a locked or hidden layer the pixels cannot move: drag out a new selection instead. */
@@ -300,20 +284,20 @@ std::unique_ptr<Drag> beginSelect(Editor &editor, int cx, int cy)
     return std::make_unique<SelectDrag>(editor, cx, cy);
 }
 
-std::unique_ptr<Drag> beginPencil(Editor &editor, Cel &cel, int cx, int cy)
+std::unique_ptr<Drag> beginPencil(Editor &editor, Cel *cel, int cx, int cy)
 {
     bool erasing = editor.tool() == ToolKind::Eraser;
     Rgba color = editor.foreground();
     PencilOptions options = editor.options().pencil();
     std::optional<ToolPoint> from = editor.lineFrom();
     std::unique_ptr<PencilStroke> stroke =
-        PencilStroke::begin(editor.history(), cel, erasing ? Rgba{} : color, options,
+        PencilStroke::begin(editor.history(), *cel, erasing ? Rgba{} : color, options,
                             from ? from->x : cx, from ? from->y : cy);
     if (!stroke) {
         return nullptr;
     }
     /* A color counts as used only when the press lands on the sprite. */
-    if (!erasing && (cel.inBounds(cx, cy) || from)) {
+    if (!erasing && (cel->inBounds(cx, cy) || from)) {
         editor.recordRecent(color);
     }
     if (from) {
@@ -324,24 +308,25 @@ std::unique_ptr<Drag> beginPencil(Editor &editor, Cel &cel, int cx, int cy)
 }
 
 /* A single click: no drag. */
-void fillBucket(Editor &editor, Cel &cel, int cx, int cy)
+std::unique_ptr<Drag> fillBucket(Editor &editor, Cel *cel, int cx, int cy)
 {
     Rgba color = editor.foreground();
-    if (cel.inBounds(cx, cy)) {
+    if (cel->inBounds(cx, cy)) {
         editor.recordRecent(color);
     }
-    if (bucket_fill(editor.history(), cel, cx, cy, color, editor.options().symmetry)) {
+    if (bucket_fill(editor.history(), *cel, cx, cy, color, editor.options().symmetry)) {
         editor.markAllDirty();
     }
+    return nullptr;
 }
 
-std::unique_ptr<Drag> beginShape(Editor &editor, Cel &cel, int cx, int cy)
+std::unique_ptr<Drag> beginShape(Editor &editor, Cel *cel, int cx, int cy)
 {
     Rgba color = editor.foreground();
-    ShapeStyle style = {shapeKind(editor.tool()), editor.options().shape_filled, color,
+    ShapeStyle style = {tool_traits(editor.tool()).shape, editor.options().shape_filled, color,
                         editor.options().symmetry};
     std::unique_ptr<ShapeStroke> stroke =
-        ShapeStroke::begin(editor.history(), cel, style, ToolPoint{cx, cy});
+        ShapeStroke::begin(editor.history(), *cel, style, ToolPoint{cx, cy});
     if (!stroke) {
         return nullptr;
     }
@@ -349,46 +334,25 @@ std::unique_ptr<Drag> beginShape(Editor &editor, Cel &cel, int cx, int cy)
     return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke), style.kind);
 }
 
-std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
-{
-    Cel *cel = editor.editableCel();
-    if (!cel) {
-        return nullptr;
-    }
-    switch (editor.tool()) {
-    case ToolKind::Pencil:
-    case ToolKind::Eraser:
-        return beginPencil(editor, *cel, cx, cy);
-    case ToolKind::Bucket:
-        fillBucket(editor, *cel, cx, cy);
-        return nullptr;
-    case ToolKind::Line:
-    case ToolKind::Rect:
-    case ToolKind::Ellipse:
-    case ToolKind::Triangle:
-    case ToolKind::Diamond:
-    case ToolKind::Hexagon:
-    case ToolKind::Star:
-    case ToolKind::Cross:
-        return beginShape(editor, *cel, cx, cy);
-    case ToolKind::Eyedropper:
-    case ToolKind::Select:
-    case ToolKind::Count:
-        break;
-    }
-    return nullptr;
-}
+/* Starts the drag for a press; `cel` is the cel to edit, null for the tools that do not draw. */
+using DragFactory = std::unique_ptr<Drag> (*)(Editor &editor, Cel *cel, int cx, int cy);
+
+/* In ToolGroup order. */
+const std::array<DragFactory, static_cast<size_t>(ToolGroup::Count)> FACTORIES = {
+    beginPencil, fillBucket, beginPick, beginShape, beginSelect,
+};
 
 } // namespace
 
 std::unique_ptr<Drag> beginDrag(Editor &editor, int cx, int cy)
 {
-    switch (editor.tool()) {
-    case ToolKind::Eyedropper:
-        return std::make_unique<PickDrag>(editor, cx, cy);
-    case ToolKind::Select:
-        return beginSelect(editor, cx, cy);
-    default:
-        return beginDraw(editor, cx, cy);
+    ToolKind tool = editor.tool();
+    Cel *cel = nullptr;
+    if (tool_draws(tool)) {
+        cel = editor.editableCel();
+        if (!cel) {
+            return nullptr;
+        }
     }
+    return FACTORIES[static_cast<size_t>(tool_traits(tool).group)](editor, cel, cx, cy);
 }

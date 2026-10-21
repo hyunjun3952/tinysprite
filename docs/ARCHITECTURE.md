@@ -70,8 +70,11 @@ stay a few hundred lines each (the class declarations remain in `editor.h` and `
 `editor_selection.cpp`, `editor_settings.cpp`. Helpers shared between the `editor_*.cpp` files are declared in
 `editor_internal.h` and defined in `editor_internal.cpp`.
 
-`Editor::press` asks `beginDrag` (`drags.cpp`) for a `Drag` matching the active tool: pencil, shape, move, select,
-eyedropper. The editor holds at most one. `Canvas` calls `update` every frame while the button is down, then `finish`
+Tools are a table, not switches: `tool.cpp` has one `ToolTraits` row per `ToolKind` (its `ToolGroup` and, for the shape
+tools, which `ShapeKind` it draws), and the editor, canvas and tools panel ask it instead of comparing tool kinds. Shapes
+are the same on the core side: `shape.cpp` has one row per `ShapeKind` (how to draw it, whether it can be filled).
+`Editor::press` asks `beginDrag` (`drags.cpp`) for a `Drag`, which picks a factory by the tool's group: pencil, bucket,
+eyedropper, shape, select (which also moves). The editor holds at most one. `Canvas` calls `update` every frame while the button is down, then `finish`
 on release or `cancel` on Esc, which is how one drag becomes exactly one undo step.
 
 Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an autosave copy

@@ -102,7 +102,13 @@ enum class ShapeKind {
     Hexagon, /* flat top and bottom, points left and right */
     Star,    /* five points, the top one at the middle */
     Cross,   /* a plus sign */
+    Count,
 };
+
+inline constexpr int SHAPE_COUNT = static_cast<int>(ShapeKind::Count);
+
+/* Whether `filled` means anything for the kind: true for every closed shape, false for a line. */
+bool shape_has_fill(ShapeKind kind);
 
 /* What to draw and how. Every shape fits the box spanned by its two points; `filled` is ignored for
  * lines. With symmetry the shape is also drawn reflected across each enabled axis; reflected parts
