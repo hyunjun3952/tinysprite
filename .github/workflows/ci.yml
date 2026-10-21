@@ -3,10 +3,21 @@ name: ci
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md', LICENSE]
   pull_request:
+    paths-ignore: ['**.md', LICENSE]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch / PR makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
+    timeout-minutes: 20
     # Linux: format, lint, ASan/UBSan build and tests (UI included).
     runs-on: ubuntu-latest
     steps:
@@ -27,6 +38,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
   windows:
+    timeout-minutes: 30
     runs-on: windows-latest
     defaults:
       run:
@@ -49,9 +61,12 @@ jobs:
         run: cmake --build build
       - name: Test
         run: ctest --test-dir build --output-on-failure
+      # Only main's build is worth keeping; PR runs would just fill the storage.
       - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
         with:
           name: tinysprite-windows
+          retention-days: 14
           path: |
             build/src/ui/tinysprite.exe
             build/src/ui/SDL2.dll
