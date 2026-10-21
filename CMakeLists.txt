@@ -16,14 +16,9 @@ if(TINYSPRITE_SANITIZE AND NOT MSVC)
 endif()
 
 # core: no SDL/ImGui dependency allowed here.
-# Sources are added per milestone, so start from an INTERFACE-less empty list.
 file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS src/core/*.c)
-if(CORE_SOURCES)
-  add_library(tinysprite_core STATIC ${CORE_SOURCES})
-else()
-  add_library(tinysprite_core INTERFACE)
-endif()
-target_include_directories(tinysprite_core INTERFACE include)
+add_library(tinysprite_core STATIC ${CORE_SOURCES})
+target_include_directories(tinysprite_core PUBLIC include)
 
 file(GLOB_RECURSE IO_SOURCES CONFIGURE_DEPENDS src/io/*.c)
 if(IO_SOURCES)

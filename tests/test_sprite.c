@@ -1,0 +1,83 @@
+#include "minitest.h"
+#include "tinysprite/sprite.h"
+
+#include <string.h>
+
+TEST(create_has_one_frame_and_one_layer)
+{
+    Sprite *s = sprite_create(16, 8);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(16, sprite_width(s));
+    ASSERT_EQ_INT(8, sprite_height(s));
+    ASSERT_EQ_INT(1, sprite_frame_count(s));
+    ASSERT_EQ_INT(1, sprite_layer_count(s));
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 0)), "Layer 1") == 0);
+    ASSERT_EQ_INT(0, palette_count(sprite_palette(s)));
+    sprite_destroy(s);
+}
+
+TEST(create_rejects_invalid_size)
+{
+    ASSERT_TRUE(sprite_create(0, 8) == NULL);
+    ASSERT_TRUE(sprite_create(8, -1) == NULL);
+    ASSERT_TRUE(sprite_create(CEL_MAX_DIMENSION + 1, 8) == NULL);
+}
+
+TEST(destroy_null_is_safe)
+{
+    sprite_destroy(NULL);
+}
+
+TEST(first_layer_cel_matches_sprite_size)
+{
+    Sprite *s = sprite_create(16, 8);
+    Cel *c = layer_cel(sprite_layer(s, 0), 0);
+    ASSERT_TRUE(c != NULL);
+    ASSERT_EQ_INT(16, cel_width(c));
+    ASSERT_EQ_INT(8, cel_height(c));
+    sprite_destroy(s);
+}
+
+TEST(add_layer_appends_on_top)
+{
+    Sprite *s = sprite_create(4, 4);
+    Layer *top = sprite_add_layer(s, "Top");
+    ASSERT_TRUE(top != NULL);
+    ASSERT_EQ_INT(2, sprite_layer_count(s));
+    ASSERT_TRUE(sprite_layer(s, 1) == top);
+    ASSERT_TRUE(strcmp(layer_name(top), "Top") == 0);
+    ASSERT_EQ_INT(4, cel_width(layer_cel(top, 0)));
+    sprite_destroy(s);
+}
+
+TEST(add_many_layers_keeps_pointers_valid)
+{
+    Sprite *s = sprite_create(4, 4);
+    Layer *first = sprite_layer(s, 0);
+    for (int i = 0; i < 100; i++) {
+        ASSERT_TRUE(sprite_add_layer(s, "x") != NULL);
+    }
+    ASSERT_EQ_INT(101, sprite_layer_count(s));
+    ASSERT_TRUE(sprite_layer(s, 0) == first);
+    sprite_destroy(s);
+}
+
+TEST(layer_out_of_range_is_null)
+{
+    Sprite *s = sprite_create(4, 4);
+    ASSERT_TRUE(sprite_layer(s, -1) == NULL);
+    ASSERT_TRUE(sprite_layer(s, 1) == NULL);
+    sprite_destroy(s);
+}
+
+int main(void)
+{
+    RUN(create_has_one_frame_and_one_layer);
+    RUN(create_rejects_invalid_size);
+    RUN(destroy_null_is_safe);
+    RUN(first_layer_cel_matches_sprite_size);
+    RUN(add_layer_appends_on_top);
+    RUN(add_many_layers_keeps_pointers_valid);
+    RUN(layer_out_of_range_is_null);
+    return TEST_SUMMARY();
+}
