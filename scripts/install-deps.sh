@@ -13,4 +13,4 @@ fi
 $sudo apt-get update
 # shellcheck disable=SC2086
 $sudo apt-get install -y --no-install-recommends \
-    build-essential cmake git clang-format clang-tidy shellcheck libsdl2-dev
+    build-essential cmake ccache git clang-format clang-tidy shellcheck libsdl2-dev

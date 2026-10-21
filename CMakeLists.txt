@@ -14,7 +14,13 @@ if(NOT TINYSPRITE_BUILD_UI)
   message(STATUS "tinysprite: UI not built (SDL2 not found, or TINYSPRITE_BUILD_UI=OFF)")
 endif()
 
+option(TINYSPRITE_WERROR "Treat compiler warnings as errors (CI)" OFF)
+
 add_compile_options(-Wall -Wextra -Wpedantic)
+if(TINYSPRITE_WERROR)
+  # Vendored code (stb, ImGui) is built with -w, which still wins over this.
+  add_compile_options(-Werror)
+endif()
 if(TINYSPRITE_SANITIZE AND NOT MSVC)
   add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
   add_link_options(-fsanitize=address,undefined)
