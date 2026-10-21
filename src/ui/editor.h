@@ -222,6 +222,24 @@ class Editor
     }
     void setPlayMode(PlayMode mode);
 
+    /* Onion skin: the neighbouring frames drawn faintly under the current one. The ghost counts
+     * are limited to 0..ONION_MAX_FRAMES. It is hidden while the animation plays. */
+    bool onionEnabled() const
+    {
+        return onionOn_;
+    }
+    const OnionSkin &onionSkin() const
+    {
+        return onion_;
+    }
+    void setOnion(bool enabled, OnionSkin skin);
+
+    /* The color the canvas last showed at (x, y), ghosts included. */
+    Rgba shownPixel(int x, int y) const
+    {
+        return surface_->pixelAt(x, y);
+    }
+
     /* The cel under the mouse, set by the canvas every frame; valid when hovering() is true. */
     void setHover(int x, int y, bool hovering);
     int hoverX() const
@@ -499,6 +517,8 @@ class Editor
     int frame_ = 0;
     Playback playback_;
     PlayMode playMode_ = PlayMode::Forward;
+    bool onionOn_ = false;
+    OnionSkin onion_;
     ToolOptions options_;
     ViewState view_;
     int hoverX_ = 0;

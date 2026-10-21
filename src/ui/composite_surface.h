@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "tinysprite/composite.h"
 #include "tinysprite/palette.h"
 #include "tinysprite/rect.h"
 #include "tinysprite/sprite.h"
@@ -38,8 +39,8 @@ class CompositeSurface
     }
 
     /* Composites the dirty area of `frame` of the sprite (which must have the surface's size) and
-     * uploads it. */
-    void update(const Sprite &sprite, int frame);
+     * uploads it; with `onion` the neighbouring frames are drawn faintly under it. */
+    void update(const Sprite &sprite, int frame, const OnionSkin *onion = nullptr);
 
     /* The last composited color at (x, y). */
     Rgba pixelAt(int x, int y) const;

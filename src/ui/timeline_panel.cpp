@@ -134,6 +134,36 @@ void TimelinePanel::toolbar()
     theme::tip("Direction of playback.");
 }
 
+/* The second toolbar row: the onion skin switch and how many ghosts it shows. */
+void TimelinePanel::onionControls()
+{
+    bool on = editor_.onionEnabled();
+    OnionSkin skin = editor_.onionSkin();
+    bool changed = ImGui::Checkbox("Onion skin", &on);
+    theme::tip("Show the neighbouring frames faintly under this one (not while playing).");
+    ImGui::BeginDisabled(!on);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(60.0f);
+    changed |= ImGui::DragInt("Before", &skin.before, 0.1f, 0, ONION_MAX_FRAMES);
+    theme::tip("Previous frames shown, tinted red.");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(60.0f);
+    changed |= ImGui::DragInt("After", &skin.after, 0.1f, 0, ONION_MAX_FRAMES);
+    theme::tip("Following frames shown, tinted blue.");
+    ImGui::SameLine();
+    int percent = (skin.opacity * 100 + 127) / 255;
+    ImGui::SetNextItemWidth(100.0f);
+    if (ImGui::SliderInt("Strength", &percent, 5, 100, "%d%%")) {
+        skin.opacity = static_cast<uint8_t>((percent * 255 + 50) / 100);
+        changed = true;
+    }
+    theme::tip("How strongly the nearest ghost shows; farther ones fade out.");
+    ImGui::EndDisabled();
+    if (changed) {
+        editor_.setOnion(on, skin);
+    }
+}
+
 void TimelinePanel::grid()
 {
     const Sprite &sprite = editor_.sprite();
@@ -241,6 +271,7 @@ void TimelinePanel::show(float x, float y, float width)
     if (ImGui::Begin("Timeline", nullptr, FLAGS)) {
         ImGui::BeginDisabled(editor_.stroking());
         toolbar();
+        onionControls();
         grid();
         ImGui::EndDisabled();
     }

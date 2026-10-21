@@ -14,7 +14,7 @@
 class TimelinePanel
 {
   public:
-    static constexpr float HEIGHT = 170.0f;
+    static constexpr float HEIGHT = 196.0f;
 
     explicit TimelinePanel(Editor &editor);
 
@@ -33,6 +33,7 @@ class TimelinePanel
 
   private:
     void toolbar();
+    void onionControls();
     void grid();
     void refreshFilled();
     bool filled(int layer, int frame) const;

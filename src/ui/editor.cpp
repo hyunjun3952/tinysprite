@@ -195,7 +195,8 @@ void Editor::markAllDirty()
 
 void Editor::updateTexture()
 {
-    surface_->update(sprite(), frame_);
+    OnionSkin ghosts = onion_;
+    surface_->update(sprite(), frame_, onionOn_ && !playing() ? &ghosts : nullptr);
 }
 
 void Editor::zoomStep(int direction)

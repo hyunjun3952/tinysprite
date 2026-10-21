@@ -39,7 +39,7 @@ void CompositeSurface::markAllDirty()
     dirty_ = true;
 }
 
-void CompositeSurface::update(const Sprite &sprite, int frame)
+void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *onion)
 {
     if (!dirty_) {
         return;
@@ -49,7 +49,11 @@ void CompositeSurface::update(const Sprite &sprite, int frame)
     if (rect_is_empty(r)) {
         return;
     }
-    composite_sprite(sprite, frame, r, pixels_.data());
+    if (onion) {
+        composite_onion(sprite, frame, *onion, r, pixels_.data());
+    } else {
+        composite_sprite(sprite, frame, r, pixels_.data());
+    }
     SDL_Rect rect = {r.x, r.y, r.w, r.h};
     const Rgba *origin =
         &pixels_[static_cast<size_t>(r.y) * static_cast<size_t>(width_) + static_cast<size_t>(r.x)];

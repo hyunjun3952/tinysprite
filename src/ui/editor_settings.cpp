@@ -43,6 +43,10 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "view.cursor", overlays_.cursor);
     settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_set_bool(settings, "view.timeline", overlays_.timeline);
+    settings_set_bool(settings, "onion.on", onionOn_);
+    settings_set_int(settings, "onion.before", onion_.before);
+    settings_set_int(settings, "onion.after", onion_.after);
+    settings_set_int(settings, "onion.opacity", onion_.opacity);
     settings_set_int(settings, "brush.size", options_.brush_size);
     settings_set_bool(settings, "brush.round", options_.brush_round);
     settings_set_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
@@ -62,6 +66,20 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "view.cursor", overlays_.cursor);
     settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_get_bool(settings, "view.timeline", overlays_.timeline);
+    bool onionOn = onionOn_;
+    OnionSkin onion = onion_;
+    int value = 0;
+    settings_get_bool(settings, "onion.on", onionOn);
+    if (settings_get_int(settings, "onion.before", 0, ONION_MAX_FRAMES, value)) {
+        onion.before = value;
+    }
+    if (settings_get_int(settings, "onion.after", 0, ONION_MAX_FRAMES, value)) {
+        onion.after = value;
+    }
+    if (settings_get_int(settings, "onion.opacity", 0, 255, value)) {
+        onion.opacity = static_cast<uint8_t>(value);
+    }
+    setOnion(onionOn, onion);
     settings_get_int(settings, "brush.size", 1, PENCIL_BRUSH_MAX, options_.brush_size);
     settings_get_bool(settings, "brush.round", options_.brush_round);
     settings_get_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);

@@ -122,6 +122,11 @@ void App::viewMenu()
     theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
     ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
     theme::tip("Draw the center lines that Mirror X / Y reflect across.");
+    bool onion = editor_->onionEnabled();
+    if (ImGui::MenuItem("Onion skin", nullptr, &onion)) {
+        editor_->setOnion(onion, editor_->onionSkin());
+    }
+    theme::tip("Show the neighbouring frames faintly under the current one.");
     ImGui::MenuItem("Timeline", nullptr, &editor_->overlays().timeline);
     theme::tip("The frames and playback strip along the bottom of the window.");
     ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);

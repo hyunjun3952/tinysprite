@@ -211,6 +211,78 @@ TEST(playback_with_one_frame_stays_on_it)
     delete e;
 }
 
+TEST(onion_skin_shows_the_previous_frame_under_the_current_one)
+{
+    Editor *e = make_editor();
+    dot(e, 2, 2); /* frame 0 */
+    e->addFrame();
+    e->updateTexture();
+    ASSERT_EQ_INT(0, e->shownPixel(2, 2).a);
+    e->setOnion(true, OnionSkin{1, 1, 100});
+    e->updateTexture();
+    ASSERT_TRUE(e->onionEnabled());
+    ASSERT_TRUE(e->shownPixel(2, 2).a > 0);
+    e->setOnion(false, OnionSkin{1, 1, 100});
+    e->updateTexture();
+    ASSERT_EQ_INT(0, e->shownPixel(2, 2).a);
+    delete e;
+}
+
+TEST(onion_skin_follows_edits_of_the_current_frame)
+{
+    Editor *e = make_editor();
+    dot(e, 2, 2);
+    e->addFrame();
+    e->setOnion(true, OnionSkin{1, 0, 100});
+    e->updateTexture();
+    dot(e, 2, 2); /* the current frame now covers its own ghost */
+    e->updateTexture();
+    ASSERT_EQ_INT(255, e->shownPixel(2, 2).a);
+    delete e;
+}
+
+TEST(onion_skin_is_hidden_while_playing)
+{
+    Editor *e = make_editor();
+    dot(e, 2, 2);
+    e->addFrame();
+    e->setOnion(true, OnionSkin{1, 0, 100});
+    e->updateTexture();
+    ASSERT_TRUE(e->shownPixel(2, 2).a > 0);
+    e->togglePlayback();
+    e->updateTexture();
+    ASSERT_EQ_INT(0, e->shownPixel(2, 2).a);
+    e->togglePlayback();
+    e->updateTexture();
+    ASSERT_TRUE(e->shownPixel(2, 2).a > 0);
+    delete e;
+}
+
+TEST(onion_skin_settings_survive_a_settings_round_trip)
+{
+    Editor *e = make_editor();
+    e->setOnion(true, OnionSkin{3, 2, 40});
+    SettingsMap settings;
+    e->store(settings);
+    Editor *f = make_editor();
+    f->load(settings);
+    ASSERT_TRUE(f->onionEnabled());
+    ASSERT_EQ_INT(3, f->onionSkin().before);
+    ASSERT_EQ_INT(2, f->onionSkin().after);
+    ASSERT_EQ_INT(40, f->onionSkin().opacity);
+    delete e;
+    delete f;
+}
+
+TEST(onion_skin_settings_are_limited)
+{
+    Editor *e = make_editor();
+    e->setOnion(true, OnionSkin{-4, 999, 255});
+    ASSERT_EQ_INT(0, e->onionSkin().before);
+    ASSERT_EQ_INT(ONION_MAX_FRAMES, e->onionSkin().after);
+    delete e;
+}
+
 int main(void)
 {
     if (!ui_init()) {
@@ -232,6 +304,11 @@ int main(void)
     RUN(a_press_while_playing_stops_playback_and_draws_nothing);
     RUN(frame_edits_and_undo_stop_playback);
     RUN(playback_with_one_frame_stays_on_it);
+    RUN(onion_skin_shows_the_previous_frame_under_the_current_one);
+    RUN(onion_skin_follows_edits_of_the_current_frame);
+    RUN(onion_skin_is_hidden_while_playing);
+    RUN(onion_skin_settings_survive_a_settings_round_trip);
+    RUN(onion_skin_settings_are_limited);
     ui_quit();
     return TEST_SUMMARY();
 }

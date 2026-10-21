@@ -79,12 +79,25 @@ void Editor::togglePlayback()
         stopPlayback();
     } else if (!stroking()) {
         playback_.start(frame_, 0, sprite().frameCount() - 1, playMode_);
+        markAllDirty(); /* the onion skin is hidden while playing */
     }
 }
 
 void Editor::stopPlayback()
 {
-    playback_.stop();
+    if (playing()) {
+        playback_.stop();
+        markAllDirty();
+    }
+}
+
+void Editor::setOnion(bool enabled, OnionSkin skin)
+{
+    skin.before = std::clamp(skin.before, 0, ONION_MAX_FRAMES);
+    skin.after = std::clamp(skin.after, 0, ONION_MAX_FRAMES);
+    onionOn_ = enabled;
+    onion_ = skin;
+    markAllDirty();
 }
 
 void Editor::setPlayMode(PlayMode mode)
