@@ -50,6 +50,12 @@ if(TINYSPRITE_BUILD_UI)
   add_test(NAME ui_canvas COMMAND test_ui_canvas)
   set_tests_properties(ui_canvas PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
 
+  # Settings file, panel layout persistence and the autosave recovery copy (no window needed).
+  add_executable(test_ui_settings ui/ui_settings.cpp)
+  target_include_directories(test_ui_settings PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/third_party/imgui)
+  target_link_libraries(test_ui_settings PRIVATE tinysprite_ui tinysprite_test_support)
+  add_test(NAME ui_settings COMMAND test_ui_settings)
+
   # The icon bitmaps are data: check their shape.
   add_executable(test_ui_icons ui/ui_icons.cpp)
   target_link_libraries(test_ui_icons PRIVATE tinysprite_ui tinysprite_test_support)
@@ -59,4 +65,15 @@ if(TINYSPRITE_BUILD_UI)
   # while building the UI fails the build.
   add_test(NAME ui_smoke COMMAND tinysprite 16 --frames 3)
   set_tests_properties(ui_smoke PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+
+  # A run with --config-dir leaves its settings behind on exit; the second test looks for them.
+  set(PERSIST_DIR ${CMAKE_CURRENT_BINARY_DIR}/persist_config)
+  add_test(NAME ui_persist_run
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${PERSIST_DIR})
+  add_test(NAME ui_persist_write COMMAND tinysprite 16 --frames 3 --config-dir ${PERSIST_DIR})
+  add_test(NAME ui_persist_check
+    COMMAND ${CMAKE_COMMAND} -DFILE=${PERSIST_DIR}/settings.ini -P ${CMAKE_CURRENT_SOURCE_DIR}/check_file.cmake)
+  set_tests_properties(ui_persist_run PROPERTIES FIXTURES_SETUP persist_clean)
+  set_tests_properties(ui_persist_write PROPERTIES FIXTURES_REQUIRED persist_clean FIXTURES_SETUP persist_written ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+  set_tests_properties(ui_persist_check PROPERTIES FIXTURES_REQUIRED persist_written)
 endif()

@@ -1,8 +1,10 @@
 #include "panels.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <initializer_list>
+#include <string>
 
 #include "imgui.h"
 #include "theme.h"
@@ -241,6 +243,56 @@ bool Panels::begin(PanelId id, float height)
     }
     dragToDock(panel);
     return shown;
+}
+
+namespace
+{
+
+std::string keyPrefix(const char *title)
+{
+    std::string key = "panel.";
+    for (const char *c = title; *c; c++) {
+        key += static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
+    }
+    return key + ".";
+}
+
+} // namespace
+
+void Panels::store(SettingsMap &settings) const
+{
+    for (const Panel &panel : panels_) {
+        std::string prefix = keyPrefix(panel.title);
+        settings_set_bool(settings, prefix + "visible", panel.visible);
+        settings_set_int(settings, prefix + "side", static_cast<int>(panel.side));
+        settings_set_int(settings, prefix + "home", static_cast<int>(panel.home));
+        settings_set_float(settings, prefix + "width", panel.width);
+        for (const Section &section : panel.sections) {
+            settings_set_bool(settings, prefix + "section." + section.name, section.visible);
+        }
+    }
+}
+
+void Panels::load(const SettingsMap &settings)
+{
+    for (Panel &panel : panels_) {
+        std::string prefix = keyPrefix(panel.title);
+        settings_get_bool(settings, prefix + "visible", panel.visible);
+        int side = 0;
+        if (settings_get_int(settings, prefix + "side", 0, 2, side)) {
+            panel.side = static_cast<DockSide>(side);
+            panel.place = panel.side == DockSide::Float; /* floats near where it docks */
+        }
+        int home = 0;
+        if (settings_get_int(settings, prefix + "home", 0, 1, home)) {
+            panel.home = static_cast<DockSide>(home);
+        }
+        settings_get_float(settings, prefix + "width", PANEL_MIN_WIDTH, PANEL_MAX_WIDTH,
+                           panel.width);
+        for (Section &section : panel.sections) {
+            settings_get_bool(settings, prefix + "section." + section.name, section.visible);
+        }
+    }
 }
 
 bool Panels::visible(PanelId id) const

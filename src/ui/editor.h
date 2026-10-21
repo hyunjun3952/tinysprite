@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "settings.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
 #include "tinysprite/selection.h"
@@ -261,10 +262,23 @@ class Editor
 
     /* The document has been saved: the history and the palette are clean again. */
     void markSaved();
-    /* True when the palette changed since the last save (it is not part of undo). */
-    bool paletteModified() const
+    /* Counts the document as having unsaved changes although the history is at its save point. */
+    void markModified()
     {
-        return paletteModified_;
+        modifiedOutsideHistory_ = true;
+    }
+
+    /* A blank document of the given size with the default palette, replacing the current one.
+     * Returns false (nothing changes) for an invalid size or while a tool is being dragged. */
+    bool newDocument(int width, int height);
+    /* Replaces the sprite's palette (not undoable); the selection is dropped and the document
+     * counts as modified. */
+    void setPalette(Palette palette);
+    /* True when something changed since the last save that the undo history does not know about:
+     * the palette, or a document that was recovered from an autosave. */
+    bool modifiedOutsideHistory() const
+    {
+        return modifiedOutsideHistory_;
     }
     void palettePick(int index);
     /* Replaces the palette with the default colors (not undoable, like the other palette edits). */
@@ -288,8 +302,9 @@ class Editor
 
     /* Mouse handling for the active tool, in cel coordinates (which may lie outside the sprite).
      * press starts a drag when the tool accepts it, drag is called every frame while the button
-     * is held, release commits. Each one marks the cels it changes dirty. The drawing tools only
-     * change cels inside the selection while there is one. */
+     * is held, release commits. Shift held while dragging a shape keeps it square (a line snaps to
+     * 45 degrees). Each one marks the cels it changes dirty. The drawing tools only change cels
+     * inside the selection while there is one. */
     void press(int cx, int cy, bool shift = false);
 
     /* Shift+press with the pencil or eraser draws a line from the end of the previous pencil /
@@ -304,7 +319,7 @@ class Editor
     {
         lastDrawPoint_ = ToolPoint{x, y};
     }
-    void drag(int cx, int cy);
+    void drag(int cx, int cy, bool shift = false);
     void release();
 
     /* Aborts the current drag, reverting its pixels. Does nothing when no drag is active. */
@@ -343,6 +358,12 @@ class Editor
 
     /* Re-composites the dirty region and uploads it to the texture. */
     void updateTexture();
+
+    /* The preferences worth keeping between runs (grid, overlays, brush and shape options, colors,
+     * tool) go to / come from the settings; invalid entries keep the current value. Symmetry is not
+     * kept: it starts off every time. */
+    void store(SettingsMap &settings) const;
+    void load(const SettingsMap &settings);
 
     /* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
     void zoomStep(int direction);
@@ -451,7 +472,7 @@ class Editor
     float bgColor_[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     RecentColors recent_ = {};
     int paletteSelected_ = -1;
-    bool paletteModified_ = false;
+    bool modifiedOutsideHistory_ = false;
     bool showGrid_ = true;
     Overlays overlays_;
     int activeLayer_ = 0;

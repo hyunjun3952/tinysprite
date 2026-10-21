@@ -17,6 +17,8 @@ namespace
 
 constexpr int WINDOW_WIDTH = 1100;
 constexpr int WINDOW_HEIGHT = 720;
+constexpr Uint32 AUTOSAVE_INTERVAL_MS = 30000;
+constexpr size_t RECENT_MAX = 10;
 
 } // namespace
 
@@ -49,8 +51,16 @@ bool App::init(const AppOptions &options)
         std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return false;
     }
+    /* Smoke runs (--frames) neither read nor write the user's settings and autosave. */
+    persist_ = options.maxFrames == 0 || !options.configDir.empty();
+    configDir_ = !options.configDir.empty() ? options.configDir : persist_ ? config_dir() : "";
+    SettingsMap settings = settings_load(configDir_);
+    int windowWidth = WINDOW_WIDTH;
+    int windowHeight = WINDOW_HEIGHT;
+    settings_get_int(settings, "window.width", 320, 16384, windowWidth);
+    settings_get_int(settings, "window.height", 240, 16384, windowHeight);
     window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                               WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
+                               windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
     if (window_) {
         renderer_ =
             SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -81,6 +91,12 @@ bool App::init(const AppOptions &options)
         std::fprintf(stderr, "failed to initialise the editor\n");
         return false;
     }
+    editor_->load(settings);
+    panels_.load(settings);
+    recent_ = settings_get_recent(settings, RECENT_MAX);
+    settings_get_int(settings, "export.scale", 1, IMAGE_EXPORT_MAX_SCALE, exportScale_);
+    settings_get_int(settings, "new.width", 1, CEL_MAX_DIMENSION, newWidth_);
+    settings_get_int(settings, "new.height", 1, CEL_MAX_DIMENSION, newHeight_);
     canvas_ = std::make_unique<Canvas>(*editor_);
     toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
     layersPanel_ = std::make_unique<LayersPanel>(*editor_);
@@ -88,12 +104,17 @@ bool App::init(const AppOptions &options)
         std::fprintf(stderr, "%s\n", fileError_.c_str());
         return false;
     }
+    if (persist_) {
+        recovered_ = recovery_load(configDir_);
+        openRecover_ = recovered_.has_value();
+    }
+    lastAutosave_ = SDL_GetTicks();
     return true;
 }
 
 bool App::dirty() const
 {
-    return !editor_->history().atSavePoint() || editor_->paletteModified();
+    return !editor_->history().atSavePoint() || editor_->modifiedOutsideHistory();
 }
 
 /* "name.pxa" or "untitled", with a trailing "*" while there are unsaved changes. */
@@ -172,14 +193,149 @@ void App::dropFile(const std::string &path)
     if (editor_->stroking()) {
         return;
     }
-    guardUnsaved([this, path] {
-        if (!openPath(path)) {
-            std::string error = fileError_;
-            askForPath(FileAction::Open);
-            fileError_ = error;
-            std::snprintf(pathInput_, sizeof(pathInput_), "%s", path.c_str());
+    guardUnsaved([this, path] { openOrAsk(path); });
+}
+
+void App::openOrAsk(const std::string &path)
+{
+    if (!openPath(path)) {
+        std::string error = fileError_;
+        askForPath(FileAction::Open);
+        fileError_ = error;
+        std::snprintf(pathInput_, sizeof(pathInput_), "%s", path.c_str());
+    }
+}
+
+/* "New sprite": a size, then a blank document. */
+void App::newDialog()
+{
+    static const char *const TITLE = "New sprite";
+    if (openNew_) {
+        ImGui::OpenPopup(TITLE);
+        openNew_ = false;
+    }
+    newShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (!newShown_) {
+        return;
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Presets");
+    for (int size : {16, 32, 64, 128, 256}) {
+        ImGui::SameLine();
+        ImGui::PushID(size);
+        if (ImGui::Button(std::to_string(size).c_str())) {
+            newWidth_ = size;
+            newHeight_ = size;
         }
-    });
+        ImGui::PopID();
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Width ");
+    ImGui::SameLine();
+    ImGui::InputInt("##new_width", &newWidth_, 1, 16);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Height");
+    ImGui::SameLine();
+    ImGui::InputInt("##new_height", &newHeight_, 1, 16);
+    newWidth_ = std::clamp(newWidth_, 1, CEL_MAX_DIMENSION);
+    newHeight_ = std::clamp(newHeight_, 1, CEL_MAX_DIMENSION);
+    bool close = false;
+    if (ImGui::Button("Create") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+        if (editor_->newDocument(newWidth_, newHeight_)) {
+            filePath_.clear();
+            close = true;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        close = true;
+    }
+    if (close) {
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
+/* Offered at start when the last session left an autosave copy behind (it did not exit cleanly). */
+void App::recoverDialog()
+{
+    static const char *const TITLE = "Recover unsaved work";
+    if (openRecover_) {
+        ImGui::OpenPopup(TITLE);
+        openRecover_ = false;
+    }
+    recoverShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (!recoverShown_) {
+        return;
+    }
+    ImGui::TextUnformatted("tinysprite did not exit cleanly last time.");
+    if (recovered_) {
+        ImGui::Text("Recover the unsaved changes to %s?",
+                    recovered_->path.empty() ? "an untitled sprite" : recovered_->path.c_str());
+    }
+    bool close = false;
+    if (ImGui::Button("Recover")) {
+        if (recovered_ && editor_->setSprite(std::move(recovered_->sprite))) {
+            filePath_ = recovered_->path;
+            editor_->markModified();
+        }
+        close = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Discard")) {
+        close = true;
+    }
+    if (close) {
+        recovered_.reset();
+        recovery_clear(configDir_);
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
+/* While the document has unsaved changes, a copy goes to the config directory every so often; a
+ * document that is clean again no longer needs one. */
+void App::autosave()
+{
+    if (!persist_ || recovered_) {
+        return;
+    }
+    if (!dirty()) {
+        if (hasAutosave_) {
+            recovery_clear(configDir_);
+            hasAutosave_ = false;
+        }
+        return;
+    }
+    Uint32 now = SDL_GetTicks();
+    if (editor_->stroking() || now - lastAutosave_ < AUTOSAVE_INTERVAL_MS) {
+        return;
+    }
+    lastAutosave_ = now;
+    hasAutosave_ = recovery_save(configDir_, editor_->sprite(), filePath_) || hasAutosave_;
+}
+
+void App::shutdown()
+{
+    if (!persist_) {
+        return;
+    }
+    SettingsMap settings = settings_load(configDir_); /* keep keys this version does not know */
+    editor_->store(settings);
+    panels_.store(settings);
+    settings_set_recent(settings, recent_);
+    settings_set_int(settings, "export.scale", exportScale_);
+    settings_set_int(settings, "new.width", newWidth_);
+    settings_set_int(settings, "new.height", newHeight_);
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(window_, &width, &height);
+    settings_set_int(settings, "window.width", width);
+    settings_set_int(settings, "window.height", height);
+    settings_save(configDir_, settings);
+    if (!recovered_) {
+        recovery_clear(configDir_);
+    }
 }
 
 void App::layersWindow(float height)
@@ -197,17 +353,47 @@ void App::menuBar()
     }
     if (ImGui::BeginMenu("File")) {
         bool idle = !editor_->stroking();
+        if (ImGui::MenuItem("New...", "Ctrl+N", false, idle)) {
+            guardUnsaved([this] { openNew_ = true; });
+        }
         if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
             guardUnsaved([this] { askForPath(FileAction::Open); });
+        }
+        if (ImGui::BeginMenu("Open recent", idle && !recent_.empty())) {
+            std::string chosen;
+            for (size_t i = 0; i < recent_.size(); i++) {
+                ImGui::PushID(static_cast<int>(i));
+                std::string name = recent_[i].substr(recent_[i].find_last_of("/\\") + 1);
+                if (ImGui::MenuItem(name.c_str())) {
+                    chosen = recent_[i];
+                }
+                theme::tip(recent_[i].c_str());
+                ImGui::PopID();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Clear list")) {
+                recent_.clear();
+            }
+            ImGui::EndMenu();
+            if (!chosen.empty()) {
+                guardUnsaved([this, chosen] { openOrAsk(chosen); });
+            }
         }
         if (ImGui::MenuItem("Save", "Ctrl+S")) {
             save();
         }
-        if (ImGui::MenuItem("Save as...")) {
+        if (ImGui::MenuItem("Save as...", "Ctrl+Shift+S")) {
             askForPath(FileAction::SaveAs);
         }
-        if (ImGui::MenuItem("Export image...")) {
+        if (ImGui::MenuItem("Export image...", "Ctrl+E")) {
             askForPath(FileAction::ExportImage);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
+            askForPath(FileAction::ImportPalette);
+        }
+        if (ImGui::MenuItem("Export palette...")) {
+            askForPath(FileAction::ExportPalette);
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Quit")) {
@@ -239,13 +425,13 @@ void App::menuBar()
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("View")) {
-        if (ImGui::MenuItem("Zoom in", "Wheel up")) {
+        if (ImGui::MenuItem("Zoom in", "Ctrl++")) {
             editor_->zoomStep(1);
         }
-        if (ImGui::MenuItem("Zoom out", "Wheel down")) {
+        if (ImGui::MenuItem("Zoom out", "Ctrl+-")) {
             editor_->zoomStep(-1);
         }
-        if (ImGui::MenuItem("Fit", "F")) {
+        if (ImGui::MenuItem("Fit", "F, Ctrl+0")) {
             editor_->view().needs_fit = true;
         }
         ImGui::Separator();
@@ -300,8 +486,8 @@ void App::handleShortcuts()
 {
     const ImGuiIO &io = ImGui::GetIO();
     /* The file / unsaved-changes dialogs are modal: nothing behind them may react. */
-    bool modal =
-        fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") || openConfirm_;
+    bool modal = fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") ||
+                 openConfirm_ || openNew_ || openRecover_ || newShown_ || recoverShown_;
     if (io.WantTextInput || layersPanel_->dialogOpen() || toolsPanel_->dialogOpen() || modal) {
         editor_->tempPick(false);
         return;
@@ -335,10 +521,26 @@ void App::handleShortcuts()
         }
         return;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_O, false)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_N, false)) {
+        guardUnsaved([this] { openNew_ = true; });
+    } else if (ImGui::IsKeyPressed(ImGuiKey_0, false) ||
+               ImGui::IsKeyPressed(ImGuiKey_Keypad0, false)) {
+        editor_->view().needs_fit = true;
+    } else if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) {
+        editor_->zoomStep(1);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_Minus) ||
+               ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) {
+        editor_->zoomStep(-1);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_O, false)) {
         guardUnsaved([this] { askForPath(FileAction::Open); });
     } else if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-        save();
+        if (io.KeyShift) {
+            askForPath(FileAction::SaveAs);
+        } else {
+            save();
+        }
+    } else if (ImGui::IsKeyPressed(ImGuiKey_E, false)) {
+        askForPath(FileAction::ExportImage);
     } else if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
         if (io.KeyShift) {
             editor_->redo();
@@ -373,6 +575,8 @@ void App::helpWindow()
         {"Shift + click", "Pencil / eraser: straight line from the last point"},
         {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
         {"Wheel", "Zoom at the cursor"},
+        {"Ctrl + / Ctrl - / Ctrl+0", "Zoom in / out / fit the sprite"},
+        {"Shift (while dragging a shape)", "Square box or circle; a line snaps to 45 degrees"},
         {"Right / middle drag, Space + drag", "Pan"},
         {"Mouse wheel, F", "Zoom at the cursor, fit the sprite"},
         {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
@@ -381,7 +585,8 @@ void App::helpWindow()
          "Select one layer, add or remove one, select a range"},
         {"Delete (layer list focused)", "Delete the selected layers, after asking"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
-        {"Ctrl+O, Ctrl+S", "Open, save"},
+        {"Ctrl+N, Ctrl+O", "New, open"},
+        {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},
         {"F1", "This window"},
     };
     ImGui::SetNextWindowSize(ImVec2(620, 0), ImGuiCond_Appearing);
@@ -436,6 +641,9 @@ bool App::openPath(const std::string &path)
         fileError_ = "Cannot open " + path + " right now";
     } else {
         filePath_ = isPxa ? path : "";
+        if (isPxa) {
+            recent_add(recent_, path, RECENT_MAX);
+        }
         return true;
     }
     return false;
@@ -453,11 +661,28 @@ bool App::runFileAction(const std::string &path)
             return false;
         }
         filePath_ = path;
+        recent_add(recent_, path, RECENT_MAX);
         editor_->markSaved();
         return true;
     case FileAction::ExportImage:
-        if (!image_export(editor_->sprite(), editor_->frame(), path)) {
-            fileError_ = "Cannot write " + path;
+        if (!image_export(editor_->sprite(), editor_->frame(), path, exportScale_)) {
+            fileError_ = "Cannot write " + path +
+                         " (use .png, .bmp, .tga or .jpg; the image can be up to 16384 px)";
+            return false;
+        }
+        return true;
+    case FileAction::ImportPalette: {
+        std::optional<Palette> palette = palette_load(path);
+        if (!palette) {
+            fileError_ = "Cannot read " + path + " (a .gpl or .hex palette)";
+            return false;
+        }
+        editor_->setPalette(std::move(*palette));
+        return true;
+    }
+    case FileAction::ExportPalette:
+        if (!palette_save(editor_->sprite().palette(), path)) {
+            fileError_ = "Cannot write " + path + " (use a .gpl or .hex file name)";
             return false;
         }
         return true;
@@ -469,7 +694,8 @@ bool App::runFileAction(const std::string &path)
 
 void App::fileDialog()
 {
-    static const char *const TITLES[] = {"", "Open", "Save as", "Export image"};
+    static const char *const TITLES[] = {
+        "", "Open", "Save as", "Export image", "Import palette", "Export palette"};
     const char *title = TITLES[static_cast<int>(fileAction_)];
     if (openFileDialog_) {
         ImGui::OpenPopup(title);
@@ -481,9 +707,24 @@ void App::fileDialog()
     if (ImGui::IsWindowAppearing()) {
         ImGui::SetKeyboardFocusHere();
     }
-    bool enter = ImGui::InputText("Path", pathInput_, sizeof(pathInput_),
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Path");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(360.0f);
+    bool enter = ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
                                   ImGuiInputTextFlags_EnterReturnsTrue);
     const std::string path = pathInput_;
+    if (fileAction_ == FileAction::ExportImage) {
+        /* Whole-pixel enlargement, shown as the size it gives. */
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Scale");
+        ImGui::SameLine();
+        ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
+        exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
+        ImGui::SameLine();
+        ImGui::TextDisabled("%d x %d px", editor_->sprite().width() * exportScale_,
+                            editor_->sprite().height() * exportScale_);
+    }
     if (!fileError_.empty()) {
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());
     }
@@ -560,8 +801,11 @@ void App::run(const AppOptions &options)
                       viewport->WorkSize.x - left - right, viewport->WorkSize.y);
         fileDialog();
         confirmDialog();
+        newDialog();
+        recoverDialog();
         helpWindow();
         handleShortcuts();
+        autosave();
         updateTitle();
 
         SDL_SetRenderDrawColor(renderer_, (theme::WORKSPACE >> 16) & 0xff,
@@ -579,4 +823,5 @@ void App::run(const AppOptions &options)
             running_ = false;
         }
     }
+    shutdown();
 }

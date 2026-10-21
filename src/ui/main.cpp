@@ -21,8 +21,8 @@ bool parseNumber(const char *text, int min, int max, int &out)
     return true;
 }
 
-constexpr const char *USAGE =
-    "usage: %s [file | width [height]] [--frames N [--screenshot out.bmp]] [--help]\n";
+constexpr const char *USAGE = "usage: %s [file | width [height]] [--frames N [--screenshot "
+                              "out.bmp]] [--config-dir DIR] [--help]\n";
 
 /* usage: [file | width [height]] [--frames N]; a lone width is also the height. Any other
  * argument is a file to open (so a size and a file exclude each other). */
@@ -36,6 +36,11 @@ bool parseOptions(int argc, char **argv, AppOptions &options)
             if (i >= argc || !parseNumber(argv[i], 0, INT_MAX, options.maxFrames)) {
                 return false;
             }
+        } else if (std::strcmp(argv[i], "--config-dir") == 0) {
+            if (++i >= argc) {
+                return false;
+            }
+            options.configDir = argv[i];
         } else if (std::strcmp(argv[i], "--screenshot") == 0) {
             if (++i >= argc) {
                 return false;

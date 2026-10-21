@@ -1,6 +1,5 @@
 #include <array>
 #include <cstring>
-#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -207,27 +206,7 @@ std::optional<Sprite> pxa_decode(const std::vector<uint8_t> &data)
 bool pxa_save(const Sprite &sprite, const std::string &path)
 {
     std::vector<uint8_t> data = pxa_encode(sprite);
-    /* Write beside the target and rename, so a failed write never destroys an existing file. */
-    std::string temp = path + ".tmp";
-    {
-        std::ofstream file(temp, std::ios::binary);
-        file.write(reinterpret_cast<const char *>(data.data()),
-                   static_cast<std::streamsize>(data.size()));
-        file.flush();
-        file.close();
-        if (file.fail()) {
-            std::error_code ignored;
-            std::filesystem::remove(temp, ignored);
-            return false;
-        }
-    }
-    std::error_code error;
-    std::filesystem::rename(temp, path, error);
-    if (error) {
-        std::filesystem::remove(temp, error);
-        return false;
-    }
-    return true;
+    return file_write_atomic(path, std::string(data.begin(), data.end()));
 }
 
 std::optional<Sprite> pxa_load(const std::string &path)

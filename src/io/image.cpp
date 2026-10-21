@@ -2,6 +2,8 @@
 #include <cctype>
 #include <cstring>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -29,17 +31,37 @@ void flattenOnWhite(std::vector<Rgba> &pixels)
     }
 }
 
+/* Every pixel of `source` (`width` wide) becomes a scale x scale block. */
+std::vector<Rgba> enlarge(const std::vector<Rgba> &source, int width, int scale)
+{
+    const size_t big = static_cast<size_t>(width) * static_cast<size_t>(scale);
+    const size_t rows = source.size() / static_cast<size_t>(width) * static_cast<size_t>(scale);
+    std::vector<Rgba> out(big * rows);
+    for (size_t y = 0; y < rows; y++) {
+        const size_t sourceRow = y / static_cast<size_t>(scale) * static_cast<size_t>(width);
+        for (size_t x = 0; x < big; x++) {
+            out[y * big + x] = source[sourceRow + x / static_cast<size_t>(scale)];
+        }
+    }
+    return out;
+}
+
 } // namespace
 
-bool image_export(const Sprite &sprite, int frame, const std::string &path)
+bool image_export(const Sprite &sprite, int frame, const std::string &path, int scale)
 {
-    if (frame < 0 || frame >= sprite.frameCount()) {
+    if (frame < 0 || frame >= sprite.frameCount() || scale < 1 || scale > IMAGE_EXPORT_MAX_SCALE ||
+        sprite.width() * scale > IMAGE_EXPORT_MAX_SIZE ||
+        sprite.height() * scale > IMAGE_EXPORT_MAX_SIZE) {
         return false;
     }
-    const int width = sprite.width();
-    const int height = sprite.height();
-    std::vector<Rgba> flat(static_cast<size_t>(width) * static_cast<size_t>(height));
-    composite_sprite(sprite, frame, Rect{0, 0, width, height}, flat.data());
+    const int sourceWidth = sprite.width();
+    const int sourceHeight = sprite.height();
+    std::vector<Rgba> source(static_cast<size_t>(sourceWidth) * static_cast<size_t>(sourceHeight));
+    composite_sprite(sprite, frame, Rect{0, 0, sourceWidth, sourceHeight}, source.data());
+    const int width = sourceWidth * scale;
+    const int height = sourceHeight * scale;
+    std::vector<Rgba> flat = scale == 1 ? std::move(source) : enlarge(source, sourceWidth, scale);
     const char *file = path.c_str();
     const int stride = width * static_cast<int>(sizeof(Rgba));
 

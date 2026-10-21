@@ -46,7 +46,20 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       refuses files with more than one frame until phase 2. UI: File menu Open / Save / Save as / Export image
       (Ctrl+O / Ctrl+S) with a path dialog, since there is no native file chooser; `Editor::setSprite` swaps the
       document and starts the history over. Opening an image imports it and leaves no save path.
-- [ ] **8. Polish** — palette files (.gpl/.hex), settings, autosave recovery, shortcuts, Linux/Windows build check.
+- [x] **8. Polish** — palette files (.gpl/.hex), settings, autosave recovery, shortcuts, Linux/Windows build check.
+      Palette files: `palette_encode_hex` / `_gpl`, `palette_decode` (autodetects by the "GIMP Palette" header),
+      `palette_save` / `palette_load` by extension (`io.h`; .gpl has no alpha, .hex keeps it); File > Import / Export
+      palette, import is not undoable and marks the document modified. `file_write_atomic` (temp file + rename) is shared by
+      every writer. Settings: `src/ui/settings.{h,cpp}` is a sorted key=value map in `<config dir>/settings.ini`
+      (`TINYSPRITE_CONFIG_DIR`, `--config-dir`, else XDG / `~/.config` / `%APPDATA%`); `Editor::store` / `load` (grid,
+      overlays, brush and shape options, colors, tool) and `Panels::store` / `load` (visibility, dock side, width, sections)
+      read only keys they know and ignore invalid values, the window size is kept too, symmetry never is. Autosave
+      recovery: `src/ui/recovery.{h,cpp}` writes `recovery.pxa` + `recovery.path` every 30 s while the document is
+      dirty, removes them once it is clean or on a clean exit, and the next start offers Recover / Discard
+      (`Editor::markModified` keeps a recovered document dirty). `--frames` runs touch neither unless `--config-dir` is given
+      (`ui_persist_*` tests). Shortcuts: Ctrl+N (New dialog: size), Ctrl+Shift+S, Ctrl+E, listed in F1 and the File menu.
+      Build check: Linux is built and linted with ASan/UBSan in CI; the Windows (MinGW) job builds the UI and runs the tests,
+      the new code only uses `std::filesystem` and `%APPDATA%`, but could not be built on Windows locally.
 
 ## Phase 2: animation
 Timeline, per-frame duration, onion skin, playback, tags, linked cels, GIF / spritesheet export.
@@ -151,7 +164,7 @@ headless CLI export, optional Aseprite import.
   hidden from the Window menu) used to trip "Calling End() too many times!". `tests/ui/ui_panels.cpp` covers it.
 - Unsaved changes: `History::markSaved` / `atSavePoint` track the saved state (undoing back to it counts as clean; an
   edit that replaces the saved steps or `forgetCel` makes it permanently dirty). Palette edits are outside undo, so
-  they do not mark the document dirty. `App` shows `*` in the window title and asks Save / Discard / Cancel before
+  `Editor::modifiedOutsideHistory` (also set by `markModified`) counts them as unsaved until the next save. `App` shows `*` in the window title and asks Save / Discard / Cancel before
   Open, Quit and a dropped file replace the document.
 - Opening files: `tinysprite [file | width [height]]`, `--help`, and `SDL_DROPFILE` (drop a .pxa or image on the window).
 - Layer lock (`Layer::locked`, `layer_op_set_locked`, undoable): `Editor::editableCel` returns null for a locked layer,
@@ -162,4 +175,9 @@ headless CLI export, optional Aseprite import.
   region but only writes inside the selection.
 - Shift+click with the pencil / eraser draws a line from `Editor::lastDrawPoint` (end of the previous stroke; reset when
   the document is replaced). Shift is only read at the press, not while dragging.
+- Shift while dragging a shape keeps even proportions (`shape_constrain` in `tools.h`: a square box, a circle, a line snapped to
+  horizontal / vertical / 45 degrees); `Editor::drag(cx, cy, shift)` passes it to `Drag::setShift`.
+- `image_export(..., scale)` enlarges by whole pixels (1..`IMAGE_EXPORT_MAX_SCALE`, at most `IMAGE_EXPORT_MAX_SIZE` px); the
+  Export image dialog has a Scale field that is remembered. File > Open recent keeps ten `.pxa` paths (`recent_add`,
+  `recent.N` keys), the New dialog has 16 / 32 / 64 / 128 / 256 presets and remembers its size, Ctrl + / - / 0 zoom.
 - F1 / `?` opens the keyboard shortcut list (`App::helpWindow`, also in the Help menu).

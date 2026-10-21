@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <utility>
 #include <vector>
 
@@ -102,6 +103,26 @@ void draw(History &history, const Cel &cel, const ShapeStyle &style, ToolPoint a
 }
 
 } // namespace
+
+ToolPoint shape_constrain(ShapeKind kind, ToolPoint anchor, ToolPoint to)
+{
+    int dx = to.x - anchor.x;
+    int dy = to.y - anchor.y;
+    int ax = std::abs(dx);
+    int ay = std::abs(dy);
+    int sx = dx < 0 ? -1 : 1;
+    int sy = dy < 0 ? -1 : 1;
+    if (kind == ShapeKind::Line) {
+        if (ax > 2 * ay) {
+            return ToolPoint{to.x, anchor.y};
+        }
+        if (ay > 2 * ax) {
+            return ToolPoint{anchor.x, to.y};
+        }
+    }
+    int side = std::max(ax, ay);
+    return ToolPoint{anchor.x + sx * side, anchor.y + sy * side};
+}
 
 bool shape_stroke(History &history, Cel &cel, ShapeStyle style, ToolPoint from, ToolPoint to)
 {

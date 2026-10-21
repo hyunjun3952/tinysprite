@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <vector>
 
+#include "settings.h"
+
 /* The side panels (Tools, Layers): each is docked to the left or right window edge, or floats as a
  * movable window. Docked panels can be resized by their inner edge and are pulled out by dragging
  * their title bar; a floating panel docks again when its title bar is dragged to an edge. */
@@ -55,6 +57,11 @@ class Panels
 
     /* True while the panel is a free-floating window (not docked to an edge). */
     bool floating(PanelId id) const;
+
+    /* Writes the layout (visibility, dock side, width, shown sections of each panel) into / reads
+     * it back from the settings; a missing or invalid entry keeps the current value. */
+    void store(SettingsMap &settings) const;
+    void load(const SettingsMap &settings);
 
     /* The "Window" menu: show / hide, dock left / right, float, reset layout. Call inside the main
      * menu bar. */

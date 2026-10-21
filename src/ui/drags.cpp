@@ -134,23 +134,29 @@ class PencilDrag : public Drag
 class ShapeDrag : public Drag
 {
   public:
-    ShapeDrag(Editor &editor, int cx, int cy, std::unique_ptr<ShapeStroke> stroke)
-        : Drag(editor, cx, cy), stroke_(std::move(stroke))
+    ShapeDrag(Editor &editor, int cx, int cy, std::unique_ptr<ShapeStroke> stroke, ShapeKind kind)
+        : Drag(editor, cx, cy), stroke_(std::move(stroke)), kind_(kind), endX_(cx), endY_(cy)
     {
         markStroke(editor, cx, cy, cx, cy, 1);
     }
 
     void update(int cx, int cy) override
     {
-        if (cx == lastX_ && cy == lastY_) {
-            return;
-        }
-        stroke_->update(cx, cy);
-        /* The old and new shapes both lie in a box spanned by the anchor and the cursor. */
-        markStroke(editor_, anchorX_, anchorY_, lastX_, lastY_, 1);
-        markStroke(editor_, anchorX_, anchorY_, cx, cy, 1);
+        /* Shift holds the shape to even proportions; the far corner is then not the cursor. */
+        ToolPoint end =
+            shift_ ? shape_constrain(kind_, ToolPoint{anchorX_, anchorY_}, ToolPoint{cx, cy})
+                   : ToolPoint{cx, cy};
         lastX_ = cx;
         lastY_ = cy;
+        if (end.x == endX_ && end.y == endY_) {
+            return;
+        }
+        stroke_->update(end.x, end.y);
+        /* The old and new shapes both lie in a box spanned by the anchor and the far corner. */
+        markStroke(editor_, anchorX_, anchorY_, endX_, endY_, 1);
+        markStroke(editor_, anchorX_, anchorY_, end.x, end.y, 1);
+        endX_ = end.x;
+        endY_ = end.y;
     }
     void finish() override
     {
@@ -165,6 +171,9 @@ class ShapeDrag : public Drag
 
   private:
     std::unique_ptr<ShapeStroke> stroke_;
+    ShapeKind kind_;
+    int endX_; /* the far corner of the shape as drawn */
+    int endY_;
 };
 
 /* Moving the selected pixels. */
@@ -341,7 +350,7 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
             return nullptr;
         }
         editor.recordRecent(color);
-        return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke));
+        return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke), style.kind);
     }
     case ToolKind::Eyedropper:
     case ToolKind::Select:

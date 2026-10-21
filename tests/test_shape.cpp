@@ -303,6 +303,32 @@ TEST(shapes_work_when_dragged_up_and_left)
     }
 }
 
+TEST(constrain_snaps_lines_to_eight_directions)
+{
+    ToolPoint a = {5, 5};
+    ToolPoint h = shape_constrain(ShapeKind::Line, a, ToolPoint{12, 6});
+    ASSERT_TRUE(h.x == 12 && h.y == 5);
+    ToolPoint v = shape_constrain(ShapeKind::Line, a, ToolPoint{4, -3});
+    ASSERT_TRUE(v.x == 5 && v.y == -3);
+    ToolPoint d = shape_constrain(ShapeKind::Line, a, ToolPoint{9, 11});
+    ASSERT_TRUE(d.x == 11 && d.y == 11); /* the longer side wins */
+    ToolPoint u = shape_constrain(ShapeKind::Line, a, ToolPoint{1, 2});
+    ASSERT_TRUE(u.x == 1 && u.y == 1); /* up-left: (-4, -3) is closer to the diagonal, side 4 */
+}
+
+TEST(constrain_makes_boxes_square)
+{
+    ToolPoint a = {2, 2};
+    for (ShapeKind kind : {ShapeKind::Rect, ShapeKind::Ellipse, ShapeKind::Star}) {
+        ToolPoint p = shape_constrain(kind, a, ToolPoint{8, 4});
+        ASSERT_TRUE(p.x == 8 && p.y == 8);
+        ToolPoint q = shape_constrain(kind, a, ToolPoint{-1, 0});
+        ASSERT_TRUE(q.x == -1 && q.y == -1);
+    }
+    ToolPoint same = shape_constrain(ShapeKind::Rect, a, a);
+    ASSERT_TRUE(same.x == 2 && same.y == 2);
+}
+
 int main(void)
 {
     RUN(line_connects_the_corners);
@@ -323,5 +349,7 @@ int main(void)
     RUN(polygon_shapes_stay_in_their_box_and_are_symmetric);
     RUN(filled_polygon_covers_its_outline_and_more);
     RUN(shapes_work_when_dragged_up_and_left);
+    RUN(constrain_snaps_lines_to_eight_directions);
+    RUN(constrain_makes_boxes_square);
     return TEST_SUMMARY();
 }

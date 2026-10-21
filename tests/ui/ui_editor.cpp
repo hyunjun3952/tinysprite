@@ -1106,14 +1106,14 @@ TEST(undo_and_redo_keep_the_same_layer_active)
 TEST(palette_edits_make_the_document_modified_until_saved)
 {
     Editor *e = make_editor();
-    ASSERT_TRUE(!e->paletteModified());
+    ASSERT_TRUE(!e->modifiedOutsideHistory());
     e->setForeground(Rgba{1, 2, 3, 255});
     e->paletteAdd();
-    ASSERT_TRUE(e->paletteModified());
+    ASSERT_TRUE(e->modifiedOutsideHistory());
     e->markSaved();
-    ASSERT_TRUE(!e->paletteModified());
+    ASSERT_TRUE(!e->modifiedOutsideHistory());
     e->paletteRemove(0);
-    ASSERT_TRUE(e->paletteModified());
+    ASSERT_TRUE(e->modifiedOutsideHistory());
     delete e;
 }
 
@@ -1159,8 +1159,111 @@ TEST(palette_reset_restores_the_default_colors)
     e->paletteReset();
     ASSERT_EQ_INT(defaults, e->sprite().palette().count());
     ASSERT_EQ_INT(-1, e->paletteSelected());
-    ASSERT_TRUE(e->paletteModified());
+    ASSERT_TRUE(e->modifiedOutsideHistory());
     ASSERT_TRUE(e->sprite().palette().get(0) == (Rgba{0, 0, 0, 255}));
+    delete e;
+}
+
+TEST(new_document_is_blank_with_the_default_palette)
+{
+    Editor *e = make_editor();
+    click(e, 1, 1);
+    ASSERT_TRUE(e->newDocument(20, 10));
+    ASSERT_EQ_INT(20, e->sprite().width());
+    ASSERT_EQ_INT(10, e->sprite().height());
+    ASSERT_EQ_INT(16, e->sprite().palette().count());
+    ASSERT_EQ_INT(0, alpha(e, 1, 1));
+    ASSERT_TRUE(!e->history().canUndo());
+    ASSERT_TRUE(!e->newDocument(0, 5));
+    ASSERT_TRUE(!e->newDocument(5, 5000));
+    ASSERT_EQ_INT(20, e->sprite().width());
+    delete e;
+}
+
+TEST(set_palette_replaces_it_and_marks_the_document_modified)
+{
+    Editor *e = make_editor();
+    Palette p;
+    p.add(Rgba{1, 2, 3, 255});
+    e->markSaved();
+    e->setPalette(p);
+    ASSERT_EQ_INT(1, e->sprite().palette().count());
+    ASSERT_EQ_INT(-1, e->paletteSelected());
+    ASSERT_TRUE(e->modifiedOutsideHistory());
+    e->markSaved();
+    e->markModified();
+    ASSERT_TRUE(e->modifiedOutsideHistory());
+    delete e;
+}
+
+TEST(preferences_round_trip_through_the_settings)
+{
+    Editor *a = make_editor();
+    a->setShowGrid(false);
+    a->overlays().status = false;
+    a->options().brush_size = 5;
+    a->options().brush_round = true;
+    a->options().pixel_perfect = true;
+    a->options().shape_filled = true;
+    a->options().symmetry.mirror_x = true;
+    a->setForeground(Rgba{10, 20, 30, 255});
+    a->selectTool(ToolKind::Star);
+    SettingsMap s;
+    a->store(s);
+    delete a;
+
+    Editor *b = make_editor();
+    b->load(s);
+    ASSERT_TRUE(!b->showGrid());
+    ASSERT_TRUE(!b->overlays().status);
+    ASSERT_TRUE(b->overlays().cursor);
+    ASSERT_EQ_INT(5, b->options().brush_size);
+    ASSERT_TRUE(b->options().brush_round && b->options().pixel_perfect &&
+                b->options().shape_filled);
+    ASSERT_TRUE(!b->options().symmetry.mirror_x); /* symmetry always starts off */
+    ASSERT_TRUE(b->foreground() == (Rgba{10, 20, 30, 255}));
+    ASSERT_TRUE(b->tool() == ToolKind::Star);
+    delete b;
+}
+
+TEST(loading_bad_preferences_keeps_the_defaults)
+{
+    Editor *e = make_editor();
+    SettingsMap s = {
+        {"brush.size", "9999"}, {"color.fg", "zzzzzzzz"}, {"tool", "99"}, {"view.grid", "perhaps"}};
+    e->load(s);
+    ASSERT_EQ_INT(1, e->options().brush_size);
+    ASSERT_TRUE(e->showGrid());
+    ASSERT_TRUE(e->tool() == ToolKind::Pencil);
+    ASSERT_EQ_INT(255, e->foreground().a);
+    delete e;
+}
+
+TEST(shift_keeps_a_dragged_rectangle_square)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Rect);
+    e->press(1, 1);
+    e->drag(5, 3, true); /* 4 wide, 2 tall: Shift makes it 4 x 4 */
+    e->release();
+    ASSERT_EQ_INT(255, alpha(e, 5, 5));
+    ASSERT_EQ_INT(255, alpha(e, 1, 5));
+    ASSERT_EQ_INT(0, alpha(e, 3, 3)); /* an outline */
+    delete e;
+}
+
+TEST(shift_snaps_a_dragged_line_and_can_be_let_go)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Line);
+    e->press(1, 1);
+    e->drag(6, 2, true); /* nearly flat: snaps to horizontal */
+    ASSERT_EQ_INT(255, alpha(e, 6, 1));
+    ASSERT_EQ_INT(0, alpha(e, 6, 2));
+    e->drag(6, 2, false); /* released Shift: the cursor again */
+    ASSERT_EQ_INT(255, alpha(e, 6, 2));
+    ASSERT_EQ_INT(0, alpha(e, 6, 1));
+    e->release();
     delete e;
 }
 
@@ -1249,6 +1352,12 @@ int main(void)
     RUN(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection);
     RUN(symmetry_is_off_by_default);
     RUN(palette_reset_restores_the_default_colors);
+    RUN(new_document_is_blank_with_the_default_palette);
+    RUN(set_palette_replaces_it_and_marks_the_document_modified);
+    RUN(preferences_round_trip_through_the_settings);
+    RUN(loading_bad_preferences_keeps_the_defaults);
+    RUN(shift_keeps_a_dragged_rectangle_square);
+    RUN(shift_snaps_a_dragged_line_and_can_be_let_go);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

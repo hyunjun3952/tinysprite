@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <iterator>
 #include <stdexcept>
 #include <string>
@@ -36,6 +37,15 @@ const Rgba DEFAULT_PALETTE[] = {
     {185, 122, 87, 255}, {255, 174, 201, 255}, {255, 201, 14, 255},  {181, 230, 29, 255},
 };
 
+Palette defaultPalette()
+{
+    Palette palette;
+    for (const Rgba &color : DEFAULT_PALETTE) {
+        palette.add(color);
+    }
+    return palette;
+}
+
 } // namespace
 
 Editor::Editor(SDL_Renderer *renderer, Sprite sprite)
@@ -62,9 +72,7 @@ std::unique_ptr<Editor> Editor::create(SDL_Renderer *renderer, int width, int he
     } catch (const std::invalid_argument &) {
         return nullptr;
     }
-    for (const Rgba &color : DEFAULT_PALETTE) {
-        sprite->palette().add(color);
-    }
+    sprite->palette() = defaultPalette();
     std::unique_ptr<Editor> editor(new Editor(renderer, std::move(*sprite)));
     auto texture = editor->newTexture(width, height);
     if (!texture) {
@@ -100,7 +108,7 @@ void Editor::resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture)
     anchor_ = nullptr;
     hasSelection_ = false;
     paletteSelected_ = -1;
-    paletteModified_ = false;
+    modifiedOutsideHistory_ = false;
     view_ = ViewState{};
     markAllDirty();
 }
@@ -127,7 +135,7 @@ int Editor::paletteAdd()
     int index = palette.find(current);
     if (index < 0) {
         index = palette.add(current);
-        paletteModified_ = paletteModified_ || index >= 0;
+        modifiedOutsideHistory_ = modifiedOutsideHistory_ || index >= 0;
     }
     if (index >= 0) {
         paletteSelected_ = index;
@@ -138,18 +146,34 @@ int Editor::paletteAdd()
 void Editor::markSaved()
 {
     history_.markSaved();
-    paletteModified_ = false;
+    modifiedOutsideHistory_ = false;
 }
 
 void Editor::paletteReset()
 {
-    Palette fresh;
-    for (const Rgba &color : DEFAULT_PALETTE) {
-        fresh.add(color);
-    }
-    sprite().palette() = fresh;
+    setPalette(defaultPalette());
+}
+
+void Editor::setPalette(Palette palette)
+{
+    sprite().palette() = std::move(palette);
     paletteSelected_ = -1;
-    paletteModified_ = true;
+    modifiedOutsideHistory_ = true;
+}
+
+bool Editor::newDocument(int width, int height)
+{
+    if (stroking()) {
+        return false;
+    }
+    std::optional<Sprite> sprite;
+    try {
+        sprite.emplace(width, height);
+    } catch (const std::invalid_argument &) {
+        return false;
+    }
+    sprite->palette() = defaultPalette();
+    return setSprite(std::move(*sprite));
 }
 
 void Editor::palettePick(int index)
@@ -167,7 +191,7 @@ void Editor::paletteRemove(int index)
     if (!sprite().palette().remove(index)) {
         return;
     }
-    paletteModified_ = true;
+    modifiedOutsideHistory_ = true;
     if (paletteSelected_ == index) {
         paletteSelected_ = -1;
     } else if (paletteSelected_ > index) {
@@ -337,9 +361,10 @@ void Editor::press(int cx, int cy, bool shift)
     }
 }
 
-void Editor::drag(int cx, int cy)
+void Editor::drag(int cx, int cy, bool shift)
 {
     if (drag_) {
+        drag_->setShift(shift);
         drag_->update(cx, cy);
     }
 }
@@ -401,6 +426,75 @@ void Editor::updateTexture()
     const Rgba *origin =
         &pixels_[static_cast<size_t>(r.y) * static_cast<size_t>(width) + static_cast<size_t>(r.x)];
     SDL_UpdateTexture(texture(), &rect, origin, width * static_cast<int>(sizeof(Rgba)));
+}
+
+namespace
+{
+
+std::string colorText(Rgba color)
+{
+    char text[16];
+    std::snprintf(text, sizeof(text), "%02x%02x%02x%02x", color.r, color.g, color.b, color.a);
+    return text;
+}
+
+bool parseColor(const std::string &text, Rgba &out)
+{
+    if (text.size() != 8) {
+        return false;
+    }
+    char *end = nullptr;
+    unsigned long value = std::strtoul(text.c_str(), &end, 16);
+    if (*end != '\0') {
+        return false;
+    }
+    out = Rgba{static_cast<uint8_t>(value >> 24), static_cast<uint8_t>(value >> 16),
+               static_cast<uint8_t>(value >> 8), static_cast<uint8_t>(value)};
+    return true;
+}
+
+} // namespace
+
+void Editor::store(SettingsMap &settings) const
+{
+    settings_set_bool(settings, "view.grid", showGrid_);
+    settings_set_bool(settings, "view.status", overlays_.status);
+    settings_set_bool(settings, "view.cursor", overlays_.cursor);
+    settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
+    settings_set_int(settings, "brush.size", options_.brush_size);
+    settings_set_bool(settings, "brush.round", options_.brush_round);
+    settings_set_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
+    settings_set_bool(settings, "shape.filled", options_.shape_filled);
+    settings["color.fg"] = colorText(foreground());
+    settings["color.bg"] = colorText(
+        Rgba{toByte(bgColor_[0]), toByte(bgColor_[1]), toByte(bgColor_[2]), toByte(bgColor_[3])});
+    /* A tool borrowed by the middle-button eyedropper is not the user's choice. */
+    settings_set_int(settings, "tool", static_cast<int>(tempPick_ ? pickReturn_ : tool_));
+}
+
+void Editor::load(const SettingsMap &settings)
+{
+    settings_get_bool(settings, "view.grid", showGrid_);
+    settings_get_bool(settings, "view.status", overlays_.status);
+    settings_get_bool(settings, "view.cursor", overlays_.cursor);
+    settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
+    settings_get_int(settings, "brush.size", 1, PENCIL_BRUSH_MAX, options_.brush_size);
+    settings_get_bool(settings, "brush.round", options_.brush_round);
+    settings_get_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
+    settings_get_bool(settings, "shape.filled", options_.shape_filled);
+    Rgba color;
+    if (auto it = settings.find("color.fg");
+        it != settings.end() && parseColor(it->second, color)) {
+        setForeground(color);
+    }
+    if (auto it = settings.find("color.bg");
+        it != settings.end() && parseColor(it->second, color)) {
+        setFloats(bgColor_, color);
+    }
+    int tool = 0;
+    if (settings_get_int(settings, "tool", 0, TOOL_COUNT - 1, tool)) {
+        selectTool(static_cast<ToolKind>(tool));
+    }
 }
 
 void Editor::zoomStep(int direction)

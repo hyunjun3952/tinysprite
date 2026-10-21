@@ -5,12 +5,16 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "canvas.h"
 #include "editor.h"
 #include "layers_panel.h"
 #include "panels.h"
+#include "recovery.h"
+#include "settings.h"
 #include "tools_panel.h"
 
 struct AppOptions {
@@ -19,6 +23,8 @@ struct AppOptions {
     int maxFrames = 0;      /* >0: exit after this many frames (smoke runs without a display) */
     std::string screenshot; /* with --frames: save the last frame to this .bmp before exiting */
     std::string file;       /* a .pxa or image to open at start, "" for a blank sprite */
+    std::string configDir;  /* keep settings / autosave here (also in a --frames run); "" = the
+                             * user's config directory, which a --frames run leaves alone */
 };
 
 /* Owns the window, the ImGui context and the editor, and runs the main loop. Everything it sets up
@@ -44,7 +50,7 @@ class App
 
     /* File menu: each action asks for a path in a small dialog (there is no native file chooser).
      */
-    enum class FileAction { None, Open, SaveAs, ExportImage };
+    enum class FileAction { None, Open, SaveAs, ExportImage, ImportPalette, ExportPalette };
     void askForPath(FileAction action);
     void save();
     void fileDialog();
@@ -60,8 +66,31 @@ class App
     void confirmDialog();
     void updateTitle();
     void dropFile(const std::string &path);
+    /* Replaces the document with `path`; a failure reopens the Open dialog with the path filled in
+     * and the reason shown. Used by dropped files and the recent list (after the unsaved check). */
+    void openOrAsk(const std::string &path);
     void helpWindow();
+    void newDialog();
+    void recoverDialog();
+    void autosave();
+    /* Saves the preferences, the window size and the layout, and drops the autosave copy: a clean
+     * exit leaves nothing to recover. */
+    void shutdown();
     bool saveScreenshot(const std::string &path) const;
+
+    bool persist_ = false;     /* keep settings and an autosave copy (off for --frames runs) */
+    std::string configDir_;    /* where they live, "" when there is no home directory */
+    Uint32 lastAutosave_ = 0;  /* SDL_GetTicks of the last autosave check */
+    bool hasAutosave_ = false; /* an autosave copy of this session is on disk */
+    std::optional<Recovered> recovered_; /* the copy an earlier session left, awaiting an answer */
+    bool openRecover_ = false;
+    bool openNew_ = false;
+    bool newShown_ = false;     /* the New sprite dialog is open (set while it is drawn) */
+    bool recoverShown_ = false; /* ... and the recovery question */
+    int newWidth_ = 64;
+    int newHeight_ = 64;
+    int exportScale_ = 1;             /* the Export image dialog's enlargement */
+    std::vector<std::string> recent_; /* recently opened / saved .pxa files, newest first */
 
     SDL_Window *window_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;

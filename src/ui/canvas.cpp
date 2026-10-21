@@ -123,7 +123,7 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
         editor_.press(cx, cy, io.KeyShift);
     } else if (editor_.stroking()) {
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-            editor_.drag(cx, cy);
+            editor_.drag(cx, cy, io.KeyShift);
         } else {
             editor_.release();
         }

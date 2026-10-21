@@ -114,6 +114,12 @@ struct ShapeStyle {
     Symmetry symmetry = {};
 };
 
+/* Where a shape dragged from `anchor` to `to` ends when it is held to even proportions (Shift): a
+ * line snaps to the nearest of horizontal, vertical and 45 degrees; every other shape gets a square
+ * box (so the rectangle is a square, the ellipse a circle) whose side is the longer of the two
+ * drag distances. */
+ToolPoint shape_constrain(ShapeKind kind, ToolPoint anchor, ToolPoint to);
+
 /* Draws the shape spanning `from`-`to` as one undo step. Pixels outside the cel are skipped.
  * Returns false if a stroke is active. */
 bool shape_stroke(History &history, Cel &cel, ShapeStyle style, ToolPoint from, ToolPoint to);

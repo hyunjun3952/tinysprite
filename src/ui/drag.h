@@ -18,6 +18,12 @@ class Drag
     Drag(const Drag &) = delete;
     Drag &operator=(const Drag &) = delete;
 
+    /* Whether Shift is held, set before each update: a shape then keeps even proportions. */
+    void setShift(bool shift)
+    {
+        shift_ = shift;
+    }
+
     /* One step with the cel under the mouse, called every frame while the button is held. */
     virtual void update(int cx, int cy) = 0;
 
@@ -33,6 +39,7 @@ class Drag
     int anchorY_;
     int lastX_; /* cel under the mouse at the last step */
     int lastY_;
+    bool shift_ = false;
 };
 
 /* Applies the editor's active tool to a press at cel (cx, cy). Returns the drag that follows the

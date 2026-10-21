@@ -29,7 +29,7 @@ ctest --test-dir build --output-on-failure
 # With the SDL2 + ImGui frontend
 cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON
 cmake --build build-ui
-./build-ui/src/ui/tinysprite [width [height]]
+./build-ui/src/ui/tinysprite [file | width [height]]
 ```
 
 ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable them.
@@ -45,10 +45,25 @@ ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable t
 | + / - (or [ / ]) | Brush size by 1 |
 | Right or middle drag, Space + drag | Pan |
 | Hold the middle button | Eyedropper while held |
+| Ctrl + / Ctrl - / Ctrl+0 | Zoom in / out / fit |
+| Shift while dragging a shape | Square or circle; a line snaps to 45 degrees |
 | Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) | Undo / redo |
+| Ctrl+N / Ctrl+O | New sprite, open a file |
+| Ctrl+S / Ctrl+Shift+S / Ctrl+E | Save, save as, export an image |
 | Ctrl+A | Select all |
 | Delete | Clear the selection |
 | Esc | Cancel the current drag, or clear the selection |
+
+## Files and settings
+
+- `.pxa` is the native format; images (png, bmp, tga, jpg) can be imported and exported.
+- File > Open recent lists the last ten files; Export image can enlarge the picture (scale 1-32, nearest neighbor).
+- File > Import / Export palette reads and writes `.gpl` (GIMP) and `.hex` (one `RRGGBB[AA]` per line) files.
+- Preferences (grid, overlays, brush and shape options, colors, tool, panel layout, window size) are kept in
+  `settings.ini` in the config directory: `$XDG_CONFIG_HOME/tinysprite` or `~/.config/tinysprite` (`%APPDATA%\tinysprite`
+  on Windows). `--config-dir DIR` or `TINYSPRITE_CONFIG_DIR` picks another one. Symmetry always starts off.
+- While a document has unsaved changes it is autosaved there every 30 seconds; after a crash the next start offers to
+  recover it.
 
 ## Project layout
 

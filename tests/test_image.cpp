@@ -112,6 +112,36 @@ TEST(non_image_file_is_rejected)
     std::remove(path.c_str());
 }
 
+TEST(export_can_enlarge_by_whole_pixels)
+{
+    Sprite s(2, 2);
+    s.layer(0)->cel(0)->set(0, 0, RED);
+    s.layer(0)->cel(0)->set(1, 1, BLUE);
+    std::string path = "test_image_scaled.png";
+    ASSERT_TRUE(image_export(s, 0, path, 3));
+    std::optional<Sprite> back = image_import(path);
+    std::remove(path.c_str());
+    if (!back) {
+        MT_FAIL("no sprite");
+        return;
+    }
+    ASSERT_EQ_INT(6, back->width());
+    ASSERT_EQ_INT(6, back->height());
+    const Cel &c = *back->layer(0)->cel(0);
+    ASSERT_TRUE(c.get(0, 0) == RED && c.get(2, 2) == RED);
+    ASSERT_EQ_INT(0, c.get(3, 0).a);
+    ASSERT_TRUE(c.get(3, 3) == BLUE && c.get(5, 5) == BLUE);
+}
+
+TEST(export_rejects_a_bad_scale)
+{
+    Sprite s(100, 100);
+    ASSERT_TRUE(!image_export(s, 0, "unused.png", 0));
+    ASSERT_TRUE(!image_export(s, 0, "unused.png", IMAGE_EXPORT_MAX_SCALE + 1));
+    Sprite wide(1000, 10);
+    ASSERT_TRUE(!image_export(wide, 0, "unused.png", 17)); /* 17000 px is over the size limit */
+}
+
 int main(void)
 {
     RUN(export_then_import_round_trips_the_flattened_image);
@@ -121,5 +151,7 @@ int main(void)
     RUN(semi_transparent_pixels_survive);
     RUN(bad_frame_or_path_fails);
     RUN(non_image_file_is_rejected);
+    RUN(export_can_enlarge_by_whole_pixels);
+    RUN(export_rejects_a_bad_scale);
     return TEST_SUMMARY();
 }
