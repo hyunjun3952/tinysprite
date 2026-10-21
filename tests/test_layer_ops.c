@@ -5,15 +5,20 @@
 
 static const Rgba RED = {255, 0, 0, 255};
 
+/* Checks the layer names bottom to top; a NULL name marks the end of the expected list. */
 static int names_are(Sprite *s, const char *a, const char *b, const char *c)
 {
-    const char *want[3] = {a, b, c};
-    for (int i = 0; i < sprite_layer_count(s); i++) {
-        if (!want[i] || strcmp(layer_name(sprite_layer(s, i)), want[i]) != 0) {
+    const char *want[4] = {a, b, c, NULL};
+    int count = sprite_layer_count(s);
+    for (int i = 0; i < 4; i++) {
+        if (!want[i]) {
+            return i == count;
+        }
+        if (i >= count || strcmp(layer_name(sprite_layer(s, i)), want[i]) != 0) {
             return 0;
         }
     }
-    return 1;
+    return 0;
 }
 
 TEST(add_is_undoable)
