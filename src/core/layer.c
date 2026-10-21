@@ -1,7 +1,7 @@
 #include "tinysprite/layer.h"
 
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 struct Layer {
     char name[LAYER_NAME_MAX + 1];
@@ -20,7 +20,7 @@ Layer *layer_create(const char *name, int width, int height, int frame_count)
     if (layer == NULL) {
         return NULL;
     }
-    layer->cels = calloc((size_t)frame_count, sizeof(Cel *));
+    layer->cels = (Cel **)calloc((size_t)frame_count, sizeof(Cel *));
     if (layer->cels == NULL) {
         free(layer);
         return NULL;
@@ -30,11 +30,8 @@ Layer *layer_create(const char *name, int width, int height, int frame_count)
     layer->frame_count = frame_count;
 
     if (name != NULL) {
-        size_t len = strlen(name);
-        if (len > LAYER_NAME_MAX) {
-            len = LAYER_NAME_MAX;
-        }
-        memcpy(layer->name, name, len);
+        /* Truncates to LAYER_NAME_MAX and always NUL-terminates. */
+        snprintf(layer->name, sizeof(layer->name), "%.*s", LAYER_NAME_MAX, name);
     }
 
     for (int i = 0; i < frame_count; i++) {
@@ -55,7 +52,7 @@ void layer_destroy(Layer *layer)
     for (int i = 0; i < layer->frame_count; i++) {
         cel_destroy(layer->cels[i]);
     }
-    free(layer->cels);
+    free((void *)layer->cels);
     free(layer);
 }
 

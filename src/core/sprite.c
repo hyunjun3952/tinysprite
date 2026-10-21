@@ -40,7 +40,7 @@ void sprite_destroy(Sprite *sprite)
     for (int i = 0; i < sprite->layer_count; i++) {
         layer_destroy(sprite->layers[i]);
     }
-    free(sprite->layers);
+    free((void *)sprite->layers);
     palette_destroy(sprite->palette);
     free(sprite);
 }
@@ -82,7 +82,8 @@ Layer *sprite_add_layer(Sprite *sprite, const char *name)
 {
     if (sprite->layer_count == sprite->layer_capacity) {
         int capacity = sprite->layer_capacity == 0 ? 4 : sprite->layer_capacity * 2;
-        Layer **grown = realloc(sprite->layers, (size_t)capacity * sizeof(Layer *));
+        Layer **grown =
+            (Layer **)realloc((void *)sprite->layers, (size_t)capacity * sizeof(Layer *));
         if (grown == NULL) {
             return NULL;
         }
