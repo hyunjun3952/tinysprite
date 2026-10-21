@@ -1,10 +1,10 @@
-#include <algorithm>
-#include <cctype>
 #include <cstring>
 #include <memory>
 #include <utility>
 #include <vector>
 
+#include "image_write.h"
+#include "path_util.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "tinysprite/composite.h"
@@ -14,14 +14,6 @@ namespace
 {
 
 constexpr int JPEG_QUALITY = 95;
-
-bool hasExtension(const std::string &path, const std::string &extension)
-{
-    return path.size() >= extension.size() &&
-           std::equal(extension.rbegin(), extension.rend(), path.rbegin(), [](char a, char b) {
-               return a == std::tolower(static_cast<unsigned char>(b));
-           });
-}
 
 /* Puts the pixels over an opaque white background. */
 void flattenOnWhite(std::vector<Rgba> &pixels)
@@ -62,21 +54,25 @@ bool image_export(const Sprite &sprite, int frame, const std::string &path, int 
     const int width = sourceWidth * scale;
     const int height = sourceHeight * scale;
     std::vector<Rgba> flat = scale == 1 ? std::move(source) : enlarge(source, sourceWidth, scale);
+    return image_write_rgba(path, width, height, flat);
+}
+
+bool image_write_rgba(const std::string &path, int width, int height, std::vector<Rgba> &pixels)
+{
     const char *file = path.c_str();
     const int stride = width * static_cast<int>(sizeof(Rgba));
-
-    if (hasExtension(path, ".png")) {
-        return stbi_write_png(file, width, height, 4, flat.data(), stride) != 0;
+    if (path_has_extension(path, ".png")) {
+        return stbi_write_png(file, width, height, 4, pixels.data(), stride) != 0;
     }
-    if (hasExtension(path, ".bmp")) {
-        return stbi_write_bmp(file, width, height, 4, flat.data()) != 0;
+    if (path_has_extension(path, ".bmp")) {
+        return stbi_write_bmp(file, width, height, 4, pixels.data()) != 0;
     }
-    if (hasExtension(path, ".tga")) {
-        return stbi_write_tga(file, width, height, 4, flat.data()) != 0;
+    if (path_has_extension(path, ".tga")) {
+        return stbi_write_tga(file, width, height, 4, pixels.data()) != 0;
     }
-    if (hasExtension(path, ".jpg") || hasExtension(path, ".jpeg")) {
-        flattenOnWhite(flat);
-        return stbi_write_jpg(file, width, height, 4, flat.data(), JPEG_QUALITY) != 0;
+    if (path_has_extension(path, ".jpg") || path_has_extension(path, ".jpeg")) {
+        flattenOnWhite(pixels);
+        return stbi_write_jpg(file, width, height, 4, pixels.data(), JPEG_QUALITY) != 0;
     }
     return false;
 }

@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "tinysprite/playback.h"
+#include "tinysprite/rect.h"
 #include "tinysprite/sprite.h"
 
 /* The .pxa file format: a magic number and a version, then chunks (4-byte tag, 4-byte little-endian
@@ -61,6 +63,59 @@ inline constexpr int IMAGE_EXPORT_MAX_SIZE = 16384;
  * neighbor, every cel becomes a scale x scale block); a scale outside that range, or one that makes
  * the image wider or taller than IMAGE_EXPORT_MAX_SIZE, fails. */
 bool image_export(const Sprite &sprite, int frame, const std::string &path, int scale = 1);
+
+/* Animated GIF export. The frames first..last (last = -1 for the final frame) are written in the
+ * order `direction` plays them (a ping-pong goes out and back, its ends shown once), each for its
+ * own duration, rounded to 1/100 s and at least 2/100 s since viewers treat shorter delays as
+ * slow. A GIF has at most 256 colors and no partial transparency: a pixel at least half opaque is
+ * shown in its color, any other is transparent; when the sprite uses more colors than fit they are
+ * reduced to the closest palette (median cut). `scale` enlarges by whole pixels like image_export.
+ * The animation loops forever unless `loop` is false. */
+struct GifOptions {
+    int first = 0;
+    int last = -1;
+    PlayMode direction = PlayMode::Forward;
+    int scale = 1;
+    bool loop = true;
+};
+
+/* The file's bytes, or nothing (an empty vector) for a bad range or scale. */
+std::vector<uint8_t> gif_encode(const Sprite &sprite, const GifOptions &options);
+
+/* Writes it to `path`, which must end in .gif. Returns false for a bad option or an unwritable
+ * file. */
+bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions &options);
+
+/* Sprite sheets: the frames first..last (last = -1 for the final frame), flattened as displayed and
+ * laid out in one image. Horizontal puts them side by side, vertical one under the other, a grid
+ * wraps after `columns` frames (0: as many as makes it roughly square). `spacing` transparent
+ * pixels separate neighbouring frames (not the edges), `scale` enlarges by whole pixels like
+ * image_export. */
+enum class SheetLayout { Horizontal, Vertical, Grid };
+
+struct SheetOptions {
+    int first = 0;
+    int last = -1;
+    SheetLayout layout = SheetLayout::Horizontal;
+    int columns = 0;
+    int spacing = 0;
+    int scale = 1;
+};
+
+struct SpriteSheet {
+    int width = 0;
+    int height = 0;
+    std::vector<Rgba> pixels; /* width * height, row-major */
+    std::vector<Rect> frames; /* where each frame went, in frame order */
+};
+
+/* Nothing for a bad range, scale, spacing or column count, or a sheet wider or taller than
+ * IMAGE_EXPORT_MAX_SIZE. */
+std::optional<SpriteSheet> spritesheet_render(const Sprite &sprite, const SheetOptions &options);
+
+/* Writes the sheet as an image whose format follows the extension of `path` (as image_export).
+ * Returns false for a bad option, another extension or an unwritable file. */
+bool spritesheet_export(const Sprite &sprite, const std::string &path, const SheetOptions &options);
 
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
  * image as its single layer and an empty palette. Returns nothing if the file is not a readable

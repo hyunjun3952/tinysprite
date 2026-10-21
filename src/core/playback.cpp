@@ -2,6 +2,25 @@
 
 #include <algorithm>
 
+std::vector<int> play_order(int first, int last, PlayMode mode)
+{
+    if (first > last) {
+        std::swap(first, last);
+    }
+    std::vector<int> order;
+    for (int f = first; f <= last; f++) {
+        order.push_back(f);
+    }
+    if (mode == PlayMode::Reverse) {
+        std::reverse(order.begin(), order.end());
+    } else if (mode == PlayMode::PingPong) {
+        for (int f = last - 1; f > first; f--) {
+            order.push_back(f);
+        }
+    }
+    return order;
+}
+
 void Playback::start(int frame, int first, int last, PlayMode mode)
 {
     if (first > last) {

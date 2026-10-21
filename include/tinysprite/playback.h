@@ -1,11 +1,18 @@
 #ifndef TINYSPRITE_PLAYBACK_H
 #define TINYSPRITE_PLAYBACK_H
 
+#include <vector>
+
 #include "tinysprite/sprite.h"
 
 /* Which frame an animation shows as time passes. It owns no clock: the caller reports how many
  * milliseconds went by. Playback runs inside a frame range and loops; a ping-pong turns at the
  * ends without showing them twice. */
+/* The frames of [first, last] (swapped if reversed) in the order one loop of `mode` shows them,
+ * each time it is shown: a ping-pong goes up and comes back without repeating its ends (0 1 2 1).
+ */
+std::vector<int> play_order(int first, int last, PlayMode mode);
+
 class Playback
 {
   public:

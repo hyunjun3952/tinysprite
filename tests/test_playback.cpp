@@ -1,3 +1,5 @@
+#include <vector>
+
 #include "minitest.h"
 #include "tinysprite/playback.h"
 
@@ -12,6 +14,24 @@ static Sprite frames(int n)
         s.setFrameDuration(i, 100 * (i + 1));
     }
     return s;
+}
+
+TEST(play_order_lists_the_frames_in_the_direction_played)
+{
+    std::vector<int> fwd = play_order(1, 3, PlayMode::Forward);
+    ASSERT_EQ_INT(3, static_cast<int>(fwd.size()));
+    ASSERT_EQ_INT(1, fwd[0]);
+    ASSERT_EQ_INT(3, fwd[2]);
+    std::vector<int> rev = play_order(1, 3, PlayMode::Reverse);
+    ASSERT_EQ_INT(3, rev[0]);
+    ASSERT_EQ_INT(1, rev[2]);
+    /* 0 1 2 1: the ends once each, the loop then returns to 0 */
+    std::vector<int> pp = play_order(0, 2, PlayMode::PingPong);
+    ASSERT_EQ_INT(4, static_cast<int>(pp.size()));
+    ASSERT_EQ_INT(1, pp[3]);
+    ASSERT_EQ_INT(1, static_cast<int>(play_order(2, 2, PlayMode::PingPong).size()));
+    ASSERT_EQ_INT(2, static_cast<int>(play_order(0, 1, PlayMode::PingPong).size()));
+    ASSERT_EQ_INT(3, static_cast<int>(play_order(3, 1, PlayMode::Forward).size())); /* swapped */
 }
 
 TEST(idle_playback_does_not_move)
@@ -152,6 +172,7 @@ TEST(stop_ends_playback)
 
 int main(void)
 {
+    RUN(play_order_lists_the_frames_in_the_direction_played);
     RUN(idle_playback_does_not_move);
     RUN(forward_waits_for_each_duration);
     RUN(forward_wraps_to_the_first_frame);
