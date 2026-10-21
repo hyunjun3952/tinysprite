@@ -1074,6 +1074,72 @@ TEST(mirrored_stroke_marks_only_the_reflected_area_dirty)
     delete e;
 }
 
+TEST(merge_is_refused_when_a_lower_selected_layer_is_locked)
+{
+    Editor *e = make_editor();
+    e->addLayer();
+    e->addLayer();
+    e->sprite().layer(1)->setLocked(true);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Range);
+    ASSERT_TRUE(!e->canMergeLayers());
+    e->mergeSelectedLayers();
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
+    delete e;
+}
+
+TEST(undo_and_redo_keep_the_same_layer_active)
+{
+    Editor *e = make_editor();
+    e->addLayer();
+    e->addLayer();
+    Layer *top = e->sprite().layer(2);
+    e->removeLayer(0);
+    ASSERT_TRUE(e->sprite().layer(e->activeLayer()) == top);
+    e->undo();
+    ASSERT_TRUE(e->sprite().layer(e->activeLayer()) == top);
+    e->redo();
+    ASSERT_TRUE(e->sprite().layer(e->activeLayer()) == top);
+    delete e;
+}
+
+TEST(palette_edits_make_the_document_modified_until_saved)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(!e->paletteModified());
+    e->setForeground(Rgba{1, 2, 3, 255});
+    e->paletteAdd();
+    ASSERT_TRUE(e->paletteModified());
+    e->markSaved();
+    ASSERT_TRUE(!e->paletteModified());
+    e->paletteRemove(0);
+    ASSERT_TRUE(e->paletteModified());
+    delete e;
+}
+
+TEST(pressing_beside_the_sprite_records_no_color_and_selects_nothing)
+{
+    Editor *e = make_editor();
+    click(e, -5, -5);
+    ASSERT_EQ_INT(0, e->recent().size());
+    e->selectTool(ToolKind::Select);
+    click(e, 50, 50);
+    ASSERT_TRUE(!e->hasSelection());
+    delete e;
+}
+
+TEST(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Select);
+    e->selectAll();
+    e->sprite().layer(0)->setLocked(true);
+    e->press(2, 2);
+    ASSERT_TRUE(e->stroking());
+    e->release();
+    delete e;
+}
+
 int main(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -1152,6 +1218,11 @@ int main(void)
     RUN(set_sprite_replaces_the_document_and_starts_over);
     RUN(set_sprite_is_refused_while_dragging);
     RUN(mirrored_stroke_marks_only_the_reflected_area_dirty);
+    RUN(merge_is_refused_when_a_lower_selected_layer_is_locked);
+    RUN(undo_and_redo_keep_the_same_layer_active);
+    RUN(palette_edits_make_the_document_modified_until_saved);
+    RUN(pressing_beside_the_sprite_records_no_color_and_selects_nothing);
+    RUN(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

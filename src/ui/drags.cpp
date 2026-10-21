@@ -219,7 +219,8 @@ class SelectDrag : public Drag
     /* The anchor is the clamped press point, so it is always inside the sprite and the clipped
      * rectangle is never empty. */
     SelectDrag(Editor &editor, int cx, int cy)
-        : Drag(editor, clampX(editor, cx), clampY(editor, cy)), hadSelection_(editor.hasSelection())
+        : Drag(editor, clampX(editor, cx), clampY(editor, cy)),
+          hadSelection_(editor.hasSelection()), outside_(cx != anchorX_ || cy != anchorY_)
     {
         /* Remember whether a selection existed: a plain click on empty canvas selects one cel, but
          * a click that merely dismisses an old selection must not start a new one. */
@@ -237,7 +238,7 @@ class SelectDrag : public Drag
      * existing selection. */
     void finish() override
     {
-        if (lastX_ == anchorX_ && lastY_ == anchorY_ && hadSelection_) {
+        if (lastX_ == anchorX_ && lastY_ == anchorY_ && (hadSelection_ || outside_)) {
             editor_.dropSelection();
         }
     }
@@ -255,21 +256,21 @@ class SelectDrag : public Drag
     }
 
     bool hadSelection_;
+    bool outside_; /* pressed beside the sprite: a plain click there selects nothing */
 };
 
 std::unique_ptr<Drag> beginSelect(Editor &editor, int cx, int cy)
 {
     if (editor.hasSelection() && rect_contains(editor.selection(), cx, cy)) {
-        Cel *cel = editor.editableCel();
-        if (!cel) {
-            return nullptr;
+        /* On a locked or hidden layer the pixels cannot move: drag out a new selection instead. */
+        if (Cel *cel = editor.editableCel()) {
+            std::unique_ptr<MoveStroke> stroke =
+                MoveStroke::begin(editor.history(), *cel, editor.selection());
+            if (!stroke) {
+                return nullptr;
+            }
+            return std::make_unique<MoveDrag>(editor, cx, cy, std::move(stroke));
         }
-        std::unique_ptr<MoveStroke> stroke =
-            MoveStroke::begin(editor.history(), *cel, editor.selection());
-        if (!stroke) {
-            return nullptr;
-        }
-        return std::make_unique<MoveDrag>(editor, cx, cy, std::move(stroke));
     }
     return std::make_unique<SelectDrag>(editor, cx, cy);
 }
@@ -282,9 +283,8 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
     }
     bool erasing = editor.tool() == ToolKind::Eraser;
     Rgba color = editor.foreground();
-    if (!erasing) {
-        editor.recordRecent(color);
-    }
+    /* A color counts as used only when the press lands on the sprite. */
+    bool inside = cel->inBounds(cx, cy);
     switch (editor.tool()) {
     case ToolKind::Pencil:
     case ToolKind::Eraser: {
@@ -297,6 +297,9 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
         if (!stroke) {
             return nullptr;
         }
+        if (!erasing && (inside || from)) {
+            editor.recordRecent(color);
+        }
         if (from) {
             stroke->extend(cx, cy);
             editor.markAllDirty();
@@ -305,6 +308,9 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
     }
     case ToolKind::Bucket:
         /* A single click: no drag. */
+        if (inside) {
+            editor.recordRecent(color);
+        }
         if (bucket_fill(editor.history(), *cel, cx, cy, color, editor.options().symmetry)) {
             editor.markAllDirty();
         }
@@ -316,7 +322,11 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
                             editor.options().symmetry};
         std::unique_ptr<ShapeStroke> stroke =
             ShapeStroke::begin(editor.history(), *cel, style, ToolPoint{cx, cy});
-        return stroke ? std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke)) : nullptr;
+        if (!stroke) {
+            return nullptr;
+        }
+        editor.recordRecent(color);
+        return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke));
     }
     case ToolKind::Eyedropper:
     case ToolKind::Select:

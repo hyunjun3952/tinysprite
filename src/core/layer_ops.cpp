@@ -87,7 +87,7 @@ Layer *layer_op_duplicate(History &history, Sprite &sprite, int index)
         return nullptr;
     }
     constexpr const char *SUFFIX = " copy";
-    std::string name = source->name().substr(0, LAYER_NAME_MAX - 5) + SUFFIX;
+    std::string name = layer_name_truncate(source->name(), LAYER_NAME_MAX - 5) + SUFFIX;
     auto copy =
         std::make_unique<Layer>(name, sprite.width(), sprite.height(), source->frameCount());
     copy->setVisible(source->visible());
@@ -198,7 +198,7 @@ bool changeValue(History &history, const T &old, const T &next,
  * match what the layer holds. */
 std::string truncated(const std::string &name)
 {
-    return name.substr(0, LAYER_NAME_MAX);
+    return layer_name_truncate(name);
 }
 
 auto nameSetter(Layer &layer)

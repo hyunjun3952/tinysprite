@@ -9,6 +9,9 @@
 
 inline constexpr int LAYER_NAME_MAX = 63;
 
+/* `name` cut to at most `maxBytes` bytes without splitting a UTF-8 character. */
+std::string layer_name_truncate(const std::string &name, size_t maxBytes = LAYER_NAME_MAX);
+
 class Layer
 {
   public:

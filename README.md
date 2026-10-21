@@ -42,7 +42,7 @@ ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable t
 | Shift + click | Pencil / eraser: straight line from the last point |
 | F1 or ? | Keyboard shortcut list |
 | Mouse wheel | Zoom at the cursor |
-| + / - (or [ / ]), with Shift | Brush size by 1, by 5 with Shift |
+| + / - (or [ / ]) | Brush size by 1 |
 | Right or middle drag, Space + drag | Pan |
 | Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) | Undo / redo |
 | Ctrl+A | Select all |

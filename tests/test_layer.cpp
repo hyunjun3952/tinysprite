@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <string>
 
 #include "minitest.h"
 #include "tinysprite/layer.h"
@@ -36,6 +37,17 @@ TEST(empty_name_is_kept)
 {
     auto l = std::make_unique<Layer>("", 4, 4, 1);
     ASSERT_TRUE(strcmp(l->name().c_str(), "") == 0);
+}
+
+TEST(truncation_never_splits_a_utf8_character)
+{
+    std::string name = "x";
+    for (int i = 0; i < 30; i++) {
+        name += "\xEA\xB0\x80"; /* a 3-byte character */
+    }
+    Layer l(name, 2, 2, 1);
+    ASSERT_TRUE(l.name().size() <= LAYER_NAME_MAX);
+    ASSERT_EQ_INT(1, l.name().size() % 3);
 }
 
 TEST(long_name_is_truncated)
@@ -95,5 +107,6 @@ int main(void)
     RUN(set_name_replaces_and_truncates);
     RUN(invalid_arguments_throw);
     RUN(layer_starts_unlocked_and_can_be_locked);
+    RUN(truncation_never_splits_a_utf8_character);
     return TEST_SUMMARY();
 }

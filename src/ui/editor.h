@@ -253,6 +253,14 @@ class Editor
      * the same color, or is cleared when that color was removed. Out-of-range indexes are
      * ignored. */
     int paletteAdd();
+
+    /* The document has been saved: the history and the palette are clean again. */
+    void markSaved();
+    /* True when the palette changed since the last save (it is not part of undo). */
+    bool paletteModified() const
+    {
+        return paletteModified_;
+    }
     void palettePick(int index);
     void paletteRemove(int index);
 
@@ -429,13 +437,14 @@ class Editor
     void resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture);
 
     Rect spriteBounds() const;
-    void afterHistoryStep();
+    void afterHistoryStep(const Layer *active = nullptr);
 
     ToolKind tool_ = ToolKind::Pencil;
     float color_[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     float bgColor_[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     RecentColors recent_ = {};
     int paletteSelected_ = -1;
+    bool paletteModified_ = false;
     bool showGrid_ = true;
     Overlays overlays_;
     int activeLayer_ = 0;

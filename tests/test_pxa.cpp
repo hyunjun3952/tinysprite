@@ -1,4 +1,6 @@
 #include <cstdio>
+#include <fstream>
+#include <string>
 
 #include "minitest.h"
 #include "tinysprite/io.h"
@@ -47,6 +49,17 @@ static bool same(const Sprite &a, const Sprite &b)
         }
     }
     return true;
+}
+
+TEST(save_replaces_atomically_and_reports_failure)
+{
+    const char *path = "test_pxa_atomic.pxa";
+    ASSERT_TRUE(pxa_save(sample(), path));
+    ASSERT_TRUE(!std::ifstream(std::string(path) + ".tmp").good());
+    ASSERT_TRUE(pxa_load(path).has_value());
+    /* A target in a missing directory fails and leaves nothing behind. */
+    ASSERT_TRUE(!pxa_save(sample(), "no_such_dir/x.pxa"));
+    std::remove(path);
 }
 
 TEST(round_trip_keeps_locked_and_hidden)
@@ -167,5 +180,6 @@ int main(void)
     RUN(unknown_chunks_are_skipped);
     RUN(layer_before_header_is_rejected);
     RUN(sprite_without_layers_or_with_bad_size_is_rejected);
+    RUN(save_replaces_atomically_and_reports_failure);
     return TEST_SUMMARY();
 }

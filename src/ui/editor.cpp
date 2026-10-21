@@ -100,6 +100,7 @@ void Editor::resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture)
     anchor_ = nullptr;
     hasSelection_ = false;
     paletteSelected_ = -1;
+    paletteModified_ = false;
     view_ = ViewState{};
     markAllDirty();
 }
@@ -126,11 +127,18 @@ int Editor::paletteAdd()
     int index = palette.find(current);
     if (index < 0) {
         index = palette.add(current);
+        paletteModified_ = paletteModified_ || index >= 0;
     }
     if (index >= 0) {
         paletteSelected_ = index;
     }
     return index;
+}
+
+void Editor::markSaved()
+{
+    history_.markSaved();
+    paletteModified_ = false;
 }
 
 void Editor::palettePick(int index)
@@ -148,6 +156,7 @@ void Editor::paletteRemove(int index)
     if (!sprite().palette().remove(index)) {
         return;
     }
+    paletteModified_ = true;
     if (paletteSelected_ == index) {
         paletteSelected_ = -1;
     } else if (paletteSelected_ > index) {
@@ -391,23 +400,35 @@ void Editor::zoomStep(int direction)
 }
 
 /* Undoing / redoing a layer operation can change the layer count under the active index. */
-void Editor::afterHistoryStep()
+void Editor::afterHistoryStep(const Layer *active)
 {
-    activeLayer_ = std::min(activeLayer_, sprite().layerCount() - 1);
+    /* Keep pointing at the same layer when it is still there. */
+    int found = active ? indexOfLayer(sprite(), active) : -1;
+    activeLayer_ = found >= 0 ? found : std::min(activeLayer_, sprite().layerCount() - 1);
+    /* Layers are tracked by address: forget the ones that left the sprite, so a new layer that
+     * reuses an address is not taken for a selected one. */
+    picked_.erase(std::remove_if(picked_.begin(), picked_.end(),
+                                 [this](const Layer *l) { return indexOfLayer(sprite(), l) < 0; }),
+                  picked_.end());
+    if (anchor_ && indexOfLayer(sprite(), anchor_) < 0) {
+        anchor_ = nullptr;
+    }
     markAllDirty();
 }
 
 void Editor::undo()
 {
+    const Layer *active = sprite().layer(activeLayer_);
     if (history().undo()) {
-        afterHistoryStep();
+        afterHistoryStep(active);
     }
 }
 
 void Editor::redo()
 {
+    const Layer *active = sprite().layer(activeLayer_);
     if (history().redo()) {
-        afterHistoryStep();
+        afterHistoryStep(active);
     }
 }
 
@@ -555,12 +576,14 @@ bool Editor::canMergeLayers() const
         const Layer *lower = sprite().layer(selected.front() - 1);
         return upper && lower && upper->visible() && lower->visible() && !lower->locked();
     }
-    for (int i : selected) {
-        if (!sprite().layer(i)->visible()) {
+    /* Every layer but the topmost receives the one above it, so none of those may be locked. */
+    for (size_t k = 0; k < selected.size(); k++) {
+        const Layer *layer = sprite().layer(selected[k]);
+        if (!layer->visible() || (k + 1 < selected.size() && layer->locked())) {
             return false;
         }
     }
-    return !sprite().layer(selected.front())->locked();
+    return true;
 }
 
 void Editor::mergeSelectedLayers()

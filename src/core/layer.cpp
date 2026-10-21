@@ -14,9 +14,22 @@ Layer::Layer(const std::string &name, int width, int height, int frameCount)
     }
 }
 
+std::string layer_name_truncate(const std::string &name, size_t maxBytes)
+{
+    if (name.size() <= maxBytes) {
+        return name;
+    }
+    size_t cut = maxBytes;
+    /* A continuation byte (10xxxxxx) at the cut means the character started earlier. */
+    while (cut > 0 && (static_cast<unsigned char>(name[cut]) & 0xC0) == 0x80) {
+        cut--;
+    }
+    return name.substr(0, cut);
+}
+
 void Layer::setName(const std::string &name)
 {
-    name_ = name.substr(0, LAYER_NAME_MAX);
+    name_ = layer_name_truncate(name);
 }
 
 Cel *Layer::cel(int frame)

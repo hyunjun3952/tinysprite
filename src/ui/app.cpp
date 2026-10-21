@@ -17,7 +17,6 @@ namespace
 
 constexpr int WINDOW_WIDTH = 1100;
 constexpr int WINDOW_HEIGHT = 720;
-constexpr int BRUSH_STEP_BIG = 5; /* the brush size step with Shift held */
 
 } // namespace
 
@@ -53,7 +52,8 @@ bool App::init(const AppOptions &options)
     window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
     if (window_) {
-        renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
+        renderer_ =
+            SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         if (!renderer_) {
             renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_SOFTWARE);
         }
@@ -93,14 +93,14 @@ bool App::init(const AppOptions &options)
 
 bool App::dirty() const
 {
-    return !editor_->history().atSavePoint();
+    return !editor_->history().atSavePoint() || editor_->paletteModified();
 }
 
 /* "name.pxa" or "untitled", with a trailing "*" while there are unsaved changes. */
 void App::updateTitle()
 {
     std::string name =
-        filePath_.empty() ? "untitled" : filePath_.substr(filePath_.find_last_of('/') + 1);
+        filePath_.empty() ? "untitled" : filePath_.substr(filePath_.find_last_of("/\\") + 1);
     std::string title = (dirty() ? name + "*" : name) + " - tinysprite";
     if (title != title_) {
         title_ = title;
@@ -269,8 +269,8 @@ void App::menuBar()
     ImGui::EndMainMenuBar();
 }
 
-/* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size, 5 at
- * a time with Shift) and F (fit). */
+/* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size) and F
+ * (fit). */
 void App::plainShortcuts()
 {
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
@@ -281,15 +281,15 @@ void App::plainShortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
         editor_->swapColors();
     }
-    /* + / - (and [ / ]) change the brush size by 1, or by 5 with Shift held; the wheel zooms. */
-    int step = ImGui::GetIO().KeyShift ? BRUSH_STEP_BIG : 1;
+    /* + / - (and [ / ]) change the brush size by 1; the wheel zooms. "+" is Shift+= on many
+     * layouts, so the Shift state is deliberately ignored. */
     if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd) ||
         ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
-        editor_->changeBrushSize(step);
+        editor_->changeBrushSize(1);
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract) ||
         ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
-        editor_->changeBrushSize(-step);
+        editor_->changeBrushSize(-1);
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
         editor_->view().needs_fit = true;
@@ -299,7 +299,10 @@ void App::plainShortcuts()
 void App::handleShortcuts()
 {
     const ImGuiIO &io = ImGui::GetIO();
-    if (io.WantTextInput || layersPanel_->dialogOpen()) {
+    /* The file / unsaved-changes dialogs are modal: nothing behind them may react. */
+    bool modal =
+        fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") || openConfirm_;
+    if (io.WantTextInput || layersPanel_->dialogOpen() || modal) {
         editor_->tempPick(false);
         return;
     }
@@ -367,7 +370,7 @@ void App::helpWindow()
         {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
         {"Alt (hold)", "Temporary eyedropper"},
         {"X", "Swap foreground / background colors"},
-        {"+  -  or  [  ]", "Larger / smaller brush: 1 px, or 5 px with Shift"},
+        {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},
         {"Shift + click", "Pencil / eraser: straight line from the last point"},
         {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
         {"Wheel", "Zoom at the cursor"},
@@ -416,7 +419,7 @@ void App::save()
         askForPath(FileAction::SaveAs);
         fileError_ = "Cannot write " + filePath_;
     } else {
-        editor_->history().markSaved();
+        editor_->markSaved();
     }
 }
 
@@ -451,7 +454,7 @@ bool App::runFileAction(const std::string &path)
             return false;
         }
         filePath_ = path;
-        editor_->history().markSaved();
+        editor_->markSaved();
         return true;
     case FileAction::ExportImage:
         if (!image_export(editor_->sprite(), editor_->frame(), path)) {
