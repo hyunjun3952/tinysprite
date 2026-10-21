@@ -11,13 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy shellcheck
+        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy shellcheck libsdl2-dev
       - name: Shellcheck
         run: shellcheck scripts/*.sh .githooks/pre-commit .githooks/pre-push
       - name: Format check
         run: scripts/format.sh --check
       - name: Configure
-        run: cmake -S . -B build
+        run: cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON
       - name: Lint
         run: scripts/lint.sh build
       - name: Build

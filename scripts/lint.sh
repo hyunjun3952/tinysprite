@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: scripts/lint.sh [build-dir]
-# Runs clang-tidy on first-party .c / .cpp files using the build's compile_commands.json.
+# Runs clang-tidy on first-party .cpp files using the build's compile_commands.json.
 # src/ui and tests/ui are only compiled with -DTINYSPRITE_BUILD_UI=ON, so it is skipped (with a note) when the
 # build dir does not contain it; any other file missing from the database is an error (stale
 # build dir: re-run cmake).
@@ -31,7 +31,7 @@ while IFS= read -r f; do
         esac
     fi
 done <<EOF
-$(git ls-files -co --exclude-standard '*.c' '*.cpp' ':!:third_party/*')
+$(git ls-files -co --exclude-standard '*.cpp' ':!:third_party/*')
 EOF
 [ "$missing" -eq 0 ] || exit 1
 [ "$#" -gt 0 ] || exit 0

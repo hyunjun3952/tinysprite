@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(tinysprite C)
+project(tinysprite CXX)
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -19,14 +16,14 @@ if(TINYSPRITE_SANITIZE AND NOT MSVC)
 endif()
 
 # core: no SDL/ImGui dependency allowed here.
-file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS src/core/*.c)
+file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS src/core/*.cpp)
 add_library(tinysprite_core STATIC ${CORE_SOURCES})
 target_include_directories(tinysprite_core PUBLIC include)
 if(NOT MSVC)
   target_link_libraries(tinysprite_core PUBLIC m)
 endif()
 
-file(GLOB_RECURSE IO_SOURCES CONFIGURE_DEPENDS src/io/*.c)
+file(GLOB_RECURSE IO_SOURCES CONFIGURE_DEPENDS src/io/*.cpp)
 if(IO_SOURCES)
   add_library(tinysprite_io STATIC ${IO_SOURCES})
   target_link_libraries(tinysprite_io PUBLIC tinysprite_core)
@@ -36,7 +33,6 @@ else()
 endif()
 
 if(TINYSPRITE_BUILD_UI)
-  enable_language(CXX)
   add_subdirectory(src/ui)
 endif()
 

@@ -42,6 +42,20 @@ static int mt_current_failed = 0;
             MT_FAIL("%s == %s: expected %lld, got %lld", #expected, #actual, mt_e, mt_a); \
     } while (0)
 
+/* Character comparison, widened through unsigned char (what clang-tidy wants for char values). */
+#define ASSERT_EQ_CHAR(expected, actual) \
+    ASSERT_EQ_INT(static_cast<unsigned char>(expected), static_cast<unsigned char>(actual))
+
+/* Passes if evaluating `expr` throws an exception of type `type`. */
+#define ASSERT_THROWS(expr, type)                                            \
+    do {                                                                     \
+        try {                                                                \
+            (void)(expr);                                                    \
+            MT_FAIL("expected %s to throw", #expr);                          \
+        } catch (const type &) {                                             \
+        }                                                                    \
+    } while (0)
+
 #define TEST_SUMMARY()                                                       \
     (printf("%d run, %d failed\n", mt_run, mt_failures), mt_failures ? 1 : 0)
 

@@ -1,6 +1,6 @@
 # tinysprite
 
-A small pixel art / 2D sprite animation editor written in C11 (core and file I/O), with a C++17 UI built on SDL2 and Dear ImGui.
+A small pixel art / 2D sprite animation editor written in C++17, with a UI built on SDL2 and Dear ImGui.
 
 > **Status:** early development. Phase 1 (drawing tools) is mostly done; file I/O (`.pxa`, PNG) is next.
 > Animation and game-pipeline features are planned. See [docs/MILESTONES.md](docs/MILESTONES.md).
@@ -17,7 +17,7 @@ Planned: `.pxa` / PNG I/O, timeline and onion skin, GIF / spritesheet export, ti
 
 ## Building
 
-Requirements: CMake 3.16+ and a C11 compiler. The UI also needs SDL2 (`sudo apt install libsdl2-dev`).
+Requirements: CMake 3.16+ and a C++17 compiler. The UI also needs SDL2 (`sudo apt install libsdl2-dev`).
 
 ```sh
 # Core library and tests only

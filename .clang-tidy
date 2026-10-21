@@ -11,9 +11,14 @@ Checks: >
   readability-non-const-parameter,
   -bugprone-easily-swappable-parameters,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
-  -misc-include-cleaner
+  -misc-include-cleaner,
+  -misc-const-correctness,
+  -misc-non-private-member-variables-in-classes,
+  -misc-use-anonymous-namespace,
+  -performance-enum-size
 WarningsAsErrors: '*'
 # DeprecatedOrUnsafeBufferHandling is disabled: it demands C11 Annex K (*_s) functions,
-# which glibc does not provide.
+# which glibc does not provide. The other disabled misc / performance checks are style noise for the
+# class-based UI code (public state structs, small enums).
 # Own code only; vendored code in third_party/ is excluded by scripts/lint.sh
 HeaderFilterRegex: '(include/tinysprite|src)/.*'

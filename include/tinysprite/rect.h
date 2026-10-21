@@ -1,28 +1,22 @@
 #ifndef TINYSPRITE_RECT_H
 #define TINYSPRITE_RECT_H
 
-#include <stdbool.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* An axis-aligned block of cels: (x, y) is its top-left cel and it spans w x h cels. */
-typedef struct Rect {
+struct Rect {
     int x, y, w, h;
-} Rect;
+};
 
 /* The part of `r` inside 0..width x 0..height. An empty result has w == h == 0. Safe for extents
  * whose far edge would overflow an int. */
 Rect rect_clip(Rect r, int width, int height);
 
-static inline bool rect_is_empty(Rect r)
+inline bool rect_is_empty(Rect r)
 {
     return r.w < 1 || r.h < 1;
 }
 
 /* Half-open: the far edge x + w, y + h is outside. */
-static inline bool rect_contains(Rect r, int x, int y)
+inline bool rect_contains(Rect r, int x, int y)
 {
     return x >= r.x && y >= r.y && x - r.x < r.w && y - r.y < r.h;
 }
@@ -35,9 +29,5 @@ Rect rect_union(Rect a, Rect b);
 
 /* `r` with `amount` more cels on every side. */
 Rect rect_grow(Rect r, int amount);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

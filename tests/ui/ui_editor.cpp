@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "editor/editor.h"
+#include "editor.h"
 #include "minitest.h"
 
 static SDL_Window *window;
@@ -19,7 +19,7 @@ static Editor *make_editor(void)
 
 static int alpha(Editor *e, int x, int y)
 {
-    return cel_get(e->activeCel(), x, y).a;
+    return e->activeCel()->get(x, y).a;
 }
 
 static void click(Editor *e, int x, int y)
@@ -85,25 +85,25 @@ TEST(layer_add_remove_move_undo_redo)
     Editor *e = make_editor();
     e->addLayer();
     e->addLayer();
-    ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
     ASSERT_EQ_INT(2, e->activeLayer());
     e->selectTool(ToolKind::Pencil);
     click(e, 1, 1);
     e->removeLayer(2);
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     ASSERT_EQ_INT(1, e->activeLayer());
     e->undo();
-    ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
     e->undo(); /* the pixel on the restored layer */
     e->undo(); /* second add */
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     ASSERT_EQ_INT(1, e->activeLayer());
     e->undo();
-    ASSERT_EQ_INT(1, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(1, e->sprite().layerCount());
     ASSERT_EQ_INT(0, e->activeLayer());
     e->redo();
     e->redo();
-    ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
     delete e;
 }
 
@@ -111,32 +111,32 @@ TEST(visibility_toggle_is_undoable)
 {
     Editor *e = make_editor();
     e->setLayerVisible(0, 0);
-    ASSERT_TRUE(!layer_visible(sprite_layer(e->sprite(), 0)));
+    ASSERT_TRUE(!e->sprite().layer(0)->visible());
     e->undo();
-    ASSERT_TRUE(layer_visible(sprite_layer(e->sprite(), 0)));
+    ASSERT_TRUE(e->sprite().layer(0)->visible());
     delete e;
 }
 
 TEST(live_name_and_opacity_edits_commit_as_one_step)
 {
     Editor *e = make_editor();
-    Layer *layer = sprite_layer(e->sprite(), 0);
-    layer_set_name(layer, "B");
-    layer_set_name(layer, "Bo");
-    layer_set_name(layer, "Body");
+    Layer *layer = e->sprite().layer(0);
+    layer->setName("B");
+    layer->setName("Bo");
+    layer->setName("Body");
     e->commitLayerName(0, "Layer 1");
-    layer_set_opacity(layer, 200);
-    layer_set_opacity(layer, 90);
+    layer->setOpacity(200);
+    layer->setOpacity(90);
     e->commitLayerOpacity(0, 255);
-    ASSERT_TRUE(strcmp(layer_name(layer), "Body") == 0);
-    ASSERT_EQ_INT(90, layer_opacity(layer));
+    ASSERT_TRUE(strcmp(layer->name().c_str(), "Body") == 0);
+    ASSERT_EQ_INT(90, layer->opacity());
     e->undo();
-    ASSERT_EQ_INT(255, layer_opacity(layer));
+    ASSERT_EQ_INT(255, layer->opacity());
     e->undo();
-    ASSERT_TRUE(strcmp(layer_name(layer), "Layer 1") == 0);
-    ASSERT_TRUE(!history_can_undo(e->history()));
+    ASSERT_TRUE(strcmp(layer->name().c_str(), "Layer 1") == 0);
+    ASSERT_TRUE(!e->history().canUndo());
     e->redo();
-    ASSERT_TRUE(strcmp(layer_name(layer), "Body") == 0);
+    ASSERT_TRUE(strcmp(layer->name().c_str(), "Body") == 0);
     delete e;
 }
 
@@ -145,7 +145,7 @@ TEST(unchanged_live_edit_records_nothing)
     Editor *e = make_editor();
     e->commitLayerName(0, "Layer 1");
     e->commitLayerOpacity(0, 255);
-    ASSERT_TRUE(!history_can_undo(e->history()));
+    ASSERT_TRUE(!e->history().canUndo());
     delete e;
 }
 
@@ -156,8 +156,8 @@ TEST(layer_edits_are_held_off_while_dragging)
     e->press(0, 0);
     e->addLayer();
     e->setLayerVisible(0, 0);
-    ASSERT_EQ_INT(1, sprite_layer_count(e->sprite()));
-    ASSERT_TRUE(layer_visible(sprite_layer(e->sprite(), 0)));
+    ASSERT_EQ_INT(1, e->sprite().layerCount());
+    ASSERT_TRUE(e->sprite().layer(0)->visible());
     e->release();
     delete e;
 }
@@ -292,7 +292,7 @@ TEST(paste_without_a_clipboard_does_nothing)
 {
     Editor *e = make_editor();
     e->paste();
-    ASSERT_TRUE(!history_can_undo(e->history()));
+    ASSERT_TRUE(!e->history().canUndo());
     ASSERT_TRUE(!e->copySelection()); /* nothing selected */
     delete e;
 }
@@ -399,25 +399,25 @@ TEST(selection_transforms_are_held_off_while_dragging)
 TEST(drawing_records_recent_colors)
 {
     Editor *e = make_editor();
-    ASSERT_EQ_INT(0, e->recent().count);
+    ASSERT_EQ_INT(0, e->recent().size());
     dot(e, 0, 0);
-    ASSERT_EQ_INT(1, e->recent().count);
-    ASSERT_EQ_INT(255, e->recent().colors[0].r);
+    ASSERT_EQ_INT(1, e->recent().size());
+    ASSERT_EQ_INT(255, e->recent()[0].r);
     dot(e, 1, 0); /* the same color again */
-    ASSERT_EQ_INT(1, e->recent().count);
+    ASSERT_EQ_INT(1, e->recent().size());
 
     e->setForeground(Rgba{0, 0, 255, 255});
     e->selectTool(ToolKind::Bucket);
     click(e, 5, 5);
-    ASSERT_EQ_INT(2, e->recent().count);
-    ASSERT_EQ_INT(255, e->recent().colors[0].b);
+    ASSERT_EQ_INT(2, e->recent().size());
+    ASSERT_EQ_INT(255, e->recent()[0].b);
 
     e->setForeground(Rgba{0, 255, 0, 255});
     e->selectTool(ToolKind::Rect);
     e->press(2, 2);
     e->drag(3, 3);
     e->release();
-    ASSERT_EQ_INT(3, e->recent().count);
+    ASSERT_EQ_INT(3, e->recent().size());
     delete e;
 }
 
@@ -428,7 +428,7 @@ TEST(eraser_and_picker_do_not_record_colors)
     click(e, 0, 0);
     e->selectTool(ToolKind::Eyedropper);
     click(e, 0, 0);
-    ASSERT_EQ_INT(0, e->recent().count);
+    ASSERT_EQ_INT(0, e->recent().size());
     delete e;
 }
 
@@ -447,49 +447,49 @@ TEST(set_color_changes_the_foreground)
 TEST(palette_starts_with_default_colors)
 {
     Editor *e = make_editor();
-    ASSERT_TRUE(palette_count(sprite_palette(e->sprite())) > 0);
+    ASSERT_TRUE(e->sprite().palette().count() > 0);
     delete e;
 }
 
 TEST(palette_add_uses_the_current_color_once)
 {
     Editor *e = make_editor();
-    Palette *p = sprite_palette(e->sprite());
-    int before = palette_count(p);
+    Palette &p = e->sprite().palette();
+    int before = p.count();
     e->setForeground(Rgba{12, 34, 56, 255});
     int index = e->paletteAdd();
     ASSERT_EQ_INT(before, index);
-    ASSERT_EQ_INT(before + 1, palette_count(p));
+    ASSERT_EQ_INT(before + 1, p.count());
     ASSERT_EQ_INT(index, e->paletteSelected());
-    ASSERT_EQ_INT(56, palette_get(p, index).b);
+    ASSERT_EQ_INT(56, p.get(index).b);
     ASSERT_EQ_INT(index, e->paletteAdd()); /* already there: no duplicate */
-    ASSERT_EQ_INT(before + 1, palette_count(p));
+    ASSERT_EQ_INT(before + 1, p.count());
     delete e;
 }
 
 TEST(palette_remove_keeps_the_selection_on_the_same_color)
 {
     Editor *e = make_editor();
-    Palette *p = sprite_palette(e->sprite());
-    int count = palette_count(p);
+    Palette &p = e->sprite().palette();
+    int count = p.count();
     e->palettePick(count - 1);
-    Rgba last = palette_get(p, count - 1);
+    Rgba last = p.get(count - 1);
     e->paletteRemove(0);
-    ASSERT_EQ_INT(count - 1, palette_count(p));
+    ASSERT_EQ_INT(count - 1, p.count());
     ASSERT_EQ_INT(count - 2, e->paletteSelected());
-    ASSERT_EQ_INT(last.r, palette_get(p, e->paletteSelected()).r);
+    ASSERT_EQ_INT(last.r, p.get(e->paletteSelected()).r);
     e->paletteRemove(e->paletteSelected()); /* removing the selected swatch deselects */
-    ASSERT_TRUE(e->paletteSelected() < palette_count(p));
+    ASSERT_TRUE(e->paletteSelected() < p.count());
     e->paletteRemove(999);
-    ASSERT_EQ_INT(count - 2, palette_count(p));
+    ASSERT_EQ_INT(count - 2, p.count());
     delete e;
 }
 
 TEST(pick_palette_color_sets_the_foreground)
 {
     Editor *e = make_editor();
-    Palette *p = sprite_palette(e->sprite());
-    Rgba want = palette_get(p, 2);
+    Palette &p = e->sprite().palette();
+    Rgba want = p.get(2);
     e->palettePick(2);
     ASSERT_EQ_INT(2, e->paletteSelected());
     ASSERT_EQ_INT(want.g, e->foreground().g);
@@ -553,15 +553,15 @@ TEST(duplicate_layer_selects_the_copy)
     dot(e, 2, 2);
     e->addLayer();
     e->duplicateLayer(0);
-    ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
     ASSERT_EQ_INT(1, e->activeLayer());
     ASSERT_EQ_INT(255, alpha(e, 2, 2));
     ASSERT_TRUE(e->dirty());
     e->undo();
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     ASSERT_EQ_INT(1, e->activeLayer());
     e->redo();
-    ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
     delete e;
 }
 
@@ -572,12 +572,12 @@ TEST(merge_layer_down_selects_the_lower_layer)
     e->addLayer();
     dot(e, 3, 3);
     e->mergeLayerDown(1);
-    ASSERT_EQ_INT(1, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(1, e->sprite().layerCount());
     ASSERT_EQ_INT(0, e->activeLayer());
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
     ASSERT_EQ_INT(255, alpha(e, 3, 3));
     e->undo();
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     ASSERT_EQ_INT(0, alpha(e, 3, 3)); /* active layer 0 again holds only its own pixel */
     e->redo();
     ASSERT_EQ_INT(255, alpha(e, 3, 3));
@@ -591,7 +591,7 @@ TEST(merge_down_follows_a_higher_active_layer)
     e->addLayer();
     ASSERT_EQ_INT(2, e->activeLayer());
     e->mergeLayerDown(1);
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     ASSERT_EQ_INT(1, e->activeLayer());
     delete e;
 }
@@ -601,16 +601,16 @@ TEST(duplicate_and_merge_are_held_off_while_dragging_or_invalid)
     Editor *e = make_editor();
     e->addLayer();
     e->mergeLayerDown(0); /* nothing below */
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
     e->duplicateLayer(0);
     e->mergeLayerDown(1);
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     e->release();
     e->setLayerVisible(1, 0);
     e->mergeLayerDown(1); /* hidden layers do not merge */
-    ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
     delete e;
 }
 
@@ -621,7 +621,7 @@ int main(void)
         return 1;
     }
     window = SDL_CreateWindow("test", 0, 0, 64, 64, 0);
-    renderer = window ? SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE) : NULL;
+    renderer = window ? SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE) : nullptr;
     if (!renderer) {
         printf("SDL renderer: %s\n", SDL_GetError());
         return 1;

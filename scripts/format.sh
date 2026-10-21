@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: scripts/format.sh [--check]
-# Formats (or with --check, verifies) all first-party C and C++ sources.
+# Formats (or with --check, verifies) all first-party C++ sources.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -24,7 +24,7 @@ set --
 while IFS= read -r f; do
     [ -f "$f" ] && set -- "$@" "$f"
 done <<EOF
-$(git ls-files -co --exclude-standard '*.c' '*.h' '*.cpp' ':!:third_party/*')
+$(git ls-files -co --exclude-standard '*.h' '*.cpp' ':!:third_party/*')
 EOF
 [ "$#" -gt 0 ] || exit 0
 

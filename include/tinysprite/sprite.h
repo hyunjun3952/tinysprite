@@ -1,54 +1,78 @@
 #ifndef TINYSPRITE_SPRITE_H
 #define TINYSPRITE_SPRITE_H
 
+#include <memory>
+#include <vector>
+
 #include "tinysprite/layer.h"
 #include "tinysprite/palette.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class Sprite
+{
+  public:
+    /* One frame, an empty palette and one layer named "Layer 1". Throws std::invalid_argument if a
+     * dimension is outside 1..CEL_MAX_DIMENSION. */
+    Sprite(int width, int height);
 
-typedef struct Sprite Sprite;
+    int width() const
+    {
+        return width_;
+    }
+    int height() const
+    {
+        return height_;
+    }
+    int frameCount() const
+    {
+        return frameCount_;
+    }
 
-/* Creates a sprite with one frame, an empty palette and one layer named "Layer 1".
- * Returns NULL if a dimension is outside 1..CEL_MAX_DIMENSION or on allocation failure. */
-Sprite *sprite_create(int width, int height);
-void sprite_destroy(Sprite *sprite);
+    Palette &palette()
+    {
+        return palette_;
+    }
+    const Palette &palette() const
+    {
+        return palette_;
+    }
 
-int sprite_width(const Sprite *sprite);
-int sprite_height(const Sprite *sprite);
-int sprite_frame_count(const Sprite *sprite);
+    int layerCount() const
+    {
+        return static_cast<int>(layers_.size());
+    }
 
-Palette *sprite_palette(Sprite *sprite);
+    /* Layers are ordered bottom (index 0) to top. Returns null if index is out of range. */
+    Layer *layer(int index);
+    const Layer *layer(int index) const;
 
-int sprite_layer_count(const Sprite *sprite);
+    /* Appends a new layer on top and returns it. */
+    Layer &addLayer(const std::string &name);
 
-/* Layers are ordered bottom (index 0) to top. Returns NULL if index is out of range. */
-Layer *sprite_layer(Sprite *sprite, int index);
+    /* Destroys the layer at `index`; the layers above it shift down. A sprite always keeps at
+     * least one layer. Returns false if index is out of range or only one layer is left. The
+     * layer's cels are freed, so callers must drop them from any history first
+     * (History::forgetCel). */
+    bool removeLayer(int index);
 
-/* Appends a new layer on top and returns it, or NULL on allocation failure. */
-Layer *sprite_add_layer(Sprite *sprite, const char *name);
+    /* Like removeLayer, but hands the layer to the caller instead of destroying it (its cels stay
+     * valid). Returns null under the same conditions removeLayer fails. */
+    std::unique_ptr<Layer> detachLayer(int index);
 
-/* Destroys the layer at `index`; the layers above it shift down. A sprite always keeps at least one
- * layer. Returns 0 on success, -1 if index is out of range or only one layer is left. The layer's
- * cels are freed, so callers must drop them from any history first (history_forget_cel). */
-int sprite_remove_layer(Sprite *sprite, int index);
+    /* Inserts a layer (made for this sprite's size and frame count) so it ends up at `index`,
+     * shifting the layers from there up. The sprite takes ownership. Returns false (and leaves
+     * `layer` untouched) if index is outside 0..layerCount or layer is null. */
+    bool insertLayer(int index, std::unique_ptr<Layer> &&layer);
 
-/* Like sprite_remove_layer, but hands the layer to the caller instead of destroying it (its cels
- * stay valid). Returns NULL under the same conditions sprite_remove_layer fails. */
-Layer *sprite_detach_layer(Sprite *sprite, int index);
+    /* Moves the layer at `from` so it ends up at index `to`, shifting the layers in between.
+     * Returns false if either index is out of range. */
+    bool moveLayer(int from, int to);
 
-/* Inserts a layer (made for this sprite's size and frame count) so it ends up at `index`,
- * shifting the layers from there up. The sprite takes ownership. Returns 0 on success, -1 if index
- * is outside 0..layer_count, layer is NULL, or on allocation failure. */
-int sprite_insert_layer(Sprite *sprite, int index, Layer *layer);
-
-/* Moves the layer at `from` so it ends up at index `to`, shifting the layers in between. Returns 0
- * on success, -1 if either index is out of range. */
-int sprite_move_layer(Sprite *sprite, int from, int to);
-
-#ifdef __cplusplus
-}
-#endif
+  private:
+    int width_;
+    int height_;
+    int frameCount_ = 1;
+    Palette palette_;
+    std::vector<std::unique_ptr<Layer>> layers_;
+};
 
 #endif

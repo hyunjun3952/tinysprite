@@ -1,37 +1,53 @@
 #ifndef TINYSPRITE_CEL_H
 #define TINYSPRITE_CEL_H
 
+#include <vector>
+
 #include "tinysprite/palette.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+inline constexpr int CEL_MAX_DIMENSION = 4096;
 
-#define CEL_MAX_DIMENSION 4096
+/* A width x height RGBA pixel buffer, fully transparent when created. */
+class Cel
+{
+  public:
+    /* Throws std::invalid_argument if a dimension is outside 1..CEL_MAX_DIMENSION. */
+    Cel(int width, int height);
 
-typedef struct Cel Cel;
+    int width() const
+    {
+        return width_;
+    }
+    int height() const
+    {
+        return height_;
+    }
 
-/* Creates a fully transparent width x height RGBA buffer.
- * Returns NULL if a dimension is outside 1..CEL_MAX_DIMENSION or on allocation failure. */
-Cel *cel_create(int width, int height);
-void cel_destroy(Cel *cel);
+    bool inBounds(int x, int y) const
+    {
+        return x >= 0 && x < width_ && y >= 0 && y < height_;
+    }
 
-int cel_width(const Cel *cel);
-int cel_height(const Cel *cel);
+    /* Returns transparent black for out-of-bounds coordinates. */
+    Rgba get(int x, int y) const;
 
-bool cel_in_bounds(const Cel *cel, int x, int y);
+    /* Returns false if (x, y) is out of bounds. */
+    bool set(int x, int y, Rgba color);
 
-/* Returns transparent black for out-of-bounds coordinates. */
-Rgba cel_get(const Cel *cel, int x, int y);
+    /* Row-major pixel buffer of width * height entries. */
+    Rgba *pixels()
+    {
+        return pixels_.data();
+    }
+    const Rgba *pixels() const
+    {
+        return pixels_.data();
+    }
 
-/* Returns 0 on success, -1 if (x, y) is out of bounds. */
-int cel_set(Cel *cel, int x, int y, Rgba color);
-
-/* Row-major pixel buffer of width * height entries, owned by the cel. */
-Rgba *cel_pixels(Cel *cel);
-
-#ifdef __cplusplus
-}
-#endif
+  private:
+    int width_;
+    int height_;
+    std::vector<Rgba> pixels_;
+};
 
 #endif

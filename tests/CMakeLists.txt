@@ -1,8 +1,8 @@
 add_library(tinysprite_test_support INTERFACE)
 target_include_directories(tinysprite_test_support INTERFACE ${PROJECT_SOURCE_DIR}/third_party)
 
-# One executable per test file: tests/test_<name>.c -> ctest "<name>"
-file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.c)
+# One executable per test file: tests/test_<name>.cpp -> ctest "<name>"
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp)
 foreach(src ${TEST_SOURCES})
   get_filename_component(base ${src} NAME_WE)
   string(REGEX REPLACE "^test_" "" name ${base})
