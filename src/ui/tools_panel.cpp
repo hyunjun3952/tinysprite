@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cfloat>
 #include <cstdio>
 
 #include "icons.h"
@@ -221,7 +222,12 @@ void ToolsPanel::toolOptions()
     bool brush = tool == ToolKind::Pencil || tool == ToolKind::Eraser;
     bool closedShape = isClosedShape(tool);
     if (brush) {
-        ImGui::SliderInt("Size", &options.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
+        /* The name on the left, the slider filling the rest of the row. */
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Size");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::SliderInt("##brush_size", &options.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
         theme::tip("Brush width in pixels. + and - (or [ and ]) change it by 1.");
         ImGui::Checkbox("Round brush", &options.brush_round);
         theme::tip("Stamp a round brush instead of a square one (matters above 1 px).");
