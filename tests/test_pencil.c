@@ -158,6 +158,96 @@ TEST(fails_while_another_stroke_is_active)
     history_destroy(h);
 }
 
+TEST(live_stroke_joins_extended_points)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 1, 1);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(0, pencil_stroke_extend(s, 5, 1));
+    ASSERT_EQ_INT(0, pencil_stroke_extend(s, 5, 3));
+    ASSERT_EQ_INT(0, pencil_stroke_end(s));
+    const char *const golden[H] = {"........", ".#####..", ".....#..", ".....#..", "........"};
+    expect_rows(c, golden);
+    ASSERT_EQ_INT(0, history_undo(h));
+    expect_rows(c, BLANK);
+    ASSERT_TRUE(!history_can_undo(h));
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(live_stroke_without_extend_plots_start_pixel)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 2, 2);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(0, pencil_stroke_end(s));
+    ASSERT_EQ_INT(1, cel_get(c, 2, 2).a ? 1 : 0);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(live_stroke_erase_clears_pixels)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    ToolPoint p[] = {{0, 0}, {3, 0}};
+    ASSERT_EQ_INT(0, pencil_stroke(h, c, p, 2, RED));
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, 1, 1, 0);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(0, pencil_stroke_extend(s, 2, 0));
+    ASSERT_EQ_INT(0, pencil_stroke_end(s));
+    const char *const golden[H] = {"#..#....", "........", "........", "........", "........"};
+    expect_rows(c, golden);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(live_stroke_clips_out_of_bounds_and_skips_repeats)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 6, 0);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(0, pencil_stroke_extend(s, 6, 0));
+    ASSERT_EQ_INT(0, pencil_stroke_extend(s, 10, 0));
+    ASSERT_EQ_INT(0, pencil_stroke_end(s));
+    const char *const golden[H] = {"......##", "........", "........", "........", "........"};
+    expect_rows(c, golden);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(live_stroke_fails_while_another_stroke_is_active)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    ASSERT_EQ_INT(0, history_begin_stroke(h, c));
+    ASSERT_TRUE(pencil_stroke_begin(h, c, RED, 0, 0, 0) == NULL);
+    ASSERT_TRUE(pencil_stroke_begin(NULL, c, RED, 0, 0, 0) == NULL);
+    ASSERT_TRUE(pencil_stroke_begin(h, NULL, RED, 0, 0, 0) == NULL);
+    ASSERT_EQ_INT(0, history_end_stroke(h));
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(live_stroke_cancel_rolls_back)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 1, 1);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(0, pencil_stroke_extend(s, 4, 1));
+    pencil_stroke_cancel(s);
+    expect_rows(c, BLANK);
+    ASSERT_TRUE(!history_can_undo(h));
+    ASSERT_EQ_INT(0, history_begin_stroke(h, c));
+    ASSERT_EQ_INT(0, history_end_stroke(h));
+    cel_destroy(c);
+    history_destroy(h);
+}
+
 int main(void)
 {
     RUN(single_point_plots_one_pixel);
@@ -169,5 +259,11 @@ int main(void)
     RUN(retracing_a_pixel_still_undoes_cleanly);
     RUN(invalid_arguments_are_rejected);
     RUN(fails_while_another_stroke_is_active);
+    RUN(live_stroke_joins_extended_points);
+    RUN(live_stroke_without_extend_plots_start_pixel);
+    RUN(live_stroke_erase_clears_pixels);
+    RUN(live_stroke_clips_out_of_bounds_and_skips_repeats);
+    RUN(live_stroke_fails_while_another_stroke_is_active);
+    RUN(live_stroke_cancel_rolls_back);
     return TEST_SUMMARY();
 }

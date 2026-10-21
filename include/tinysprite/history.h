@@ -26,6 +26,10 @@ int history_set_pixel(History *history, int x, int y, Rgba color);
  * (the stroke is then rolled back). */
 int history_end_stroke(History *history);
 
+/* Reverts every pixel written by the active stroke and discards it without touching the undo/redo
+ * steps. Returns 0 on success, -1 if no stroke is active. */
+int history_cancel_stroke(History *history);
+
 int history_can_undo(const History *history);
 int history_can_redo(const History *history);
 

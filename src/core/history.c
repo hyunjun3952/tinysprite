@@ -136,6 +136,17 @@ int history_end_stroke(History *history)
     return 0;
 }
 
+int history_cancel_stroke(History *history)
+{
+    if (!history || !history->stroke_open) {
+        return -1;
+    }
+    stroke_revert(&history->active);
+    stroke_release(&history->active);
+    history->stroke_open = 0;
+    return 0;
+}
+
 int history_can_undo(const History *history)
 {
     return history && history->cursor > 0;
