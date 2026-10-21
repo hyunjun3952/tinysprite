@@ -1,0 +1,265 @@
+#include "app/app.h"
+
+#include <cstdio>
+
+#include "backends/imgui_impl_sdl2.h"
+#include "backends/imgui_impl_sdlrenderer2.h"
+#include "editor/tools.h"
+#include "icons/icons.h"
+#include "imgui.h"
+
+namespace
+{
+
+constexpr int WINDOW_WIDTH = 1100;
+constexpr int WINDOW_HEIGHT = 720;
+
+} // namespace
+
+App::~App()
+{
+    editor_destroy(editor_);
+    if (backends_) {
+        ImGui_ImplSDLRenderer2_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+    }
+    if (imguiContext_) {
+        ImGui::DestroyContext();
+    }
+    if (renderer_) {
+        SDL_DestroyRenderer(renderer_);
+    }
+    if (window_) {
+        SDL_DestroyWindow(window_);
+    }
+    SDL_Quit();
+}
+
+bool App::init(const AppOptions &options)
+{
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
+        return false;
+    }
+    window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                               WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
+    if (window_) {
+        renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
+        if (!renderer_) {
+            renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_SOFTWARE);
+        }
+    }
+    if (!renderer_) {
+        std::fprintf(stderr, "SDL window/renderer: %s\n", SDL_GetError());
+        return false;
+    }
+
+    ImGui::CreateContext();
+    imguiContext_ = true;
+    ImGui::GetIO().IniFilename = nullptr;
+    ImGui::StyleColorsDark();
+    /* Unchecked boxes and sliders must stand out from the dark panel background. */
+    ImGuiStyle &style = ImGui::GetStyle();
+    style.FrameBorderSize = 1.0f;
+    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.21f, 0.24f, 1.0f);
+    style.Colors[ImGuiCol_Border] = ImVec4(0.42f, 0.43f, 0.48f, 0.8f);
+    if (ImGui_ImplSDL2_InitForSDLRenderer(window_, renderer_)) {
+        if (ImGui_ImplSDLRenderer2_Init(renderer_)) {
+            backends_ = true;
+        } else {
+            ImGui_ImplSDL2_Shutdown();
+        }
+    }
+    if (backends_ && !icons::init()) {
+        std::fprintf(stderr, "icon font failed to load; buttons will have no icons\n");
+    }
+    if (backends_) {
+        editor_ = editor_create(renderer_, options.width, options.height);
+    }
+    if (!editor_) {
+        std::fprintf(stderr, "failed to initialise the editor\n");
+        return false;
+    }
+    canvas_ = std::make_unique<Canvas>(*editor_);
+    toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
+    layersPanel_ = std::make_unique<LayersPanel>(*editor_);
+    return true;
+}
+
+void App::layersWindow(float height)
+{
+    if (panels_.begin(PanelId::Layers, height)) {
+        layersPanel_->show();
+    }
+    panels_.end();
+}
+
+void App::menuBar()
+{
+    if (!ImGui::BeginMainMenuBar()) {
+        return;
+    }
+    if (ImGui::BeginMenu("File")) {
+        /* Disabled until the .pxa reader / writer exists (milestone 7, src/io is still empty). */
+        ImGui::MenuItem("Open...", "Ctrl+O", false, false);
+        ImGui::MenuItem("Save", "Ctrl+S", false, false);
+        ImGui::MenuItem("Export...", nullptr, false, false);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Quit")) {
+            running_ = false;
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("Edit")) {
+        bool idle = !editor_stroking(editor_);
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, idle && history_can_undo(editor_->history))) {
+            editor_undo(editor_);
+        }
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, idle && history_can_redo(editor_->history))) {
+            editor_redo(editor_);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->has_selection)) {
+            editor_cut_selection(editor_);
+        }
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->has_selection)) {
+            editor_copy_selection(editor_);
+        }
+        if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
+            editor_paste(editor_);
+        }
+        if (ImGui::MenuItem("Select all", "Ctrl+A", false, idle)) {
+            editor_select_all(editor_);
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("View")) {
+        if (ImGui::MenuItem("Zoom in", "+")) {
+            editor_zoom_step(editor_, 1);
+        }
+        if (ImGui::MenuItem("Zoom out", "-")) {
+            editor_zoom_step(editor_, -1);
+        }
+        if (ImGui::MenuItem("Fit", "F")) {
+            editor_->needs_fit = true;
+        }
+        ImGui::MenuItem("Grid", nullptr, &editor_->show_grid);
+        ImGui::EndMenu();
+    }
+    panels_.windowMenu();
+    ImGui::EndMainMenuBar();
+}
+
+/* Keys that act without a modifier: tool letters, X (swap colors), [ ] (brush size), F (fit) and
+ * +/- (zoom). */
+void App::plainShortcuts()
+{
+    for (int tool = 0; tool < TOOL_COUNT; tool++) {
+        if (ImGui::IsKeyPressed(ToolsPanel::shortcutKey(static_cast<ToolKind>(tool)), false)) {
+            editor_select_tool(editor_, static_cast<ToolKind>(tool));
+        }
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
+        editor_swap_colors(editor_);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket) && editor_->brush_size > 1) {
+        editor_->brush_size--;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) && editor_->brush_size < PENCIL_BRUSH_MAX) {
+        editor_->brush_size++;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
+        editor_->needs_fit = true;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) {
+        editor_zoom_step(editor_, 1);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) {
+        editor_zoom_step(editor_, -1);
+    }
+}
+
+void App::handleShortcuts()
+{
+    const ImGuiIO &io = ImGui::GetIO();
+    if (io.WantTextInput) {
+        editor_temp_pick(editor_, false);
+        return;
+    }
+    /* Holding Alt turns the active tool into the eyedropper until it is released. */
+    editor_temp_pick(editor_, io.KeyAlt);
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+        if (editor_stroking(editor_)) {
+            tools_cancel(editor_);
+        } else {
+            editor_clear_selection(editor_);
+        }
+    }
+    if (editor_stroking(editor_)) {
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+        editor_delete_selection(editor_);
+    }
+    if (!io.KeyCtrl) {
+        if (!io.KeyAlt) {
+            plainShortcuts();
+        }
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
+        if (io.KeyShift) {
+            editor_redo(editor_);
+        } else {
+            editor_undo(editor_);
+        }
+    } else if (ImGui::IsKeyPressed(ImGuiKey_Y)) {
+        editor_redo(editor_);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+        editor_select_all(editor_);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+        editor_copy_selection(editor_);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
+        editor_cut_selection(editor_);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+        editor_paste(editor_);
+    }
+}
+
+void App::run(const AppOptions &options)
+{
+    int frames = 0;
+    while (running_) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            if (event.type == SDL_QUIT) {
+                running_ = false;
+            }
+        }
+
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+        menuBar();
+        const ImGuiViewport *viewport = ImGui::GetMainViewport();
+        float left = 0.0f;
+        float right = 0.0f;
+        panels_.layout(left, right);
+        toolsPanel_->show(panels_, viewport->WorkSize.y);
+        layersWindow(viewport->WorkSize.y);
+        canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
+                      viewport->WorkSize.x - left - right, viewport->WorkSize.y);
+        handleShortcuts();
+
+        SDL_SetRenderDrawColor(renderer_, 30, 30, 32, 255);
+        SDL_RenderClear(renderer_);
+        ImGui::Render();
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer_);
+        SDL_RenderPresent(renderer_);
+
+        if (options.maxFrames > 0 && ++frames >= options.maxFrames) {
+            running_ = false;
+        }
+    }
+}

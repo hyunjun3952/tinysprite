@@ -4,6 +4,11 @@
 #include <SDL.h>
 #include <stdbool.h>
 
+/* The editor state stays a plain C struct for now; C++ code sees the C core through extern "C". */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "tinysprite/clip.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
@@ -87,13 +92,6 @@ typedef struct Editor {
 
     int hover_x, hover_y; /* cel under the mouse, valid when hovering is true */
     bool hovering;
-
-    /* The layers panel edits a name or opacity live and records one undo step on release; these
-     * hold the values from before that edit began. */
-    struct {
-        char name_before[LAYER_NAME_MAX + 1];
-        uint8_t opacity_before;
-    } layer_edit;
 
     SDL_Texture *texture;
     Rgba *pixels; /* composited frame, sprite_width x sprite_height */
@@ -195,5 +193,9 @@ void editor_paste(Editor *editor);
  * outside the sprite is lost. */
 void editor_flip_selection(Editor *editor, bool horizontal);
 void editor_rotate_selection(Editor *editor, bool clockwise);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -5,6 +5,18 @@
 
 /* The recent-colors row and the sprite palette swatches, inside the tools window. Clicking a
  * swatch makes it the foreground color. */
-void palette_panel_show(Editor *editor);
+class PalettePanel
+{
+  public:
+    explicit PalettePanel(Editor &editor);
+
+    void show();
+
+  private:
+    void recentRow();
+    void paletteSwatches();
+
+    Editor &editor_;
+};
 
 #endif
