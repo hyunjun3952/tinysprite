@@ -36,4 +36,12 @@ EOF
 [ "$missing" -eq 0 ] || exit 1
 [ "$#" -gt 0 ] || exit 0
 
-clang-tidy -p "$build" --quiet "$@"
+# clang-tidy prints "N warnings generated." / "[i/n] Processing file" progress noise to stderr even with
+# --quiet (the warnings are suppressed ones from system headers). Keep stderr out of the way on success and
+# show it unfiltered on failure.
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
+if ! clang-tidy -p "$build" --quiet "$@" 2>"$err"; then
+    cat "$err" >&2
+    exit 1
+fi
