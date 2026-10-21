@@ -180,16 +180,42 @@ TEST(round_brush_and_eraser_follow_the_options)
     delete e;
 }
 
-TEST(brush_size_does_not_change_shapes)
+TEST(brush_size_widens_a_line_and_the_outline_of_a_shape_but_not_a_fill)
 {
     Editor *e = make_editor();
-    e->options().brush_size = 4;
+    e->options().brush_size = 3;
     e->selectTool(ToolKind::Line);
-    e->press(0, 0);
-    e->drag(3, 0);
+    e->press(2, 2);
+    e->drag(5, 2);
     e->release();
-    ASSERT_EQ_INT(255, alpha(e, 3, 0));
-    ASSERT_EQ_INT(0, alpha(e, 0, 1));
+    ASSERT_EQ_INT(255, alpha(e, 3, 1)); /* a 3 px wide line */
+    ASSERT_EQ_INT(255, alpha(e, 3, 3));
+    ASSERT_EQ_INT(0, alpha(e, 3, 0));
+    e->undo();
+    ASSERT_EQ_INT(0, alpha(e, 3, 1));
+
+    e->options().shape_filled = true;
+    e->selectTool(ToolKind::Rect);
+    e->press(2, 2);
+    e->drag(4, 3);
+    e->release();
+    ASSERT_EQ_INT(255, alpha(e, 4, 3));
+    ASSERT_EQ_INT(0, alpha(e, 5, 3)); /* the filled box ignores the brush */
+    ASSERT_EQ_INT(0, alpha(e, 2, 1));
+    delete e;
+}
+
+TEST(a_thick_shape_marks_its_whole_outline_dirty)
+{
+    Editor *e = make_editor();
+    e->updateTexture(); /* clears the initial full dirty rect */
+    e->options().brush_size = 3;
+    e->selectTool(ToolKind::Line);
+    e->press(3, 3);
+    e->drag(5, 3);
+    e->release();
+    Rect dirty = e->dirtyRect();
+    ASSERT_TRUE(dirty.y <= 2 && dirty.y + dirty.h > 4);
     delete e;
 }
 
@@ -261,7 +287,8 @@ int main(void)
     RUN(shift_line_chains_from_its_own_end_and_resets_with_the_document);
     RUN(pencil_uses_the_brush_size_and_marks_it_dirty);
     RUN(round_brush_and_eraser_follow_the_options);
-    RUN(brush_size_does_not_change_shapes);
+    RUN(brush_size_widens_a_line_and_the_outline_of_a_shape_but_not_a_fill);
+    RUN(a_thick_shape_marks_its_whole_outline_dirty);
     RUN(mirrored_stroke_marks_only_the_reflected_area_dirty);
     RUN(symmetry_is_off_by_default);
     RUN(shift_keeps_a_dragged_rectangle_square);

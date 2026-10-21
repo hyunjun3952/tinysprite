@@ -367,6 +367,114 @@ TEST(constrain_makes_boxes_square)
     ASSERT_TRUE(same.x == 2 && same.y == 2);
 }
 
+static ShapeStyle thick(ShapeKind kind, bool filled, int size, bool round = false)
+{
+    ShapeStyle style{kind, filled, RED, Symmetry{}};
+    style.brush_size = size;
+    style.brush_round = round;
+    return style;
+}
+
+TEST(a_thick_line_is_drawn_with_the_brush)
+{
+    History h;
+    Cel c(W, H);
+    shape_stroke(h, c, thick(ShapeKind::Line, false, 3), ToolPoint{1, 2}, ToolPoint{6, 2});
+    /* a size 3 brush reaches one pixel each way around every plotted point */
+    const char *golden[H] = {"........", "########", "########",
+                             "########", "........", "........"};
+    expect_rows(c, golden);
+}
+
+TEST(a_thick_rectangle_outline_gets_a_wider_border)
+{
+    History h;
+    Cel c(W, H);
+    shape_stroke(h, c, thick(ShapeKind::Rect, false, 2), ToolPoint{1, 1}, ToolPoint{6, 4});
+    /* size 2 reaches one pixel right and down, so the border is two pixels wide and grows past the
+     * far sides */
+    const char *golden[H] = {"........", ".#######", ".#######",
+                             ".##...##", ".#######", ".#######"};
+    expect_rows(c, golden);
+}
+
+TEST(a_filled_shape_ignores_the_brush)
+{
+    History h;
+    Cel c(W, H);
+    shape_stroke(h, c, thick(ShapeKind::Rect, true, 4), ToolPoint{1, 1}, ToolPoint{4, 3});
+    const char *golden[H] = {"........", ".####...", ".####...",
+                             ".####...", "........", "........"};
+    expect_rows(c, golden);
+}
+
+TEST(a_round_brush_trims_the_corners_of_each_stamp)
+{
+    History h;
+    Cel c(W, H);
+    shape_stroke(h, c, thick(ShapeKind::Line, false, 3, true), ToolPoint{3, 2}, ToolPoint{3, 2});
+    const char *golden[H] = {"........", "...#....", "..###...",
+                             "...#....", "........", "........"};
+    expect_rows(c, golden);
+}
+
+TEST(a_brush_of_one_or_less_changes_nothing)
+{
+    History h;
+    Cel a(W, H);
+    Cel b(W, H);
+    shape_stroke(h, a, thick(ShapeKind::Ellipse, false, 1), ToolPoint{0, 0}, ToolPoint{7, 5});
+    shape_stroke(h, b, thick(ShapeKind::Ellipse, false, 0), ToolPoint{0, 0}, ToolPoint{7, 5});
+    ShapeStyle plain{ShapeKind::Ellipse, false, RED, Symmetry{}};
+    Cel d(W, H);
+    shape_stroke(h, d, plain, ToolPoint{0, 0}, ToolPoint{7, 5});
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            ASSERT_EQ_INT(d.get(x, y).a, a.get(x, y).a);
+            ASSERT_EQ_INT(d.get(x, y).a, b.get(x, y).a);
+        }
+    }
+}
+
+TEST(a_mirrored_thick_shape_is_symmetric_even_for_an_even_brush)
+{
+    History h;
+    Cel c(W, H);
+    ShapeStyle style = thick(ShapeKind::Line, false, 2);
+    style.symmetry.mirror_x = true;
+    shape_stroke(h, c, style, ToolPoint{1, 1}, ToolPoint{2, 3});
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            ASSERT_EQ_INT(c.get(x, y).a, c.get(W - 1 - x, y).a);
+        }
+    }
+}
+
+TEST(a_huge_brush_is_capped_and_stays_inside_the_cel)
+{
+    History h;
+    Cel c(W, H);
+    ASSERT_TRUE(shape_stroke(h, c, thick(ShapeKind::Line, false, 100000), ToolPoint{0, 0},
+                             ToolPoint{7, 5}));
+    ASSERT_EQ_INT(255, c.get(7, 5).a);
+}
+
+TEST(a_live_shape_with_a_brush_redraws_cleanly)
+{
+    History h;
+    Cel c(W, H);
+    std::unique_ptr<ShapeStroke> s =
+        ShapeStroke::begin(h, c, thick(ShapeKind::Line, false, 3), ToolPoint{1, 1});
+    ASSERT_TRUE(s != nullptr);
+    if (!s) {
+        return;
+    }
+    s->update(6, 1);
+    s->update(1, 1); /* shrinking restores what was underneath */
+    ASSERT_EQ_INT(0, c.get(6, 1).a);
+    s->end();
+}
+
 int main(void)
 {
     RUN(line_connects_the_corners);
@@ -392,5 +500,13 @@ int main(void)
     RUN(shapes_work_when_dragged_up_and_left);
     RUN(constrain_snaps_lines_to_eight_directions);
     RUN(constrain_makes_boxes_square);
+    RUN(a_thick_line_is_drawn_with_the_brush);
+    RUN(a_thick_rectangle_outline_gets_a_wider_border);
+    RUN(a_filled_shape_ignores_the_brush);
+    RUN(a_round_brush_trims_the_corners_of_each_stamp);
+    RUN(a_brush_of_one_or_less_changes_nothing);
+    RUN(a_mirrored_thick_shape_is_symmetric_even_for_an_even_brush);
+    RUN(a_huge_brush_is_capped_and_stays_inside_the_cel);
+    RUN(a_live_shape_with_a_brush_redraws_cleanly);
     return TEST_SUMMARY();
 }

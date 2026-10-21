@@ -162,8 +162,9 @@ class ShapeDrag : public StrokeDrag<ShapeStroke>
         }
         stroke_->update(end.x, end.y);
         /* The old and new shapes both lie in a box spanned by the anchor and the far corner. */
-        markStroke(editor_, anchorX_, anchorY_, endX_, endY_, 1);
-        markStroke(editor_, anchorX_, anchorY_, end.x, end.y, 1);
+        int pad = 1 + std::max(1, editor_.options().brush_size); /* the brush widens the outline */
+        markStroke(editor_, anchorX_, anchorY_, endX_, endY_, pad);
+        markStroke(editor_, anchorX_, anchorY_, end.x, end.y, pad);
         endX_ = end.x;
         endY_ = end.y;
     }
@@ -344,6 +345,8 @@ std::unique_ptr<Drag> beginShape(Editor &editor, Cel *cel, int cx, int cy)
     Rgba color = editor.foreground();
     ShapeStyle style = {tool_traits(editor.tool()).shape, editor.options().shape_filled, color,
                         editor.options().symmetry};
+    style.brush_size = editor.options().brush_size;
+    style.brush_round = editor.options().brush_round;
     std::unique_ptr<ShapeStroke> stroke =
         ShapeStroke::begin(editor.history(), *cel, style, ToolPoint{cx, cy});
     if (!stroke) {

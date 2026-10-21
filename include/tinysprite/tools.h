@@ -112,12 +112,17 @@ bool shape_has_fill(ShapeKind kind);
 
 /* What to draw and how. Every shape fits the box spanned by its two points; `filled` is ignored for
  * lines. With symmetry the shape is also drawn reflected across each enabled axis; reflected parts
- * outside the cel are clipped. */
+ * outside the cel are clipped. The brush (the PencilOptions size / round rules: values below 1 mean
+ * 1, above PENCIL_BRUSH_MAX are capped) widens the outline of a line or an unfilled shape: it is
+ * stamped around every outline pixel, an even size reaching one pixel further right and down
+ * (mirrored with the shape). A filled shape is drawn without it. */
 struct ShapeStyle {
     ShapeKind kind = ShapeKind::Line;
     bool filled = false;
     Rgba color = {};
     Symmetry symmetry = {};
+    int brush_size = 1;
+    bool brush_round = false;
 };
 
 /* Where a shape dragged from `anchor` to `to` ends when it is held to even proportions (Shift): a

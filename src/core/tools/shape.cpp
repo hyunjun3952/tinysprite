@@ -128,14 +128,52 @@ void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, Too
     specOf(style.kind).draw(plot, a, b, style.filled);
 }
 
+/* The cels the brush paints around a plotted outline pixel, relative to it; just the pixel itself
+ * when the brush is one pixel or the shape is filled. */
+std::vector<ToolPoint> brushOffsets(const ShapeStyle &style)
+{
+    PencilOptions brush;
+    brush.size = style.brush_size;
+    brush.round = style.brush_round;
+    bool outlineOnly = !(style.filled && specOf(style.kind).fillable);
+    if (!outlineOnly || brush.brushSize() == 1) {
+        return {ToolPoint{0, 0}};
+    }
+    std::vector<ToolPoint> offsets;
+    int origin = brush.brushOrigin();
+    for (int j = 0; j < brush.brushSize(); j++) {
+        for (int i = 0; i < brush.brushSize(); i++) {
+            if (brush.brushContains(i, j)) {
+                offsets.push_back(ToolPoint{i - origin, j - origin});
+            }
+        }
+    }
+    return offsets;
+}
+
 /* Draws the shape and its reflections. Reflecting both end points reflects the whole shape since
- * every kind is symmetric about its bounding box. */
+ * every kind is symmetric about its bounding box; the brush offsets are reflected with it, so an
+ * even brush stays symmetric. */
 void draw(History &history, const Cel &cel, const ShapeStyle &style, ToolPoint a, ToolPoint b)
 {
     RasterPlotFn plot = history_plot(history, cel, style.color);
-    for (int i = 0; i < symmetry_count(style.symmetry); i++) {
-        drawOne(plot, style, symmetry_copy(style.symmetry, cel.width(), cel.height(), a, i),
-                symmetry_copy(style.symmetry, cel.width(), cel.height(), b, i));
+    const std::vector<ToolPoint> offsets = brushOffsets(style);
+    const Symmetry &sym = style.symmetry;
+    for (int i = 0; i < symmetry_count(sym); i++) {
+        ToolPoint origin = symmetry_copy(sym, cel.width(), cel.height(), ToolPoint{0, 0}, i);
+        std::vector<ToolPoint> mapped;
+        for (ToolPoint o : offsets) {
+            ToolPoint r = symmetry_copy(sym, cel.width(), cel.height(), o, i);
+            mapped.push_back(ToolPoint{r.x - origin.x, r.y - origin.y});
+        }
+        RasterPlotFn stamp = [&plot, &mapped](int x, int y) {
+            for (ToolPoint m : mapped) {
+                plot(x + m.x, y + m.y);
+            }
+        };
+        drawOne(mapped.size() == 1 && mapped[0].x == 0 && mapped[0].y == 0 ? plot : stamp, style,
+                symmetry_copy(sym, cel.width(), cel.height(), a, i),
+                symmetry_copy(sym, cel.width(), cel.height(), b, i));
     }
 }
 

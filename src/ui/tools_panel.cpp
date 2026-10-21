@@ -210,22 +210,31 @@ void ToolsPanel::toolOptions()
     ToolKind tool = editor_.tool();
     bool brush = tool_traits(tool).group == ToolGroup::Brush;
     bool closedShape = isClosedShape(tool);
-    if (brush) {
-        /* The name on the left, the slider filling the rest of the row. */
+    bool shape = tool_traits(tool).group == ToolGroup::Shape;
+    /* The name on the left, the slider filling the rest of the row. */
+    auto brushControls = [&options](const char *sizeTip) {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Size");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::SliderInt("##brush_size", &options.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
-        theme::tip("Brush width in pixels. + and - (or [ and ]) change it by 1.");
+        theme::tip(sizeTip);
         ImGui::Checkbox("Round brush", &options.brush_round);
         theme::tip("Stamp a round brush instead of a square one (matters above 1 px).");
+    };
+    if (brush) {
+        brushControls("Brush width in pixels. + and - (or [ and ]) change it by 1.");
         ImGui::Checkbox("Pixel-perfect", &options.pixel_perfect);
         theme::tip("Drop the extra corner pixel of diagonal strokes so lines stay 1 px thin.\n"
                    "Only for a 1 px brush.");
-    } else if (closedShape) {
-        ImGui::Checkbox("Filled", &options.shape_filled);
-        theme::tip("Fill the shape instead of drawing only its outline.");
+    } else if (shape) {
+        if (closedShape) {
+            ImGui::Checkbox("Filled", &options.shape_filled);
+            theme::tip("Fill the shape instead of drawing only its outline.");
+        }
+        if (!closedShape || !options.shape_filled) {
+            brushControls("Outline width in pixels. + and - (or [ and ]) change it by 1.");
+        }
     } else {
         ImGui::TextDisabled("No options for this tool");
     }
