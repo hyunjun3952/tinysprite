@@ -19,7 +19,7 @@ Format/lint (needs `clang-format` and `clang-tidy`; K&R style, 4-space indent, c
 
 ```sh
 scripts/format.sh           # apply formatting (--check to verify only)
-scripts/lint.sh             # clang-tidy via build/compile_commands.json
+scripts/lint.sh             # clang-tidy via build/compile_commands.json (scripts/lint.sh build-ui also covers src/ui, C++)
 scripts/setup-hooks.sh      # once per clone: pre-commit = format check, pre-push = format + lint
 ```
 
