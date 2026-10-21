@@ -69,6 +69,48 @@ void raster_rect(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn
     }
 }
 
+/* The pixels of one step of the ellipse walk: the four mirrored points of the outline, or for a
+ * filled ellipse the two spans of a new row (the middle row of an odd height is one span). */
+static void ellipse_row(long long lx, long long rx, long long up, long long dn, bool filled,
+                        bool new_row, const RasterPlotFn &plot)
+{
+    if (filled) {
+        if (new_row) {
+            hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(dn), plot);
+            if (up != dn) {
+                hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(up), plot);
+            }
+        }
+        return;
+    }
+    plot(static_cast<int>(rx), static_cast<int>(dn));
+    plot(static_cast<int>(lx), static_cast<int>(dn));
+    if (up != dn) {
+        plot(static_cast<int>(lx), static_cast<int>(up));
+        plot(static_cast<int>(rx), static_cast<int>(up));
+    }
+}
+
+/* A flat ellipse stops the walk before its top and bottom rows are reached; finishes the
+ * remaining rows at the tips. */
+static void ellipse_tips(long long lx, long long rx, long long up, long long dn, long long b,
+                         bool filled, const RasterPlotFn &plot)
+{
+    while (dn - up <= b) {
+        if (filled) {
+            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(dn), plot);
+            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(up), plot);
+        } else {
+            plot(static_cast<int>(lx) - 1, static_cast<int>(dn));
+            plot(static_cast<int>(rx) + 1, static_cast<int>(dn));
+            plot(static_cast<int>(lx) - 1, static_cast<int>(up));
+            plot(static_cast<int>(rx) + 1, static_cast<int>(up));
+        }
+        dn++;
+        up--;
+    }
+}
+
 /* Midpoint ellipse over the bounding box, after Alois Zingl's "rasterizing ellipses in a
  * rectangle". Walks the upper-left quadrant outwards and mirrors every step into the other three
  * (lx/rx are the left and right columns, up/dn the upper and lower rows). `err` is the error term
@@ -95,21 +137,7 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
     long long step_b = 8 * b * b;
 
     do {
-        if (filled) {
-            if (new_row) {
-                hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(dn), plot);
-                if (up != dn) {
-                    hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(up), plot);
-                }
-            }
-        } else {
-            plot(static_cast<int>(rx), static_cast<int>(dn));
-            plot(static_cast<int>(lx), static_cast<int>(dn));
-            if (up != dn) {
-                plot(static_cast<int>(lx), static_cast<int>(up));
-                plot(static_cast<int>(rx), static_cast<int>(up));
-            }
-        }
+        ellipse_row(lx, rx, up, dn, filled, new_row != 0, plot);
         new_row = 0;
 
         long long e2 = 2 * err;
@@ -128,20 +156,39 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
         }
     } while (lx <= rx);
 
-    /* A flat ellipse stops the loop above before its top and bottom rows are reached; finish the
-     * remaining rows at the tips. */
-    while (dn - up <= b) {
-        if (filled) {
-            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(dn), plot);
-            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(up), plot);
-        } else {
-            plot(static_cast<int>(lx) - 1, static_cast<int>(dn));
-            plot(static_cast<int>(rx) + 1, static_cast<int>(dn));
-            plot(static_cast<int>(lx) - 1, static_cast<int>(up));
-            plot(static_cast<int>(rx) + 1, static_cast<int>(up));
+    ellipse_tips(lx, rx, up, dn, b, filled, plot);
+}
+
+/* Scanline fill: for every row, the crossings with the edges, paired up into spans. */
+static void fill_polygon(const std::vector<std::pair<int, int>> &points, const RasterPlotFn &plot)
+{
+    const size_t n = points.size();
+    int top = points[0].second;
+    int bottom = points[0].second;
+    for (const auto &p : points) {
+        top = std::min(top, p.second);
+        bottom = std::max(bottom, p.second);
+    }
+    std::vector<double> crossings;
+    for (int y = top; y <= bottom; y++) {
+        crossings.clear();
+        for (size_t i = 0; i < n; i++) {
+            const auto &a = points[i];
+            const auto &b = points[(i + 1) % n];
+            /* Half-open in y, so a vertex shared by two edges counts once. */
+            if ((a.second <= y && b.second > y) || (b.second <= y && a.second > y)) {
+                double t = (y - a.second) / static_cast<double>(b.second - a.second);
+                crossings.push_back(a.first + t * (b.first - a.first));
+            }
         }
-        dn++;
-        up--;
+        std::sort(crossings.begin(), crossings.end());
+        for (size_t i = 0; i + 1 < crossings.size(); i += 2) {
+            /* Pixels sit on integer coordinates; those inside the span, ends included, are
+             * lit, which keeps a mirrored polygon an exact mirror image. */
+            int from = static_cast<int>(std::ceil(crossings[i]));
+            int to = static_cast<int>(std::floor(crossings[i + 1]));
+            hspan(from, to, y, plot);
+        }
     }
 }
 
@@ -155,36 +202,10 @@ void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
         plot(points[0].first, points[0].second);
         return;
     }
-    const size_t n = points.size();
     if (filled) {
-        int top = points[0].second;
-        int bottom = points[0].second;
-        for (const auto &p : points) {
-            top = std::min(top, p.second);
-            bottom = std::max(bottom, p.second);
-        }
-        std::vector<double> crossings;
-        for (int y = top; y <= bottom; y++) {
-            crossings.clear();
-            for (size_t i = 0; i < n; i++) {
-                const auto &a = points[i];
-                const auto &b = points[(i + 1) % n];
-                /* Half-open in y, so a vertex shared by two edges counts once. */
-                if ((a.second <= y && b.second > y) || (b.second <= y && a.second > y)) {
-                    double t = (y - a.second) / static_cast<double>(b.second - a.second);
-                    crossings.push_back(a.first + t * (b.first - a.first));
-                }
-            }
-            std::sort(crossings.begin(), crossings.end());
-            for (size_t i = 0; i + 1 < crossings.size(); i += 2) {
-                /* Pixels sit on integer coordinates; those inside the span, ends included, are
-                 * lit, which keeps a mirrored polygon an exact mirror image. */
-                int from = static_cast<int>(std::ceil(crossings[i]));
-                int to = static_cast<int>(std::floor(crossings[i + 1]));
-                hspan(from, to, y, plot);
-            }
-        }
+        fill_polygon(points, plot);
     }
+    const size_t n = points.size();
     for (size_t i = 0; i < n; i++) {
         auto a = points[i];
         auto b = points[(i + 1) % n];
