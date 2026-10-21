@@ -37,4 +37,9 @@ int history_can_redo(const History *history);
 int history_undo(History *history);
 int history_redo(History *history);
 
+/* Drops every undo/redo step that touches `cel` (cancelling the active stroke if it is on `cel`),
+ * so the cel can be destroyed. The remaining steps keep their order and the undo/redo boundary.
+ * Steps on other cels are assumed independent of the dropped ones. */
+void history_forget_cel(History *history, Cel *cel);
+
 #endif

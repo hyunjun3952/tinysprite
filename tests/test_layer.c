@@ -62,6 +62,21 @@ TEST(setters_update_state)
     layer_destroy(l);
 }
 
+TEST(set_name_replaces_and_truncates)
+{
+    Layer *l = layer_create("Old", 4, 4, 1);
+    layer_set_name(l, "New");
+    ASSERT_TRUE(strcmp(layer_name(l), "New") == 0);
+    char long_name[LAYER_NAME_MAX + 20];
+    memset(long_name, 'y', sizeof(long_name));
+    long_name[sizeof(long_name) - 1] = '\0';
+    layer_set_name(l, long_name);
+    ASSERT_EQ_INT(LAYER_NAME_MAX, strlen(layer_name(l)));
+    layer_set_name(l, NULL);
+    ASSERT_EQ_INT(0, strlen(layer_name(l)));
+    layer_destroy(l);
+}
+
 TEST(invalid_arguments_return_null)
 {
     ASSERT_TRUE(layer_create("L", 0, 4, 1) == NULL);
@@ -81,6 +96,7 @@ int main(void)
     RUN(null_name_becomes_empty);
     RUN(long_name_is_truncated);
     RUN(setters_update_state);
+    RUN(set_name_replaces_and_truncates);
     RUN(invalid_arguments_return_null);
     RUN(destroy_null_is_safe);
     return TEST_SUMMARY();

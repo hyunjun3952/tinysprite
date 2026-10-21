@@ -174,3 +174,27 @@ int history_redo(History *history)
     stroke_apply(&history->strokes[history->cursor++]);
     return 0;
 }
+
+void history_forget_cel(History *history, Cel *cel)
+{
+    if (!history || !cel) {
+        return;
+    }
+    if (history->stroke_open && history->active.cel == cel) {
+        (void)history_cancel_stroke(history);
+    }
+    size_t kept = 0;
+    size_t kept_applied = 0;
+    for (size_t i = 0; i < history->count; i++) {
+        if (history->strokes[i].cel == cel) {
+            stroke_release(&history->strokes[i]);
+            continue;
+        }
+        history->strokes[kept++] = history->strokes[i];
+        if (i < history->cursor) {
+            kept_applied++;
+        }
+    }
+    history->count = kept;
+    history->cursor = kept_applied;
+}

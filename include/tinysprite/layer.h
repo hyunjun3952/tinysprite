@@ -15,6 +15,9 @@ void layer_destroy(Layer *layer);
 
 const char *layer_name(const Layer *layer);
 
+/* A NULL name becomes ""; names longer than LAYER_NAME_MAX are truncated. */
+void layer_set_name(Layer *layer, const char *name);
+
 int layer_visible(const Layer *layer);
 void layer_set_visible(Layer *layer, int visible);
 

@@ -70,6 +70,57 @@ TEST(layer_out_of_range_is_null)
     sprite_destroy(s);
 }
 
+TEST(remove_layer_shifts_upper_layers_down)
+{
+    Sprite *s = sprite_create(4, 4);
+    sprite_add_layer(s, "B");
+    sprite_add_layer(s, "C");
+    ASSERT_EQ_INT(0, sprite_remove_layer(s, 1));
+    ASSERT_EQ_INT(2, sprite_layer_count(s));
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 0)), "Layer 1") == 0);
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 1)), "C") == 0);
+    ASSERT_TRUE(sprite_layer(s, 2) == NULL);
+    sprite_destroy(s);
+}
+
+TEST(remove_layer_keeps_at_least_one_layer)
+{
+    Sprite *s = sprite_create(4, 4);
+    ASSERT_EQ_INT(-1, sprite_remove_layer(s, 0));
+    ASSERT_EQ_INT(1, sprite_layer_count(s));
+    sprite_add_layer(s, "B");
+    ASSERT_EQ_INT(-1, sprite_remove_layer(s, 2));
+    ASSERT_EQ_INT(-1, sprite_remove_layer(s, -1));
+    ASSERT_EQ_INT(2, sprite_layer_count(s));
+    sprite_destroy(s);
+}
+
+TEST(move_layer_up_and_down)
+{
+    Sprite *s = sprite_create(4, 4);
+    sprite_add_layer(s, "B");
+    sprite_add_layer(s, "C");
+    ASSERT_EQ_INT(0, sprite_move_layer(s, 0, 2)); /* Layer 1 to the top */
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 0)), "B") == 0);
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 1)), "C") == 0);
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 2)), "Layer 1") == 0);
+    ASSERT_EQ_INT(0, sprite_move_layer(s, 2, 1));
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 1)), "Layer 1") == 0);
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 2)), "C") == 0);
+    sprite_destroy(s);
+}
+
+TEST(move_layer_same_index_is_noop_and_bad_index_fails)
+{
+    Sprite *s = sprite_create(4, 4);
+    sprite_add_layer(s, "B");
+    ASSERT_EQ_INT(0, sprite_move_layer(s, 1, 1));
+    ASSERT_TRUE(strcmp(layer_name(sprite_layer(s, 1)), "B") == 0);
+    ASSERT_EQ_INT(-1, sprite_move_layer(s, 0, 2));
+    ASSERT_EQ_INT(-1, sprite_move_layer(s, -1, 0));
+    sprite_destroy(s);
+}
+
 int main(void)
 {
     RUN(create_has_one_frame_and_one_layer);
@@ -79,5 +130,9 @@ int main(void)
     RUN(add_layer_appends_on_top);
     RUN(add_many_layers_keeps_pointers_valid);
     RUN(layer_out_of_range_is_null);
+    RUN(remove_layer_shifts_upper_layers_down);
+    RUN(remove_layer_keeps_at_least_one_layer);
+    RUN(move_layer_up_and_down);
+    RUN(move_layer_same_index_is_noop_and_bad_index_fails);
     return TEST_SUMMARY();
 }

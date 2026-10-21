@@ -29,10 +29,7 @@ Layer *layer_create(const char *name, int width, int height, int frame_count)
     layer->opacity = 255;
     layer->frame_count = frame_count;
 
-    if (name != NULL) {
-        /* Truncates to LAYER_NAME_MAX and always NUL-terminates. */
-        snprintf(layer->name, sizeof(layer->name), "%.*s", LAYER_NAME_MAX, name);
-    }
+    layer_set_name(layer, name);
 
     for (int i = 0; i < frame_count; i++) {
         layer->cels[i] = cel_create(width, height);
@@ -59,6 +56,12 @@ void layer_destroy(Layer *layer)
 const char *layer_name(const Layer *layer)
 {
     return layer->name;
+}
+
+void layer_set_name(Layer *layer, const char *name)
+{
+    /* Truncates to LAYER_NAME_MAX and always NUL-terminates. */
+    snprintf(layer->name, sizeof(layer->name), "%.*s", LAYER_NAME_MAX, name != NULL ? name : "");
 }
 
 int layer_visible(const Layer *layer)

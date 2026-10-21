@@ -25,4 +25,13 @@ Layer *sprite_layer(Sprite *sprite, int index);
 /* Appends a new layer on top and returns it, or NULL on allocation failure. */
 Layer *sprite_add_layer(Sprite *sprite, const char *name);
 
+/* Destroys the layer at `index`; the layers above it shift down. A sprite always keeps at least one
+ * layer. Returns 0 on success, -1 if index is out of range or only one layer is left. The layer's
+ * cels are freed, so callers must drop them from any history first (history_forget_cel). */
+int sprite_remove_layer(Sprite *sprite, int index);
+
+/* Moves the layer at `from` so it ends up at index `to`, shifting the layers in between. Returns 0
+ * on success, -1 if either index is out of range. */
+int sprite_move_layer(Sprite *sprite, int from, int to);
+
 #endif

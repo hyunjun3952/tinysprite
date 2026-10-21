@@ -97,3 +97,32 @@ Layer *sprite_add_layer(Sprite *sprite, const char *name)
     sprite->layers[sprite->layer_count++] = layer;
     return layer;
 }
+
+int sprite_remove_layer(Sprite *sprite, int index)
+{
+    if (index < 0 || index >= sprite->layer_count || sprite->layer_count == 1) {
+        return -1;
+    }
+    layer_destroy(sprite->layers[index]);
+    for (int i = index + 1; i < sprite->layer_count; i++) {
+        sprite->layers[i - 1] = sprite->layers[i];
+    }
+    sprite->layer_count--;
+    return 0;
+}
+
+int sprite_move_layer(Sprite *sprite, int from, int to)
+{
+    if (from < 0 || from >= sprite->layer_count || to < 0 || to >= sprite->layer_count) {
+        return -1;
+    }
+    Layer *moved = sprite->layers[from];
+    for (int i = from; i < to; i++) {
+        sprite->layers[i] = sprite->layers[i + 1];
+    }
+    for (int i = from; i > to; i--) {
+        sprite->layers[i] = sprite->layers[i - 1];
+    }
+    sprite->layers[to] = moved;
+    return 0;
+}

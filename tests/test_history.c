@@ -251,6 +251,77 @@ TEST(cancel_stroke_restores_pixels_and_keeps_history)
     history_destroy(h);
 }
 
+TEST(forget_cel_drops_only_that_cels_steps)
+{
+    History *h = history_create();
+    Cel *a = cel_create(4, 4);
+    Cel *b = cel_create(4, 4);
+    Rgba red = {255, 0, 0, 255};
+    history_begin_stroke(h, a);
+    history_set_pixel(h, 0, 0, red);
+    history_end_stroke(h);
+    history_begin_stroke(h, b);
+    history_set_pixel(h, 1, 1, red);
+    history_end_stroke(h);
+    history_begin_stroke(h, a);
+    history_set_pixel(h, 2, 2, red);
+    history_end_stroke(h);
+
+    history_forget_cel(h, a);
+    cel_destroy(a);
+    ASSERT_EQ_INT(0, history_undo(h)); /* only b's stroke is left */
+    ASSERT_EQ_INT(0, cel_get(b, 1, 1).a);
+    ASSERT_TRUE(!history_can_undo(h));
+    ASSERT_EQ_INT(0, history_redo(h));
+    ASSERT_EQ_INT(255, cel_get(b, 1, 1).a);
+    ASSERT_TRUE(!history_can_redo(h));
+    cel_destroy(b);
+    history_destroy(h);
+}
+
+TEST(forget_cel_keeps_undo_redo_boundary)
+{
+    History *h = history_create();
+    Cel *a = cel_create(4, 4);
+    Cel *b = cel_create(4, 4);
+    Rgba red = {255, 0, 0, 255};
+    history_begin_stroke(h, a);
+    history_set_pixel(h, 0, 0, red);
+    history_end_stroke(h);
+    history_begin_stroke(h, b);
+    history_set_pixel(h, 1, 1, red);
+    history_end_stroke(h);
+    history_begin_stroke(h, a);
+    history_set_pixel(h, 2, 2, red);
+    history_end_stroke(h);
+    history_undo(h); /* a(2,2) is redoable; a(0,0) and b(1,1) are applied */
+
+    history_forget_cel(h, a);
+    cel_destroy(a);
+    ASSERT_TRUE(!history_can_redo(h));
+    ASSERT_TRUE(history_can_undo(h));
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(0, cel_get(b, 1, 1).a);
+    cel_destroy(b);
+    history_destroy(h);
+}
+
+TEST(forget_cel_cancels_active_stroke_on_it)
+{
+    History *h = history_create();
+    Cel *a = cel_create(4, 4);
+    Rgba red = {255, 0, 0, 255};
+    history_begin_stroke(h, a);
+    history_set_pixel(h, 0, 0, red);
+    history_forget_cel(h, a);
+    ASSERT_EQ_INT(0, cel_get(a, 0, 0).a);
+    ASSERT_EQ_INT(-1, history_end_stroke(h));
+    ASSERT_EQ_INT(0, history_begin_stroke(h, a));
+    history_end_stroke(h);
+    cel_destroy(a);
+    history_destroy(h);
+}
+
 int main(void)
 {
     RUN(starts_empty);
@@ -266,5 +337,8 @@ int main(void)
     RUN(destroy_with_active_stroke_and_redo_is_clean);
     RUN(many_strokes_grow_storage);
     RUN(cancel_stroke_restores_pixels_and_keeps_history);
+    RUN(forget_cel_drops_only_that_cels_steps);
+    RUN(forget_cel_keeps_undo_redo_boundary);
+    RUN(forget_cel_cancels_active_stroke_on_it);
     return TEST_SUMMARY();
 }
