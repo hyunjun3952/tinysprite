@@ -62,16 +62,28 @@ class Layer
         return static_cast<int>(cels_.size());
     }
 
-    /* Returns null if frame is out of range. The address is stable for the layer's lifetime. */
+    /* Returns null if frame is out of range. The address is stable for as long as the cel stays in
+     * the layer (or in whoever it was handed to). */
     Cel *cel(int frame);
     const Cel *cel(int frame) const;
+
+    /* Inserts `cel` so it ends up at `frame`, shifting the later frames up. Returns false (leaving
+     * `cel` untouched) if frame is outside 0..frameCount, or the cel is null or has another size
+     * than the layer's cels. Used by Sprite, which keeps every layer at the same frame count. */
+    bool insertCel(int frame, std::shared_ptr<Cel> &&cel);
+
+    /* Removes the cel at `frame` and hands it over (null if frame is out of range). */
+    std::shared_ptr<Cel> detachCel(int frame);
+
+    /* Moves the cel at `from` so it ends up at `to`. Returns false if either is out of range. */
+    bool moveCel(int from, int to);
 
   private:
     std::string name_;
     bool visible_ = true;
     bool locked_ = false;
     uint8_t opacity_ = 255;
-    std::vector<std::unique_ptr<Cel>> cels_;
+    std::vector<std::shared_ptr<Cel>> cels_;
 };
 
 #endif

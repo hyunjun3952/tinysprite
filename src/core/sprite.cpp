@@ -69,3 +69,93 @@ bool Sprite::moveLayer(int from, int to)
     }
     return true;
 }
+
+int Sprite::frameDuration(int frame) const
+{
+    if (frame < 0 || frame >= frameCount_) {
+        return FRAME_DURATION_DEFAULT;
+    }
+    return durations_[static_cast<size_t>(frame)];
+}
+
+bool Sprite::setFrameDuration(int frame, int ms)
+{
+    if (frame < 0 || frame >= frameCount_ || ms < 1 || ms > FRAME_DURATION_MAX) {
+        return false;
+    }
+    durations_[static_cast<size_t>(frame)] = ms;
+    return true;
+}
+
+Sprite::Frame Sprite::makeFrame() const
+{
+    Frame frame;
+    for (const auto &layer : layers_) {
+        frame.cels.push_back(
+            std::make_shared<Cel>(layer->cel(0)->width(), layer->cel(0)->height()));
+    }
+    return frame;
+}
+
+Sprite::Frame Sprite::copyFrame(int index) const
+{
+    Frame frame = makeFrame();
+    frame.duration = frameDuration(index);
+    for (size_t i = 0; i < layers_.size(); i++) {
+        const Cel *from = layers_[i]->cel(index);
+        if (from) {
+            std::copy_n(from->pixels(), static_cast<size_t>(width_) * height_,
+                        frame.cels[i]->pixels());
+        }
+    }
+    return frame;
+}
+
+bool Sprite::insertFrame(int index, Frame &&frame)
+{
+    if (index < 0 || index > frameCount_ || frame.cels.size() != layers_.size() ||
+        frame.duration < 1 || frame.duration > FRAME_DURATION_MAX) {
+        return false;
+    }
+    for (size_t i = 0; i < layers_.size(); i++) {
+        if (!frame.cels[i] || frame.cels[i]->width() != width_ ||
+            frame.cels[i]->height() != height_) {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < layers_.size(); i++) {
+        layers_[i]->insertCel(index, std::move(frame.cels[i]));
+    }
+    durations_.insert(durations_.begin() + index, frame.duration);
+    frameCount_++;
+    return true;
+}
+
+std::optional<Sprite::Frame> Sprite::detachFrame(int index)
+{
+    if (index < 0 || index >= frameCount_ || frameCount_ == 1) {
+        return std::nullopt;
+    }
+    Frame frame;
+    for (const auto &layer : layers_) {
+        frame.cels.push_back(layer->detachCel(index));
+    }
+    frame.duration = durations_[static_cast<size_t>(index)];
+    durations_.erase(durations_.begin() + index);
+    frameCount_--;
+    return frame;
+}
+
+bool Sprite::moveFrame(int from, int to)
+{
+    if (from < 0 || from >= frameCount_ || to < 0 || to >= frameCount_) {
+        return false;
+    }
+    for (const auto &layer : layers_) {
+        layer->moveCel(from, to);
+    }
+    int duration = durations_[static_cast<size_t>(from)];
+    durations_.erase(durations_.begin() + from);
+    durations_.insert(durations_.begin() + to, duration);
+    return true;
+}

@@ -169,6 +169,88 @@ TEST(sprite_without_layers_or_with_bad_size_is_rejected)
     ASSERT_TRUE(!pxa_decode(zero));
 }
 
+/* A 3x2 sprite with two layers and three frames, each frame different and with its own duration. */
+static Sprite animated()
+{
+    Sprite s(3, 2);
+    s.addLayer("Top");
+    s.insertFrame(1, s.makeFrame());
+    s.insertFrame(2, s.makeFrame());
+    for (int f = 0; f < 3; f++) {
+        s.layer(0)->cel(f)->set(f, 0, RED);
+        s.layer(1)->cel(f)->set(0, 1, Rgba{static_cast<uint8_t>(10 * f), 1, 2, 255});
+        s.setFrameDuration(f, 40 + 30 * f);
+    }
+    return s;
+}
+
+TEST(frames_and_durations_round_trip)
+{
+    Sprite s = animated();
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
+    if (!back) {
+        return;
+    }
+    ASSERT_EQ_INT(3, back->frameCount());
+    for (int f = 0; f < 3; f++) {
+        ASSERT_EQ_INT(40 + 30 * f, back->frameDuration(f));
+        for (int l = 0; l < 2; l++) {
+            for (int i = 0; i < 6; i++) {
+                ASSERT_TRUE(back->layer(l)->cel(f)->pixels()[i] == s.layer(l)->cel(f)->pixels()[i]);
+            }
+        }
+    }
+}
+
+TEST(a_plain_sprite_writes_no_frame_chunk)
+{
+    std::vector<uint8_t> data = pxa_encode(Sprite(2, 2));
+    for (size_t i = 0; i + 4 <= data.size(); i++) {
+        ASSERT_TRUE(
+            !(data[i] == 'F' && data[i + 1] == 'R' && data[i + 2] == 'A' && data[i + 3] == 'M'));
+    }
+}
+
+TEST(a_single_frame_with_its_own_duration_round_trips)
+{
+    Sprite s(2, 2);
+    s.setFrameDuration(0, 321);
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
+    if (!back) {
+        return;
+    }
+    ASSERT_EQ_INT(1, back->frameCount());
+    ASSERT_EQ_INT(321, back->frameDuration(0));
+}
+
+TEST(a_header_that_claims_more_frames_than_the_data_holds_is_rejected)
+{
+    std::vector<uint8_t> data = pxa_encode(Sprite(64, 64));
+    data[8 + 8 + 8] = 200; /* frame count of HEAD */
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
+TEST(a_frame_chunk_with_the_wrong_length_is_rejected)
+{
+    std::vector<uint8_t> data = pxa_encode(animated());
+    /* HEAD is 20 bytes after the 8 byte file header; FRAM follows, its length at +4. */
+    size_t fram = 8 + 20;
+    ASSERT_EQ_CHAR('F', data[fram]);
+    data[fram + 4] = 4; /* three frames need 6 bytes */
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
+TEST(a_zero_duration_is_rejected)
+{
+    std::vector<uint8_t> data = pxa_encode(animated());
+    size_t fram = 8 + 20;
+    data[fram + 8] = 0;
+    data[fram + 9] = 0;
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
 int main(void)
 {
     RUN(round_trip_keeps_everything);
@@ -181,5 +263,11 @@ int main(void)
     RUN(layer_before_header_is_rejected);
     RUN(sprite_without_layers_or_with_bad_size_is_rejected);
     RUN(save_replaces_atomically_and_reports_failure);
+    RUN(frames_and_durations_round_trip);
+    RUN(a_plain_sprite_writes_no_frame_chunk);
+    RUN(a_single_frame_with_its_own_duration_round_trips);
+    RUN(a_header_that_claims_more_frames_than_the_data_holds_is_rejected);
+    RUN(a_frame_chunk_with_the_wrong_length_is_rejected);
+    RUN(a_zero_duration_is_rejected);
     return TEST_SUMMARY();
 }

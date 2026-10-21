@@ -11,6 +11,8 @@
 /* The .pxa file format: a magic number and a version, then chunks (4-byte tag, 4-byte little-endian
  * length, payload). A reader skips tags it does not know, so later versions can add chunks.
  *   HEAD  width, height, frame count (u32 each); must come first
+ *   FRAM  the duration of every frame in milliseconds (u16 each); optional, written only when a
+ *         frame has other than FRAME_DURATION_DEFAULT, and before the first LAYR
  *   PALT  color count (u16), then r, g, b, a per color
  *   LAYR  name length (u8) and name, visible (u8), opacity (u8), then the pixels of every frame
  *         (r, g, b, a, row-major); one chunk per layer, bottom to top */

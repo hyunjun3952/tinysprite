@@ -119,6 +119,22 @@ void readPalette(Reader &chunk, Palette &palette)
     }
 }
 
+/* Grows a one-frame sprite to `frames` blank frames. The caller has checked that the file holds
+ * the pixels of that many frames, so the allocation is bounded by the file's size. */
+void growFrames(Sprite &sprite, uint32_t frames)
+{
+    while (static_cast<uint32_t>(sprite.frameCount()) < frames) {
+        sprite.insertFrame(sprite.frameCount(), sprite.makeFrame());
+    }
+}
+
+/* The smallest LAYR payload for a layer of `frames` frames: an empty name, the flags and opacity
+ * bytes, and the pixels. */
+uint64_t minLayerBytes(const Sprite &sprite, uint32_t frames)
+{
+    return 1 + 2 + static_cast<uint64_t>(frames) * sprite.width() * sprite.height() * sizeof(Rgba);
+}
+
 std::optional<Sprite> decode(const std::vector<uint8_t> &data)
 {
     Reader file(data.data(), data.data() + data.size());
@@ -128,6 +144,8 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     }
     std::optional<Sprite> sprite;
     int layers = 0;
+    uint32_t frames = 1;
+    std::vector<uint32_t> durations; /* from FRAM, applied once the frames exist */
     while (!file.atEnd()) {
         const uint8_t *tag = file.take(4);
         uint32_t length = file.u32();
@@ -137,12 +155,25 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
         if (isTag(tag, "HEAD")) {
             uint32_t width = chunk.u32();
             uint32_t height = chunk.u32();
-            uint32_t frames = chunk.u32();
-            /* Several frames need the animation phase; the Sprite constructor checks the size. */
-            if (sprite || frames != 1 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
+            frames = chunk.u32();
+            /* The Sprite constructor checks the size; the frames are created with the first layer,
+             * once the file is known to hold their pixels. */
+            if (sprite || frames < 1 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
                 return std::nullopt;
             }
             sprite.emplace(static_cast<int>(width), static_cast<int>(height));
+        } else if (isTag(tag, "FRAM")) {
+            if (!sprite || layers > 0 || length != 2 * static_cast<uint64_t>(length / 2) ||
+                length / 2 != frames) {
+                return std::nullopt;
+            }
+            for (uint32_t i = 0; i < frames; i++) {
+                uint32_t ms = chunk.u16();
+                if (ms < 1) {
+                    return std::nullopt;
+                }
+                durations.push_back(ms);
+            }
         } else if (isTag(tag, "PALT") || isTag(tag, "LAYR")) {
             if (!sprite) {
                 return std::nullopt;
@@ -150,11 +181,23 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
             if (isTag(tag, "PALT")) {
                 readPalette(chunk, sprite->palette());
             } else {
+                if (layers == 0) {
+                    if (length < minLayerBytes(*sprite, frames)) {
+                        return std::nullopt;
+                    }
+                    growFrames(*sprite, frames);
+                }
                 readLayer(chunk, *sprite, layers++);
             }
         }
     }
-    return layers > 0 ? std::move(sprite) : std::nullopt;
+    if (layers == 0 || !sprite) {
+        return std::nullopt;
+    }
+    for (size_t i = 0; i < durations.size(); i++) {
+        sprite->setFrameDuration(static_cast<int>(i), static_cast<int>(durations[i]));
+    }
+    return sprite;
 }
 
 } // namespace
@@ -168,6 +211,17 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
         putU32(o, static_cast<uint32_t>(sprite.height()));
         putU32(o, static_cast<uint32_t>(sprite.frameCount()));
     });
+    bool timed = false; /* only a sprite with non-default durations needs the chunk */
+    for (int frame = 0; frame < sprite.frameCount(); frame++) {
+        timed = timed || sprite.frameDuration(frame) != FRAME_DURATION_DEFAULT;
+    }
+    if (timed) {
+        putChunk(out, "FRAM", [&](std::vector<uint8_t> &o) {
+            for (int frame = 0; frame < sprite.frameCount(); frame++) {
+                putU16(o, static_cast<uint32_t>(sprite.frameDuration(frame)));
+            }
+        });
+    }
     putChunk(out, "PALT", [&](std::vector<uint8_t> &o) {
         putU16(o, static_cast<uint32_t>(sprite.palette().count()));
         for (int i = 0; i < sprite.palette().count(); i++) {

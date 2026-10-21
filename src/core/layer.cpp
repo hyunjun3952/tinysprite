@@ -1,5 +1,6 @@
 #include "tinysprite/layer.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -10,7 +11,7 @@ Layer::Layer(const std::string &name, int width, int height, int frameCount)
     }
     setName(name);
     for (int i = 0; i < frameCount; i++) {
-        cels_.push_back(std::make_unique<Cel>(width, height));
+        cels_.push_back(std::make_shared<Cel>(width, height));
     }
 }
 
@@ -43,4 +44,39 @@ const Cel *Layer::cel(int frame) const
         return nullptr;
     }
     return cels_[static_cast<size_t>(frame)].get();
+}
+
+bool Layer::insertCel(int frame, std::shared_ptr<Cel> &&cel)
+{
+    if (!cel || cels_.empty() || frame < 0 || frame > frameCount() ||
+        cel->width() != cels_[0]->width() || cel->height() != cels_[0]->height()) {
+        return false;
+    }
+    cels_.insert(cels_.begin() + frame, std::move(cel));
+    return true;
+}
+
+std::shared_ptr<Cel> Layer::detachCel(int frame)
+{
+    if (frame < 0 || frame >= frameCount()) {
+        return nullptr;
+    }
+    auto it = cels_.begin() + frame;
+    std::shared_ptr<Cel> cel = std::move(*it);
+    cels_.erase(it);
+    return cel;
+}
+
+bool Layer::moveCel(int from, int to)
+{
+    if (from < 0 || from >= frameCount() || to < 0 || to >= frameCount()) {
+        return false;
+    }
+    auto first = cels_.begin();
+    if (from < to) {
+        std::rotate(first + from, first + from + 1, first + to + 1);
+    } else {
+        std::rotate(first + to, first + from, first + from + 1);
+    }
+    return true;
 }
