@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "editor.h"
 #include "layer_thumbnails.h"
@@ -76,7 +78,8 @@ class LayersPanel
 
     /* The opacity is edited live and one undo step is recorded on release; this holds the value
      * from before that edit began. */
-    uint8_t opacityBefore_ = 0;
+    std::vector<std::pair<int, uint8_t>>
+        opacityBefore_; /* the selected layers when the drag began */
 };
 
 #endif

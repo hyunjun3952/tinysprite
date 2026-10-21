@@ -140,8 +140,12 @@ TEST(dragging_a_row_shows_a_line_where_it_will_land)
 {
     Fixture f;
     add_layers(f, 3);
-    const int x = 930; /* the empty opacity column: nothing else is that color there */
-    ASSERT_EQ_INT(0, ink_rows(f, x));
+    /* a column of the list with no icon or text in it: nothing else is that color there */
+    int x = 900;
+    while (x < 990 && ink_rows(f, x) != 0) {
+        x++;
+    }
+    ASSERT_TRUE(x < 990);
     /* Hold the top row and move over the bottom one: the layer would end at the bottom. */
     f.h.frame(ROW_X, row_y(0), false);
     f.h.frame(ROW_X, row_y(0), true);
@@ -336,20 +340,19 @@ TEST(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip)
     ImGui::GetStyle().HoverDelayShort = 0.0f;
     ImGui::GetStyle().HoverDelayNormal = 0.0f;
     ImGui::GetStyle().HoverStationaryDelay = 0.0f;
-    /* A single layer: the buttons row has New and Copy enabled, Delete and Merge disabled. Find
-     * the row by scanning down the panel. */
+    /* A single layer: the buttons row has New and Copy enabled, Up, Down, Delete and Merge
+     * disabled. Sweep the panel to find the row and the buttons. */
     bool sawEnabledTip = false;
     bool sawBlockedCursor = false;
     bool tipOnBlocked = false;
-    for (int row = 80; row < 160; row += 4) {
-        float y = static_cast<float>(row);
-        Hover enabled = hover_at(f, 778.0f, y); /* New */
-        sawEnabledTip = sawEnabledTip || enabled.tooltip;
-        ASSERT_TRUE(enabled.cursor != ImGuiMouseCursor_NotAllowed);
-        Hover disabled = hover_at(f, 892.0f, y); /* Delete */
-        sawBlockedCursor = sawBlockedCursor || disabled.cursor == ImGuiMouseCursor_NotAllowed;
-        tipOnBlocked =
-            tipOnBlocked || (disabled.cursor == ImGuiMouseCursor_NotAllowed && disabled.tooltip);
+    for (int row = 80; row < 160; row += 8) {
+        for (int x = 745; x < 1000; x += 8) {
+            Hover h = hover_at(f, static_cast<float>(x), static_cast<float>(row));
+            bool blocked = h.cursor == ImGuiMouseCursor_NotAllowed;
+            sawEnabledTip = sawEnabledTip || (!blocked && h.tooltip);
+            sawBlockedCursor = sawBlockedCursor || blocked;
+            tipOnBlocked = tipOnBlocked || (blocked && h.tooltip);
+        }
     }
     ASSERT_TRUE(sawEnabledTip);    /* an enabled button still explains itself */
     ASSERT_TRUE(sawBlockedCursor); /* a disabled one says "not allowed" ... */

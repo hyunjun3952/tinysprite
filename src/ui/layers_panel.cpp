@@ -322,6 +322,8 @@ void LayersPanel::activeLayerDetails()
         return;
     }
     const uint8_t opacityNow = layer->opacity();
+    /* read before the slider can change anything: the drag may start on this very frame */
+    std::vector<std::pair<int, uint8_t>> selectedNow = editor_.selectedLayerOpacities();
     /* The name on the left, then a slider that fills the row and shows a percentage. */
     int percent = (opacityNow * 100 + 127) / 255;
     ImGui::AlignTextToFramePadding();
@@ -329,30 +331,39 @@ void LayersPanel::activeLayerDetails()
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::SliderInt("##opacity", &percent, 0, 100, "%d%%")) {
-        layer->setOpacity(static_cast<uint8_t>((percent * 255 + 50) / 100));
-        editor_.markAllDirty();
+        editor_.setSelectedLayersOpacityLive(static_cast<uint8_t>((percent * 255 + 50) / 100));
     }
     theme::tip("How much the layer shows through: 0% is invisible, 100% is fully opaque.");
     if (ImGui::IsItemActivated()) {
-        opacityBefore_ = opacityNow;
+        opacityBefore_ = std::move(selectedNow);
     }
     if (ImGui::IsItemDeactivatedAfterEdit()) {
-        editor_.commitLayerOpacity(index, opacityBefore_);
+        editor_.commitSelectedLayersOpacity(opacityBefore_);
     }
 }
 
 /* Layer actions under the list: one icon button each, evenly spread (the tooltips name them).
- * Layers are reordered by dragging their rows. */
+ * Layers are reordered by dragging their rows or with the up / down buttons. */
 void LayersPanel::buttons()
 {
     using icons::Icon;
-    constexpr int COUNT = 4;
+    constexpr int COUNT = 6;
     ImVec2 size(theme::columnWidth(COUNT), ImGui::GetFrameHeight() + 6.0f);
     int count = editor_.sprite().layerCount();
     int selected = static_cast<int>(editor_.selectedLayers().size());
 
     if (icons::button(Icon::Plus, "##new", "New layer on top", size)) {
         editor_.addLayer();
+    }
+    ImGui::SameLine();
+    if (icons::button(Icon::ArrowUp, "##up", "Move the selected layers up", size,
+                      editor_.canMoveLayersUp())) {
+        editor_.moveSelectedLayersBy(1);
+    }
+    ImGui::SameLine();
+    if (icons::button(Icon::ArrowDown, "##down", "Move the selected layers down", size,
+                      editor_.canMoveLayersDown())) {
+        editor_.moveSelectedLayersBy(-1);
     }
     ImGui::SameLine();
     if (icons::button(Icon::Copy, "##copy", "Duplicate the selected layers", size)) {

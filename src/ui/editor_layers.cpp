@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "editor_internal.h"
@@ -239,10 +240,17 @@ void Editor::moveSelectedLayers(int from, int to)
     }
     auto target = std::find(remaining.begin(), remaining.end(), sprite().layer(to));
     remaining.insert(from < to ? target + 1 : target, block.begin(), block.end());
+    reorderLayers(remaining);
+}
+
+/* Puts the layers in `order` (bottom first) with the fewest moves, as one undo step; the active
+ * layer stays the same layer. */
+void Editor::reorderLayers(const std::vector<Layer *> &order)
+{
     Layer *active = sprite().layer(layers_.active());
     history().beginGroup();
-    for (int pos = 0; pos < static_cast<int>(remaining.size()); pos++) {
-        int at = editor_detail::indexOfLayer(sprite(), remaining[static_cast<size_t>(pos)]);
+    for (int pos = 0; pos < static_cast<int>(order.size()); pos++) {
+        int at = editor_detail::indexOfLayer(sprite(), order[static_cast<size_t>(pos)]);
         if (at != pos) {
             layer_op_move(history(), sprite(), at, pos);
         }
@@ -250,6 +258,56 @@ void Editor::moveSelectedLayers(int from, int to)
     history().endGroup();
     layers_.setActive(editor_detail::indexOfLayer(sprite(), active));
     markAllDirty();
+}
+
+/* The layer order after every selected layer swaps with the unselected one next to it in the given
+ * direction (+1 up the stack, -1 down), and whether anything moved. Selected layers that have
+ * another selected layer or the end of the stack in the way stay put, so a block keeps its shape.
+ */
+std::vector<Layer *> Editor::shiftedLayerOrder(int direction, bool &moved) const
+{
+    int count = sprite().layerCount();
+    std::vector<Layer *> order;
+    std::vector<unsigned char> selected; /* not vector<bool>: its elements cannot be swapped */
+    for (int i = 0; i < count; i++) {
+        order.push_back(const_cast<Sprite &>(sprite()).layer(i));
+        selected.push_back(layerSelected(i) ? 1 : 0);
+    }
+    moved = false;
+    for (int step = 0; step < count - 1; step++) {
+        /* walk from the end the layers move towards, so a layer never moves twice */
+        int i = direction > 0 ? count - 2 - step : step + 1;
+        int next = i + direction;
+        if (selected[static_cast<size_t>(i)] != 0 && selected[static_cast<size_t>(next)] == 0) {
+            std::swap(order[static_cast<size_t>(i)], order[static_cast<size_t>(next)]);
+            std::swap(selected[static_cast<size_t>(i)], selected[static_cast<size_t>(next)]);
+            moved = true;
+        }
+    }
+    return order;
+}
+
+bool Editor::canMoveLayersUp() const
+{
+    bool moved = false;
+    shiftedLayerOrder(1, moved);
+    return !stroking() && moved;
+}
+
+bool Editor::canMoveLayersDown() const
+{
+    bool moved = false;
+    shiftedLayerOrder(-1, moved);
+    return !stroking() && moved;
+}
+
+void Editor::moveSelectedLayersBy(int direction)
+{
+    bool moved = false;
+    std::vector<Layer *> order = shiftedLayerOrder(direction > 0 ? 1 : -1, moved);
+    if (!stroking() && moved) {
+        reorderLayers(order);
+    }
 }
 
 void Editor::commitLayerName(int index, const std::string &beforeName)
@@ -267,4 +325,39 @@ void Editor::commitLayerOpacity(int index, uint8_t beforeOpacity)
         layer_op_record_opacity(history(), *layer, beforeOpacity);
         markAllDirty();
     }
+}
+
+std::vector<std::pair<int, uint8_t>> Editor::selectedLayerOpacities() const
+{
+    std::vector<std::pair<int, uint8_t>> out;
+    for (int i : selectedLayers()) {
+        out.emplace_back(i, sprite().layer(i)->opacity());
+    }
+    return out;
+}
+
+void Editor::setSelectedLayersOpacityLive(uint8_t opacity)
+{
+    if (stroking()) {
+        return;
+    }
+    for (int i : selectedLayers()) {
+        sprite().layer(i)->setOpacity(opacity);
+    }
+    markAllDirty();
+}
+
+void Editor::commitSelectedLayersOpacity(const std::vector<std::pair<int, uint8_t>> &before)
+{
+    if (stroking()) {
+        return;
+    }
+    history().beginGroup();
+    for (const auto &entry : before) {
+        if (Layer *layer = sprite().layer(entry.first)) {
+            layer_op_record_opacity(history(), *layer, entry.second);
+        }
+    }
+    history().endGroup();
+    markAllDirty();
 }

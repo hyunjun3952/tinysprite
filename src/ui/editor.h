@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "composite_surface.h"
@@ -472,11 +473,26 @@ class Editor
      * selected layer does nothing. Otherwise it is moveLayer(from, to). */
     void moveSelectedLayers(int from, int to);
 
+    /* The Up / Down buttons: every selected layer swaps with the unselected one above (direction
+     * > 0) or below it, as one undo step; a selected block moves as a block. canMoveLayersUp /
+     * Down tell whether that would change anything. */
+    void moveSelectedLayersBy(int direction);
+    bool canMoveLayersUp() const;
+    bool canMoveLayersDown() const;
+
     /* Duplicate puts a copy above the layer and makes it active; merge draws the layer onto the
      * one below it (both must be visible). If the merged layer was active the one below becomes
      * active, otherwise the active layer keeps pointing at the same layer. */
     void duplicateLayer(int index);
     void mergeLayerDown(int index);
+
+    /* The opacity slider edits every selected layer: selectedLayerOpacities is what they hold when
+     * the edit begins (layer index, opacity), setSelectedLayersOpacityLive gives them all the value
+     * while the slider moves, and commitSelectedLayersOpacity records the whole edit as one undo
+     * step once it is released (nothing if no layer changed). */
+    std::vector<std::pair<int, uint8_t>> selectedLayerOpacities() const;
+    void setSelectedLayersOpacityLive(uint8_t opacity);
+    void commitSelectedLayersOpacity(const std::vector<std::pair<int, uint8_t>> &before);
 
     /* Records a name / opacity edit made live with Layer::set*: the layer currently holds the
      * edited value, `before*` is what it held when the edit began. One undo step; nothing if
@@ -530,6 +546,8 @@ class Editor
     void resetDocument(std::unique_ptr<CompositeSurface> surface);
 
     Rect spriteBounds() const;
+    void reorderLayers(const std::vector<Layer *> &order);
+    std::vector<Layer *> shiftedLayerOrder(int direction, bool &moved) const;
     void startPlayback();
     void afterHistoryStep(const Layer *active = nullptr);
 

@@ -4,6 +4,8 @@
 
 #include <cstring>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "editor.h"
 #include "minitest.h"
@@ -482,6 +484,137 @@ TEST(undo_and_redo_keep_the_same_layer_active)
     delete e;
 }
 
+TEST(opacity_edits_apply_to_every_selected_layer_as_one_step)
+{
+    Editor *e = editor_with_layers(3);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Toggle);
+    std::vector<std::pair<int, uint8_t>> before = e->selectedLayerOpacities();
+    ASSERT_EQ_INT(2, static_cast<int>(before.size()));
+    e->setSelectedLayersOpacityLive(100);
+    e->setSelectedLayersOpacityLive(80); /* dragging the slider: many live values */
+    ASSERT_EQ_INT(80, e->sprite().layer(0)->opacity());
+    ASSERT_EQ_INT(80, e->sprite().layer(2)->opacity());
+    ASSERT_EQ_INT(255, e->sprite().layer(1)->opacity());
+    e->commitSelectedLayersOpacity(before);
+    e->undo();
+    ASSERT_EQ_INT(255, e->sprite().layer(0)->opacity());
+    ASSERT_EQ_INT(255, e->sprite().layer(2)->opacity());
+    e->redo();
+    ASSERT_EQ_INT(80, e->sprite().layer(0)->opacity());
+    ASSERT_EQ_INT(80, e->sprite().layer(2)->opacity());
+    delete e;
+}
+
+TEST(layers_keep_their_own_opacity_before_a_shared_edit)
+{
+    Editor *e = editor_with_layers(2);
+    e->sprite().layer(0)->setOpacity(50);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(1, LayerPick::Toggle);
+    std::vector<std::pair<int, uint8_t>> before = e->selectedLayerOpacities();
+    e->setSelectedLayersOpacityLive(200);
+    e->commitSelectedLayersOpacity(before);
+    e->undo();
+    ASSERT_EQ_INT(50, e->sprite().layer(0)->opacity());
+    ASSERT_EQ_INT(255, e->sprite().layer(1)->opacity());
+    delete e;
+}
+
+TEST(an_unchanged_shared_opacity_records_nothing)
+{
+    Editor *e = editor_with_layers(2);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(1, LayerPick::Toggle);
+    std::vector<std::pair<int, uint8_t>> before = e->selectedLayerOpacities();
+    e->commitSelectedLayersOpacity(before);
+    e->undo(); /* undoes the last layer that was added, not an opacity step */
+    ASSERT_EQ_INT(1, e->sprite().layerCount());
+    delete e;
+}
+
+TEST(a_shared_opacity_edit_is_held_off_while_stroking)
+{
+    Editor *e = editor_with_layers(2);
+    e->selectTool(ToolKind::Pencil);
+    e->press(1, 1);
+    e->setSelectedLayersOpacityLive(10);
+    ASSERT_EQ_INT(255, e->sprite().layer(1)->opacity());
+    e->release();
+    delete e;
+}
+
+TEST(move_up_and_down_shift_the_active_layer_by_one)
+{
+    Editor *e = editor_with_layers(3);
+    e->setActiveLayer(1); /* "2" */
+    ASSERT_TRUE(e->canMoveLayersUp());
+    e->moveSelectedLayersBy(1);
+    ASSERT_TRUE(layer_names(e) == "132");
+    ASSERT_EQ_INT(2, e->activeLayer());
+    ASSERT_TRUE(!e->canMoveLayersUp());
+    e->moveSelectedLayersBy(1); /* already on top: nothing happens */
+    ASSERT_TRUE(layer_names(e) == "132");
+    e->moveSelectedLayersBy(-1);
+    ASSERT_TRUE(layer_names(e) == "123");
+    e->undo();
+    ASSERT_TRUE(layer_names(e) == "132");
+    delete e;
+}
+
+TEST(move_down_stops_at_the_bottom)
+{
+    Editor *e = editor_with_layers(2);
+    e->setActiveLayer(0);
+    ASSERT_TRUE(!e->canMoveLayersDown());
+    e->moveSelectedLayersBy(-1);
+    ASSERT_TRUE(layer_names(e) == "12");
+    delete e;
+}
+
+TEST(moving_a_selection_moves_it_as_a_block_one_step_and_one_undo)
+{
+    Editor *e = editor_with_layers(4);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(1, LayerPick::Toggle); /* "1" and "2" */
+    ASSERT_TRUE(e->canMoveLayersUp());
+    e->moveSelectedLayersBy(1);
+    ASSERT_TRUE(layer_names(e) == "3124");
+    ASSERT_TRUE(selection(e) == "12");
+    e->moveSelectedLayersBy(1);
+    ASSERT_TRUE(layer_names(e) == "3412");
+    ASSERT_TRUE(!e->canMoveLayersUp());
+    e->undo();
+    ASSERT_TRUE(layer_names(e) == "3124");
+    e->undo();
+    ASSERT_TRUE(layer_names(e) == "1234");
+    delete e;
+}
+
+TEST(a_selection_with_a_gap_moves_by_its_edge_layers)
+{
+    Editor *e = editor_with_layers(4);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Toggle); /* "1" and "3" */
+    e->moveSelectedLayersBy(1);
+    /* each selected layer swaps with the unselected one above it */
+    ASSERT_TRUE(layer_names(e) == "2143");
+    delete e;
+}
+
+TEST(moving_layers_is_held_off_while_stroking)
+{
+    Editor *e = editor_with_layers(3);
+    e->setActiveLayer(0);
+    e->selectTool(ToolKind::Pencil);
+    e->press(1, 1);
+    ASSERT_TRUE(!e->canMoveLayersUp());
+    e->moveSelectedLayersBy(1);
+    ASSERT_TRUE(layer_names(e) == "123");
+    e->release();
+    delete e;
+}
+
 int main(void)
 {
     if (!ui_init()) {
@@ -517,6 +650,15 @@ int main(void)
     RUN(duplicate_and_merge_are_held_off_while_dragging_or_invalid);
     RUN(merge_is_refused_when_a_lower_selected_layer_is_locked);
     RUN(undo_and_redo_keep_the_same_layer_active);
+    RUN(opacity_edits_apply_to_every_selected_layer_as_one_step);
+    RUN(layers_keep_their_own_opacity_before_a_shared_edit);
+    RUN(an_unchanged_shared_opacity_records_nothing);
+    RUN(a_shared_opacity_edit_is_held_off_while_stroking);
+    RUN(move_up_and_down_shift_the_active_layer_by_one);
+    RUN(move_down_stops_at_the_bottom);
+    RUN(moving_a_selection_moves_it_as_a_block_one_step_and_one_undo);
+    RUN(a_selection_with_a_gap_moves_by_its_edge_layers);
+    RUN(moving_layers_is_held_off_while_stroking);
     ui_quit();
     return TEST_SUMMARY();
 }

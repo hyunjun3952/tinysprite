@@ -30,6 +30,8 @@ enum class Icon {
     Cross,
     Minus,
     Reset,
+    ArrowUp,
+    ArrowDown,
     Count
 };
 
