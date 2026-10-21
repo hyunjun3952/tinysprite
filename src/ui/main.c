@@ -9,6 +9,7 @@
 #include "editor.h"
 #include "imgui_backend.h"
 #include "layers_panel.h"
+#include "palette_panel.h"
 #include "tools.h"
 
 enum {
@@ -61,7 +62,7 @@ static void tools_panel(Editor *editor, float height)
             igSameLine(110.0f, -1.0f);
         }
         if (igRadioButton_Bool(tools_name((ToolKind)tool), editor->tool == (ToolKind)tool)) {
-            editor->tool = (ToolKind)tool;
+            editor_select_tool(editor, (ToolKind)tool);
         }
     }
 
@@ -79,14 +80,46 @@ static void tools_panel(Editor *editor, float height)
     if (igCheckbox("Mirror Y", &option)) {
         editor->mirror_y = option;
     }
+    igSliderInt("Brush", &editor->brush_size, 1, PENCIL_BRUSH_MAX, "%d px", 0);
+    option = editor->brush_round != 0;
+    if (igCheckbox("Round brush", &option)) {
+        editor->brush_round = option;
+    }
     option = editor->shape_filled != 0;
     if (igCheckbox("Filled shapes", &option)) {
         editor->shape_filled = option;
     }
 
+    igSeparatorText("Selection");
+    igBeginDisabled(!editor->has_selection || editor_stroking(editor));
+    if (igButton("Flip H", (ImVec2){0.0f, 0.0f})) {
+        editor_flip_selection(editor, 1);
+    }
+    igSameLine(0.0f, -1.0f);
+    if (igButton("Flip V", (ImVec2){0.0f, 0.0f})) {
+        editor_flip_selection(editor, 0);
+    }
+    igSameLine(0.0f, -1.0f);
+    if (igButton("Rot CW", (ImVec2){0.0f, 0.0f})) {
+        editor_rotate_selection(editor, 1);
+    }
+    igSameLine(0.0f, -1.0f);
+    if (igButton("CCW", (ImVec2){0.0f, 0.0f})) {
+        editor_rotate_selection(editor, 0);
+    }
+    igEndDisabled();
+
     igSeparatorText("Color");
     igColorEdit4("##color", editor->color,
                  ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_AlphaBar);
+    igColorEdit4("##bg_color", editor->bg_color,
+                 ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+    igSameLine(0.0f, -1.0f);
+    if (igButton("Swap (X)", (ImVec2){0.0f, 0.0f})) {
+        editor_swap_colors(editor);
+    }
+
+    palette_panel_show(editor);
 
     igSeparatorText("View");
     if (igButton("-", (ImVec2){0.0f, 0.0f})) {
@@ -123,12 +156,57 @@ static void tools_panel(Editor *editor, float height)
     igEnd();
 }
 
+typedef struct ToolKey {
+    ImGuiKey key;
+    ToolKind tool;
+} ToolKey;
+
+static const ToolKey TOOL_KEYS[] = {
+    {ImGuiKey_B, TOOL_PENCIL},     {ImGuiKey_E, TOOL_ERASER}, {ImGuiKey_G, TOOL_BUCKET},
+    {ImGuiKey_I, TOOL_EYEDROPPER}, {ImGuiKey_L, TOOL_LINE},   {ImGuiKey_R, TOOL_RECT},
+    {ImGuiKey_O, TOOL_ELLIPSE},    {ImGuiKey_M, TOOL_SELECT},
+};
+
+/* Keys that act without a modifier: tool letters, X (swap colors), [ ] (brush size), F (fit) and
+ * +/- (zoom). */
+static void plain_shortcuts(Editor *editor)
+{
+    for (size_t i = 0; i < sizeof(TOOL_KEYS) / sizeof(TOOL_KEYS[0]); i++) {
+        if (igIsKeyPressed_Bool(TOOL_KEYS[i].key, false)) {
+            editor_select_tool(editor, TOOL_KEYS[i].tool);
+        }
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_X, false)) {
+        editor_swap_colors(editor);
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_LeftBracket, true) && editor->brush_size > 1) {
+        editor->brush_size--;
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_RightBracket, true) && editor->brush_size < PENCIL_BRUSH_MAX) {
+        editor->brush_size++;
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_F, false)) {
+        editor->needs_fit = 1;
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_Equal, true) ||
+        igIsKeyPressed_Bool(ImGuiKey_KeypadAdd, true)) {
+        editor_zoom_step(editor, 1);
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_Minus, true) ||
+        igIsKeyPressed_Bool(ImGuiKey_KeypadSubtract, true)) {
+        editor_zoom_step(editor, -1);
+    }
+}
+
 static void handle_shortcuts(Editor *editor)
 {
     ImGuiIO *io = igGetIO_Nil();
     if (io->WantTextInput) {
+        editor_temp_pick(editor, 0);
         return;
     }
+    /* Holding Alt turns the active tool into the eyedropper until it is released. */
+    editor_temp_pick(editor, io->KeyAlt);
     if (igIsKeyPressed_Bool(ImGuiKey_Escape, false)) {
         if (editor_stroking(editor)) {
             tools_cancel(editor);
@@ -143,6 +221,9 @@ static void handle_shortcuts(Editor *editor)
         editor_delete_selection(editor);
     }
     if (!io->KeyCtrl) {
+        if (!io->KeyAlt) {
+            plain_shortcuts(editor);
+        }
         return;
     }
     if (igIsKeyPressed_Bool(ImGuiKey_Z, true)) {
@@ -155,6 +236,12 @@ static void handle_shortcuts(Editor *editor)
         editor_redo(editor);
     } else if (igIsKeyPressed_Bool(ImGuiKey_A, false)) {
         editor_select_all(editor);
+    } else if (igIsKeyPressed_Bool(ImGuiKey_C, false)) {
+        editor_copy_selection(editor);
+    } else if (igIsKeyPressed_Bool(ImGuiKey_X, false)) {
+        editor_cut_selection(editor);
+    } else if (igIsKeyPressed_Bool(ImGuiKey_V, false)) {
+        editor_paste(editor);
     }
 }
 

@@ -91,3 +91,15 @@ headless CLI export, optional Aseprite import.
   CI builds core only, so the UI tests run locally. `scripts/lint.sh` skips `tests/ui` like `src/ui`.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
+
+## Convenience features (outside the milestones)
+- Shortcuts live in `src/ui/main.c` (`plain_shortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
+  `+` / `-` zoom, `[` / `]` brush size, Alt = temporary eyedropper (`editor_temp_pick`), Space + drag pans.
+- Clipboard (`clip.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
+  loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
+- Palette edits (`palette_remove`, add / pick in `editor.c`) and `RecentColors` are not part of undo. Recent
+  colors are recorded on press by every drawing tool except the eraser and the eyedropper.
+- Brush (`PencilOptions.size` / `round`): square or round, 1..`PENCIL_BRUSH_MAX`; each stamp pixel is mirrored
+  separately. Pixel-perfect is ignored above size 1. Shapes and the bucket do not use the brush.
+- `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
+  deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.

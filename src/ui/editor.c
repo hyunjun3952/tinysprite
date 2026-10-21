@@ -18,6 +18,14 @@ static uint8_t to_byte(float value)
     return (uint8_t)scaled;
 }
 
+/* A starting palette so the panel is useful before the first color is added. */
+static const Rgba DEFAULT_PALETTE[] = {
+    {0, 0, 0, 255},      {255, 255, 255, 255}, {127, 127, 127, 255}, {195, 195, 195, 255},
+    {136, 0, 21, 255},   {237, 28, 36, 255},   {255, 127, 39, 255},  {255, 242, 0, 255},
+    {34, 177, 76, 255},  {0, 162, 232, 255},   {63, 72, 204, 255},   {163, 73, 164, 255},
+    {185, 122, 87, 255}, {255, 174, 201, 255}, {255, 201, 14, 255},  {181, 230, 29, 255},
+};
+
 Editor *editor_create(SDL_Renderer *renderer, int width, int height)
 {
     Editor *editor = calloc(1, sizeof(*editor));
@@ -36,11 +44,20 @@ Editor *editor_create(SDL_Renderer *renderer, int width, int height)
     SDL_SetTextureBlendMode(editor->texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(editor->texture, SDL_ScaleModeNearest);
 
+    for (size_t i = 0; i < sizeof(DEFAULT_PALETTE) / sizeof(DEFAULT_PALETTE[0]); i++) {
+        (void)palette_add(sprite_palette(editor->sprite), DEFAULT_PALETTE[i]);
+    }
+    editor->palette_selected = -1;
+    editor->brush_size = 1;
     editor->tool = TOOL_PENCIL;
     editor->color[0] = 0.0f;
     editor->color[1] = 0.0f;
     editor->color[2] = 0.0f;
     editor->color[3] = 1.0f;
+    editor->bg_color[0] = 1.0f;
+    editor->bg_color[1] = 1.0f;
+    editor->bg_color[2] = 1.0f;
+    editor->bg_color[3] = 1.0f;
     editor->show_grid = 1;
     editor->view = viewport_default();
     editor->needs_fit = 1;
@@ -59,6 +76,7 @@ void editor_destroy(Editor *editor)
     if (editor->texture) {
         SDL_DestroyTexture(editor->texture);
     }
+    clip_destroy(editor->clipboard);
     free(editor->pixels);
     history_destroy(editor->history);
     sprite_destroy(editor->sprite);
@@ -69,6 +87,83 @@ Rgba editor_color(const Editor *editor)
 {
     return (Rgba){to_byte(editor->color[0]), to_byte(editor->color[1]), to_byte(editor->color[2]),
                   to_byte(editor->color[3])};
+}
+
+void editor_set_color(Editor *editor, Rgba color)
+{
+    editor->color[0] = (float)color.r / 255.0f;
+    editor->color[1] = (float)color.g / 255.0f;
+    editor->color[2] = (float)color.b / 255.0f;
+    editor->color[3] = (float)color.a / 255.0f;
+}
+
+int editor_palette_add(Editor *editor)
+{
+    Palette *palette = sprite_palette(editor->sprite);
+    Rgba color = editor_color(editor);
+    int index = palette_find(palette, color);
+    if (index < 0) {
+        index = palette_add(palette, color);
+    }
+    if (index >= 0) {
+        editor->palette_selected = index;
+    }
+    return index;
+}
+
+void editor_palette_pick(Editor *editor, int index)
+{
+    Palette *palette = sprite_palette(editor->sprite);
+    if (index < 0 || index >= palette_count(palette)) {
+        return;
+    }
+    editor->palette_selected = index;
+    editor_set_color(editor, palette_get(palette, index));
+}
+
+void editor_palette_remove(Editor *editor, int index)
+{
+    if (palette_remove(sprite_palette(editor->sprite), index) != 0) {
+        return;
+    }
+    if (editor->palette_selected == index) {
+        editor->palette_selected = -1;
+    } else if (editor->palette_selected > index) {
+        editor->palette_selected--;
+    }
+}
+
+void editor_swap_colors(Editor *editor)
+{
+    for (int i = 0; i < 4; i++) {
+        float t = editor->color[i];
+        editor->color[i] = editor->bg_color[i];
+        editor->bg_color[i] = t;
+    }
+}
+
+void editor_select_tool(Editor *editor, ToolKind tool)
+{
+    if (editor->dragging || (unsigned)tool >= TOOL_COUNT) {
+        return;
+    }
+    editor->temp_pick = 0;
+    editor->tool = tool;
+}
+
+void editor_temp_pick(Editor *editor, int on)
+{
+    if (editor->dragging) {
+        return;
+    }
+    if (on && !editor->temp_pick && editor->tool != TOOL_EYEDROPPER) {
+        editor->pick_return = editor->tool;
+        editor->tool = TOOL_EYEDROPPER;
+        editor->temp_pick = 1;
+    } else if (!on && editor->temp_pick) {
+        editor->tool = editor->pick_return;
+        editor->temp_pick = 0;
+    }
 }
 
 void editor_mark_dirty(Editor *editor, int x0, int y0, int x1, int y1)
@@ -217,6 +312,28 @@ void editor_set_layer_visible(Editor *editor, int index, int visible)
     }
 }
 
+void editor_duplicate_layer(Editor *editor, int index)
+{
+    if (!editor->dragging && layer_op_duplicate(editor->history, editor->sprite, index)) {
+        editor->active_layer = index + 1;
+        editor_mark_all_dirty(editor);
+    }
+}
+
+void editor_merge_layer_down(Editor *editor, int index)
+{
+    if (editor->dragging || layer_op_merge_down(editor->history, editor->sprite, index) != 0) {
+        return;
+    }
+    /* The merged layer is gone: its selection moves down, layers above it shift down by one. */
+    if (editor->active_layer == index) {
+        editor->active_layer = index - 1;
+    } else if (editor->active_layer > index) {
+        editor->active_layer--;
+    }
+    editor_mark_all_dirty(editor);
+}
+
 /* The live edit already changed the layer: put the old value back so the op records old -> new. */
 void editor_commit_layer_name(Editor *editor, int index, const char *before_name)
 {
@@ -275,4 +392,124 @@ void editor_delete_selection(Editor *editor)
                      r.x + r.w - 1, r.y + r.h - 1) == 0) {
         editor_mark_dirty(editor, r.x, r.y, r.x + r.w - 1, r.y + r.h - 1);
     }
+}
+
+/* The active cel when a tool may change it: not dragging and the layer is visible. */
+static Cel *editable_cel(Editor *editor)
+{
+    Layer *layer = sprite_layer(editor->sprite, editor->active_layer);
+    return editor->dragging || !layer || !layer_visible(layer) ? NULL : editor_active_cel(editor);
+}
+
+static void mark_rect_dirty(Editor *editor, CompositeRect r)
+{
+    editor_mark_dirty(editor, r.x, r.y, r.x + r.w - 1, r.y + r.h - 1);
+}
+
+int editor_copy_selection(Editor *editor)
+{
+    Cel *cel = editor_active_cel(editor);
+    if (editor->dragging || !editor->has_selection || !cel) {
+        return 0;
+    }
+    const CompositeRect *r = &editor->selection;
+    Clip *clip = clip_copy(cel, r->x, r->y, r->w, r->h);
+    if (!clip) {
+        return 0;
+    }
+    clip_destroy(editor->clipboard);
+    editor->clipboard = clip;
+    return 1;
+}
+
+int editor_cut_selection(Editor *editor)
+{
+    if (!editable_cel(editor) || !editor_copy_selection(editor)) {
+        return 0;
+    }
+    editor_delete_selection(editor);
+    return 1;
+}
+
+void editor_paste(Editor *editor)
+{
+    Cel *cel = editable_cel(editor);
+    if (!cel || !editor->clipboard) {
+        return;
+    }
+    int w = sprite_width(editor->sprite);
+    int h = sprite_height(editor->sprite);
+    int x = 0;
+    int y = 0;
+    if (editor->hovering && editor->hover_x >= 0 && editor->hover_y >= 0 && editor->hover_x < w &&
+        editor->hover_y < h) {
+        x = editor->hover_x;
+        y = editor->hover_y;
+    } else if (editor->has_selection) {
+        x = editor->selection.x;
+        y = editor->selection.y;
+    }
+    if (clip_paste(editor->history, cel, editor->clipboard, x, y) != 0) {
+        return;
+    }
+    CompositeRect pasted = {x, y, clip_width(editor->clipboard), clip_height(editor->clipboard)};
+    mark_rect_dirty(editor, pasted);
+    editor_select_tool(editor, TOOL_SELECT);
+    editor_set_selection_clipped(editor, pasted);
+}
+
+void editor_set_selection_clipped(Editor *editor, CompositeRect r)
+{
+    int x0 = r.x < 0 ? 0 : r.x;
+    int y0 = r.y < 0 ? 0 : r.y;
+    int x1 = r.x + r.w > sprite_width(editor->sprite) ? sprite_width(editor->sprite) : r.x + r.w;
+    int y1 = r.y + r.h > sprite_height(editor->sprite) ? sprite_height(editor->sprite) : r.y + r.h;
+    editor->has_selection = x0 < x1 && y0 < y1;
+    if (editor->has_selection) {
+        editor->selection = (CompositeRect){x0, y0, x1 - x0, y1 - y0};
+    }
+}
+
+void editor_flip_selection(Editor *editor, int horizontal)
+{
+    Cel *cel = editable_cel(editor);
+    if (!cel || !editor->has_selection) {
+        return;
+    }
+    CompositeRect r = editor->selection;
+    Clip *clip = clip_copy(cel, r.x, r.y, r.w, r.h);
+    if (!clip) {
+        return;
+    }
+    if (horizontal) {
+        clip_flip_horizontal(clip);
+    } else {
+        clip_flip_vertical(clip);
+    }
+    if (clip_replace(editor->history, cel, r.x, r.y, r.w, r.h, clip, r.x, r.y) == 0) {
+        mark_rect_dirty(editor, r);
+    }
+    clip_destroy(clip);
+}
+
+void editor_rotate_selection(Editor *editor, int clockwise)
+{
+    Cel *cel = editable_cel(editor);
+    if (!cel || !editor->has_selection) {
+        return;
+    }
+    CompositeRect r = editor->selection;
+    Clip *clip = clip_copy(cel, r.x, r.y, r.w, r.h);
+    if (!clip || clip_rotate(clip, clockwise) != 0) {
+        clip_destroy(clip);
+        return;
+    }
+    /* The turned rectangle shares the old one's center. */
+    CompositeRect turned = {r.x + (r.w - r.h) / 2, r.y + (r.h - r.w) / 2, r.h, r.w};
+    if (clip_replace(editor->history, cel, r.x, r.y, r.w, r.h, clip, turned.x, turned.y) == 0) {
+        mark_rect_dirty(editor, r);
+        mark_rect_dirty(editor, turned);
+        editor_set_selection_clipped(editor, turned);
+    }
+    clip_destroy(clip);
 }

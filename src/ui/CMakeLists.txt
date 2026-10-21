@@ -19,7 +19,7 @@ target_include_directories(tinysprite_cimgui
 target_link_libraries(tinysprite_cimgui PUBLIC SDL2::SDL2)
 target_compile_options(tinysprite_cimgui PRIVATE -w)
 
-add_library(tinysprite_ui STATIC editor.c canvas.c tools.c layers_panel.c)
+add_library(tinysprite_ui STATIC editor.c canvas.c tools.c layers_panel.c palette_panel.c)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tinysprite_ui PUBLIC tinysprite_core tinysprite_io tinysprite_cimgui)
 

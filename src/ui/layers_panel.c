@@ -83,6 +83,20 @@ static void layer_buttons(Editor *editor)
     }
     igEndDisabled();
     igSameLine(0.0f, -1.0f);
+    if (igButton("Dup", AUTO_SIZE)) {
+        editor_duplicate_layer(editor, active);
+    }
+    igSameLine(0.0f, -1.0f);
+    Layer *layer = sprite_layer(editor->sprite, active);
+    Layer *below = sprite_layer(editor->sprite, active - 1);
+    igBeginDisabled(!layer || !below || !layer_visible(layer) || !layer_visible(below));
+    if (igButton("Merge", AUTO_SIZE)) {
+        editor_merge_layer_down(editor, active);
+    }
+    igEndDisabled();
+    if (igIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        igSetTooltip("Merge into the layer below (both layers must be visible)");
+    }
     igBeginDisabled(active >= count - 1);
     if (igButton("Up", AUTO_SIZE)) {
         editor_move_layer(editor, active, active + 1);

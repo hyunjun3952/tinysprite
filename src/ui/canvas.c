@@ -49,9 +49,13 @@ static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
         float zoom = viewport_next_zoom(editor->view.zoom, io->MouseWheel > 0.0f ? 1 : -1);
         viewport_zoom_at(&editor->view, zoom, local_x, local_y);
     }
-    if (active && igIsMouseDown_Nil(ImGuiMouseButton_Middle)) {
+    /* Space + left drag pans like the middle button, without drawing. */
+    int space_pan = igIsKeyDown_Nil(ImGuiKey_Space) && !editor->dragging;
+    if (active && (igIsMouseDown_Nil(ImGuiMouseButton_Middle) ||
+                   (space_pan && igIsMouseDown_Nil(ImGuiMouseButton_Left)))) {
         editor->view.pan_x += io->MouseDelta.x;
         editor->view.pan_y += io->MouseDelta.y;
+        return;
     }
 
     if (!editor->dragging && hovered && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
@@ -126,6 +130,28 @@ static void draw_grid(ImDrawList *draw, const Editor *editor, ImVec2 origin, Scr
     }
 }
 
+/* The cels the pencil / eraser would paint at the hovered cel, as filled squares. */
+static void draw_brush_preview(ImDrawList *draw, const Editor *editor, ImVec2 origin)
+{
+    PencilOptions options = {.size = editor->brush_size, .round = editor->brush_round};
+    int size = pencil_brush_size(&options);
+    int first = pencil_brush_origin(&options);
+    for (int j = 0; j < size; j++) {
+        for (int i = 0; i < size; i++) {
+            if (!pencil_brush_contains(&options, i, j)) {
+                continue;
+            }
+            float x0 =
+                origin.x + viewport_cel_to_screen_x(&editor->view, editor->hover_x - first + i);
+            float y0 =
+                origin.y + viewport_cel_to_screen_y(&editor->view, editor->hover_y - first + j);
+            ImDrawList_AddRectFilled(draw, (ImVec2){x0, y0},
+                                     (ImVec2){x0 + editor->view.zoom, y0 + editor->view.zoom},
+                                     COL32(255, 255, 255, 70), 0.0f, 0);
+        }
+    }
+}
+
 static void draw_hover_outline(ImDrawList *draw, const Editor *editor, ImVec2 origin)
 {
     int w = sprite_width(editor->sprite);
@@ -133,6 +159,9 @@ static void draw_hover_outline(ImDrawList *draw, const Editor *editor, ImVec2 or
     if (!editor->hovering || editor->hover_x < 0 || editor->hover_y < 0 || editor->hover_x >= w ||
         editor->hover_y >= h) {
         return;
+    }
+    if ((editor->tool == TOOL_PENCIL || editor->tool == TOOL_ERASER) && editor->brush_size > 1) {
+        draw_brush_preview(draw, editor, origin);
     }
     float x0 = origin.x + viewport_cel_to_screen_x(&editor->view, editor->hover_x);
     float y0 = origin.y + viewport_cel_to_screen_y(&editor->view, editor->hover_y);

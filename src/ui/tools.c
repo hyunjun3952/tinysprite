@@ -18,16 +18,28 @@ static int clamp_int(int value, int low, int high)
     return max_int(low, min_int(value, high));
 }
 
-/* Marks a stroke's bounding box dirty. Mirrored copies and pixel-perfect corrections land outside
- * the box of the new points, so those cases re-composite more. */
-static void mark_stroke(Editor *editor, int x0, int y0, int x1, int y1)
+/* Marks a stroke's bounding box dirty, `pad` cels beyond it. Mirrored copies and pixel-perfect
+ * corrections land outside the box of the new points, so those cases re-composite more. */
+static void mark_stroke_padded(Editor *editor, int x0, int y0, int x1, int y1, int pad)
 {
     if (editor->mirror_x || editor->mirror_y) {
         editor_mark_all_dirty(editor);
     } else {
-        editor_mark_dirty(editor, min_int(x0, x1) - 1, min_int(y0, y1) - 1, max_int(x0, x1) + 1,
-                          max_int(y0, y1) + 1);
+        editor_mark_dirty(editor, min_int(x0, x1) - pad, min_int(y0, y1) - pad,
+                          max_int(x0, x1) + pad, max_int(y0, y1) + pad);
     }
+}
+
+static void mark_stroke(Editor *editor, int x0, int y0, int x1, int y1)
+{
+    mark_stroke_padded(editor, x0, y0, x1, y1, 1);
+}
+
+/* The pencil and eraser paint a brush around every point, which reaches up to the brush size away.
+ */
+static void mark_brush_stroke(Editor *editor, int x0, int y0, int x1, int y1)
+{
+    mark_stroke_padded(editor, x0, y0, x1, y1, max_int(1, editor->brush_size));
 }
 
 static void mark_rect(Editor *editor, CompositeRect r, int dx, int dy)
@@ -62,10 +74,7 @@ static void pick_color(Editor *editor, int cx, int cy)
 {
     Rgba color;
     if (eyedropper_pick_sprite(editor->sprite, editor->frame, cx, cy, &color) == 0) {
-        editor->color[0] = (float)color.r / 255.0f;
-        editor->color[1] = (float)color.g / 255.0f;
-        editor->color[2] = (float)color.b / 255.0f;
-        editor->color[3] = (float)color.a / 255.0f;
+        editor_set_color(editor, color);
     }
 }
 
@@ -139,15 +148,19 @@ void tools_press(Editor *editor, int cx, int cy)
         return;
     }
     Rgba color = editor_color(editor);
+    if (editor->tool != TOOL_ERASER) {
+        recent_colors_push(&editor->recent, color);
+    }
     switch (editor->tool) {
     case TOOL_PENCIL:
     case TOOL_ERASER: {
-        PencilOptions options = {editor->pixel_perfect, editor->mirror_x, editor->mirror_y};
+        PencilOptions options = {editor->pixel_perfect, editor->mirror_x, editor->mirror_y,
+                                 editor->brush_size, editor->brush_round};
         editor->stroke = pencil_stroke_begin_ex(editor->history, cel, color,
                                                 editor->tool == TOOL_ERASER, options, cx, cy);
         if (editor->stroke) {
             editor->dragging = 1;
-            mark_stroke(editor, cx, cy, cx, cy);
+            mark_brush_stroke(editor, cx, cy, cx, cy);
         }
         break;
     }
@@ -194,7 +207,7 @@ void tools_drag(Editor *editor, int cx, int cy)
 
     if (editor->stroke) {
         pencil_stroke_extend(editor->stroke, cx, cy);
-        mark_stroke(editor, editor->drag_x, editor->drag_y, cx, cy);
+        mark_brush_stroke(editor, editor->drag_x, editor->drag_y, cx, cy);
     } else if (editor->shape) {
         shape_stroke_update(editor->shape, cx, cy);
         /* The old and new shapes both lie in a box spanned by the anchor and the cursor. */
