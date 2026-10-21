@@ -40,6 +40,12 @@ scripts/lint.sh
 A devcontainer (`.devcontainer/`) and VS Code settings (`.vscode/`) are included. Commits follow
 [Conventional Commits](https://www.conventionalcommits.org/), e.g. `feat(core): add flood fill`.
 
+The devcontainer needs Docker. On Windows with WSL 2, "Reopen in Container" fails with `The command 'docker'
+could not be found in this WSL 2 distro` until Docker Desktop > Settings > Resources > WSL integration is
+switched on for the distro. Docker is optional: open the folder in WSL instead (VS Code "WSL: Reopen Folder in
+WSL"), run `scripts/install-deps.sh` once, and the `.vscode/` tasks build, test, format and lint there. The UI
+window also shows up from WSL (WSLg), which a container cannot do.
+
 ## License
 
 [MIT](LICENSE.md). Third-party components and their licenses are listed in [thirdparty/README.md](thirdparty/README.md).
