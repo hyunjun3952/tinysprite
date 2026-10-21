@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "editor.h"
+#include "editor/editor.h"
+#include "editor/tools.h"
 #include "minitest.h"
-#include "tools.h"
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;

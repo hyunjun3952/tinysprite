@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerate src/ui/icon_font.c from Material Symbols Outlined.
+"""Regenerate src/ui/icons/icon_font.c from Material Symbols Outlined.
 
 Needs fontTools (pip install fonttools) and the variable font from
 https://github.com/google/material-design-icons (variablefont/MaterialSymbolsOutlined[...].ttf):
 
-    scripts/gen-icon-font.py MaterialSymbolsOutlined.ttf src/ui/icon_font.c
+    scripts/gen-icon-font.py MaterialSymbolsOutlined.ttf src/ui/icons/icon_font.c
 
 Keeps only the glyphs listed in GLYPHS (code points from the font's .codepoints file) at weight 400,
 optical size 24, unfilled. Adds "flip_v" (the "flip" glyph rotated 90 degrees) at U+E000.

@@ -1,8 +1,8 @@
-#include "panels.h"
+#include "panels/panels.h"
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
-#include "icons.h"
+#include "icons/icons.h"
 
 enum {
     TOOLS_PANEL_WIDTH = 250,

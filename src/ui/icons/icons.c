@@ -1,8 +1,8 @@
-#include "icons.h"
+#include "icons/icons.h"
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
-#include "icon_font.h"
+#include "icons/icon_font.h"
 
 #define COL32(r, g, b, a)                                                                          \
     ((ImU32)(((ImU32)(a) << 24) | ((ImU32)(b) << 16) | ((ImU32)(g) << 8) | (ImU32)(r)))

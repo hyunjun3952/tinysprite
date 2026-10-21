@@ -25,7 +25,7 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       (needs `libsdl2-dev`; the `tinysprite` binary lands in `<build>/src/ui/`).
       Core additions: `viewport.h` (zoom/pan/fit + screen<->cel transform), `composite.h` (flatten visible layers
       into an RGBA buffer, dirty-rect aware), `pencil_stroke_begin/extend/end/cancel` (live stroke for dragging)
-      and `history_cancel_stroke`. UI: `src/ui/{main,canvas,editor}.c`; `imgui_backend.cpp` is the only C++ of
+      and `history_cancel_stroke`. UI: `src/ui/{app/main,canvas/canvas,editor/editor}.c`; `app/imgui_backend.cpp` is the only C++ of
       ours (wraps the SDL2 + SDL_Renderer backends that cimgui does not expose).
       Controls: left drag draws, wheel zooms at the cursor, middle drag pans, Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo/redo.
       `tinysprite [width [height]] [--frames N]` — `--frames` exits after N frames (smoke runs, e.g.
@@ -37,7 +37,7 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       batch `shape_stroke` plus live `shape_stroke_begin/update/end/cancel`), `move.h` (rectangular selection move,
       batch `move_stroke` plus live `move_stroke_*`), `PencilOptions` + `pencil_stroke_begin_ex` (pixel-perfect,
       mirror X / Y), `sprite_remove_layer` / `sprite_move_layer`, `layer_set_name`, `history_forget_cel`.
-      UI: `src/ui/tools.c` (press / drag / release / cancel per tool), `src/ui/layers_panel.c`; the tools panel
+      UI: `src/ui/editor/tools.c` (press / drag / release / cancel per tool), `src/ui/panels/layers_panel.c`; the tools panel
       lists all eight tools plus Pixel-perfect / Mirror X / Mirror Y / Filled options.
       Controls: Esc cancels a drag (or clears the selection), Delete clears the selection, Ctrl+A selects all.
 - [ ] **7. File I/O** — `.pxa` (versioned, length-prefixed chunks, round-trip tests) and PNG via stb.
@@ -93,7 +93,7 @@ headless CLI export, optional Aseprite import.
   zoom / pan / hover, so they no longer lag the image by a frame.
 
 ## Convenience features (outside the milestones)
-- Shortcuts live in `src/ui/main.c` (`plain_shortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
+- Shortcuts live in `src/ui/app/main.c` (`plain_shortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
   `+` / `-` zoom, `[` / `]` brush size, Alt = temporary eyedropper (`editor_temp_pick`), Space + drag pans.
 - Clipboard (`clip.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
@@ -103,10 +103,10 @@ headless CLI export, optional Aseprite import.
   separately. Pixel-perfect is ignored above size 1. Shapes and the bucket do not use the brush.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
-- UI layout (`src/ui/panels.c`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
+- UI layout (`src/ui/panels/panels.c`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
   floating windows; dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`). Open / Save / Export in the File menu are disabled
   until `src/io` has the `.pxa` reader / writer.
-- Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icon_font.c`, regenerate with
-  `scripts/gen-icon-font.py`; needs `pip install fonttools`). Glyph centering offsets in `icons.c` were measured
+- Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icons/icon_font.c`, regenerate with
+  `scripts/gen-icon-font.py`; needs `pip install fonttools`). Glyph centering offsets in `icons/icons.c` were measured
   from rendered output, so re-measure if the font size or ImGui version changes.

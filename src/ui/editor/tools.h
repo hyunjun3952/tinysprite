@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_TOOLS_H
 #define TINYSPRITE_UI_TOOLS_H
 
-#include "editor.h"
+#include "editor/editor.h"
 
 /* Mouse handling for the active tool, in cel coordinates (which may lie outside the sprite).
  * press starts a drag when the tool accepts it, drag is called every frame while the button is

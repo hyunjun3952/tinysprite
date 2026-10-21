@@ -1,9 +1,9 @@
-#include "canvas.h"
+#include "canvas/canvas.h"
 
 #include <stdint.h>
 #include <stdio.h>
 
-#include "tools.h"
+#include "editor/tools.h"
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"

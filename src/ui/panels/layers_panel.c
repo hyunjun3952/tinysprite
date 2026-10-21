@@ -1,10 +1,10 @@
-#include "layers_panel.h"
+#include "panels/layers_panel.h"
 
 #include <stdio.h>
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
-#include "icons.h"
+#include "icons/icons.h"
 
 static const ImVec2 AUTO_SIZE = {0.0f, 0.0f};
 

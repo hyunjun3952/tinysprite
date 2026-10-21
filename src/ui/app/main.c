@@ -4,15 +4,15 @@
 #include <string.h>
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "canvas.h"
+#include "app/imgui_backend.h"
+#include "canvas/canvas.h"
 #include "cimgui.h"
-#include "editor.h"
-#include "icons.h"
-#include "imgui_backend.h"
-#include "layers_panel.h"
-#include "palette_panel.h"
-#include "panels.h"
-#include "tools.h"
+#include "editor/editor.h"
+#include "editor/tools.h"
+#include "icons/icons.h"
+#include "panels/layers_panel.h"
+#include "panels/palette_panel.h"
+#include "panels/panels.h"
 
 enum {
     DEFAULT_SPRITE_SIZE = 64,

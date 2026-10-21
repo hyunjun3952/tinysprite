@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_CANVAS_H
 #define TINYSPRITE_UI_CANVAS_H
 
-#include "editor.h"
+#include "editor/editor.h"
 
 /* The canvas window: draws the checkerboard, the composited sprite and the pixel grid, and turns
  * mouse input into zoom, pan and pencil/eraser strokes. Call once per frame between

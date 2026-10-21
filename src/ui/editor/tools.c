@@ -1,4 +1,4 @@
-#include "tools.h"
+#include "editor/tools.h"
 
 #include "tinysprite/bucket.h"
 #include "tinysprite/eyedropper.h"

@@ -1,4 +1,4 @@
-#include "palette_panel.h"
+#include "panels/palette_panel.h"
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
