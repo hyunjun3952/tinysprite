@@ -1,5 +1,5 @@
-/* The canvas with synthetic mouse input: the right button pans, the left one still draws. Runs
- * under SDL_VIDEODRIVER=dummy. */
+/* The canvas with synthetic mouse input: the right and middle buttons pan, a long middle press
+ * picks a color, the left one still draws. Runs under SDL_VIDEODRIVER=dummy. */
 #include <memory>
 
 #include "canvas.h"
@@ -106,6 +106,56 @@ TEST(the_wheel_zooms_at_the_cursor)
     ASSERT_TRUE(!f.editor->view().auto_fit);
 }
 
+/* Holds the middle button still at (x, y) for `seconds` of real time (the hold is timed by the
+ * clock, not by frames). */
+static void hold_middle(Fixture &f, float x, float y, double seconds)
+{
+    f.h.button = 2;
+    f.h.frame(x, y, false);
+    Uint32 start = SDL_GetTicks();
+    do {
+        f.h.frame(x, y, true);
+        SDL_Delay(5);
+    } while (SDL_GetTicks() - start < static_cast<Uint32>(seconds * 1000.0));
+}
+
+TEST(middle_drag_pans_the_view)
+{
+    Fixture f;
+    float x = f.editor->view().viewport.pan_x;
+    f.drag(2, 400, 300, 460, 340);
+    ASSERT_TRUE(f.editor->view().viewport.pan_x - x > 55.0f);
+    ASSERT_TRUE(f.editor->view().viewport.pan_x - x < 65.0f);
+    ASSERT_TRUE(!f.editor->history().canUndo());
+}
+
+TEST(a_long_middle_press_picks_the_color_under_the_cursor)
+{
+    Fixture f;
+    Rgba teal = {0, 128, 128, 255};
+    int mx = f.editor->view().viewport.screenToCelX(400.0f - 250.0f);
+    int my = f.editor->view().viewport.screenToCelY(300.0f);
+    f.editor->sprite().layer(0)->cel(0)->set(mx, my, teal);
+    f.editor->markAllDirty();
+    hold_middle(f, 400, 300, 0.6);
+    ASSERT_TRUE(f.editor->foreground() == teal);
+    ASSERT_TRUE(f.editor->tool() == ToolKind::Eyedropper);
+    f.h.frame(400, 300, false);
+    f.h.frame(400, 300, false);
+    ASSERT_TRUE(f.editor->tool() == ToolKind::Pencil); /* back to the tool it replaced */
+    f.h.button = 0;
+}
+
+TEST(a_short_middle_click_neither_picks_nor_pans)
+{
+    Fixture f;
+    float x = f.editor->view().viewport.pan_x;
+    Rgba before = f.editor->foreground();
+    f.drag(2, 400, 300, 400, 300);
+    ASSERT_TRUE(f.editor->view().viewport.pan_x == x);
+    ASSERT_TRUE(f.editor->foreground() == before);
+}
+
 int main(void)
 {
     RUN(the_wheel_zooms_at_the_cursor);
@@ -113,5 +163,8 @@ int main(void)
     RUN(right_drag_does_not_draw);
     RUN(left_drag_still_draws_and_does_not_pan);
     RUN(a_right_click_without_moving_leaves_the_view_alone);
+    RUN(middle_drag_pans_the_view);
+    RUN(a_long_middle_press_picks_the_color_under_the_cursor);
+    RUN(a_short_middle_click_neither_picks_nor_pans);
     return TEST_SUMMARY();
 }

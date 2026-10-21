@@ -7,7 +7,7 @@ A small pixel art / 2D sprite animation editor written in C++17, with a UI built
 
 ## Features
 
-- Tools: pencil, eraser, bucket fill, eyedropper, line / rectangle / ellipse, rectangular selection and move
+- Tools: pencil, eraser, bucket fill, eyedropper, line / rectangle / ellipse / triangle / diamond / hexagon / star / cross, rectangular selection and move
 - Pencil options: pixel-perfect, mirror X / Y
 - Layers: add, remove, duplicate, merge down, reorder, rename, visibility, lock, opacity
 - Unsaved-changes marker and prompt; open files by dragging them onto the window or on the command line
@@ -44,6 +44,7 @@ ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable t
 | Mouse wheel | Zoom at the cursor |
 | + / - (or [ / ]) | Brush size by 1 |
 | Right or middle drag, Space + drag | Pan |
+| Hold the middle button | Eyedropper while held |
 | Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) | Undo / redo |
 | Ctrl+A | Select all |
 | Delete | Clear the selection |

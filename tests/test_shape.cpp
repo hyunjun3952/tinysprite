@@ -223,6 +223,86 @@ TEST(zero_symmetry_matches_the_plain_api)
     expect_rows(c, golden);
 }
 
+TEST(diamond_outline_and_filled)
+{
+    History h;
+    Cel c(W, H);
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Diamond, 0, RED, Symmetry{}}, ToolPoint{0, 0},
+                 ToolPoint{4, 4});
+    const char *outline[H] = {"..#.....", ".#.#....", "#...#...",
+                              ".#.#....", "..#.....", "........"};
+    expect_rows(c, outline);
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Diamond, 1, RED, Symmetry{}}, ToolPoint{0, 0},
+                 ToolPoint{4, 4});
+    const char *filled[H] = {"..#.....", ".###....", "#####...",
+                             ".###....", "..#.....", "........"};
+    expect_rows(c, filled);
+}
+
+TEST(polygon_shapes_stay_in_their_box_and_are_symmetric)
+{
+    const ShapeKind kinds[] = {ShapeKind::Triangle, ShapeKind::Diamond, ShapeKind::Hexagon,
+                               ShapeKind::Star, ShapeKind::Cross};
+    for (ShapeKind kind : kinds) {
+        for (int filled = 0; filled < 2; filled++) {
+            for (int size = 4; size <= 12; size += 2) { /* even offsets: an odd pixel width */
+                History h;
+                Cel c(16, 16);
+                shape_stroke(h, c, ShapeStyle{kind, filled != 0, RED, Symmetry{}}, ToolPoint{2, 3},
+                             ToolPoint{2 + size, 3 + size});
+                bool any = false;
+                for (int y = 0; y < 16; y++) {
+                    for (int x = 0; x < 16; x++) {
+                        bool on = c.get(x, y).a != 0;
+                        any = any || on;
+                        ASSERT_TRUE(!on || (x >= 2 && x <= 2 + size && y >= 3 && y <= 3 + size));
+                        /* mirrored across the box's vertical axis */
+                        ASSERT_TRUE(on == (c.get(4 + size - x, y).a != 0));
+                    }
+                }
+                ASSERT_TRUE(any);
+            }
+        }
+    }
+}
+
+TEST(filled_polygon_covers_its_outline_and_more)
+{
+    History h;
+    Cel outline(16, 16);
+    Cel filled(16, 16);
+    shape_stroke(h, outline, ShapeStyle{ShapeKind::Star, 0, RED, Symmetry{}}, ToolPoint{0, 0},
+                 ToolPoint{12, 12});
+    shape_stroke(h, filled, ShapeStyle{ShapeKind::Star, 1, RED, Symmetry{}}, ToolPoint{0, 0},
+                 ToolPoint{12, 12});
+    int extra = 0;
+    for (int y = 0; y < 16; y++) {
+        for (int x = 0; x < 16; x++) {
+            ASSERT_TRUE(outline.get(x, y).a == 0 || filled.get(x, y).a != 0);
+            extra += outline.get(x, y).a == 0 && filled.get(x, y).a != 0;
+        }
+    }
+    ASSERT_TRUE(extra > 0);
+    /* the star is concave: the notch between two arms stays empty */
+    ASSERT_TRUE(filled.get(0, 0).a == 0 && filled.get(12, 0).a == 0);
+    ASSERT_TRUE(filled.get(6, 0).a != 0 && filled.get(6, 12).a == 0);
+}
+
+TEST(shapes_work_when_dragged_up_and_left)
+{
+    History h;
+    Cel a(W, H);
+    Cel b(W, H);
+    ShapeStyle style{ShapeKind::Hexagon, 1, RED, Symmetry{}};
+    shape_stroke(h, a, style, ToolPoint{0, 0}, ToolPoint{6, 4});
+    shape_stroke(h, b, style, ToolPoint{6, 4}, ToolPoint{0, 0});
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            ASSERT_TRUE((a.get(x, y).a != 0) == (b.get(x, y).a != 0));
+        }
+    }
+}
+
 int main(void)
 {
     RUN(line_connects_the_corners);
@@ -239,5 +319,9 @@ int main(void)
     RUN(mirror_both_reflects_a_filled_rect_into_four_corners);
     RUN(live_mirrored_shape_redraws_both_halves);
     RUN(zero_symmetry_matches_the_plain_api);
+    RUN(diamond_outline_and_filled);
+    RUN(polygon_shapes_stay_in_their_box_and_are_symmetric);
+    RUN(filled_polygon_covers_its_outline_and_more);
+    RUN(shapes_work_when_dragged_up_and_left);
     return TEST_SUMMARY();
 }

@@ -1,5 +1,6 @@
 #include "tools_panel.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 
@@ -29,7 +30,8 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Eraser", "E", ImGuiKey_E, "Erase pixels to transparent. Uses the brush size."},
     {"Bucket", "G", ImGuiKey_G, "Fill the connected area of one color with the foreground color."},
     {"Eyedropper", "I", ImGuiKey_I,
-     "Pick the color under the cursor as the foreground color.\nHold Alt to use it with any tool."},
+     "Pick the color under the cursor as the foreground color.\nHold the middle mouse button to "
+     "use it with any tool."},
     {"Line", "L", ImGuiKey_L, "Drag to draw a straight line."},
     {"Rectangle", "R", ImGuiKey_R,
      "Drag to draw a rectangle (outline, or filled in Tool options)."},
@@ -37,6 +39,11 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Select", "M", ImGuiKey_M,
      "Drag to select a rectangle. Drag inside the selection to move it.\n"
      "Drawing tools then only change pixels inside it."},
+    {"Triangle", "T", ImGuiKey_T, "Drag to draw a triangle (outline, or filled in Tool options)."},
+    {"Diamond", "D", ImGuiKey_D, "Drag to draw a diamond (outline, or filled in Tool options)."},
+    {"Hexagon", "H", ImGuiKey_H, "Drag to draw a hexagon (outline, or filled in Tool options)."},
+    {"Star", "S", ImGuiKey_S, "Drag to draw a five-pointed star (outline, or filled)."},
+    {"Cross", "C", ImGuiKey_C, "Drag to draw a plus sign (outline, or filled in Tool options)."},
 }};
 
 constexpr float SWATCH_SIZE = 18.0f;
@@ -127,9 +134,25 @@ void ToolsPanel::colorWidget()
     }
 }
 
+static bool isClosedShape(ToolKind tool)
+{
+    switch (tool) {
+    case ToolKind::Rect:
+    case ToolKind::Ellipse:
+    case ToolKind::Triangle:
+    case ToolKind::Diamond:
+    case ToolKind::Hexagon:
+    case ToolKind::Star:
+    case ToolKind::Cross:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static bool isShapeTool(ToolKind tool)
 {
-    return tool == ToolKind::Line || tool == ToolKind::Rect || tool == ToolKind::Ellipse;
+    return tool == ToolKind::Line || isClosedShape(tool);
 }
 
 void ToolsPanel::toolGrid()
@@ -164,10 +187,19 @@ void ToolsPanel::shapeButtons()
     };
     static const Shape SHAPES[] = {{ToolKind::Line, icons::Icon::Line, "##shape_line"},
                                    {ToolKind::Rect, icons::Icon::Rect, "##shape_rect"},
-                                   {ToolKind::Ellipse, icons::Icon::Ellipse, "##shape_ellipse"}};
+                                   {ToolKind::Ellipse, icons::Icon::Ellipse, "##shape_ellipse"},
+                                   {ToolKind::Triangle, icons::Icon::Triangle, "##shape_triangle"},
+                                   {ToolKind::Diamond, icons::Icon::Diamond, "##shape_diamond"},
+                                   {ToolKind::Hexagon, icons::Icon::Hexagon, "##shape_hexagon"},
+                                   {ToolKind::Star, icons::Icon::Star, "##shape_star"},
+                                   {ToolKind::Cross, icons::Icon::Cross, "##shape_cross"}};
     float side = ImGui::GetFrameHeight() + 8.0f;
+    float gap = ImGui::GetStyle().ItemSpacing.x;
+    /* As many buttons per row as fit the panel's width. */
+    int perRow =
+        std::max(1, static_cast<int>((ImGui::GetContentRegionAvail().x + gap) / (side + gap)));
     for (const Shape &shape : SHAPES) {
-        if (&shape != SHAPES) {
+        if ((&shape - SHAPES) % perRow != 0) {
             ImGui::SameLine();
         }
         const ToolInfo &info = TOOLS[static_cast<size_t>(shape.tool)];
@@ -187,7 +219,7 @@ void ToolsPanel::toolOptions()
     Editor::ToolOptions &options = editor_.options();
     ToolKind tool = editor_.tool();
     bool brush = tool == ToolKind::Pencil || tool == ToolKind::Eraser;
-    bool closedShape = tool == ToolKind::Rect || tool == ToolKind::Ellipse;
+    bool closedShape = isClosedShape(tool);
     if (brush) {
         ImGui::SliderInt("Size", &options.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
         theme::tip("Brush width in pixels. + and - (or [ and ]) change it by 1.");
@@ -267,15 +299,47 @@ void ToolsPanel::show(Panels &panels, float height)
     }
     if (open(sections::COLOR)) {
         colorWidget();
+        paletteSwatches();
     }
     if (open(sections::RECENT)) {
         recentColors();
     }
-    if (open(sections::PALETTE)) {
-        paletteSwatches();
-    }
 
+    resetDialog();
     panels.end();
+}
+
+/* "Reset palette?": Reset replaces the palette with the defaults, Cancel (or Escape) keeps it. The
+ * default button is Cancel, so a stray Enter does not destroy anything. */
+void ToolsPanel::resetDialog()
+{
+    constexpr const char *TITLE = "Reset palette";
+    if (openReset_) {
+        ImGui::OpenPopup(TITLE);
+        openReset_ = false;
+    }
+    dialogOpen_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (!dialogOpen_) {
+        return;
+    }
+    ImGui::TextUnformatted("Reset the palette to the default colors?");
+    ImGui::TextDisabled("Colors you added are lost. This cannot be undone.");
+    bool close = false;
+    if (ImGui::Button("Reset")) {
+        editor_.paletteReset();
+        close = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        close = true;
+    }
+    if (ImGui::IsWindowAppearing()) {
+        ImGui::SetKeyboardFocusHere(-1); /* the Cancel button */
+    }
+    if (close) {
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
 }
 
 /* The recent-colors row and the sprite palette swatches. Clicking a swatch makes it the foreground
@@ -319,13 +383,19 @@ void ToolsPanel::paletteSwatches()
         ImGui::PopID();
     }
     ImGui::PopID();
-    float width = theme::columnWidth(2);
-    if (theme::actionButton("Add color", "Add the foreground color to the palette", width)) {
+    ImVec2 size(theme::columnWidth(3), ImGui::GetFrameHeight() + 6.0f);
+    if (icons::button(icons::Icon::Plus, "##palette_add", "Add the foreground color to the palette",
+                      size)) {
         editor_.paletteAdd();
     }
     ImGui::SameLine();
-    if (theme::actionButton("Remove", "Remove the selected swatch", width,
-                            editor_.paletteSelected() >= 0)) {
+    if (icons::button(icons::Icon::Minus, "##palette_remove", "Remove the selected swatch", size,
+                      editor_.paletteSelected() >= 0)) {
         editor_.paletteRemove(editor_.paletteSelected());
+    }
+    ImGui::SameLine();
+    if (icons::button(icons::Icon::Reset, "##palette_reset",
+                      "Reset the palette to the default colors (cannot be undone)", size)) {
+        openReset_ = true; /* asks first: it throws the palette's colors away */
     }
 }

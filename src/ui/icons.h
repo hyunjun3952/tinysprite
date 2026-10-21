@@ -11,7 +11,27 @@
 namespace icons
 {
 
-enum class Icon { Eye, EyeOff, Lock, Unlock, Plus, Copy, Trash, Merge, Line, Rect, Ellipse, Count };
+enum class Icon {
+    Eye,
+    EyeOff,
+    Lock,
+    Unlock,
+    Plus,
+    Copy,
+    Trash,
+    Merge,
+    Line,
+    Rect,
+    Ellipse,
+    Triangle,
+    Diamond,
+    Hexagon,
+    Star,
+    Cross,
+    Minus,
+    Reset,
+    Count
+};
 
 inline constexpr int SIZE = 16; /* the bitmaps' width and height */
 

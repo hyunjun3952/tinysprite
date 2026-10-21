@@ -1148,6 +1148,22 @@ TEST(symmetry_is_off_by_default)
     delete e;
 }
 
+TEST(palette_reset_restores_the_default_colors)
+{
+    Editor *e = make_editor();
+    int defaults = e->sprite().palette().count();
+    e->setForeground(Rgba{1, 2, 3, 255});
+    e->paletteAdd();
+    e->paletteRemove(0);
+    e->markSaved();
+    e->paletteReset();
+    ASSERT_EQ_INT(defaults, e->sprite().palette().count());
+    ASSERT_EQ_INT(-1, e->paletteSelected());
+    ASSERT_TRUE(e->paletteModified());
+    ASSERT_TRUE(e->sprite().palette().get(0) == (Rgba{0, 0, 0, 255}));
+    delete e;
+}
+
 int main(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -1232,6 +1248,7 @@ int main(void)
     RUN(pressing_beside_the_sprite_records_no_color_and_selects_nothing);
     RUN(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection);
     RUN(symmetry_is_off_by_default);
+    RUN(palette_reset_restores_the_default_colors);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

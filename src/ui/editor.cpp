@@ -141,6 +141,17 @@ void Editor::markSaved()
     paletteModified_ = false;
 }
 
+void Editor::paletteReset()
+{
+    Palette fresh;
+    for (const Rgba &color : DEFAULT_PALETTE) {
+        fresh.add(color);
+    }
+    sprite().palette() = fresh;
+    paletteSelected_ = -1;
+    paletteModified_ = true;
+}
+
 void Editor::palettePick(int index)
 {
     const Palette &palette = sprite().palette();

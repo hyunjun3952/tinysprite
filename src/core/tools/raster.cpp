@@ -1,5 +1,7 @@
 #include "tinysprite/raster.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <utility>
 #include <vector>
@@ -140,6 +142,58 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
         }
         dn++;
         up--;
+    }
+}
+
+void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
+                    const RasterPlotFn &plot)
+{
+    if (points.empty()) {
+        return;
+    }
+    if (points.size() == 1) {
+        plot(points[0].first, points[0].second);
+        return;
+    }
+    const size_t n = points.size();
+    if (filled) {
+        int top = points[0].second;
+        int bottom = points[0].second;
+        for (const auto &p : points) {
+            top = std::min(top, p.second);
+            bottom = std::max(bottom, p.second);
+        }
+        std::vector<double> crossings;
+        for (int y = top; y <= bottom; y++) {
+            crossings.clear();
+            for (size_t i = 0; i < n; i++) {
+                const auto &a = points[i];
+                const auto &b = points[(i + 1) % n];
+                /* Half-open in y, so a vertex shared by two edges counts once. */
+                if ((a.second <= y && b.second > y) || (b.second <= y && a.second > y)) {
+                    double t = (y - a.second) / static_cast<double>(b.second - a.second);
+                    crossings.push_back(a.first + t * (b.first - a.first));
+                }
+            }
+            std::sort(crossings.begin(), crossings.end());
+            for (size_t i = 0; i + 1 < crossings.size(); i += 2) {
+                /* Pixels sit on integer coordinates; those inside the span, ends included, are
+                 * lit, which keeps a mirrored polygon an exact mirror image. */
+                int from = static_cast<int>(std::ceil(crossings[i]));
+                int to = static_cast<int>(std::floor(crossings[i + 1]));
+                hspan(from, to, y, plot);
+            }
+        }
+    }
+    for (size_t i = 0; i < n; i++) {
+        auto a = points[i];
+        auto b = points[(i + 1) % n];
+        /* Always top to bottom: Bresenham is only mirror-symmetric for a fixed vertical direction,
+         * so a mirrored polygon keeps mirrored edges. */
+        if (a.second > b.second) {
+            std::swap(a, b);
+        }
+        raster_line(a.first, a.second, b.first, b.second, plot);
     }
 }
 

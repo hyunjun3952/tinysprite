@@ -2,13 +2,15 @@
 #define TINYSPRITE_RASTER_H
 
 #include <functional>
+#include <utility>
+#include <vector>
 
 #include "tinysprite/cel.h"
 
 /* Rasterizers never touch a cel: they report pixels through a callback so that tools can route
  * every edit through the history module. Coordinates may lie outside any cel; callers clip.
- * Line, rectangle and flood fill report each pixel once; ellipses may report a pixel more than
- * once, so consumers must tolerate repeats. */
+ * Line, rectangle and flood fill report each pixel once; ellipses and polygons may report a pixel
+ * more than once, so consumers must tolerate repeats. */
 using RasterPlotFn = std::function<void(int x, int y)>;
 
 /* Bresenham line, both endpoints included. */
@@ -19,6 +21,12 @@ void raster_rect(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn
 
 /* Ellipse inscribed in the bounding box spanned by the two corners (any order, both inclusive). */
 void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot);
+
+/* Closed polygon through `points` (in order, the last joined back to the first). The outline is
+ * always drawn; `filled` also fills the inside (even-odd rule, so concave shapes such as a star
+ * keep their gaps). Fewer than two points draw at most a dot. */
+void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
+                    const RasterPlotFn &plot);
 
 /* Reports the 4-connected region of cel pixels sharing the exact color of (x, y), in row-major
  * order. The cel is only read, so the callback may edit it. Returns false (reporting nothing) if

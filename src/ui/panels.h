@@ -22,7 +22,6 @@ inline constexpr const char *SYMMETRY = "Symmetry";
 inline constexpr const char *SELECTION = "Selection";
 inline constexpr const char *COLOR = "Color";
 inline constexpr const char *RECENT = "Recent";
-inline constexpr const char *PALETTE = "Palette";
 inline constexpr const char *LAYERS = "Layers";
 inline constexpr const char *PROPERTIES = "Properties";
 } // namespace sections

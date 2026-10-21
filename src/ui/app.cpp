@@ -302,12 +302,10 @@ void App::handleShortcuts()
     /* The file / unsaved-changes dialogs are modal: nothing behind them may react. */
     bool modal =
         fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") || openConfirm_;
-    if (io.WantTextInput || layersPanel_->dialogOpen() || modal) {
+    if (io.WantTextInput || layersPanel_->dialogOpen() || toolsPanel_->dialogOpen() || modal) {
         editor_->tempPick(false);
         return;
     }
-    /* Holding Alt turns the active tool into the eyedropper until it is released. */
-    editor_->tempPick(io.KeyAlt);
     if (ImGui::IsKeyPressed(ImGuiKey_F1, false) ||
         (io.KeyShift && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Slash, false))) {
         showHelp_ = !showHelp_;
@@ -368,7 +366,8 @@ void App::helpWindow()
     }
     static const char *const ROWS[][2] = {
         {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
-        {"Alt (hold)", "Temporary eyedropper"},
+        {"T D H S C", "Triangle, diamond, hexagon, star, cross (shapes)"},
+        {"Hold middle button", "Eyedropper while held (drag instead to pan)"},
         {"X", "Swap foreground / background colors"},
         {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},
         {"Shift + click", "Pencil / eraser: straight line from the last point"},

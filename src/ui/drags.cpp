@@ -40,6 +40,16 @@ ShapeKind shapeKind(ToolKind tool)
         return ShapeKind::Rect;
     case ToolKind::Ellipse:
         return ShapeKind::Ellipse;
+    case ToolKind::Triangle:
+        return ShapeKind::Triangle;
+    case ToolKind::Diamond:
+        return ShapeKind::Diamond;
+    case ToolKind::Hexagon:
+        return ShapeKind::Hexagon;
+    case ToolKind::Star:
+        return ShapeKind::Star;
+    case ToolKind::Cross:
+        return ShapeKind::Cross;
     default:
         return ShapeKind::Line;
     }
@@ -317,7 +327,12 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
         return nullptr;
     case ToolKind::Line:
     case ToolKind::Rect:
-    case ToolKind::Ellipse: {
+    case ToolKind::Ellipse:
+    case ToolKind::Triangle:
+    case ToolKind::Diamond:
+    case ToolKind::Hexagon:
+    case ToolKind::Star:
+    case ToolKind::Cross: {
         ShapeStyle style = {shapeKind(editor.tool()), editor.options().shape_filled, color,
                             editor.options().symmetry};
         std::unique_ptr<ShapeStroke> stroke =

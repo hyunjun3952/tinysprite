@@ -47,7 +47,13 @@ void Panels::reset()
     panels_[static_cast<size_t>(PanelId::Tools)] =
         make("Tools", TOOLS_PANEL_WIDTH, DockSide::Left,
              {sections::TOOLS, sections::SHAPES, sections::TOOL_OPTIONS, sections::SYMMETRY,
-              sections::SELECTION, sections::COLOR, sections::RECENT, sections::PALETTE});
+              sections::SELECTION, sections::COLOR, sections::RECENT});
+    /* Symmetry is occasional: hidden until it is switched on in the Window menu. */
+    for (Section &section : panels_[static_cast<size_t>(PanelId::Tools)].sections) {
+        if (std::strcmp(section.name, sections::SYMMETRY) == 0) {
+            section.visible = false;
+        }
+    }
     panels_[static_cast<size_t>(PanelId::Layers)] = make(
         "Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS, sections::PROPERTIES});
 }

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 
 #include "theme.h"
 
@@ -13,6 +14,8 @@ namespace
 constexpr int CHECKER_TILE = 8;
 constexpr float GRID_MIN_ZOOM = 4.0f;
 constexpr float FIT_MARGIN = 16.0f;
+constexpr double MIDDLE_HOLD_SECONDS = 0.25; /* a middle press this long is the eyedropper */
+constexpr float MIDDLE_DRAG_PIXELS = 4.0f;   /* ... unless the mouse moves this far first: pan */
 
 void drawCheckerboard(ImDrawList *draw, float vx0, float vy0, float vx1, float vy1, float sx0,
                       float sy0)
@@ -66,13 +69,51 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
         editor_.view().viewport.zoomAt(zoom, localX, localY);
         editor_.view().auto_fit = false;
     }
-    /* The middle or the right button pans, and so does Space + left drag, without drawing. */
+    /* Middle button: a long press without moving is the eyedropper (as long as it is held), a
+     * drag pans. */
+    if (hovered && !editor_.stroking() && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
+        middle_ = Middle::Pending;
+        middlePress_ = mouse;
+        middleTime_ = ImGui::GetTime();
+    }
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+        middle_ = Middle::Idle;
+    }
+    ImVec2 pan(0.0f, 0.0f);
+    if (middle_ == Middle::Pending) {
+        float dx = mouse.x - middlePress_.x;
+        float dy = mouse.y - middlePress_.y;
+        if (dx * dx + dy * dy > MIDDLE_DRAG_PIXELS * MIDDLE_DRAG_PIXELS) {
+            middle_ = Middle::Panning;
+            pan = ImVec2(dx, dy); /* catch up with what moved before the threshold */
+        } else if (ImGui::GetTime() - middleTime_ >= MIDDLE_HOLD_SECONDS) {
+            middle_ = Middle::Picking;
+        }
+    } else if (middle_ == Middle::Panning) {
+        pan = io.MouseDelta;
+    }
+    editor_.tempPick(middle_ == Middle::Picking);
+    if (middle_ == Middle::Picking) {
+        if (std::optional<Rgba> color =
+                eyedropper_pick_sprite(editor_.sprite(), editor_.frame(), cx, cy)) {
+            editor_.setForeground(*color);
+        }
+        return;
+    }
+    if (middle_ == Middle::Pending) {
+        return; /* not decided yet: neither draw nor pan */
+    }
+
+    /* The right button pans too, and so does Space + left drag, without drawing. */
     bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_.stroking();
-    if (active && (ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
-                   ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
-                   (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)))) {
-        editor_.view().viewport.pan_x += io.MouseDelta.x;
-        editor_.view().viewport.pan_y += io.MouseDelta.y;
+    bool otherPan = active && (ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
+                               (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)));
+    if (otherPan) {
+        pan = io.MouseDelta;
+    }
+    if (middle_ == Middle::Panning || otherPan) {
+        editor_.view().viewport.pan_x += pan.x;
+        editor_.view().viewport.pan_y += pan.y;
         editor_.view().auto_fit = false;
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         return;
@@ -211,6 +252,67 @@ void Canvas::drawStatus(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
     draw->AddText(p0, IM_COL32(255, 255, 255, 255), text);
 }
 
+/* While the eyedropper is picking: a magnifier beside the cursor showing the cels around it, the
+ * cel being picked outlined in the middle, and its color underneath. */
+void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
+{
+    constexpr int RADIUS = 4;
+    constexpr int N = 2 * RADIUS + 1;
+    constexpr float CELL = 14.0f;
+    constexpr float SIZE = static_cast<float>(N) * CELL;
+    constexpr float LABEL = 20.0f;
+    constexpr float GAP = 22.0f; /* from the cursor */
+    constexpr float PAD = 4.0f;
+    ImDrawList *draw = ImGui::GetForegroundDrawList();
+    ImVec2 mouse = ImGui::GetMousePos();
+    float x = mouse.x + GAP;
+    float y = mouse.y - GAP - SIZE - LABEL;
+    if (x + SIZE + PAD > origin.x + avail.x) {
+        x = mouse.x - GAP - SIZE;
+    }
+    if (y - PAD < origin.y) {
+        y = mouse.y + GAP;
+    }
+    x = std::clamp(x, origin.x + PAD, std::max(origin.x + avail.x - SIZE - PAD, origin.x + PAD));
+    y = std::clamp(y, origin.y + PAD,
+                   std::max(origin.y + avail.y - SIZE - LABEL - PAD, origin.y + PAD));
+
+    draw->AddRectFilled(ImVec2(x - PAD, y - PAD), ImVec2(x + SIZE + PAD, y + SIZE + LABEL + PAD),
+                        IM_COL32(24, 24, 28, 240), 3.0f);
+    const int cx = editor_.hoverX();
+    const int cy = editor_.hoverY();
+    for (int j = 0; j < N; j++) {
+        for (int i = 0; i < N; i++) {
+            ImVec2 p0(x + static_cast<float>(i) * CELL, y + static_cast<float>(j) * CELL);
+            ImVec2 p1(p0.x + CELL, p0.y + CELL);
+            std::optional<Rgba> color = eyedropper_pick_sprite(editor_.sprite(), editor_.frame(),
+                                                               cx - RADIUS + i, cy - RADIUS + j);
+            if (!color) {
+                draw->AddRectFilled(p0, p1, IM_COL32(48, 48, 54, 255)); /* beside the sprite */
+                continue;
+            }
+            draw->AddRectFilled(p0, p1,
+                                (i + j) % 2 == 0 ? IM_COL32(170, 170, 170, 255)
+                                                 : IM_COL32(120, 120, 120, 255));
+            draw->AddRectFilled(p0, p1, IM_COL32(color->r, color->g, color->b, color->a));
+        }
+    }
+    ImVec2 c0(x + static_cast<float>(RADIUS) * CELL, y + static_cast<float>(RADIUS) * CELL);
+    ImVec2 c1(c0.x + CELL, c0.y + CELL);
+    draw->AddRect(ImVec2(c0.x - 1.0f, c0.y - 1.0f), ImVec2(c1.x + 1.0f, c1.y + 1.0f),
+                  IM_COL32(0, 0, 0, 255));
+    draw->AddRect(c0, c1, IM_COL32(255, 255, 255, 255));
+    char text[48];
+    if (std::optional<Rgba> color =
+            eyedropper_pick_sprite(editor_.sprite(), editor_.frame(), cx, cy)) {
+        std::snprintf(text, sizeof(text), "#%02X%02X%02X%02X", color->r, color->g, color->b,
+                      color->a);
+    } else {
+        std::snprintf(text, sizeof(text), "-");
+    }
+    draw->AddText(ImVec2(x, y + SIZE + 3.0f), IM_COL32(255, 255, 255, 255), text);
+}
+
 void Canvas::show(float x, float y, float w, float h)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
@@ -284,6 +386,11 @@ void Canvas::show(float x, float y, float w, float h)
         drawStatus(draw, origin, avail);
     }
     draw->PopClipRect();
+    bool picking = middle_ == Middle::Picking ||
+                   (editor_.tool() == ToolKind::Eyedropper && editor_.stroking());
+    if (picking) {
+        drawLoupe(origin, avail);
+    }
 
     ImGui::End();
 }

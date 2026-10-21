@@ -25,6 +25,11 @@ enum class ToolKind {
     Rect,
     Ellipse,
     Select,
+    Triangle,
+    Diamond,
+    Hexagon,
+    Star,
+    Cross,
     Count,
 };
 
@@ -262,6 +267,8 @@ class Editor
         return paletteModified_;
     }
     void palettePick(int index);
+    /* Replaces the palette with the default colors (not undoable, like the other palette edits). */
+    void paletteReset();
     void paletteRemove(int index);
 
     /* Makes the brush `delta` pixels bigger (smaller if negative), within 1..PENCIL_BRUSH_MAX. */
@@ -274,9 +281,9 @@ class Editor
     void selectTool(ToolKind kind);
 
     /* While `on` is true the eyedropper is the active tool, and the previous tool comes back once
-     * it turns false. Meant to be called every frame with the state of the modifier key; does
-     * nothing while a tool is being dragged, so a pick that ends mid-drag is undone on a later
-     * call. */
+     * it turns false. Meant to be called every frame with the state of the trigger (the held middle
+     * button); does nothing while a tool is being dragged, so a pick that ends mid-drag is undone
+     * on a later call. */
     void tempPick(bool on);
 
     /* Mouse handling for the active tool, in cel coordinates (which may lie outside the sprite).
@@ -474,7 +481,7 @@ class Editor
     std::optional<ToolPoint> lastDrawPoint_;
     std::optional<ToolPoint> lineFrom_;
 
-    bool tempPick_ = false; /* the eyedropper is active only while a modifier is held */
+    bool tempPick_ = false; /* the eyedropper is active only while the middle button is held */
     ToolKind pickReturn_ = ToolKind::Pencil; /* the tool to go back to when the pick ends */
 
     /* The live drag between a press and its release, null when idle. Declared after the history

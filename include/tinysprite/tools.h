@@ -97,10 +97,16 @@ enum class ShapeKind {
     Line,
     Rect,
     Ellipse,
+    Triangle, /* apex at the top middle of the box */
+    Diamond,
+    Hexagon, /* flat top and bottom, points left and right */
+    Star,    /* five points, the top one at the middle */
+    Cross,   /* a plus sign */
 };
 
-/* What to draw and how. `filled` is ignored for lines. With symmetry the shape is also drawn
- * reflected across each enabled axis; reflected parts outside the cel are clipped. */
+/* What to draw and how. Every shape fits the box spanned by its two points; `filled` is ignored for
+ * lines. With symmetry the shape is also drawn reflected across each enabled axis; reflected parts
+ * outside the cel are clipped. */
 struct ShapeStyle {
     ShapeKind kind = ShapeKind::Line;
     bool filled = false;

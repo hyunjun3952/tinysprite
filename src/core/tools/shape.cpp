@@ -1,10 +1,70 @@
 #include "tinysprite/tools.h"
 
+#include <algorithm>
+#include <cmath>
+#include <utility>
+#include <vector>
+
 #include "history_plot.h"
 #include "tinysprite/raster.h"
 
 namespace
 {
+
+using Points = std::vector<std::pair<int, int>>;
+
+/* The corners of `kind` inside the box spanned by a and b (both inclusive). */
+Points polygonPoints(ShapeKind kind, int x0, int y0, int x1, int y1)
+{
+    int w = x1 - x0;
+    int h = y1 - y0;
+    int mx = x0 + w / 2;
+    int my = y0 + h / 2;
+    switch (kind) {
+    case ShapeKind::Triangle:
+        return {{mx, y0}, {x1, y1}, {x0, y1}};
+    case ShapeKind::Diamond:
+        return {{mx, y0}, {x1, my}, {mx, y1}, {x0, my}};
+    case ShapeKind::Hexagon:
+        return {{x0 + w / 4, y0}, {x1 - w / 4, y0}, {x1, my},
+                {x1 - w / 4, y1}, {x0 + w / 4, y1}, {x0, my}};
+    case ShapeKind::Cross: {
+        /* An arm has the parity of the box, so it can sit exactly in the middle. */
+        int armW = std::min(w, std::max(1, w / 3));
+        int armH = std::min(h, std::max(1, h / 3));
+        armW += (w - armW) % 2;
+        armH += (h - armH) % 2;
+        int left = x0 + (w - armW) / 2;
+        int right = left + armW;
+        int top = y0 + (h - armH) / 2;
+        int bottom = top + armH;
+        return {{left, y0},     {right, y0},     {right, top}, {x1, top},
+                {x1, bottom},   {right, bottom}, {right, y1},  {left, y1},
+                {left, bottom}, {x0, bottom},    {x0, top},    {left, top}};
+    }
+    case ShapeKind::Star: {
+        constexpr double PI = 3.14159265358979323846;
+        constexpr double INNER = 0.4; /* inner radius / outer radius */
+        /* A unit star spans x in +-sin(72 deg) and y from -1 to cos(36 deg); stretch that to the
+         * box so its points touch every side. */
+        const double halfWidth = std::sin(2.0 * PI / 5.0);
+        const double depth = 1.0 + std::cos(PI / 5.0);
+        double cx = x0 + w / 2.0;
+        Points points;
+        for (int i = 0; i < 10; i++) {
+            double angle = -PI / 2.0 + i * PI / 5.0;
+            double r = i % 2 == 0 ? 1.0 : INNER;
+            double px = cx + r * std::cos(angle) / halfWidth * (w / 2.0);
+            double py = y0 + (r * std::sin(angle) + 1.0) / depth * h;
+            points.emplace_back(static_cast<int>(std::lround(px)),
+                                static_cast<int>(std::lround(py)));
+        }
+        return points;
+    }
+    default:
+        return {};
+    }
+}
 
 void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, ToolPoint b)
 {
@@ -17,6 +77,15 @@ void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, Too
         break;
     case ShapeKind::Ellipse:
         raster_ellipse(a.x, a.y, b.x, b.y, style.filled, plot);
+        break;
+    case ShapeKind::Triangle:
+    case ShapeKind::Diamond:
+    case ShapeKind::Hexagon:
+    case ShapeKind::Star:
+    case ShapeKind::Cross:
+        raster_polygon(polygonPoints(style.kind, std::min(a.x, b.x), std::min(a.y, b.y),
+                                     std::max(a.x, b.x), std::max(a.y, b.y)),
+                       style.filled, plot);
         break;
     }
 }

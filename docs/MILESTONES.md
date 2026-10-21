@@ -98,7 +98,7 @@ headless CLI export, optional Aseprite import.
 - Panning: the right or middle button drag (or Space + left drag) moves the view with a hand cursor; the canvas item accepts
   the right button for that, so a right click never draws (`tests/ui/ui_canvas.cpp`).
 - Shortcuts live in `src/ui/app.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
-  `+` / `-` and `[` / `]` brush size (1 px; `Editor::changeBrushSize`), the wheel zooms, Alt = temporary eyedropper (`editor_temp_pick`), Space + drag pans.
+  `+` / `-` and `[` / `]` brush size (1 px; `Editor::changeBrushSize`), the wheel zooms, holding the middle button = temporary eyedropper (`Editor::tempPick`; dragging it pans), Space + drag pans.
 - Clipboard (`selection.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
 - Palette edits (`palette_remove`, add / pick in `editor.cpp`) and `RecentColors` are not part of undo. Recent

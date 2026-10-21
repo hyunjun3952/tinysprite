@@ -80,14 +80,14 @@ TEST(closing_a_floating_panel_hides_it)
 TEST(sections_are_visible_until_hidden)
 {
     Panels panels;
-    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::PALETTE));
-    panels.setSectionVisible(PanelId::Tools, sections::PALETTE, false);
-    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::PALETTE));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::RECENT));
+    panels.setSectionVisible(PanelId::Tools, sections::RECENT, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
     ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::COLOR));
     /* The Layers panel has its own sections. */
     ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::PROPERTIES));
-    panels.setSectionVisible(PanelId::Layers, sections::PALETTE, false);
-    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::PALETTE));
+    panels.setSectionVisible(PanelId::Layers, sections::RECENT, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
 }
 
 TEST(a_name_that_is_not_a_section_counts_as_visible)
@@ -108,6 +108,15 @@ TEST(reset_shows_every_section_again)
     ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::LAYERS));
 }
 
+TEST(symmetry_section_is_hidden_until_switched_on)
+{
+    Harness h;
+    ASSERT_TRUE(!h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
+    ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SHAPES));
+    h.panels.setSectionVisible(PanelId::Tools, sections::SYMMETRY, true);
+    ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
+}
+
 int main(void)
 {
     RUN(docked_panel_floats_when_its_title_bar_is_dragged);
@@ -119,5 +128,6 @@ int main(void)
     RUN(a_name_that_is_not_a_section_counts_as_visible);
     RUN(reset_shows_every_section_again);
     RUN(closing_a_floating_panel_hides_it);
+    RUN(symmetry_section_is_hidden_until_switched_on);
     return TEST_SUMMARY();
 }
