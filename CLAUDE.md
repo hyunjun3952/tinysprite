@@ -30,8 +30,8 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, build and tests. Run fo
 
 - **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + ImGui) → executable. `tests/test_*.cpp` link only core/io; UI tests (`tests/ui/ui_*.cpp`, only when the UI is built) link `tinysprite_ui` and run under `SDL_VIDEODRIVER=dummy`. Never include SDL/ImGui headers from `src/core` or `src/io`.
 - **Public headers** live in `include/tinysprite/` (core and io only); internal headers stay next to sources in `src/`.
-- **Document model** is animation-ready from the start: `Sprite → Layers × Frames → Cel` (pixel buffer), with a Palette. Phase 1 uses a single frame; do not flatten this structure.
-- **Undo/Redo**: every edit goes through the history module. One undo step = one user stroke; storage is a pixel delta (index, old, new). Do not mutate cels outside this path.
+- **Document model**: `Sprite → Layers × Frames → Cel` (pixel buffer), with a Palette, frame durations and tags. Cels are shared (`shared_ptr`) when frames are linked, and removed frames / layers live on inside history steps; do not flatten this structure.
+- **Undo/Redo**: every edit goes through the history module. One undo step = one user stroke; storage is a pixel delta (index, old, new). Edits that are not pixels (layers, frames, tags, links, palette) are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path.
 - **Rendering** is CPU compositing into one texture with nearest sampling, re-composited by dirty rect.
 - File format `.pxa` is versioned and chunked (length-prefixed) for forward compatibility.
 

@@ -11,7 +11,10 @@ A small pixel art and sprite editor written in C++17, with SDL2 and Dear ImGui.
 
 - Drawing tools: pencil, eraser, bucket fill, eyedropper, shapes, selection
 - Layers with undo / redo
-- Import and export of `.pxa` (native), png, bmp, tga and jpg
+- Animation: a timeline of frames with durations, playback, onion skin, tags (named frame ranges) and
+  linked cels
+- Import and export of `.pxa` (native), png, bmp, tga and jpg; animated GIF and sprite sheet export;
+  animated GIF import
 
 ## Build
 

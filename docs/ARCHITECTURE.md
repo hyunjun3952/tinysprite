@@ -14,7 +14,7 @@ tinysprite_ui     src/ui                              SDL2 + Dear ImGui frontend
 ```
 
 Each layer only knows the ones above it in the diagram, and CMake enforces that through target links. `core` and
-`io` never include SDL or ImGui. Their public headers live in `include/tinysprite/`; headers private to a module
+`io` never include SDL or ImGui. `io` also has the animated GIF encoder and the sprite sheet layout. Their public headers live in `include/tinysprite/`; headers private to a module
 (`src/core/tools/history_plot.h`, everything in `src/ui`) stay next to the sources.
 
 `tests/test_*.cpp` link only `io` (and so `core`). The UI tests in `tests/ui/` link `tinysprite_ui` and run under
@@ -22,9 +22,14 @@ Each layer only knows the ones above it in the diagram, and CMake enforces that 
 
 ## Document model
 
-`Sprite` owns a `Palette` and an ordered list of `Layer`s; a `Layer` holds one `Cel` (an RGBA pixel buffer) per frame.
-The frame dimension exists although the app uses frame 0 only, so animation can be added without reshaping the model.
-A cel is RGBA for now; indexed color is deferred.
+`Sprite` owns a `Palette`, an ordered list of `Layer`s, the frames' durations and the tags; a `Layer` holds one `Cel` (an
+RGBA pixel buffer) per frame, as `shared_ptr<Cel>` so that frames can share a cel (a linked cel). A `Sprite::Frame` is a
+frame taken out of the sprite (a cel per layer plus its duration), which is how a removed frame lives on inside a history
+step. A cel is RGBA for now; indexed color is deferred.
+
+Animation lives in a few small modules next to it: `frame_ops.h` / `tag_ops.h` / `cel_ops.h` / `palette_ops.h` (undoable
+edits, same pattern as `layer_ops.h`), `playback.h` (which frame to show as time passes, and `play_order`) and the onion
+skin in `composite.h`.
 
 Invalid sizes throw `std::invalid_argument`. Operations that can legitimately be refused (a stroke is active, an index
 is out of range) return `bool` or null instead.
@@ -86,6 +91,10 @@ rule, key repeat. The menus (`app_menus.cpp`) and the shortcut handler (`app_sho
 `app_commands.cpp` holds what each command does and when it is enabled. Tool letters and the single-key shortcuts
 stay in `app_shortcuts.cpp`; the help window text is still written by hand.
 
+The timeline (`timeline_panel.cpp`) is a strip under the canvas, not one of the dockable `Panels`: a toolbar, an onion
+skin row, a tag row and a grid of cels. `Editor` holds the current frame, the selected tag and the playback
+(`editor_frames.cpp`); `App` calls `Editor::tick` once per UI frame with the elapsed time.
+
 Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an autosave copy
 of a document with unsaved changes; the next start offers to recover it. Neither is touched by `--frames` smoke runs
 unless `--config-dir` is given.
@@ -93,13 +102,17 @@ unless `--config-dir` is given.
 ## File format
 
 `.pxa` is a magic number and a version, then chunks of a 4-byte tag, a 4-byte little-endian length and the payload.
-A reader skips tags it does not know, so later versions can add chunks, and rejects other versions and truncated data.
+A reader skips tags it does not know, so later versions can add chunks (the animation chunks above are such additions: the
+version is still 1), and rejects other versions and truncated data.
 
 | Chunk | Contents |
 |-------|----------|
 | `HEAD` | width, height, frame count (u32 each); must come first |
 | `PALT` | color count (u16), then r, g, b, a per color |
+| `FRAM` | optional: the duration of every frame in ms (u16 each); only written when one is not the default; before the layers |
 | `LAYR` | name (u8 length + bytes), visible (u8), opacity (u8), then the pixels of every frame; one chunk per layer, bottom to top |
+| `LINK` | optional, per layer with links: layer index, count, then (frame, earlier frame it shares its cel with) pairs |
+| `TAGS` | optional: count, then per tag a name, first and last frame and a direction |
 
 Every writer goes through `file_write_atomic` (temporary file plus rename), so a failed write never destroys an
 existing file. The authoritative description is the comment in `include/tinysprite/io.h`.

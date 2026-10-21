@@ -27,13 +27,52 @@ Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas
       `std::filesystem` and `%APPDATA%`.
 
 ## Phase 2: animation
-Timeline, per-frame duration, onion skin, playback, tags, linked cels, GIF / spritesheet export.
+
+Done. The design is in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas are in the list below.
+
+- [x] **9. Frames** — `Sprite` inserts, detaches and moves frames, each with a duration; `frame_ops.h` records them as
+      undo steps; `.pxa` stores durations in an optional `FRAM` chunk and reads several frames.
+- [x] **10. Timeline and playback** — the `Editor` has a current frame and a `Playback` that `tick()` advances; a
+      timeline strip with a cel grid, frame buttons, duration and play mode; `,` `.` `Enter` and a Frame menu.
+- [x] **11. Onion skin** — `composite_onion` draws neighbouring frames tinted and fading under the current one.
+- [x] **12. Tags** — named frame ranges with a direction (`tag_ops.h`, `TAGS` chunk); a selected tag limits playback.
+- [x] **13. Linked cels** — frames of a layer can share one cel (`cel_ops.h`, `LINK` chunk).
+- [x] **14. Export** — `gif_encode` (own LZW encoder) and `spritesheet_render`, with File menu dialogs; animated GIF
+      import.
 
 ## Phase 3: game pipeline
 Spritesheet packing + JSON metadata, slices/pivots/hitboxes, tilemap editor, filters,
 headless CLI export, optional Aseprite import.
 
 ## Decisions and gotchas
+- Frames (phase 2): a `Layer` holds its cels as `shared_ptr<Cel>`, in frame order. `Sprite::insertFrame` /
+  `detachFrame` / `moveFrame` keep every layer, the durations and the tags in step; a removed frame (or one added and
+  then undone) is kept alive by the history step so pixel steps on its cels stay valid, like removed layers.
+- `.pxa` stays version 1: `FRAM`, `LINK` and `TAGS` are optional chunks a reader of this version skips when it does not
+  know them, and a plain one-frame sprite writes none of them (the file is byte-identical to before). The decoder grows
+  the frames only after checking that the first `LAYR` chunk holds their pixels, so a lying header cannot make it
+  allocate more than the file is big. `FRAM` has to precede the layers; `LINK` and `TAGS` come after them.
+- Tags shift with their frames: insert before / inside, remove before / inside, a tag vanishes with its last frame.
+  Moving a frame keeps tags by position. A frame step records the tag list before and after so undo brings back a tag
+  that vanished.
+- Linked cels are one `Cel` shared by several frames, so a stroke on one shows on the others and `History::forgetCel`
+  and pixel deltas need no special case. Duplicating a frame copies instead of linking; duplicating a layer keeps its
+  links; merging onto a layer whose cels are linked gives each frame its own cel for the merge (the upper layer differs
+  per frame) and undo links them again.
+- Playback ignores nothing: it stops on any press, frame edit, undo / redo or Esc, `editableCel` is null while it runs,
+  and the onion skin is hidden meanwhile. A selected tag decides the range and direction, else all frames play in the
+  play mode picked in the timeline.
+- GIF: 256 colors max and 1-bit transparency (a pixel at least half opaque shows, else it is transparent); more colors
+  go through a median cut. Delays are rounded to 1/100 s and at least 2/100 s. The encoder is ours (`src/io/gif.cpp`):
+  stb has no GIF writer. Tests decode with `stbi_load_gif_from_memory`.
+- The brush size is the outline width of lines and unfilled shapes (a filled shape ignores it); the bucket still ignores
+  it. Pixel-perfect still applies to a 1 px pencil brush only.
+- Undo restores the selection: `History::endStroke(HistoryAction)` runs the action with the stroke's undo / redo, which
+  is how move, paste and rotate bring the selection rectangle back (and a move that changed no pixel is still a step).
+- Palette edits (add, remove, reset, import) are undo steps (`palette_op_set`, a whole-palette snapshot). Only a
+  document recovered from an autosave counts as modified outside the history now.
+- The opacity slider changes every selected layer and records one step; Up / Down buttons move the selection by one
+  place (a block stays a block).
 - Rasterizers clip nothing; the caller (tool/history layer) must bounds-check plotted points.
 - UI stack is SDL2 + Dear ImGui (native C++ API, `thirdparty/imgui`); the whole project is C++17 (it was C11 for core / io, with a C++ UI, until the cpp-migration).
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
@@ -79,11 +118,11 @@ headless CLI export, optional Aseprite import.
 - Shortcuts live in `src/ui/app_shortcuts.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
   `+` / `-` and `[` / `]` brush size (1 px; `Editor::changeBrushSize`), the wheel zooms, holding the middle button = temporary eyedropper (`Editor::tempPick`; dragging it pans), Space + drag pans.
 - Clipboard (`selection.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
-  loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
-- Palette edits (`palette_remove`, add / pick in `editor_palette.cpp`) and `RecentColors` are not part of undo. Recent
-  colors are recorded on press by every drawing tool except the eraser and the eyedropper.
+  loses what leaves the sprite; undoing it restores the selection rectangle.
+- `RecentColors` is not part of undo. Recent colors are recorded on press by every drawing tool except the eraser and
+  the eyedropper.
 - Brush (`PencilOptions.size` / `round`): square or round, 1..`PENCIL_BRUSH_MAX`; each stamp pixel is mirrored
-  separately. Pixel-perfect is ignored above size 1. Shapes and the bucket do not use the brush.
+  separately. Pixel-perfect is ignored above size 1. Shapes use it for their outline, the bucket does not.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
 - UI layout (`src/ui/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
@@ -117,8 +156,8 @@ headless CLI export, optional Aseprite import.
   lowest unlocked (`canMergeLayers`); one selected layer merges down as before.
   Dragging a selected row moves the whole selection as a block (order kept) next to the drop row; dropping on a
   selected row does nothing.
-  Layers are reordered by dragging a row onto another (`moveLayer`, one undo step, the dragged layer stays active;
-  there are no up / down buttons). While dragging, a 2 px off-white line across the hovered row marks where the layer
+  Layers are reordered by dragging a row onto another (`moveLayer`, one undo step, the dragged layer stays active) or
+  with the Up / Down buttons (`moveSelectedLayersBy`). While dragging, a 2 px off-white line across the hovered row marks where the layer
   will land (above the row for a layer coming from below, under it for one coming from above; none over its own row). With the layer list focused (`LayersPanel::focused`, set from the window's
   focus in the frame it is drawn) the Delete key and the trash button ask "Delete layer?" first (Enter confirms,
   Escape cancels, undo brings it back); elsewhere Delete still clears the selected pixels. While that dialog is
@@ -129,10 +168,11 @@ headless CLI export, optional Aseprite import.
 - `Panels::end` only calls `ImGui::End` if `begin` started a window: a hidden panel (closed with its X button or
   hidden from the Window menu) used to trip "Calling End() too many times!". `tests/ui/ui_panels.cpp` covers it.
 - Unsaved changes: `History::markSaved` / `atSavePoint` track the saved state (undoing back to it counts as clean; an
-  edit that replaces the saved steps or `forgetCel` makes it permanently dirty). Palette edits are outside undo, so
-  `Editor::modifiedOutsideHistory` (also set by `markModified`) counts them as unsaved until the next save. `App` shows `*` in the window title and asks Save / Discard / Cancel before
+  edit that replaces the saved steps or `forgetCel` makes it permanently dirty). `Editor::modifiedOutsideHistory` (set by
+  `markModified`, i.e. for a document recovered from an autosave) counts as unsaved until the next save. `App` shows `*` in the window title and asks Save / Discard / Cancel before
   Open, Quit and a dropped file replace the document.
-- Opening files: `tinysprite [file | width [height]]`, `--help`, and `SDL_DROPFILE` (drop a .pxa or image on the window).
+- Opening files: `tinysprite [file | width [height]]`, `--help`, and `SDL_DROPFILE` (drop a .pxa, an image or an
+  animated GIF on the window).
 - Layer lock (`Layer::locked`, `layer_op_set_locked`, undoable): `Editor::editableCel` returns null for a locked layer,
   so tools, paste, cut and delete skip it; merge down refuses a locked lower layer. The model does not enforce it.
   Stored in bit 1 of the LAYR visible byte of `.pxa` (bit 0 is visible), so older readers still load the file.
@@ -149,3 +189,13 @@ headless CLI export, optional Aseprite import.
 - F1 / `?` opens the keyboard shortcut list (`App::helpWindow`, also in the Help menu).
 - Dev packages are listed once in `scripts/install-deps.sh` (CI and `.devcontainer/` both call it); add new apt
   dependencies there. The devcontainer does not forward a display, so the UI window is not shown from inside it.
+
+## Known limits (what is left)
+- The model does not enforce layer locks; the `Editor` does (`editableCel`).
+- Rasterizers clip nothing; the caller bounds-checks. A selection is one rectangle, and pixels moved off the sprite are
+  lost. Merging needs both layers visible.
+- Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
+- No native file chooser (a path dialog instead); ImGui's built-in font (Inter / DM Mono are not embedded).
+- The Windows (MinGW) job is not built locally; the devcontainer shows no display (use WSL / a local build for the UI).
+- A GIF has no partial transparency and at most 256 colors; the sprite sheet is a plain grid / strip (no packing or JSON
+  yet, that is phase 3).
