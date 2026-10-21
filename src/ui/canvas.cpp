@@ -203,9 +203,7 @@ void Canvas::drawGrid(ImDrawList *draw, ImVec2 origin, const ScreenRect &visible
 /* The cels the pencil / eraser would paint at the hovered cel, as filled squares. */
 void Canvas::drawBrushPreview(ImDrawList *draw, ImVec2 origin) const
 {
-    PencilOptions options = {};
-    options.size = editor_.options().brush_size;
-    options.round = editor_.options().brush_round;
+    PencilOptions options = editor_.options().pencil();
     int size = options.brushSize();
     int first = options.brushOrigin();
     const Viewport &view = editor_.view().viewport;

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <stdexcept>
 
 namespace editor_detail
 {
@@ -39,6 +40,17 @@ Palette defaultPalette()
         palette.add(color);
     }
     return palette;
+}
+
+std::optional<Sprite> blankSprite(int width, int height)
+{
+    try {
+        Sprite sprite(width, height);
+        sprite.palette() = defaultPalette();
+        return sprite;
+    } catch (const std::invalid_argument &) {
+        return std::nullopt;
+    }
 }
 
 int indexOfLayer(const Sprite &sprite, const Layer *layer)

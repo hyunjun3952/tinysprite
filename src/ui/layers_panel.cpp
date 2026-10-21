@@ -135,7 +135,7 @@ void LayersPanel::rowDragDrop(int index, const Layer &layer, const RowContext &c
 {
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
         ImGui::SetDragDropPayload("LAYER_ROW", &index, sizeof(index));
-        if (ctx.multiple && editor_.layerSelected(index)) {
+        if (wholeSelection(index, ctx)) {
             ImGui::Text("%d layers", static_cast<int>(editor_.selectedLayers().size()));
         } else {
             ImGui::TextUnformatted(layer.name().c_str());
@@ -183,6 +183,13 @@ void LayersPanel::rowHintAndRename(int index, const Layer &layer)
     }
 }
 
+/* Whether a toggle on this row applies to every selected layer: the row is part of a
+ * multi-selection. */
+bool LayersPanel::wholeSelection(int index, const RowContext &ctx) const
+{
+    return ctx.multiple && editor_.layerSelected(index);
+}
+
 /* The eye toggle. With the row inside a multi-selection it applies to the whole selection. */
 void LayersPanel::visibilityToggle(int index, const Layer &layer, const RowContext &ctx)
 {
@@ -195,7 +202,7 @@ void LayersPanel::visibilityToggle(int index, const Layer &layer, const RowConte
         return;
     }
     bool visible = !layer.visible();
-    if (ctx.multiple && editor_.layerSelected(index)) {
+    if (wholeSelection(index, ctx)) {
         editor_.setSelectedLayersVisible(visible);
     } else {
         editor_.setLayerVisible(index, visible);
@@ -214,7 +221,7 @@ void LayersPanel::lockToggle(int index, const Layer &layer, const RowContext &ct
         return;
     }
     bool locked = !layer.locked();
-    if (ctx.multiple && editor_.layerSelected(index)) {
+    if (wholeSelection(index, ctx)) {
         editor_.setSelectedLayersLocked(locked);
     } else {
         editor_.setLayerLocked(index, locked);

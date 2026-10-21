@@ -224,12 +224,11 @@ bool Editor::canMergeLayers() const
     if (selected.size() == 1) {
         const Layer *upper = sprite().layer(selected.front());
         const Layer *lower = sprite().layer(selected.front() - 1);
-        return upper && lower && upper->visible() && lower->visible() && !lower->locked();
+        return upper && lower && layer_can_merge(*upper, *lower);
     }
-    /* Every layer but the topmost receives the one above it, so none of those may be locked. */
-    for (size_t k = 0; k < selected.size(); k++) {
-        const Layer *layer = sprite().layer(selected[k]);
-        if (!layer->visible() || (k + 1 < selected.size() && layer->locked())) {
+    /* Each selected layer is folded into the one selected below it. */
+    for (size_t k = 1; k < selected.size(); k++) {
+        if (!layer_can_merge(*sprite().layer(selected[k]), *sprite().layer(selected[k - 1]))) {
             return false;
         }
     }
@@ -270,29 +269,30 @@ void Editor::mergeSelectedLayers()
     markAllDirty();
 }
 
-void Editor::setSelectedLayersVisible(bool visible)
+bool Editor::editSelectedLayers(const std::function<void(Layer &)> &edit)
 {
     if (stroking()) {
-        return;
+        return false;
     }
     history().beginGroup();
     for (int i : selectedLayers()) {
-        layer_op_set_visible(history(), *sprite().layer(i), visible);
+        edit(*sprite().layer(i));
     }
     history().endGroup();
-    markAllDirty();
+    return true;
+}
+
+void Editor::setSelectedLayersVisible(bool visible)
+{
+    if (editSelectedLayers(
+            [&](Layer &layer) { layer_op_set_visible(history(), layer, visible); })) {
+        markAllDirty();
+    }
 }
 
 void Editor::setSelectedLayersLocked(bool locked)
 {
-    if (stroking()) {
-        return;
-    }
-    history().beginGroup();
-    for (int i : selectedLayers()) {
-        layer_op_set_locked(history(), *sprite().layer(i), locked);
-    }
-    history().endGroup();
+    editSelectedLayers([&](Layer &layer) { layer_op_set_locked(history(), layer, locked); });
 }
 
 void Editor::moveSelectedLayers(int from, int to)
