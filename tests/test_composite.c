@@ -188,6 +188,19 @@ TEST(composite_pixel_matches_full_composite)
     sprite_destroy(s);
 }
 
+TEST(composite_over_scales_by_opacity)
+{
+    Rgba black = {0, 0, 0, 255};
+    Rgba white = {255, 255, 255, 255};
+    Rgba half = composite_over(black, white, 128);
+    ASSERT_EQ_INT(255, half.a);
+    ASSERT_EQ_INT(128, half.r);
+    ASSERT_TRUE(same(composite_over(black, white, 255), white));
+    ASSERT_TRUE(same(composite_over(black, white, 0), black));
+    ASSERT_TRUE(same(composite_over(CLEAR, white, 255), white));
+    ASSERT_EQ_INT(0, composite_over(CLEAR, white, 0).a);
+}
+
 int main(void)
 {
     RUN(blank_sprite_composites_to_transparent);
@@ -201,5 +214,6 @@ int main(void)
     RUN(region_is_clipped_to_the_sprite);
     RUN(invalid_frame_leaves_output_untouched);
     RUN(composite_pixel_matches_full_composite);
+    RUN(composite_over_scales_by_opacity);
     return TEST_SUMMARY();
 }

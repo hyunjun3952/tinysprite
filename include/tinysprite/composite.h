@@ -17,4 +17,8 @@ void composite_sprite(Sprite *sprite, int frame, CompositeRect region, Rgba *out
  * black if sprite is NULL, the frame is out of range, or (x, y) is out of bounds. */
 Rgba composite_pixel(Sprite *sprite, int frame, int x, int y);
 
+/* Straight-alpha "over": `src`, its alpha scaled by `opacity` (0..255), drawn onto `dst`. This is
+ * the blend composite_sprite uses for every layer. */
+Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity);
+
 #endif

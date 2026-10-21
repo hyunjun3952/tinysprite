@@ -26,6 +26,11 @@ static Rgba blend_over(Rgba dst, Rgba src, int src_alpha)
     };
 }
 
+Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity)
+{
+    return blend_over(dst, src, div255(src.a * opacity));
+}
+
 Rgba composite_pixel(Sprite *sprite, int frame, int x, int y)
 {
     Rgba out = {0, 0, 0, 0};

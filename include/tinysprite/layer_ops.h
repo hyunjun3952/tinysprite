@@ -23,6 +23,17 @@ int layer_op_remove(History *history, Sprite *sprite, int index);
  * either index is out of range, a stroke is active, or on allocation failure. */
 int layer_op_move(History *history, Sprite *sprite, int from, int to);
 
+/* Inserts a copy of the layer at `index` (name + " copy", same visibility, opacity and pixels in
+ * every frame) just above it. Returns the copy, or NULL if index is out of range, a stroke is
+ * active, or on allocation failure. */
+Layer *layer_op_duplicate(History *history, Sprite *sprite, int index);
+
+/* Draws the layer at `index` onto the layer below it (every frame, with the upper layer's opacity
+ * applied to its pixels) and removes it; the lower layer keeps its own name and properties. The
+ * pixel change and the removal are one undo step. Returns 0 on success, -1 if there is no layer
+ * below, either layer is hidden, a stroke is active, or on allocation failure. */
+int layer_op_merge_down(History *history, Sprite *sprite, int index);
+
 int layer_op_set_name(History *history, Layer *layer, const char *name);
 int layer_op_set_visible(History *history, Layer *layer, int visible);
 int layer_op_set_opacity(History *history, Layer *layer, uint8_t opacity);

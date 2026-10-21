@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "tinysprite/composite.h"
+
 /* Add / remove: the step owns `layer` whenever it is not in the sprite. */
 typedef struct Membership {
     Sprite *sprite;
@@ -84,6 +86,139 @@ int layer_op_remove(History *history, Sprite *sprite, int index)
         return -1;
     }
     detach(m);
+    return 0;
+}
+
+Layer *layer_op_duplicate(History *history, Sprite *sprite, int index)
+{
+    Layer *source = sprite ? sprite_layer(sprite, index) : NULL;
+    if (!history || !source || history_stroke_active(history)) {
+        return NULL;
+    }
+    int width = sprite_width(sprite);
+    int height = sprite_height(sprite);
+    char name[LAYER_NAME_MAX + 1];
+    snprintf(name, sizeof(name), "%.*s copy", LAYER_NAME_MAX - 5, layer_name(source));
+    Membership *m = calloc(1, sizeof(*m));
+    Layer *copy = m ? layer_create(name, width, height, layer_frame_count(source)) : NULL;
+    if (!copy) {
+        free(m);
+        return NULL;
+    }
+    layer_set_visible(copy, layer_visible(source));
+    layer_set_opacity(copy, layer_opacity(source));
+    for (int frame = 0; frame < layer_frame_count(source); frame++) {
+        memcpy(cel_pixels(layer_cel(copy, frame)), cel_pixels(layer_cel(source, frame)),
+               (size_t)width * (size_t)height * sizeof(Rgba));
+    }
+    if (sprite_insert_layer(sprite, index + 1, copy) != 0) {
+        layer_destroy(copy);
+        free(m);
+        return NULL;
+    }
+    *m = (Membership){sprite, copy, index + 1, 1};
+    HistoryAction action = {add_undo, add_redo, membership_release, m};
+    if (history_push_action(history, action) != 0) {
+        /* The release callback has already run; take the copy back out of the sprite. */
+        (void)sprite_remove_layer(sprite, index + 1);
+        return NULL;
+    }
+    return copy;
+}
+
+/* Merge down: the lower layer's cels before and after the merge, per frame, plus the upper layer,
+ * which the step owns whenever it is not in the sprite. Restoring whole cels keeps the pixel steps
+ * recorded earlier on either layer valid, since undo returns them to exactly the state they saw. */
+typedef struct Merge {
+    Sprite *sprite;
+    Layer *upper, *lower;
+    int index; /* the upper layer's index while it is in the sprite */
+    int in_sprite;
+    int frames;
+    size_t pixels;
+    Rgba *before; /* frames * pixels */
+    Rgba *after;
+} Merge;
+
+static void merge_write(const Merge *m, const Rgba *snapshot)
+{
+    for (int frame = 0; frame < m->frames; frame++) {
+        memcpy(cel_pixels(layer_cel(m->lower, frame)), &snapshot[(size_t)frame * m->pixels],
+               m->pixels * sizeof(Rgba));
+    }
+}
+
+static void merge_undo(void *ctx)
+{
+    Merge *m = ctx;
+    merge_write(m, m->before);
+    if (sprite_insert_layer(m->sprite, m->index, m->upper) == 0) {
+        m->in_sprite = 1;
+    }
+}
+
+static void merge_redo(void *ctx)
+{
+    Merge *m = ctx;
+    merge_write(m, m->after);
+    if (sprite_detach_layer(m->sprite, m->index) == m->upper) {
+        m->in_sprite = 0;
+    }
+}
+
+static void merge_release(void *ctx)
+{
+    Merge *m = ctx;
+    if (!m->in_sprite) {
+        layer_destroy(m->upper);
+    }
+    free(m->before);
+    free(m->after);
+    free(m);
+}
+
+int layer_op_merge_down(History *history, Sprite *sprite, int index)
+{
+    Layer *upper = sprite ? sprite_layer(sprite, index) : NULL;
+    Layer *lower = sprite ? sprite_layer(sprite, index - 1) : NULL;
+    if (!history || !upper || !lower || history_stroke_active(history) || !layer_visible(upper) ||
+        !layer_visible(lower)) {
+        return -1;
+    }
+    Merge *m = calloc(1, sizeof(*m));
+    if (!m) {
+        return -1;
+    }
+    m->sprite = sprite;
+    m->upper = upper;
+    m->lower = lower;
+    m->index = index;
+    m->in_sprite = 1;
+    m->frames = layer_frame_count(lower);
+    m->pixels = (size_t)sprite_width(sprite) * (size_t)sprite_height(sprite);
+    m->before = malloc((size_t)m->frames * m->pixels * sizeof(Rgba));
+    m->after = malloc((size_t)m->frames * m->pixels * sizeof(Rgba));
+    if (!m->before || !m->after) {
+        merge_release(m);
+        return -1;
+    }
+    for (int frame = 0; frame < m->frames; frame++) {
+        const Rgba *low = cel_pixels(layer_cel(lower, frame));
+        const Rgba *up = cel_pixels(layer_cel(upper, frame));
+        Rgba *before = &m->before[(size_t)frame * m->pixels];
+        Rgba *after = &m->after[(size_t)frame * m->pixels];
+        for (size_t i = 0; i < m->pixels; i++) {
+            before[i] = low[i];
+            after[i] = composite_over(low[i], up[i], layer_opacity(upper));
+        }
+    }
+    /* Record the step while the upper layer is still in the sprite so a failed push (which
+     * releases the step) cannot destroy it, then apply. */
+    HistoryAction action = {merge_undo, merge_redo, merge_release, m};
+    if (history_push_action(history, action) != 0) {
+        return -1;
+    }
+    merge_redo(m);
     return 0;
 }
 
