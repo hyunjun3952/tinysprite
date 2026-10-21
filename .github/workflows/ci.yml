@@ -21,7 +21,7 @@ jobs:
     # Linux: format, lint, ASan/UBSan build and tests (UI included).
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install tools
         run: scripts/install-deps.sh
       - name: Shellcheck
@@ -54,7 +54,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -72,7 +72,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
       # Only main's build is worth keeping; PR runs would just fill the storage.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.ref == 'refs/heads/main'
         with:
           name: tinysprite-windows
