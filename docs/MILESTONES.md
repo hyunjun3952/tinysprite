@@ -15,8 +15,11 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
 - [x] **3. Rasterizer** — Bresenham line, rectangle, ellipse, flood fill, tested against golden pixel arrays.
       `include/tinysprite/raster.h`: pure functions that report pixels through a plot callback and never touch a cel,
       so tools can route edits through history. Ellipses may report a pixel twice; flood fill only reads the cel.
-- [ ] **4. Pencil / eraser + History** — undo/redo unit is one stroke; storage is a pixel delta `(index, old, new)`.
+- [x] **4. Pencil / eraser + History** — undo/redo unit is one stroke; storage is a pixel delta `(index, old, new)`.
       All edits must go through history.
+      `history.h` (begin/set_pixel/end stroke, undo, redo) and `pencil.h` (`pencil_stroke` / `eraser_stroke` take a
+      point list and join it with `raster_line`). Out-of-bounds pixels are clipped by history. Only the batch form
+      exists; the UI (milestone 5) will need a live begin/extend/end stroke while the mouse is dragging.
 - [ ] **5. SDL2 + ImGui app + CPU-composited canvas** — zoom/pan, grid, checkerboard, coordinate transform
       (pure function, unit-tested), minimal foreground color picker. Enable with `-DTINYSPRITE_BUILD_UI=ON`
       (`src/ui/CMakeLists.txt` does not exist yet).
