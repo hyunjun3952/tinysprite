@@ -92,42 +92,47 @@ void Editor::setSelectionClipped(Rect r)
     }
 }
 
-void Editor::flipSelection(bool horizontal)
+std::optional<Editor::SelectionEdit> Editor::beginSelectionEdit()
 {
     Cel *cel = editableCel();
     if (!cel || !hasSelection_) {
-        return;
+        return std::nullopt;
     }
-    Rect r = selection_;
-    std::optional<Clip> clip = Clip::copy(*cel, r);
+    std::optional<Clip> clip = Clip::copy(*cel, selection_);
     if (!clip) {
+        return std::nullopt;
+    }
+    return SelectionEdit{*cel, selection_, std::move(*clip)};
+}
+
+void Editor::flipSelection(bool horizontal)
+{
+    std::optional<SelectionEdit> edit = beginSelectionEdit();
+    if (!edit) {
         return;
     }
+    Rect r = edit->rect;
     if (horizontal) {
-        clip->flipHorizontal();
+        edit->clip.flipHorizontal();
     } else {
-        clip->flipVertical();
+        edit->clip.flipVertical();
     }
-    if (clip_replace(history(), *cel, r, *clip, r.x, r.y)) {
+    if (clip_replace(history(), edit->cel, r, edit->clip, r.x, r.y)) {
         markDirty(r);
     }
 }
 
 void Editor::rotateSelection(bool clockwise)
 {
-    Cel *cel = editableCel();
-    if (!cel || !hasSelection_) {
+    std::optional<SelectionEdit> edit = beginSelectionEdit();
+    if (!edit) {
         return;
     }
-    Rect r = selection_;
-    std::optional<Clip> clip = Clip::copy(*cel, r);
-    if (!clip) {
-        return;
-    }
-    clip->rotate(clockwise);
+    Rect r = edit->rect;
+    edit->clip.rotate(clockwise);
     /* The turned rectangle shares the old one's center. */
     Rect turned = {r.x + (r.w - r.h) / 2, r.y + (r.h - r.w) / 2, r.h, r.w};
-    if (clip_replace(history(), *cel, r, *clip, turned.x, turned.y)) {
+    if (clip_replace(history(), edit->cel, r, edit->clip, turned.x, turned.y)) {
         markDirty(r);
         markDirty(turned);
         setSelectionClipped(turned);

@@ -94,12 +94,44 @@ class PickDrag : public Drag
     }
 };
 
+/* A drag that edits the cel through a live stroke: finishing ends the stroke (repainting
+ * everything if it changed nothing to mark more precisely), cancelling reverts it. */
+template <class Stroke> class StrokeDrag : public Drag
+{
+  public:
+    StrokeDrag(Editor &editor, int cx, int cy, std::unique_ptr<Stroke> stroke)
+        : Drag(editor, cx, cy), stroke_(std::move(stroke))
+    {
+    }
+
+    void finish() override
+    {
+        bool changed = stroke_->end();
+        if (!changed) {
+            editor_.markAllDirty();
+        }
+        onFinish(changed);
+    }
+    void cancel() override
+    {
+        stroke_->cancel();
+    }
+
+  protected:
+    /* After the stroke ended; `changed` is false when it left the cel as it was. */
+    virtual void onFinish(bool /*changed*/)
+    {
+    }
+
+    std::unique_ptr<Stroke> stroke_;
+};
+
 /* Pencil and eraser stroke. */
-class PencilDrag : public Drag
+class PencilDrag : public StrokeDrag<PencilStroke>
 {
   public:
     PencilDrag(Editor &editor, int cx, int cy, std::unique_ptr<PencilStroke> stroke)
-        : Drag(editor, cx, cy), stroke_(std::move(stroke))
+        : StrokeDrag(editor, cx, cy, std::move(stroke))
     {
         markBrushStroke(editor, cx, cy, cx, cy);
     }
@@ -114,28 +146,20 @@ class PencilDrag : public Drag
         lastX_ = cx;
         lastY_ = cy;
     }
-    void finish() override
+
+  protected:
+    void onFinish(bool) override
     {
-        if (!stroke_->end()) {
-            editor_.markAllDirty();
-        }
         editor_.setLastDrawPoint(lastX_, lastY_);
     }
-    void cancel() override
-    {
-        stroke_->cancel();
-    }
-
-  private:
-    std::unique_ptr<PencilStroke> stroke_;
 };
 
 /* Line, rectangle or ellipse. */
-class ShapeDrag : public Drag
+class ShapeDrag : public StrokeDrag<ShapeStroke>
 {
   public:
     ShapeDrag(Editor &editor, int cx, int cy, std::unique_ptr<ShapeStroke> stroke, ShapeKind kind)
-        : Drag(editor, cx, cy), stroke_(std::move(stroke)), kind_(kind), endX_(cx), endY_(cy)
+        : StrokeDrag(editor, cx, cy, std::move(stroke)), kind_(kind), endX_(cx), endY_(cy)
     {
         markStroke(editor, cx, cy, cx, cy, 1);
     }
@@ -158,30 +182,19 @@ class ShapeDrag : public Drag
         endX_ = end.x;
         endY_ = end.y;
     }
-    void finish() override
-    {
-        if (!stroke_->end()) {
-            editor_.markAllDirty();
-        }
-    }
-    void cancel() override
-    {
-        stroke_->cancel();
-    }
 
   private:
-    std::unique_ptr<ShapeStroke> stroke_;
     ShapeKind kind_;
     int endX_; /* the far corner of the shape as drawn */
     int endY_;
 };
 
 /* Moving the selected pixels. */
-class MoveDrag : public Drag
+class MoveDrag : public StrokeDrag<MoveStroke>
 {
   public:
     MoveDrag(Editor &editor, int cx, int cy, std::unique_ptr<MoveStroke> stroke)
-        : Drag(editor, cx, cy), stroke_(std::move(stroke))
+        : StrokeDrag(editor, cx, cy, std::move(stroke))
     {
         editor.setMoveOffset(0, 0);
     }
@@ -200,22 +213,17 @@ class MoveDrag : public Drag
         lastY_ = cy;
     }
 
+  protected:
     /* The selection follows its pixels; the part that left the sprite is gone. */
-    void finish() override
+    void onFinish(bool changed) override
     {
-        if (!stroke_->end()) {
-            editor_.markAllDirty();
-        } else {
+        if (changed) {
             Rect moved = editor_.selection();
             moved.x += editor_.moveDx();
             moved.y += editor_.moveDy();
             editor_.setSelectionClipped(moved);
         }
         editor_.setMoveOffset(0, 0);
-    }
-    void cancel() override
-    {
-        stroke_->cancel();
     }
 
   private:
@@ -227,8 +235,6 @@ class MoveDrag : public Drag
         r.y += dy;
         editor_.markDirty(r);
     }
-
-    std::unique_ptr<MoveStroke> stroke_;
 };
 
 /* Dragging out a new selection. */
@@ -298,8 +304,7 @@ std::unique_ptr<Drag> beginPencil(Editor &editor, Cel &cel, int cx, int cy)
 {
     bool erasing = editor.tool() == ToolKind::Eraser;
     Rgba color = editor.foreground();
-    PencilOptions options = {editor.options().pixel_perfect, editor.options().symmetry,
-                             editor.options().brush_size, editor.options().brush_round};
+    PencilOptions options = editor.options().pencil();
     std::optional<ToolPoint> from = editor.lineFrom();
     std::unique_ptr<PencilStroke> stroke =
         PencilStroke::begin(editor.history(), cel, erasing ? Rgba{} : color, options,

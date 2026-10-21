@@ -350,6 +350,34 @@ TEST(merge_down_is_rejected_when_it_makes_no_sense)
     ASSERT_EQ_INT(2, s.layerCount());
 }
 
+TEST(can_merge_needs_both_visible_and_the_lower_unlocked)
+{
+    Sprite s = merge_fixture();
+    Layer &lower = *s.layer(0);
+    Layer &upper = *s.layer(1);
+    ASSERT_TRUE(layer_can_merge(upper, lower));
+    upper.setLocked(true); /* the upper layer is only read */
+    ASSERT_TRUE(layer_can_merge(upper, lower));
+    upper.setLocked(false);
+    lower.setLocked(true);
+    ASSERT_TRUE(!layer_can_merge(upper, lower));
+    lower.setLocked(false);
+    upper.setVisible(false);
+    ASSERT_TRUE(!layer_can_merge(upper, lower));
+    upper.setVisible(true);
+    lower.setVisible(false);
+    ASSERT_TRUE(!layer_can_merge(upper, lower));
+}
+
+TEST(merge_down_is_rejected_onto_a_locked_layer)
+{
+    Sprite s = merge_fixture();
+    History h;
+    s.layer(0)->setLocked(true);
+    ASSERT_TRUE(!layer_op_merge_down(h, s, 1));
+    ASSERT_EQ_INT(2, s.layerCount());
+}
+
 TEST(record_name_logs_an_edit_the_layer_already_holds)
 {
     Sprite s(4, 4);
@@ -444,6 +472,8 @@ int main(void)
     RUN(pixel_steps_around_a_merge_stay_valid);
     RUN(merge_down_frees_the_merged_layer_with_the_history);
     RUN(merge_down_is_rejected_when_it_makes_no_sense);
+    RUN(can_merge_needs_both_visible_and_the_lower_unlocked);
+    RUN(merge_down_is_rejected_onto_a_locked_layer);
     RUN(record_name_logs_an_edit_the_layer_already_holds);
     RUN(record_opacity_logs_an_edit_the_layer_already_holds);
     RUN(record_records_nothing_when_the_value_is_unchanged);

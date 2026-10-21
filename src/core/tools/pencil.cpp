@@ -129,8 +129,7 @@ void PencilStroke::paint(int x, int y, const std::vector<ToolPoint> &cels)
             if (!cel_.inBounds(at.x, at.y)) {
                 continue;
             }
-            unsigned char &done = painted_[static_cast<size_t>(at.y) * static_cast<size_t>(width) +
-                                           static_cast<size_t>(at.x)];
+            unsigned char &done = painted_[cel_.indexOf(at.x, at.y)];
             if (!done) {
                 done = 1;
                 history_.setPixel(at.x, at.y, color_);

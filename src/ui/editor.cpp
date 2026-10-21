@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <utility>
 
 #include "drag.h"
@@ -27,13 +26,10 @@ std::unique_ptr<SDL_Texture, Editor::TextureDeleter> Editor::newTexture(int widt
 
 std::unique_ptr<Editor> Editor::create(SDL_Renderer *renderer, int width, int height)
 {
-    std::optional<Sprite> sprite;
-    try {
-        sprite.emplace(width, height);
-    } catch (const std::invalid_argument &) {
+    std::optional<Sprite> sprite = editor_detail::blankSprite(width, height);
+    if (!sprite) {
         return nullptr;
     }
-    sprite->palette() = editor_detail::defaultPalette();
     std::unique_ptr<Editor> editor(new Editor(renderer, std::move(*sprite)));
     auto texture = editor->newTexture(width, height);
     if (!texture) {
@@ -90,14 +86,8 @@ bool Editor::newDocument(int width, int height)
     if (stroking()) {
         return false;
     }
-    std::optional<Sprite> sprite;
-    try {
-        sprite.emplace(width, height);
-    } catch (const std::invalid_argument &) {
-        return false;
-    }
-    sprite->palette() = editor_detail::defaultPalette();
-    return setSprite(std::move(*sprite));
+    std::optional<Sprite> sprite = editor_detail::blankSprite(width, height);
+    return sprite && setSprite(std::move(*sprite));
 }
 
 void Editor::changeBrushSize(int delta)

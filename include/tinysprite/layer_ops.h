@@ -28,6 +28,10 @@ bool layer_op_move(History &history, Sprite &sprite, int from, int to);
  * active. */
 Layer *layer_op_duplicate(History &history, Sprite &sprite, int index);
 
+/* Whether `upper` can be drawn onto `lower`: both are visible and `lower` is not locked (`upper` is
+ * only read). The rule behind layer_op_merge_down, for callers that ask first. */
+bool layer_can_merge(const Layer &upper, const Layer &lower);
+
 /* Draws the layer at `index` onto the layer below it (every frame, with the upper layer's opacity
  * applied to its pixels) and removes it; the lower layer keeps its own name and properties. The
  * pixel change and the removal are one undo step. Returns false if there is no layer below,

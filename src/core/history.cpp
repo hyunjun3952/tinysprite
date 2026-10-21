@@ -48,8 +48,7 @@ bool History::setPixel(int x, int y, Rgba color)
         (clip_ && !rect_contains(*clip_, x, y))) {
         return false;
     }
-    size_t index =
-        static_cast<size_t>(y) * static_cast<size_t>(active_.cel->width()) + static_cast<size_t>(x);
+    size_t index = active_.cel->indexOf(x, y);
     Rgba &pixel = active_.cel->pixels()[index];
     if (pixel == color) {
         return true;

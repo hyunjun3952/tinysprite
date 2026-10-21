@@ -50,6 +50,7 @@ class LayersPanel
     void rowDragDrop(int index, const Layer &layer, const RowContext &ctx, Drop &drop);
     void rowHintAndRename(int index, const Layer &layer);
     void nameCell(int index, Layer &layer, const RowContext &ctx);
+    bool wholeSelection(int index, const RowContext &ctx) const;
     void visibilityToggle(int index, const Layer &layer, const RowContext &ctx);
     void lockToggle(int index, const Layer &layer, const RowContext &ctx);
     void renameField(int index, Layer &layer);

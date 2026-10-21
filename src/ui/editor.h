@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -93,6 +94,12 @@ class Editor
         bool pixel_perfect = false;
         Symmetry symmetry = {};
         bool shape_filled = false;
+
+        /* The pencil / eraser's view of these options. */
+        PencilOptions pencil() const
+        {
+            return {pixel_perfect, symmetry, brush_size, brush_round};
+        }
     };
 
     /* The canvas view and the canvas window's size as of its last frame; the canvas owns the
@@ -450,6 +457,19 @@ class Editor
     void rotateSelection(bool clockwise);
 
   private:
+    /* The editable selected pixels, copied, with the cel and area they came from; nullopt when
+     * there is no selection or the cel cannot be edited. */
+    struct SelectionEdit {
+        Cel &cel;
+        Rect rect;
+        Clip clip;
+    };
+    std::optional<SelectionEdit> beginSelectionEdit();
+
+    /* Runs `edit` on every selected layer as one undo step; false (nothing runs) while a tool is
+     * being dragged. */
+    bool editSelectedLayers(const std::function<void(Layer &)> &edit);
+
     void toggleLayerPick(int index);
     void rangeLayerPick(int index);
     struct TextureDeleter {

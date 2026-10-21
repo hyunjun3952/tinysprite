@@ -60,6 +60,17 @@ TEST(pixels_are_row_major)
     ASSERT_EQ_INT(255, c.pixels()[1 * 3 + 1].g);
 }
 
+TEST(index_of_is_row_major)
+{
+    Cel c(3, 2);
+    ASSERT_EQ_INT(0, static_cast<int>(c.indexOf(0, 0)));
+    ASSERT_EQ_INT(2, static_cast<int>(c.indexOf(2, 0)));
+    ASSERT_EQ_INT(4, static_cast<int>(c.indexOf(1, 1)));
+    Rgba green = {0, 255, 0, 255};
+    c.set(2, 1, green);
+    ASSERT_EQ_INT(255, c.pixels()[c.indexOf(2, 1)].g);
+}
+
 int main(void)
 {
     RUN(create_is_transparent);
@@ -67,5 +78,6 @@ int main(void)
     RUN(set_then_get_roundtrip);
     RUN(out_of_bounds_is_rejected);
     RUN(pixels_are_row_major);
+    RUN(index_of_is_row_major);
     return TEST_SUMMARY();
 }

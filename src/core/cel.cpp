@@ -15,7 +15,7 @@ Rgba Cel::get(int x, int y) const
     if (!inBounds(x, y)) {
         return Rgba{};
     }
-    return pixels_[static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x)];
+    return pixels_[indexOf(x, y)];
 }
 
 bool Cel::set(int x, int y, Rgba color)
@@ -23,6 +23,6 @@ bool Cel::set(int x, int y, Rgba color)
     if (!inBounds(x, y)) {
         return false;
     }
-    pixels_[static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x)] = color;
+    pixels_[indexOf(x, y)] = color;
     return true;
 }

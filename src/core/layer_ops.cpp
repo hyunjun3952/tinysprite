@@ -128,12 +128,16 @@ struct Merge {
 
 } // namespace
 
+bool layer_can_merge(const Layer &upper, const Layer &lower)
+{
+    return upper.visible() && lower.visible() && !lower.locked();
+}
+
 bool layer_op_merge_down(History &history, Sprite &sprite, int index)
 {
     Layer *upper = sprite.layer(index);
     Layer *lower = sprite.layer(index - 1);
-    if (!upper || !lower || history.strokeActive() || !upper->visible() || !lower->visible() ||
-        lower->locked()) {
+    if (!upper || !lower || history.strokeActive() || !layer_can_merge(*upper, *lower)) {
         return false;
     }
     auto m = std::make_shared<Merge>(Merge{Membership{sprite, upper, index, {}},
