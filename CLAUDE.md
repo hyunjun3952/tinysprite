@@ -27,7 +27,7 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, build and tests. Run fo
 
 ## Architecture
 
-- **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + ImGui) → executable. Tests link only core/io. Never include SDL/ImGui headers from `src/core` or `src/io`.
+- **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + ImGui) → executable. `tests/test_*.cpp` link only core/io; UI tests (`tests/ui/ui_*.cpp`, only with `-DTINYSPRITE_BUILD_UI=ON`) link `tinysprite_ui` and run under `SDL_VIDEODRIVER=dummy`. Never include SDL/ImGui headers from `src/core` or `src/io`.
 - **Public headers** live in `include/tinysprite/` (core and io only); internal headers stay next to sources in `src/`.
 - **Document model** is animation-ready from the start: `Sprite → Layers × Frames → Cel` (pixel buffer), with a Palette. Phase 1 uses a single frame; do not flatten this structure.
 - **Undo/Redo**: every edit goes through the history module. One undo step = one user stroke; storage is a pixel delta (index, old, new). Do not mutate cels outside this path.

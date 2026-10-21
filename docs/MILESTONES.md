@@ -78,7 +78,7 @@ headless CLI export, optional Aseprite import.
   conversions such as `calloc`/`realloc`/`free` of `T **`.
 - stb is compiled only in `src/io/stb_impl.cpp`, without warnings; the rest of `src/io` includes the headers.
 - UI build: `cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON`; lint it with `scripts/lint.sh build-ui`
-  (the default `build/` compile database has no `src/ui`). CI still builds core only.
+  (the default `build/` compile database has no `src/ui`). CI also builds the UI (`-DTINYSPRITE_BUILD_UI=ON`) and runs these tests.
 - Zoom ranges 1/16x..64x (`VIEWPORT_ZOOM_MIN/MAX`); Fit picks a whole-number zoom, or a power of two below 1x for
   sprites larger than the canvas.
 - Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh .githooks/*`).
@@ -103,7 +103,7 @@ headless CLI export, optional Aseprite import.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
 - `tests/ui/ui_editor.cpp` (ctest `ui_editor`, only with `-DTINYSPRITE_BUILD_UI=ON`, runs under
   `SDL_VIDEODRIVER=dummy`) covers `editor.cpp` and `tools.cpp`; `layers_panel.cpp` (ImGui widgets) is still not covered.
-  CI builds core only, so the UI tests run locally. `scripts/lint.sh` skips `tests/ui` like `src/ui`.
+  CI builds the UI, so the `ui_*` tests run there too. `scripts/lint.sh` skips `tests/ui` like `src/ui`.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
 
