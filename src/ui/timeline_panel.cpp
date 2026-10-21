@@ -394,6 +394,18 @@ void TimelinePanel::grid()
                 editor_.setFrame(f);
                 editor_.setActiveLayer(l);
             }
+            if (ImGui::BeginPopupContextItem("##celmenu")) {
+                if (ImGui::MenuItem("Link to previous frame", nullptr, false, f > 0)) {
+                    editor_.linkCel(l, f - 1, f);
+                }
+                if (ImGui::MenuItem("Link to next frame", nullptr, false, f + 1 < frames)) {
+                    editor_.linkCel(l, f + 1, f);
+                }
+                if (ImGui::MenuItem("Unlink", nullptr, false, layer.celLinked(f))) {
+                    editor_.unlinkCel(l, f);
+                }
+                ImGui::EndPopup();
+            }
             ImVec2 min = ImGui::GetItemRectMin();
             ImVec2 max = ImGui::GetItemRectMax();
             cells_[static_cast<size_t>(l) * static_cast<size_t>(frames) + static_cast<size_t>(f)] =
@@ -403,6 +415,12 @@ void TimelinePanel::grid()
                     ImGui::GetColorU32(active ? theme::rgb(theme::INK) : theme::rgb(theme::BODY));
                 ImGui::GetWindowDrawList()->AddCircleFilled(
                     ImVec2((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f), DOT_RADIUS, ink);
+            }
+            if (layer.celLinked(f)) {
+                /* a bar under the cel: it shares its pixels with another frame */
+                ImGui::GetWindowDrawList()->AddRectFilled(
+                    ImVec2(min.x + 3.0f, max.y - 4.0f), ImVec2(max.x - 3.0f, max.y - 2.0f),
+                    ImGui::GetColorU32(theme::rgb(theme::INK)));
             }
             ImGui::PopID();
         }

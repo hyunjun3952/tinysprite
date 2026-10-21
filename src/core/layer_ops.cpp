@@ -92,11 +92,23 @@ Layer *layer_op_duplicate(History &history, Sprite &sprite, int index)
         std::make_unique<Layer>(name, sprite.width(), sprite.height(), source->frameCount());
     copy->setVisible(source->visible());
     copy->setOpacity(source->opacity());
+    /* Frames that share a cel in the source share the copy of it too. */
+    std::vector<std::shared_ptr<Cel>> cels;
     for (int frame = 0; frame < source->frameCount(); frame++) {
         const Cel *from = source->cel(frame);
+        int first = 0;
+        while (source->cel(first) != from) {
+            first++;
+        }
+        if (first < frame) {
+            cels.push_back(cels[static_cast<size_t>(first)]);
+            continue;
+        }
         std::copy_n(from->pixels(), static_cast<size_t>(sprite.width()) * sprite.height(),
                     copy->cel(frame)->pixels());
+        cels.push_back(copy->celList()[static_cast<size_t>(frame)]);
     }
+    copy->setCelList(std::move(cels));
     Layer *result = copy.get();
     sprite.insertLayer(index + 1, std::move(copy));
     auto m = std::make_shared<Membership>(Membership{sprite, result, index + 1, {}});
@@ -109,13 +121,16 @@ namespace
 
 /* Merge down: the lower layer's cels before and after the merge, per frame, plus the upper layer.
  * Restoring whole cels keeps the pixel steps recorded earlier on either layer valid, since undo
- * returns them to exactly the state they saw. */
+ * returns them to exactly the state they saw. Frames of the lower layer that shared a cel get a
+ * cel each for the merge (the upper layer differs per frame), and undo links them again. */
 struct Merge {
     Membership upper;
     Layer *lower;
     size_t pixels;            /* per frame */
     std::vector<Rgba> before; /* frames * pixels */
     std::vector<Rgba> after;
+    std::vector<std::shared_ptr<Cel>> linked;   /* the lower layer's cels as they were */
+    std::vector<std::shared_ptr<Cel>> separate; /* ... and with every frame holding its own */
 
     void write(const std::vector<Rgba> &snapshot)
     {
@@ -144,7 +159,19 @@ bool layer_op_merge_down(History &history, Sprite &sprite, int index)
                                            lower,
                                            static_cast<size_t>(sprite.width()) * sprite.height(),
                                            {},
+                                           {},
+                                           lower->celList(),
                                            {}});
+    m->separate = m->linked;
+    for (size_t frame = 1; frame < m->separate.size(); frame++) {
+        const std::shared_ptr<Cel> &cel = m->linked[frame];
+        if (std::find(m->linked.begin(), m->linked.begin() + static_cast<std::ptrdiff_t>(frame),
+                      cel) != m->linked.begin() + static_cast<std::ptrdiff_t>(frame)) {
+            auto own = std::make_shared<Cel>(cel->width(), cel->height());
+            std::copy_n(cel->pixels(), m->pixels, own->pixels());
+            m->separate[frame] = std::move(own);
+        }
+    }
     for (int frame = 0; frame < lower->frameCount(); frame++) {
         const Rgba *low = lower->cel(frame)->pixels();
         const Rgba *up = upper->cel(frame)->pixels();
@@ -155,10 +182,12 @@ bool layer_op_merge_down(History &history, Sprite &sprite, int index)
     }
     return record(history,
                   HistoryAction{[m] {
+                                    m->lower->setCelList(m->linked);
                                     m->write(m->before);
                                     m->upper.attach();
                                 },
                                 [m] {
+                                    m->lower->setCelList(m->separate);
                                     m->write(m->after);
                                     m->upper.detach();
                                 }},

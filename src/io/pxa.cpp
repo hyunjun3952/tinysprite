@@ -3,6 +3,7 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
@@ -136,6 +137,52 @@ uint64_t minLayerBytes(const Sprite &sprite, uint32_t frames)
     return 1 + 2 + static_cast<uint64_t>(frames) * sprite.width() * sprite.height() * sizeof(Rgba);
 }
 
+/* One frame of a layer that shows the same cel as an earlier frame. */
+struct CelLink {
+    uint32_t layer;
+    uint32_t frame;
+    uint32_t source;
+};
+
+/* A LINK payload: a layer, then how many (frame, source) pairs follow. */
+void readLinks(Reader &chunk, std::vector<CelLink> &links)
+{
+    uint32_t layer = chunk.u32();
+    uint32_t count = chunk.u32();
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t frame = chunk.u32();
+        uint32_t source = chunk.u32();
+        links.push_back(CelLink{layer, frame, source});
+    }
+}
+
+/* Makes the linked frames share their cels; false if a link points outside the sprite or forward.
+ */
+bool applyLinks(Sprite &sprite, const std::vector<CelLink> &links)
+{
+    for (const CelLink &link : links) {
+        Layer *layer = link.layer < static_cast<uint32_t>(sprite.layerCount())
+                           ? sprite.layer(static_cast<int>(link.layer))
+                           : nullptr;
+        if (!layer || link.frame >= static_cast<uint32_t>(layer->frameCount()) ||
+            link.source >= link.frame) {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < links.size();) {
+        /* all the consecutive pairs of one layer take a single swap of its cel list */
+        Layer &layer = *sprite.layer(static_cast<int>(links[i].layer));
+        std::vector<std::shared_ptr<Cel>> cels = layer.celList();
+        size_t j = i;
+        for (; j < links.size() && links[j].layer == links[i].layer; j++) {
+            cels[links[j].frame] = cels[links[j].source];
+        }
+        layer.setCelList(std::move(cels));
+        i = j;
+    }
+    return true;
+}
+
 /* A TAGS payload: the count, then per tag its name, first and last frame and direction. */
 void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
 {
@@ -171,6 +218,7 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     uint32_t frames = 1;
     std::vector<uint32_t> durations; /* from FRAM, applied once the frames exist */
     std::vector<Sprite::Tag> tags;   /* from TAGS, checked against the frames at the end */
+    std::vector<CelLink> links;      /* from LINK, applied once the layers exist */
     while (!file.atEnd()) {
         const uint8_t *tag = file.take(4);
         uint32_t length = file.u32();
@@ -199,6 +247,8 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
                 }
                 durations.push_back(ms);
             }
+        } else if (isTag(tag, "LINK")) {
+            readLinks(chunk, links);
         } else if (isTag(tag, "TAGS")) {
             readTags(chunk, tags);
         } else if (isTag(tag, "PALT") || isTag(tag, "LAYR")) {
@@ -224,7 +274,7 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     for (size_t i = 0; i < durations.size(); i++) {
         sprite->setFrameDuration(static_cast<int>(i), static_cast<int>(durations[i]));
     }
-    if (!sprite->setTags(std::move(tags))) {
+    if (!applyLinks(*sprite, links) || !sprite->setTags(std::move(tags))) {
         return std::nullopt;
     }
     return sprite;
@@ -272,6 +322,29 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
                 o.insert(o.end(), bytes, bytes + pixelBytes(cel));
             }
         });
+    }
+    for (int i = 0; i < sprite.layerCount(); i++) {
+        const Layer &layer = *sprite.layer(i);
+        /* each frame that shows a cel of an earlier frame, with the first frame that shows it */
+        std::vector<std::pair<uint32_t, uint32_t>> pairs;
+        for (int frame = 1; frame < layer.frameCount(); frame++) {
+            for (int first = 0; first < frame; first++) {
+                if (layer.cel(first) == layer.cel(frame)) {
+                    pairs.emplace_back(static_cast<uint32_t>(frame), static_cast<uint32_t>(first));
+                    break;
+                }
+            }
+        }
+        if (!pairs.empty()) {
+            putChunk(out, "LINK", [&](std::vector<uint8_t> &o) {
+                putU32(o, static_cast<uint32_t>(i));
+                putU32(o, static_cast<uint32_t>(pairs.size()));
+                for (const auto &pair : pairs) {
+                    putU32(o, pair.first);
+                    putU32(o, pair.second);
+                }
+            });
+        }
     }
     if (!sprite.tags().empty()) {
         putChunk(out, "TAGS", [&](std::vector<uint8_t> &o) {

@@ -394,6 +394,80 @@ TEST(selecting_a_tag_out_of_range_selects_nothing)
     delete e;
 }
 
+TEST(linked_cels_share_what_is_drawn)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->setFrame(0);
+    e->linkCel(0, 0, 1);
+    ASSERT_TRUE(e->sprite().layer(0)->celLinked(1));
+    e->setFrame(1);
+    dot(e, 3, 3);
+    e->setFrame(0);
+    ASSERT_EQ_INT(255, alpha(e, 3, 3));
+    e->undo(); /* the dot */
+    ASSERT_EQ_INT(0, alpha(e, 3, 3));
+    e->undo(); /* the link */
+    ASSERT_TRUE(!e->sprite().layer(0)->celLinked(0));
+    delete e;
+}
+
+TEST(linking_redraws_the_canvas_and_unlinking_separates_the_frames)
+{
+    Editor *e = make_editor();
+    dot(e, 1, 1);
+    e->addFrame();
+    e->updateTexture();
+    e->linkCel(0, 0, 1);
+    ASSERT_TRUE(e->dirty());
+    ASSERT_EQ_INT(255, alpha(e, 1, 1));
+    e->unlinkCel(0, 1);
+    ASSERT_TRUE(!e->sprite().layer(0)->celLinked(0));
+    dot(e, 2, 2);
+    e->setFrame(0);
+    ASSERT_EQ_INT(0, alpha(e, 2, 2));
+    delete e;
+}
+
+TEST(link_to_previous_uses_the_active_layer_and_frame)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    e->linkCelToPrevious();
+    ASSERT_TRUE(e->sprite().layer(0)->cel(2) == e->sprite().layer(0)->cel(1));
+    e->setFrame(0);
+    e->linkCelToPrevious(); /* nothing before the first frame */
+    ASSERT_TRUE(!e->sprite().layer(0)->celLinked(0));
+    delete e;
+}
+
+TEST(a_locked_layer_keeps_its_cels_unlinked)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->setLayerLocked(0, true);
+    e->linkCel(0, 0, 1);
+    ASSERT_TRUE(!e->sprite().layer(0)->celLinked(0));
+    delete e;
+}
+
+TEST(linking_is_held_off_while_stroking_and_stops_playback)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->selectTool(ToolKind::Pencil);
+    e->press(0, 0);
+    e->linkCel(0, 0, 1);
+    ASSERT_TRUE(!e->sprite().layer(0)->celLinked(0));
+    e->release();
+    e->togglePlayback();
+    e->linkCel(0, 0, 1);
+    ASSERT_TRUE(!e->playing());
+    ASSERT_TRUE(e->sprite().layer(0)->celLinked(0));
+    delete e;
+}
+
 int main(void)
 {
     if (!ui_init()) {
@@ -426,6 +500,11 @@ int main(void)
     RUN(without_a_selected_tag_the_whole_animation_plays);
     RUN(the_tag_direction_sets_the_playback_order);
     RUN(selecting_a_tag_out_of_range_selects_nothing);
+    RUN(linked_cels_share_what_is_drawn);
+    RUN(linking_redraws_the_canvas_and_unlinking_separates_the_frames);
+    RUN(link_to_previous_uses_the_active_layer_and_frame);
+    RUN(a_locked_layer_keeps_its_cels_unlinked);
+    RUN(linking_is_held_off_while_stroking_and_stops_playback);
     ui_quit();
     return TEST_SUMMARY();
 }

@@ -13,6 +13,9 @@
  *   HEAD  width, height, frame count (u32 each); must come first
  *   FRAM  the duration of every frame in milliseconds (u16 each); optional, written only when a
  *         frame has other than FRAME_DURATION_DEFAULT, and before the first LAYR
+ *   LINK  a layer index (u32), a pair count (u32), then (frame, source) pairs of u32: the frame
+ *         shows the same cel as the earlier frame `source` (a linked cel); optional, one chunk per
+ *         layer that has links, after the layers
  *   TAGS  tag count (u16), then per tag: name length (u8) and name, first and last frame (u32
  *         each, both included) and direction (u8: 0 forward, 1 reverse, 2 ping-pong); optional,
  *         written after the layers only when the sprite has tags

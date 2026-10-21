@@ -206,6 +206,14 @@ class Editor
     void moveFrame(int from, int to);
     void setFrameDuration(int index, int ms);
 
+    /* Linked cels: linkCel makes frame `to` of the layer at `layer` show the same cel as `from`, so
+     * drawing on either changes both; unlinkCel gives the frame its own copy again. Each is one
+     * undo step; a locked layer and a tool being dragged hold them off. linkCelToPrevious links
+     * the active layer's cel in the current frame to the frame before it. */
+    void linkCel(int layer, int from, int to);
+    void unlinkCel(int layer, int frame);
+    void linkCelToPrevious();
+
     /* Tags: addTag makes one over the current frame and selects it; edit / remove are undoable. The
      * selected tag (-1 for none) is what playback runs over, in the tag's own direction, instead
      * of all the frames. */

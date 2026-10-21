@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 
+#include "tinysprite/cel_ops.h"
 #include "tinysprite/frame_ops.h"
 #include "tinysprite/tag_ops.h"
 
@@ -73,6 +74,29 @@ void Editor::setFrameDuration(int index, int ms)
     if (!stroking()) {
         frame_op_set_duration(history(), sprite(), index, ms);
     }
+}
+
+void Editor::linkCel(int layer, int from, int to)
+{
+    stopPlayback();
+    Layer *target = sprite().layer(layer);
+    if (!stroking() && target && !target->locked() && cel_op_link(history(), *target, from, to)) {
+        markAllDirty();
+    }
+}
+
+void Editor::unlinkCel(int layer, int frame)
+{
+    stopPlayback();
+    Layer *target = sprite().layer(layer);
+    if (!stroking() && target && !target->locked() && cel_op_unlink(history(), *target, frame)) {
+        markAllDirty();
+    }
+}
+
+void Editor::linkCelToPrevious()
+{
+    linkCel(activeLayer(), frame_ - 1, frame_);
 }
 
 void Editor::togglePlayback()

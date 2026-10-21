@@ -67,6 +67,19 @@ class Layer
     Cel *cel(int frame);
     const Cel *cel(int frame) const;
 
+    /* Whether another frame of this layer shows the very same cel (a linked cel): drawing on one
+     * changes them all. Frames are linked and unlinked with cel_ops.h. */
+    bool celLinked(int frame) const;
+
+    /* The cels of all frames, in order, and a way to replace them all at once (one per frame,
+     * none null, all of the layer's size; returns false and changes nothing otherwise). Frames that
+     * hold the same cel are linked. For the undoable operations, which swap cels in and out. */
+    const std::vector<std::shared_ptr<Cel>> &celList() const
+    {
+        return cels_;
+    }
+    bool setCelList(std::vector<std::shared_ptr<Cel>> cels);
+
     /* Inserts `cel` so it ends up at `frame`, shifting the later frames up. Returns false (leaving
      * `cel` untouched) if frame is outside 0..frameCount, or the cel is null or has another size
      * than the layer's cels. Used by Sprite, which keeps every layer at the same frame count. */

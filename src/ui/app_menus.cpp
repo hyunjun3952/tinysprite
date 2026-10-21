@@ -92,6 +92,17 @@ void App::frameMenu()
         editor_->removeFrame(frame);
     }
     ImGui::Separator();
+    int layer = editor_->activeLayer();
+    const Layer *active = editor_->sprite().layer(layer);
+    if (ImGui::MenuItem("Link cel to previous frame", nullptr, false,
+                        idle && frame > 0 && active && !active->locked())) {
+        editor_->linkCelToPrevious();
+    }
+    if (ImGui::MenuItem("Unlink cel", nullptr, false,
+                        idle && active && !active->locked() && active->celLinked(frame))) {
+        editor_->unlinkCel(layer, frame);
+    }
+    ImGui::Separator();
     if (ImGui::MenuItem("Previous frame", ",", false, idle && frame > 0)) {
         editor_->setFrame(frame - 1);
     }

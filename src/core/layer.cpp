@@ -80,3 +80,25 @@ bool Layer::moveCel(int from, int to)
     }
     return true;
 }
+
+bool Layer::celLinked(int frame) const
+{
+    const Cel *cel = this->cel(frame);
+    return cel && std::count_if(cels_.begin(), cels_.end(), [cel](const std::shared_ptr<Cel> &c) {
+                      return c.get() == cel;
+                  }) > 1;
+}
+
+bool Layer::setCelList(std::vector<std::shared_ptr<Cel>> cels)
+{
+    if (cels.size() != cels_.size()) {
+        return false;
+    }
+    for (const std::shared_ptr<Cel> &cel : cels) {
+        if (!cel || cel->width() != cels_[0]->width() || cel->height() != cels_[0]->height()) {
+            return false;
+        }
+    }
+    cels_ = std::move(cels);
+    return true;
+}
