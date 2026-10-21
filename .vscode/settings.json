@@ -1,4 +1,5 @@
 {
+    // Run `cmake -S . -B build` once so clangd finds build/compile_commands.json.
     "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.configureOnOpen": false,
     "clangd.arguments": [
