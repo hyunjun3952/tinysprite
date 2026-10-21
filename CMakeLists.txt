@@ -33,6 +33,7 @@ else()
 endif()
 
 if(TINYSPRITE_BUILD_UI)
+  enable_language(CXX)
   add_subdirectory(src/ui)
 endif()
 
