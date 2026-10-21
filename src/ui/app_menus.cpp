@@ -45,6 +45,12 @@ void App::fileMenu()
     commandItem(CommandId::Save);
     commandItem(CommandId::SaveAs);
     commandItem(CommandId::ExportImage);
+    if (ImGui::MenuItem("Export animation (GIF)...", nullptr, false, idle)) {
+        askForPath(FileAction::ExportGif);
+    }
+    if (ImGui::MenuItem("Export sprite sheet...", nullptr, false, idle)) {
+        askForPath(FileAction::ExportSheet);
+    }
     ImGui::Separator();
     if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
         askForPath(FileAction::ImportPalette);

@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "imgui.h"
 #include "tinysprite/io.h"
@@ -77,6 +78,32 @@ bool App::runFileAction(const std::string &path)
             return false;
         }
         return true;
+    case FileAction::ExportGif: {
+        GifOptions options;
+        exportRange(options.first, options.last, options.direction);
+        options.scale = exportScale_;
+        options.loop = gifLoop_;
+        if (!gif_export(editor_->sprite(), path, options)) {
+            fileError_ = "Cannot write " + path + " (use a .gif file name; up to 16384 px)";
+            return false;
+        }
+        return true;
+    }
+    case FileAction::ExportSheet: {
+        SheetOptions options;
+        PlayMode unused = PlayMode::Forward;
+        exportRange(options.first, options.last, unused);
+        options.layout = static_cast<SheetLayout>(sheetLayout_);
+        options.columns = sheetColumns_;
+        options.spacing = sheetSpacing_;
+        options.scale = exportScale_;
+        if (!spritesheet_export(editor_->sprite(), path, options)) {
+            fileError_ = "Cannot write " + path +
+                         " (use .png, .bmp, .tga or .jpg; the sheet can be up to 16384 px)";
+            return false;
+        }
+        return true;
+    }
     case FileAction::ImportPalette: {
         std::optional<Palette> palette = palette_load(path);
         if (!palette) {
@@ -98,10 +125,96 @@ bool App::runFileAction(const std::string &path)
     return true;
 }
 
+void App::exportRange(int &first, int &last, PlayMode &direction) const
+{
+    const std::vector<Sprite::Tag> &tags = editor_->sprite().tags();
+    first = 0;
+    last = -1;
+    direction = PlayMode::Forward;
+    if (exportTag_ >= 0 && exportTag_ < static_cast<int>(tags.size())) {
+        const Sprite::Tag &tag = tags[static_cast<size_t>(exportTag_)];
+        first = tag.from;
+        last = tag.to;
+        direction = tag.direction;
+    }
+}
+
+/* The fields of the animation exports: which frames, the enlargement and the format's own
+ * options. */
+void App::exportOptions()
+{
+    const bool gif = fileAction_ == FileAction::ExportGif;
+    const std::vector<Sprite::Tag> &tags = editor_->sprite().tags();
+    if (exportTag_ >= static_cast<int>(tags.size())) {
+        exportTag_ = -1;
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Frames");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.0f);
+    std::string current =
+        exportTag_ < 0 ? "All frames" : tags[static_cast<size_t>(exportTag_)].name;
+    if (ImGui::BeginCombo("##export_range", current.c_str())) {
+        if (ImGui::Selectable("All frames", exportTag_ < 0)) {
+            exportTag_ = -1;
+        }
+        for (int t = 0; t < static_cast<int>(tags.size()); t++) {
+            ImGui::PushID(t);
+            if (ImGui::Selectable(tags[static_cast<size_t>(t)].name.c_str(), t == exportTag_)) {
+                exportTag_ = t;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Scale");
+    ImGui::SameLine();
+    ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
+    exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
+    if (gif) {
+        ImGui::Checkbox("Loop forever", &gifLoop_);
+        return;
+    }
+    static const char *const LAYOUTS[] = {"Horizontal strip", "Vertical strip", "Grid"};
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Layout");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.0f);
+    if (ImGui::BeginCombo("##sheet_layout", LAYOUTS[sheetLayout_])) {
+        for (int i = 0; i < 3; i++) {
+            if (ImGui::Selectable(LAYOUTS[i], i == sheetLayout_)) {
+                sheetLayout_ = i;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    if (sheetLayout_ == static_cast<int>(SheetLayout::Grid)) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Columns");
+        ImGui::SameLine();
+        ImGui::InputInt("##sheet_columns", &sheetColumns_, 1, 2);
+        sheetColumns_ = std::clamp(sheetColumns_, 0, 256);
+        ImGui::SameLine();
+        ImGui::TextDisabled("0 = square-ish");
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Spacing");
+    ImGui::SameLine();
+    ImGui::InputInt("##sheet_spacing", &sheetSpacing_, 1, 4);
+    sheetSpacing_ = std::clamp(sheetSpacing_, 0, 256);
+}
+
 void App::fileDialog()
 {
-    static const char *const TITLES[] = {
-        "", "Open", "Save as", "Export image", "Import palette", "Export palette"};
+    static const char *const TITLES[] = {"",
+                                         "Open",
+                                         "Save as",
+                                         "Export image",
+                                         "Import palette",
+                                         "Export palette",
+                                         "Export GIF",
+                                         "Export sprite sheet"};
     const char *title = TITLES[static_cast<int>(fileAction_)];
     if (openFileDialog_) {
         ImGui::OpenPopup(title);
@@ -130,6 +243,9 @@ void App::fileDialog()
         ImGui::SameLine();
         ImGui::TextDisabled("%d x %d px", editor_->sprite().width() * exportScale_,
                             editor_->sprite().height() * exportScale_);
+    }
+    if (fileAction_ == FileAction::ExportGif || fileAction_ == FileAction::ExportSheet) {
+        exportOptions();
     }
     if (!fileError_.empty()) {
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());

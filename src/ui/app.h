@@ -70,11 +70,24 @@ class App
 
     /* File menu: each action asks for a path in a small dialog (there is no native file chooser).
      */
-    enum class FileAction { None, Open, SaveAs, ExportImage, ImportPalette, ExportPalette };
+    enum class FileAction {
+        None,
+        Open,
+        SaveAs,
+        ExportImage,
+        ImportPalette,
+        ExportPalette,
+        ExportGif,
+        ExportSheet
+    };
     void askForPath(FileAction action);
     void save();
     void fileDialog();
     bool runFileAction(const std::string &path);
+    void exportOptions();
+    /* The frames and direction the animation exports cover: all frames, or the tag picked in the
+     * dialog (its own direction). */
+    void exportRange(int &first, int &last, PlayMode &direction) const;
 
     /* Opens a .pxa file or imports an image as the document; on failure sets fileError_. */
     bool openPath(const std::string &path);
@@ -109,7 +122,12 @@ class App
     bool recoverShown_ = false; /* ... and the recovery question */
     int newWidth_ = 64;
     int newHeight_ = 64;
-    int exportScale_ = 1;             /* the Export image dialog's enlargement */
+    int exportScale_ = 1; /* the Export dialogs' enlargement */
+    int exportTag_ = -1;  /* the tag the GIF / sheet covers, -1 for all frames */
+    bool gifLoop_ = true;
+    int sheetLayout_ = 0; /* SheetLayout */
+    int sheetColumns_ = 0;
+    int sheetSpacing_ = 0;
     std::vector<std::string> recent_; /* recently opened / saved .pxa files, newest first */
 
     SDL_Window *window_ = nullptr;
