@@ -85,7 +85,7 @@ TEST(sections_are_visible_until_hidden)
     ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
     ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::COLOR));
     /* The Layers panel has its own sections. */
-    ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::PROPERTIES));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::LAYERS));
     panels.setSectionVisible(PanelId::Layers, sections::RECENT, false);
     ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
 }

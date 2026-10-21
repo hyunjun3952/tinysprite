@@ -273,12 +273,17 @@ void LayersPanel::activeLayerDetails()
         return;
     }
     const uint8_t opacityNow = layer->opacity();
-    int opacity = opacityNow;
-    if (ImGui::SliderInt("Opacity", &opacity, 0, 255)) {
-        layer->setOpacity(static_cast<uint8_t>(opacity));
+    /* The name on the left, then a slider that fills the row and shows a percentage. */
+    int percent = (opacityNow * 100 + 127) / 255;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Opacity");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::SliderInt("##opacity", &percent, 0, 100, "%d%%")) {
+        layer->setOpacity(static_cast<uint8_t>((percent * 255 + 50) / 100));
         editor_.markAllDirty();
     }
-    theme::tip("How much the layer shows through: 0 is invisible, 255 is fully opaque.");
+    theme::tip("How much the layer shows through: 0% is invisible, 100% is fully opaque.");
     if (ImGui::IsItemActivated()) {
         opacityBefore_ = opacityNow;
     }
@@ -384,8 +389,6 @@ void LayersPanel::show(const Panels &panels)
     if (open(sections::LAYERS)) {
         rows();
         buttons();
-    }
-    if (open(sections::PROPERTIES)) {
         activeLayerDetails();
     }
     ImGui::EndDisabled();

@@ -54,8 +54,8 @@ void Panels::reset()
             section.visible = false;
         }
     }
-    panels_[static_cast<size_t>(PanelId::Layers)] = make(
-        "Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS, sections::PROPERTIES});
+    panels_[static_cast<size_t>(PanelId::Layers)] =
+        make("Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS});
 }
 
 bool Panels::sectionVisible(PanelId id, const char *name) const
