@@ -115,6 +115,8 @@ bool App::init(const AppOptions &options)
     canvas_ = std::make_unique<Canvas>(*editor_);
     toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
     layersPanel_ = std::make_unique<LayersPanel>(*editor_);
+    timelinePanel_ = std::make_unique<TimelinePanel>(*editor_);
+    lastTick_ = SDL_GetTicks();
     if (!options.file.empty() && !openPath(options.file)) {
         std::fprintf(stderr, "%s\n", fileError_.c_str());
         return false;
@@ -245,8 +247,17 @@ void App::run(const AppOptions &options)
         panels_.layout(left, right);
         toolsPanel_->show(panels_, viewport->WorkSize.y);
         layersWindow(viewport->WorkSize.y);
+        Uint32 now = SDL_GetTicks();
+        editor_->tick(static_cast<int>(now - lastTick_));
+        lastTick_ = now;
+        float timeline = editor_->overlays().timeline ? TimelinePanel::HEIGHT : 0.0f;
+        if (timeline > 0.0f) {
+            timelinePanel_->show(viewport->WorkPos.x + left,
+                                 viewport->WorkPos.y + viewport->WorkSize.y - timeline,
+                                 viewport->WorkSize.x - left - right);
+        }
         canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
-                      viewport->WorkSize.x - left - right, viewport->WorkSize.y);
+                      viewport->WorkSize.x - left - right, viewport->WorkSize.y - timeline);
         fileDialog();
         confirmDialog();
         newDialog();

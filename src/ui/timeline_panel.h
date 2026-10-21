@@ -1,0 +1,52 @@
+#ifndef TINYSPRITE_UI_TIMELINE_PANEL_H
+#define TINYSPRITE_UI_TIMELINE_PANEL_H
+
+#include <cstdint>
+#include <vector>
+
+#include "editor.h"
+#include "imgui.h"
+
+/* The timeline: a strip along the bottom of the window with the playback and frame buttons, the
+ * duration of the current frame and a grid of cels (a column per frame, a row per layer, top layer
+ * first). Clicking a cel selects its frame and layer; a dot marks a cel with something painted on
+ * it, and dragging a frame number onto another one moves the frame there. */
+class TimelinePanel
+{
+  public:
+    static constexpr float HEIGHT = 170.0f;
+
+    explicit TimelinePanel(Editor &editor);
+
+    /* Places the strip with its top-left corner at (x, y), `width` wide and HEIGHT tall, and draws
+     * it. */
+    void show(float x, float y, float width);
+
+    /* Where the cel of (layer, frame) was drawn in the last show(), for tests; a zero rectangle if
+     * it was not drawn. */
+    struct Rect {
+        ImVec2 min;
+        ImVec2 max;
+    };
+    Rect cellRect(int layer, int frame) const;
+    Rect headerRect(int frame) const;
+
+  private:
+    void toolbar();
+    void grid();
+    void refreshFilled();
+    bool filled(int layer, int frame) const;
+
+    Editor &editor_;
+    std::vector<unsigned char> filled_; /* [layer * frames + frame]: the cel has a visible pixel */
+    int filledLayers_ = 0;
+    int filledFrames_ = 0;
+    uint64_t filledRevision_ = 0;
+    bool filledValid_ = false;
+
+    std::vector<Rect> cells_;   /* as drawn, [layer * frames + frame] */
+    std::vector<Rect> headers_; /* as drawn, per frame */
+    int drawnFrames_ = 0;
+};
+
+#endif

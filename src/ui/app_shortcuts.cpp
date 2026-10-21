@@ -5,7 +5,8 @@
 #include "imgui.h"
 
 /* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size) and F
- * (fit). */
+ * (fit), , . and Enter
+ * (frames and playback). */
 void App::plainShortcuts()
 {
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
@@ -28,6 +29,17 @@ void App::plainShortcuts()
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
         editor_->view().needs_fit = true;
+    }
+    /* , and . step through the frames (they repeat while held); Enter plays and stops. */
+    if (ImGui::IsKeyPressed(ImGuiKey_Comma)) {
+        editor_->setFrame(editor_->frame() - 1);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Period)) {
+        editor_->setFrame(editor_->frame() + 1);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
+        ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)) {
+        editor_->togglePlayback();
     }
 }
 
@@ -58,6 +70,8 @@ void App::escapeShortcut()
     }
     if (editor_->stroking()) {
         editor_->cancelDrag();
+    } else if (editor_->playing()) {
+        editor_->stopPlayback();
     } else {
         editor_->clearSelection();
     }

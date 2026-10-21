@@ -42,6 +42,7 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "view.status", overlays_.status);
     settings_set_bool(settings, "view.cursor", overlays_.cursor);
     settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
+    settings_set_bool(settings, "view.timeline", overlays_.timeline);
     settings_set_int(settings, "brush.size", options_.brush_size);
     settings_set_bool(settings, "brush.round", options_.brush_round);
     settings_set_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
@@ -60,6 +61,7 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "view.status", overlays_.status);
     settings_get_bool(settings, "view.cursor", overlays_.cursor);
     settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
+    settings_get_bool(settings, "view.timeline", overlays_.timeline);
     settings_get_int(settings, "brush.size", 1, PENCIL_BRUSH_MAX, options_.brush_size);
     settings_get_bool(settings, "brush.round", options_.brush_round);
     settings_get_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);

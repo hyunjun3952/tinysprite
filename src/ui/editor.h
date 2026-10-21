@@ -15,6 +15,7 @@
 #include "settings.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
+#include "tinysprite/playback.h"
 #include "tinysprite/selection.h"
 #include "tinysprite/sprite.h"
 #include "tinysprite/tools.h"
@@ -152,6 +153,7 @@ class Editor
         bool status = true;
         bool cursor = true;
         bool mirror_axes = true;
+        bool timeline = true; /* the timeline strip along the bottom of the window */
     };
     Overlays &overlays()
     {
@@ -189,6 +191,36 @@ class Editor
     {
         return frame_;
     }
+
+    /* Makes `frame` the one the canvas shows and the tools draw on, and stops playback. Returns
+     * false (nothing changes) if it is out of range or a tool is being dragged. */
+    bool setFrame(int frame);
+
+    /* Frame operations (all do nothing while a tool is being dragged and stop playback). Each is
+     * one undo step. Add puts a blank frame after the current one and duplicate a copy of it; both
+     * select the new frame. Removing the last frame is refused; the selection stays on the same
+     * frame, or moves to a neighbour when that one was removed. */
+    void addFrame();
+    void duplicateFrame();
+    void removeFrame(int index);
+    void moveFrame(int from, int to);
+    void setFrameDuration(int index, int ms);
+
+    /* Playback runs over all the frames and loops; tick(elapsedMs) is called every UI frame with
+     * the time that passed and moves the shown frame on while playing. Pressing a tool, editing
+     * frames, undo and redo all stop it. */
+    bool playing() const
+    {
+        return playback_.playing();
+    }
+    void togglePlayback();
+    void stopPlayback();
+    void tick(int elapsedMs);
+    PlayMode playMode() const
+    {
+        return playMode_;
+    }
+    void setPlayMode(PlayMode mode);
 
     /* The cel under the mouse, set by the canvas every frame; valid when hovering() is true. */
     void setHover(int x, int y, bool hovering);
@@ -465,6 +497,8 @@ class Editor
     Overlays overlays_;
     LayerSelection layers_;
     int frame_ = 0;
+    Playback playback_;
+    PlayMode playMode_ = PlayMode::Forward;
     ToolOptions options_;
     ViewState view_;
     int hoverX_ = 0;

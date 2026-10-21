@@ -48,6 +48,8 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
     history_ = History{};
     lastDrawPoint_.reset();
     layers_.reset();
+    frame_ = 0;
+    playback_.stop();
     selection_.reset();
     paletteSelected_ = -1;
     modifiedOutsideHistory_ = false;
@@ -127,6 +129,10 @@ void Editor::press(int cx, int cy, bool shift)
     if (stroking()) {
         return;
     }
+    if (playing()) {
+        stopPlayback();
+        return;
+    }
     /* Drawing tools stay inside the selection; the select tool moves it and must not be clipped by
      * it. */
     history_.setClip(tool_draws(tool_) ? selection_ : std::nullopt);
@@ -203,11 +209,13 @@ void Editor::zoomStep(int direction)
 void Editor::afterHistoryStep(const Layer *active)
 {
     layers_.refresh(sprite(), active);
+    frame_ = std::clamp(frame_, 0, sprite().frameCount() - 1);
     markAllDirty();
 }
 
 void Editor::undo()
 {
+    stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
     if (history().undo()) {
         afterHistoryStep(active);
@@ -216,6 +224,7 @@ void Editor::undo()
 
 void Editor::redo()
 {
+    stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
     if (history().redo()) {
         afterHistoryStep(active);
@@ -237,5 +246,6 @@ Cel *Editor::activeCel()
 Cel *Editor::editableCel()
 {
     Layer *layer = sprite().layer(layers_.active());
-    return stroking() || !layer || !layer->visible() || layer->locked() ? nullptr : activeCel();
+    return stroking() || playing() || !layer || !layer->visible() || layer->locked() ? nullptr
+                                                                                     : activeCel();
 }

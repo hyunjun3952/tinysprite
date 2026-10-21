@@ -74,6 +74,37 @@ void App::editMenu()
     ImGui::EndMenu();
 }
 
+void App::frameMenu()
+{
+    if (!ImGui::BeginMenu("Frame")) {
+        return;
+    }
+    bool idle = !editor_->stroking();
+    int frame = editor_->frame();
+    int count = editor_->sprite().frameCount();
+    if (ImGui::MenuItem("New frame", nullptr, false, idle)) {
+        editor_->addFrame();
+    }
+    if (ImGui::MenuItem("Duplicate frame", nullptr, false, idle)) {
+        editor_->duplicateFrame();
+    }
+    if (ImGui::MenuItem("Delete frame", nullptr, false, idle && count > 1)) {
+        editor_->removeFrame(frame);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Previous frame", ",", false, idle && frame > 0)) {
+        editor_->setFrame(frame - 1);
+    }
+    if (ImGui::MenuItem("Next frame", ".", false, idle && frame + 1 < count)) {
+        editor_->setFrame(frame + 1);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem(editor_->playing() ? "Stop" : "Play", "Enter", false, idle)) {
+        editor_->togglePlayback();
+    }
+    ImGui::EndMenu();
+}
+
 void App::viewMenu()
 {
     if (!ImGui::BeginMenu("View")) {
@@ -91,6 +122,8 @@ void App::viewMenu()
     theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
     ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
     theme::tip("Draw the center lines that Mirror X / Y reflect across.");
+    ImGui::MenuItem("Timeline", nullptr, &editor_->overlays().timeline);
+    theme::tip("The frames and playback strip along the bottom of the window.");
     ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);
     theme::tip("Show the size, zoom, active layer and hovered cel in the canvas corner.");
     ImGui::EndMenu();
@@ -103,6 +136,7 @@ void App::menuBar()
     }
     fileMenu();
     editMenu();
+    frameMenu();
     viewMenu();
     panels_.windowMenu();
     if (ImGui::BeginMenu("Help")) {
@@ -136,6 +170,8 @@ void App::helpWindow()
         {"Click / Ctrl+click / Shift+click on layers",
          "Select one layer, add or remove one, select a range"},
         {"Delete (layer list focused)", "Delete the selected layers, after asking"},
+        {", .", "Previous / next frame"},
+        {"Enter", "Play / stop the animation (Esc also stops it)"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
         {"Ctrl+N, Ctrl+O", "New, open"},
         {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},

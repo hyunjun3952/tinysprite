@@ -16,6 +16,7 @@
 #include "panels.h"
 #include "recovery.h"
 #include "settings.h"
+#include "timeline_panel.h"
 #include "tools_panel.h"
 
 struct AppOptions {
@@ -54,6 +55,7 @@ class App
     void fileMenu();
     void openRecentMenu(bool idle);
     void editMenu();
+    void frameMenu();
     void viewMenu();
     /* The commands of commands.h: what each does, whether it can run now, and its menu item. */
     void runCommand(CommandId id);
@@ -133,6 +135,8 @@ class App
     std::unique_ptr<Canvas> canvas_;
     std::unique_ptr<ToolsPanel> toolsPanel_;
     std::unique_ptr<LayersPanel> layersPanel_;
+    std::unique_ptr<TimelinePanel> timelinePanel_;
+    Uint32 lastTick_ = 0; /* SDL_GetTicks of the previous frame, for playback */
 };
 
 #endif
