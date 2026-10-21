@@ -81,6 +81,11 @@ are the same on the core side: `shape.cpp` has one row per `ShapeKind` (how to d
 eyedropper, shape, select (which also moves). The editor holds at most one. `Canvas` calls `update` every frame while the button is down, then `finish`
 on release or `cancel` on Esc, which is how one drag becomes exactly one undo step.
 
+The menu commands that have a Ctrl shortcut (file, edit, zoom) are one table in `commands.cpp`: label, keys, Shift
+rule, key repeat. The menus (`app_menus.cpp`) and the shortcut handler (`app_shortcuts.cpp`) both read it, and
+`app_commands.cpp` holds what each command does and when it is enabled. Tool letters and the single-key shortcuts
+stay in `app_shortcuts.cpp`; the help window text is still written by hand.
+
 Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an autosave copy
 of a document with unsaved changes; the next start offers to recover it. Neither is touched by `--frames` smoke runs
 unless `--config-dir` is given.

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "canvas.h"
+#include "commands.h"
 #include "editor.h"
 #include "layers_panel.h"
 #include "panels.h"
@@ -54,6 +55,10 @@ class App
     void openRecentMenu(bool idle);
     void editMenu();
     void viewMenu();
+    /* The commands of commands.h: what each does, whether it can run now, and its menu item. */
+    void runCommand(CommandId id);
+    bool commandEnabled(CommandId id) const;
+    void commandItem(CommandId id);
     void plainShortcuts();
     void ctrlShortcuts();
     void escapeShortcut();
