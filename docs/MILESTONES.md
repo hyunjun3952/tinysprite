@@ -21,8 +21,8 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       point list and joins it with `raster_line`). Out-of-bounds pixels are clipped by history. Only the batch form
       exists; the UI (milestone 5) will need a live begin/extend/end stroke while the mouse is dragging.
 - [x] **5. SDL2 + ImGui app + CPU-composited canvas** — zoom/pan, grid, checkerboard, coordinate transform
-      (pure function, unit-tested), minimal foreground color picker. Enable with `-DTINYSPRITE_BUILD_UI=ON`
-      (needs `libsdl2-dev`; the `tinysprite` binary lands in `<build>/src/ui/`).
+      (pure function, unit-tested), minimal foreground color picker. Built whenever SDL2 is installed
+      (`libsdl2-dev`; `-DTINYSPRITE_BUILD_UI=OFF` skips it; the `tinysprite` binary lands in `<build>/src/ui/`).
       Core additions: `viewport.h` (zoom/pan/fit + screen<->cel transform), `composite.h` (flatten visible layers
       into an RGBA buffer, dirty-rect aware), `PencilStroke` (live stroke for dragging)
       and `History::cancelStroke`. UI: `src/ui/{app,canvas,editor}.cpp` (the backends are called from `App` directly).
@@ -70,15 +70,16 @@ headless CLI export, optional Aseprite import.
 
 ## Decisions and gotchas
 - Rasterizers clip nothing; the caller (tool/history layer) must bounds-check plotted points.
-- UI stack is SDL2 + Dear ImGui (native C++ API, `third_party/imgui`); the whole project is C++17 (it was C11 for core / io, with a C++ UI, until the cpp-migration).
+- UI stack is SDL2 + Dear ImGui (native C++ API, `thirdparty/imgui`); the whole project is C++17 (it was C11 for core / io, with a C++ UI, until the cpp-migration).
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
 - Cel is RGBA now; the indexed-color mode from the original design is deferred.
 - `scripts/lint.sh` and `scripts/format.sh` use `git ls-files -co`, so untracked files are checked too.
 - clang-tidy runs with warnings-as-errors; explicit casts are required for multi-level pointer
   conversions such as `calloc`/`realloc`/`free` of `T **`.
 - stb is compiled only in `src/io/stb_impl.cpp`, without warnings; the rest of `src/io` includes the headers.
-- UI build: `cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON`; lint it with `scripts/lint.sh build-ui`
-  (the default `build/` compile database has no `src/ui`). CI also builds the UI (`-DTINYSPRITE_BUILD_UI=ON`) and runs these tests.
+- There is one build dir, `build/`: the UI is built whenever SDL2 is found (`TINYSPRITE_BUILD_UI` defaults to that), so
+  `scripts/lint.sh` covers `src/ui` and `tests/ui` too. An old `build/` keeps a cached `OFF`: re-run cmake with `-DTINYSPRITE_BUILD_UI=ON`.
+  CI builds the UI explicitly (`-DTINYSPRITE_BUILD_UI=ON`) and runs these tests.
 - Zoom ranges 1/16x..64x (`VIEWPORT_ZOOM_MIN/MAX`); Fit picks a whole-number zoom, or a power of two below 1x for
   sprites larger than the canvas.
 - Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh .githooks/*`).
@@ -101,9 +102,9 @@ headless CLI export, optional Aseprite import.
   transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
   it, unless the click only dismisses an existing selection. There is no selection copy / paste yet.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
-- `tests/ui/ui_editor.cpp` (ctest `ui_editor`, only with `-DTINYSPRITE_BUILD_UI=ON`, runs under
+- `tests/ui/ui_editor.cpp` (ctest `ui_editor`, only when the UI is built, runs under
   `SDL_VIDEODRIVER=dummy`) covers `editor.cpp` and `tools.cpp`; `layers_panel.cpp` (ImGui widgets) is still not covered.
-  CI builds the UI, so the `ui_*` tests run there too. `scripts/lint.sh` skips `tests/ui` like `src/ui`.
+  CI builds the UI, so the `ui_*` tests run there too.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
 

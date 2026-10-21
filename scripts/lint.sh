@@ -1,11 +1,22 @@
 #!/bin/sh
-# Usage: scripts/lint.sh [build-dir]
+# Usage: scripts/lint.sh [build-dir]   (default: build)
 # Runs clang-tidy on first-party .cpp files using the build's compile_commands.json.
-# src/ui and tests/ui are only compiled with -DTINYSPRITE_BUILD_UI=ON, so it is skipped (with a note) when the
-# build dir does not contain it; any other file missing from the database is an error (stale
-# build dir: re-run cmake).
+# src/ui and tests/ui are only compiled when the UI is built (SDL2 found), so they are skipped
+# (with a note) when the build dir does not contain them; any other file missing from the
+# database is an error (stale build dir: re-run cmake).
 set -eu
 cd "$(dirname "$0")/.."
+
+case ${1:-} in
+-*)
+    echo "usage: scripts/lint.sh [build-dir]" >&2
+    exit 2
+    ;;
+esac
+[ "$#" -le 1 ] || {
+    echo "usage: scripts/lint.sh [build-dir]" >&2
+    exit 2
+}
 
 build=${1:-build}
 [ -f "$build/compile_commands.json" ] || cmake -S . -B "$build" >/dev/null
@@ -31,7 +42,7 @@ while IFS= read -r f; do
         esac
     fi
 done <<EOF
-$(git ls-files -co --exclude-standard '*.cpp' ':!:third_party/*')
+$(git ls-files -co --exclude-standard '*.cpp' ':!:thirdparty/*')
 EOF
 [ "$missing" -eq 0 ] || exit 1
 [ "$#" -gt 0 ] || exit 0
@@ -49,7 +60,7 @@ key=$(
     {
         clang-tidy --version
         cat .clang-tidy
-        git ls-files -co --exclude-standard 'include/*.h' 'src/*.h' 'tests/*.h' 'third_party/minitest.h' |
+        git ls-files -co --exclude-standard 'include/*.h' 'src/*.h' 'tests/*.h' |
             while IFS= read -r h; do [ -f "$h" ] && cat "$h"; done
     } | sha | cut -d' ' -f1
 )

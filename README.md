@@ -21,25 +21,23 @@ Planned: timeline and onion skin, GIF / spritesheet export, tilemaps, JSON expor
 Requirements: CMake 3.16+ and a C++17 compiler. The UI also needs SDL2 (`sudo apt install libsdl2-dev`).
 
 ```sh
-# Core library and tests only
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
-
-# With the SDL2 + ImGui frontend
-cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON
-cmake --build build-ui
-./build-ui/src/ui/tinysprite [file | width [height]]
+./build/src/ui/tinysprite [file | width [height]]
 ```
+
+The SDL2 + ImGui frontend is built whenever SDL2 is installed. Pass `-DTINYSPRITE_BUILD_UI=OFF` for a core-only build
+(no SDL2 needed); an existing `build/` keeps its cached choice, so re-run cmake with `-DTINYSPRITE_BUILD_UI=ON` to change it.
 
 ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable them.
 
 ### VS Code
 
-`.vscode/` is checked in: CMake Tools and clangd use the `build-ui` directory (so `src/ui` is indexed too), clang-format runs on
+`.vscode/` is checked in: CMake Tools and clangd use the `build` directory, clang-format runs on
 save, and there are tasks (`Ctrl+Shift+B` builds, `test`, `format`, `lint`) and launch configs for the app and for a single
 test binary (gdb through the C/C++ extension, whose IntelliSense is turned off in favour of clangd). Run
-`cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON` once so clangd finds `compile_commands.json`.
+`cmake -S . -B build` once so clangd finds `compile_commands.json`.
 The recommended extensions are listed in `.vscode/extensions.json`.
 
 ### Devcontainer
@@ -87,8 +85,8 @@ include/tinysprite/   public headers (core and io)
 src/core/             document model, rasterizer, tools, history (no SDL/ImGui)
 src/io/               file formats
 src/ui/               SDL2 + ImGui frontend
-tests/                one test file per feature, using third_party/minitest.h
-third_party/          vendored dependencies (see third_party/THIRD_PARTY.md)
+tests/                one test file per feature, using tests/minitest.h
+thirdparty/          vendored dependencies (see thirdparty/README.md)
 ```
 
 The layering is enforced by CMake targets: `tinysprite_core` → `tinysprite_io` → `tinysprite_ui`.
@@ -107,4 +105,4 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/), e.g
 
 ## License
 
-[MIT](LICENSE). Third-party components and their licenses are listed in [third_party/THIRD_PARTY.md](third_party/THIRD_PARTY.md).
+[MIT](LICENSE). Third-party components and their licenses are listed in [thirdparty/README.md](thirdparty/README.md).

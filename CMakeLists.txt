@@ -7,7 +7,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(TINYSPRITE_SANITIZE "Build with ASan/UBSan" ON)
-option(TINYSPRITE_BUILD_UI "Build the SDL2 + ImGui frontend" OFF)
+# The UI is built whenever SDL2 is installed; -DTINYSPRITE_BUILD_UI=OFF gives a core-only build.
+find_package(SDL2 QUIET)
+option(TINYSPRITE_BUILD_UI "Build the SDL2 + ImGui frontend" ${SDL2_FOUND})
+if(NOT TINYSPRITE_BUILD_UI)
+  message(STATUS "tinysprite: UI not built (SDL2 not found, or TINYSPRITE_BUILD_UI=OFF)")
+endif()
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 if(TINYSPRITE_SANITIZE AND NOT MSVC)
@@ -25,7 +30,7 @@ endif()
 
 file(GLOB_RECURSE IO_SOURCES CONFIGURE_DEPENDS src/io/*.cpp)
 add_library(tinysprite_io STATIC ${IO_SOURCES})
-target_include_directories(tinysprite_io PRIVATE third_party/stb)
+target_include_directories(tinysprite_io PRIVATE thirdparty/stb)
 target_link_libraries(tinysprite_io PUBLIC tinysprite_core)
 # stb is third-party code: compile its implementation without our warnings.
 set_source_files_properties(src/io/stb_impl.cpp PROPERTIES COMPILE_OPTIONS -w)

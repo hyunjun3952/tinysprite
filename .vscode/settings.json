@@ -1,10 +1,8 @@
 {
-    // The UI sources only exist in the build-ui compile database.
-    "cmake.buildDirectory": "${workspaceFolder}/build-ui",
-    "cmake.configureArgs": ["-DTINYSPRITE_BUILD_UI=ON"],
+    "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.configureOnOpen": false,
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build-ui",
+        "--compile-commands-dir=${workspaceFolder}/build",
         "--background-index",
         "--header-insertion=never"
     ],
@@ -29,11 +27,9 @@
     },
     "search.exclude": {
         "build": true,
-        "build-ui": true,
-        "third_party": true
+        "thirdparty": true
     },
     "files.watcherExclude": {
-        "**/build/**": true,
-        "**/build-ui/**": true
+        "**/build/**": true
     }
 }

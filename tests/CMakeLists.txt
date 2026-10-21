@@ -1,5 +1,5 @@
 add_library(tinysprite_test_support INTERFACE)
-target_include_directories(tinysprite_test_support INTERFACE ${PROJECT_SOURCE_DIR}/third_party)
+target_include_directories(tinysprite_test_support INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 if(WIN32)
   # Tests are console programs with a plain main: keep SDL.h from renaming it, and undo the
   # -mwindows that SDL2::SDL2 adds (this library is linked last, so -mconsole wins).
@@ -32,7 +32,7 @@ if(TINYSPRITE_BUILD_UI)
 
   # The layer list with synthetic input (rename in place).
   add_executable(test_ui_layers_panel ui/ui_layers_panel.cpp)
-  target_include_directories(test_ui_layers_panel PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/third_party/imgui)
+  target_include_directories(test_ui_layers_panel PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/thirdparty/imgui)
   target_link_libraries(test_ui_layers_panel PRIVATE tinysprite_ui tinysprite_test_support)
   add_test(NAME ui_layers_panel COMMAND test_ui_layers_panel)
   set_tests_properties(ui_layers_panel PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
@@ -45,14 +45,14 @@ if(TINYSPRITE_BUILD_UI)
 
   # The canvas with synthetic mouse input (panning).
   add_executable(test_ui_canvas ui/ui_canvas.cpp)
-  target_include_directories(test_ui_canvas PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/third_party/imgui)
+  target_include_directories(test_ui_canvas PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/thirdparty/imgui)
   target_link_libraries(test_ui_canvas PRIVATE tinysprite_ui tinysprite_test_support)
   add_test(NAME ui_canvas COMMAND test_ui_canvas)
   set_tests_properties(ui_canvas PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
 
   # Settings file, panel layout persistence and the autosave recovery copy (no window needed).
   add_executable(test_ui_settings ui/ui_settings.cpp)
-  target_include_directories(test_ui_settings PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/third_party/imgui)
+  target_include_directories(test_ui_settings PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/thirdparty/imgui)
   target_link_libraries(test_ui_settings PRIVATE tinysprite_ui tinysprite_test_support)
   add_test(NAME ui_settings COMMAND test_ui_settings)
 
