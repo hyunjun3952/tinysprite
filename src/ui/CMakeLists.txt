@@ -20,4 +20,15 @@ target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tinysprite_ui PUBLIC tinysprite_core tinysprite_io tinysprite_imgui)
 
 add_executable(tinysprite main.cpp)
+if(WIN32)
+  # SDL.h renames main to SDL_main; SDL2main supplies the WinMain that calls it. It must come
+  # before SDL2 on the link line, so it is listed ahead of tinysprite_ui.
+  target_link_libraries(tinysprite PRIVATE SDL2::SDL2main)
+endif()
 target_link_libraries(tinysprite PRIVATE tinysprite_ui)
+if(WIN32)
+  # Windows finds SDL2.dll next to the executable (tests and ui_smoke run from the build tree too).
+  add_custom_command(TARGET tinysprite POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL2::SDL2> $<TARGET_FILE_DIR:tinysprite>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL2::SDL2> ${CMAKE_BINARY_DIR}/tests)
+endif()

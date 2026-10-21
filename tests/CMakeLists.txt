@@ -1,5 +1,11 @@
 add_library(tinysprite_test_support INTERFACE)
 target_include_directories(tinysprite_test_support INTERFACE ${PROJECT_SOURCE_DIR}/third_party)
+if(WIN32)
+  # Tests are console programs with a plain main: keep SDL.h from renaming it, and undo the
+  # -mwindows that SDL2::SDL2 adds (this library is linked last, so -mconsole wins).
+  target_compile_definitions(tinysprite_test_support INTERFACE SDL_MAIN_HANDLED)
+  target_link_libraries(tinysprite_test_support INTERFACE -mconsole)
+endif()
 
 # One executable per test file: tests/test_<name>.cpp -> ctest "<name>"
 file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp)
