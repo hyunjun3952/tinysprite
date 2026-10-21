@@ -35,7 +35,7 @@ static bool same(const Sprite &a, const Sprite &b)
         const Layer &la = *a.layer(i);
         const Layer &lb = *b.layer(i);
         if (la.name() != lb.name() || la.visible() != lb.visible() ||
-            la.opacity() != lb.opacity()) {
+            la.opacity() != lb.opacity() || la.locked() != lb.locked()) {
             return false;
         }
         for (int y = 0; y < a.height(); y++) {
@@ -47,6 +47,19 @@ static bool same(const Sprite &a, const Sprite &b)
         }
     }
     return true;
+}
+
+TEST(round_trip_keeps_locked_and_hidden)
+{
+    Sprite s(2, 2);
+    s.layer(0)->setLocked(true);
+    s.addLayer("b").setVisible(false);
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
+    if (back) {
+        ASSERT_TRUE(back->layer(0)->locked() && back->layer(0)->visible());
+        ASSERT_TRUE(!back->layer(1)->locked() && !back->layer(1)->visible());
+    }
 }
 
 TEST(round_trip_keeps_everything)
@@ -146,6 +159,7 @@ TEST(sprite_without_layers_or_with_bad_size_is_rejected)
 int main(void)
 {
     RUN(round_trip_keeps_everything);
+    RUN(round_trip_keeps_locked_and_hidden);
     RUN(file_round_trip);
     RUN(missing_file_gives_nothing);
     RUN(bad_magic_and_version_are_rejected);

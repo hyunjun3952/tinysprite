@@ -43,7 +43,8 @@ bool History::beginStroke(Cel &cel)
 
 bool History::setPixel(int x, int y, Rgba color)
 {
-    if (!strokeActive() || !active_.cel->inBounds(x, y)) {
+    if (!strokeActive() || !active_.cel->inBounds(x, y) ||
+        (clip_ && !rect_contains(*clip_, x, y))) {
         return false;
     }
     size_t index =
@@ -57,8 +58,16 @@ bool History::setPixel(int x, int y, Rgba color)
     return true;
 }
 
+void History::markSaved()
+{
+    saved_ = cursor_;
+}
+
 void History::commit(Step &&step)
 {
+    if (saved_ && *saved_ > cursor_) {
+        saved_.reset();
+    }
     steps_.erase(steps_.begin() + static_cast<std::ptrdiff_t>(cursor_), steps_.end());
     steps_.push_back(std::move(step));
     cursor_ = steps_.size();
@@ -135,6 +144,9 @@ void History::forgetCel(Cel *cel)
             steps_[kept] = std::move(steps_[i]);
         }
         kept++;
+    }
+    if (kept != steps_.size()) {
+        saved_.reset();
     }
     steps_.resize(kept);
     cursor_ = keptApplied;

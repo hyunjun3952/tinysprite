@@ -238,8 +238,22 @@ class Editor
 
     /* Mouse handling for the active tool, in cel coordinates (which may lie outside the sprite).
      * press starts a drag when the tool accepts it, drag is called every frame while the button
-     * is held, release commits. Each one marks the cels it changes dirty. */
-    void press(int cx, int cy);
+     * is held, release commits. Each one marks the cels it changes dirty. The drawing tools only
+     * change cels inside the selection while there is one. */
+    void press(int cx, int cy, bool shift = false);
+
+    /* Shift+press with the pencil or eraser draws a line from the end of the previous pencil /
+     * eraser stroke to the pressed cel, instead of a dot. lineFrom() is that start point, set
+     * only while such a press is being handled; lastDrawPoint() is where the previous stroke
+     * ended (forgotten when the document is replaced). */
+    std::optional<ToolPoint> lineFrom() const
+    {
+        return lineFrom_;
+    }
+    void setLastDrawPoint(int x, int y)
+    {
+        lastDrawPoint_ = ToolPoint{x, y};
+    }
     void drag(int cx, int cy);
     void release();
 
@@ -277,7 +291,7 @@ class Editor
     Cel *activeCel();
 
     /* The active cel when a tool may change it; null while a tool is being dragged or when the
-     * layer is hidden. */
+     * layer is hidden or locked. */
     Cel *editableCel();
 
     /* Undo / redo; they do nothing while a stroke is being drawn. */
@@ -289,6 +303,7 @@ class Editor
     void removeLayer(int index);
     void moveLayer(int from, int to);
     void setLayerVisible(int index, bool visible);
+    void setLayerLocked(int index, bool locked);
 
     /* Duplicate puts a copy above the layer and makes it active; merge draws the layer onto the
      * one below it (both must be visible). If the merged layer was active the one below becomes
@@ -372,6 +387,9 @@ class Editor
     std::vector<Rgba> pixels_;      /* composited frame */
     bool dirty_ = false;
     Rect dirtyRect_ = {};
+
+    std::optional<ToolPoint> lastDrawPoint_;
+    std::optional<ToolPoint> lineFrom_;
 
     bool tempPick_ = false; /* the eyedropper is active only while a modifier is held */
     ToolKind pickReturn_ = ToolKind::Pencil; /* the tool to go back to when the pick ends */

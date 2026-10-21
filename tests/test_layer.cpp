@@ -76,6 +76,14 @@ TEST(invalid_arguments_throw)
     ASSERT_THROWS(Layer("L", 4, 4, 0), std::invalid_argument);
 }
 
+TEST(layer_starts_unlocked_and_can_be_locked)
+{
+    Layer l("a", 4, 4, 1);
+    ASSERT_TRUE(!l.locked());
+    l.setLocked(true);
+    ASSERT_TRUE(l.locked());
+}
+
 int main(void)
 {
     RUN(create_defaults);
@@ -86,5 +94,6 @@ int main(void)
     RUN(setters_update_state);
     RUN(set_name_replaces_and_truncates);
     RUN(invalid_arguments_throw);
+    RUN(layer_starts_unlocked_and_can_be_locked);
     return TEST_SUMMARY();
 }

@@ -132,7 +132,8 @@ bool layer_op_merge_down(History &history, Sprite &sprite, int index)
 {
     Layer *upper = sprite.layer(index);
     Layer *lower = sprite.layer(index - 1);
-    if (!upper || !lower || history.strokeActive() || !upper->visible() || !lower->visible()) {
+    if (!upper || !lower || history.strokeActive() || !upper->visible() || !lower->visible() ||
+        lower->locked()) {
         return false;
     }
     auto m = std::make_shared<Merge>(Merge{Membership{sprite, upper, index, {}},
@@ -222,6 +223,12 @@ bool layer_op_set_visible(History &history, Layer &layer, bool visible)
 {
     return changeValue<bool>(
         history, layer.visible(), visible, [&layer](bool v) { layer.setVisible(v); }, true);
+}
+
+bool layer_op_set_locked(History &history, Layer &layer, bool locked)
+{
+    return changeValue<bool>(
+        history, layer.locked(), locked, [&layer](bool v) { layer.setLocked(v); }, true);
 }
 
 bool layer_op_set_opacity(History &history, Layer &layer, uint8_t opacity)

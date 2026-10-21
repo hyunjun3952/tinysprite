@@ -25,6 +25,17 @@ void LayersPanel::rows()
         if (ImGui::Checkbox("##visible", &visible)) {
             editor_.setLayerVisible(i, visible);
         }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Visible");
+        }
+        ImGui::SameLine();
+        bool locked = layer->locked();
+        if (ImGui::Checkbox("##locked", &locked)) {
+            editor_.setLayerLocked(i, locked);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Locked: tools cannot draw on it");
+        }
         ImGui::SameLine();
         const char *name = layer->name().c_str();
         if (ImGui::Selectable(name[0] ? name : "(unnamed)", i == editor_.activeLayer())) {
@@ -72,6 +83,8 @@ void LayersPanel::activeLayerDetails()
     }
     if (!layer->visible()) {
         ImGui::TextDisabled("Layer is hidden: tools cannot draw on it");
+    } else if (layer->locked()) {
+        ImGui::TextDisabled("Layer is locked: tools cannot draw on it");
     }
 }
 
@@ -97,9 +110,11 @@ void LayersPanel::buttons()
     ImGui::SameLine();
     Layer *layer = editor_.sprite().layer(active);
     Layer *below = editor_.sprite().layer(active - 1);
-    ImGui::BeginDisabled(!layer || !below || !layer->visible() || !below->visible());
+    ImGui::BeginDisabled(!layer || !below || !layer->visible() || !below->visible() ||
+                         below->locked());
     if (icons::button(Icon::MergeDown, "##merge",
-                      "Merge into the layer below (both must be visible)", false, size)) {
+                      "Merge into the layer below (both must be visible, the lower one unlocked)",
+                      false, size)) {
         editor_.mergeLayerDown(active);
     }
     ImGui::EndDisabled();

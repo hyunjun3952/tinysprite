@@ -115,3 +115,17 @@ headless CLI export, optional Aseprite import.
   factors. Material Symbols have 2-unit strokes on a 24-unit grid, so glyphs are crispest at a 12 px multiple (24 px has about
   half as many smeared edge pixels as 16 px; buttons use 20 px, a little softer, because 24 px looked too big). For the same reason `OversampleH = 1`; oversampling blurs aligned strokes and shifts the glyph
   by about half a pixel. Re-check centering and crispness if the ImGui version changes.
+- Unsaved changes: `History::markSaved` / `atSavePoint` track the saved state (undoing back to it counts as clean; an
+  edit that replaces the saved steps or `forgetCel` makes it permanently dirty). Palette edits are outside undo, so
+  they do not mark the document dirty. `App` shows `*` in the window title and asks Save / Discard / Cancel before
+  Open, Quit and a dropped file replace the document.
+- Opening files: `tinysprite [file | width [height]]`, `--help`, and `SDL_DROPFILE` (drop a .pxa or image on the window).
+- Layer lock (`Layer::locked`, `layer_op_set_locked`, undoable): `Editor::editableCel` returns null for a locked layer,
+  so tools, paste, cut and delete skip it; merge down refuses a locked lower layer. The model does not enforce it.
+  Stored in bit 1 of the LAYR visible byte of `.pxa` (bit 0 is visible), so older readers still load the file.
+- Selection clipping: `History::setClip` rejects `setPixel` outside a rect. `Editor::press` sets it to the selection
+  for the drawing tools (not select / eyedropper) and lifts it on release / cancel. The bucket still scans the whole
+  region but only writes inside the selection.
+- Shift+click with the pencil / eraser draws a line from `Editor::lastDrawPoint` (end of the previous stroke; reset when
+  the document is replaced). Shift is only read at the press, not while dragging.
+- F1 / `?` opens the keyboard shortcut list (`App::helpWindow`, also in the Help menu).

@@ -109,6 +109,7 @@ class PencilDrag : public Drag
         if (!stroke_->end()) {
             editor_.markAllDirty();
         }
+        editor_.setLastDrawPoint(lastX_, lastY_);
     }
     void cancel() override
     {
@@ -289,9 +290,18 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
     case ToolKind::Eraser: {
         PencilOptions options = {editor.options().pixel_perfect, editor.options().symmetry,
                                  editor.options().brush_size, editor.options().brush_round};
+        std::optional<ToolPoint> from = editor.lineFrom();
         std::unique_ptr<PencilStroke> stroke =
-            PencilStroke::begin(editor.history(), *cel, erasing ? Rgba{} : color, options, cx, cy);
-        return stroke ? std::make_unique<PencilDrag>(editor, cx, cy, std::move(stroke)) : nullptr;
+            PencilStroke::begin(editor.history(), *cel, erasing ? Rgba{} : color, options,
+                                from ? from->x : cx, from ? from->y : cy);
+        if (!stroke) {
+            return nullptr;
+        }
+        if (from) {
+            stroke->extend(cx, cy);
+            editor.markAllDirty();
+        }
+        return std::make_unique<PencilDrag>(editor, cx, cy, std::move(stroke));
     }
     case ToolKind::Bucket:
         /* A single click: no drag. */

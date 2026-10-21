@@ -34,6 +34,17 @@ class Layer
         visible_ = visible;
     }
 
+    /* A locked layer is protected from edits made by the tools and the clipboard; the UI checks
+     * it, the document model itself does not enforce it. */
+    bool locked() const
+    {
+        return locked_;
+    }
+    void setLocked(bool locked)
+    {
+        locked_ = locked;
+    }
+
     uint8_t opacity() const
     {
         return opacity_;
@@ -55,6 +66,7 @@ class Layer
   private:
     std::string name_;
     bool visible_ = true;
+    bool locked_ = false;
     uint8_t opacity_ = 255;
     std::vector<std::unique_ptr<Cel>> cels_;
 };

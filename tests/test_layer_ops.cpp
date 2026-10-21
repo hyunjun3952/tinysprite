@@ -139,6 +139,23 @@ TEST(properties_are_undoable)
     ASSERT_TRUE(strcmp(l->name().c_str(), "Body") == 0);
 }
 
+TEST(lock_is_undoable)
+{
+    Sprite s(4, 4);
+    History h;
+    Layer *l = s.layer(0);
+    ASSERT_TRUE(layer_op_set_locked(h, *l, true));
+    ASSERT_TRUE(l->locked());
+    h.undo();
+    ASSERT_TRUE(!l->locked());
+    h.redo();
+    ASSERT_TRUE(l->locked());
+    ASSERT_TRUE(layer_op_set_locked(h, *l, true));
+    h.undo();
+    ASSERT_TRUE(!l->locked());
+    ASSERT_TRUE(!h.canUndo());
+}
+
 TEST(unchanged_property_records_nothing)
 {
     Sprite s(4, 4);
@@ -382,6 +399,27 @@ TEST(record_is_rejected_during_a_stroke)
     ASSERT_TRUE(!layer_op_record_name(h, *l, "other"));
 }
 
+TEST(merge_down_refuses_a_locked_layer_below)
+{
+    Sprite s = merge_fixture();
+    History h;
+    s.layer(0)->setLocked(true);
+    ASSERT_TRUE(!layer_op_merge_down(h, s, 1));
+    ASSERT_EQ_INT(2, s.layerCount());
+    s.layer(0)->setLocked(false);
+    s.layer(1)->setLocked(true);
+    ASSERT_TRUE(layer_op_merge_down(h, s, 1));
+}
+
+TEST(duplicate_is_not_locked)
+{
+    Sprite s(4, 4);
+    History h;
+    s.layer(0)->setLocked(true);
+    Layer *copy = layer_op_duplicate(h, s, 0);
+    ASSERT_TRUE(copy && !copy->locked());
+}
+
 int main(void)
 {
     RUN(add_is_undoable);
@@ -392,6 +430,9 @@ int main(void)
     RUN(removed_layer_is_freed_by_history_destroy);
     RUN(move_is_undoable);
     RUN(properties_are_undoable);
+    RUN(lock_is_undoable);
+    RUN(merge_down_refuses_a_locked_layer_below);
+    RUN(duplicate_is_not_locked);
     RUN(unchanged_property_records_nothing);
     RUN(ops_are_rejected_during_a_stroke);
     RUN(duplicate_inserts_an_independent_copy_above);

@@ -373,6 +373,94 @@ TEST(forget_cel_keeps_actions)
     ASSERT_TRUE(!h.canUndo());
 }
 
+static void paint(History &h, Cel &c, int x)
+{
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(h.setPixel(x, 0, RED));
+    ASSERT_TRUE(h.endStroke());
+}
+
+TEST(clip_rejects_pixels_outside_the_rect)
+{
+    History h;
+    Cel c(4, 4);
+    h.setClip(Rect{1, 1, 2, 2});
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(h.setPixel(1, 1, RED));
+    ASSERT_TRUE(!h.setPixel(0, 0, RED));
+    ASSERT_TRUE(!h.setPixel(3, 1, RED));
+    ASSERT_TRUE(h.setPixel(2, 2, RED));
+    ASSERT_TRUE(h.endStroke());
+    ASSERT_EQ_INT(0, alpha(c, 0, 0));
+    ASSERT_EQ_INT(0, alpha(c, 3, 1));
+    ASSERT_EQ_INT(255, alpha(c, 1, 1));
+    ASSERT_EQ_INT(255, alpha(c, 2, 2));
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(0, alpha(c, 1, 1));
+}
+
+TEST(clearing_the_clip_allows_every_pixel_again)
+{
+    History h;
+    Cel c(4, 4);
+    h.setClip(Rect{1, 1, 1, 1});
+    h.setClip(std::nullopt);
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(h.setPixel(0, 0, RED));
+    ASSERT_TRUE(h.endStroke());
+}
+
+TEST(save_point_starts_clean)
+{
+    History h;
+    ASSERT_TRUE(h.atSavePoint());
+}
+
+TEST(save_point_follows_edits_undo_and_redo)
+{
+    History h;
+    Cel c(4, 4);
+    paint(h, c, 0);
+    ASSERT_TRUE(!h.atSavePoint());
+    h.markSaved();
+    ASSERT_TRUE(h.atSavePoint());
+    paint(h, c, 1);
+    ASSERT_TRUE(!h.atSavePoint());
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(h.atSavePoint());
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(!h.atSavePoint());
+    ASSERT_TRUE(h.redo());
+    ASSERT_TRUE(h.atSavePoint());
+}
+
+TEST(save_point_is_lost_when_a_new_edit_discards_it)
+{
+    History h;
+    Cel c(4, 4);
+    paint(h, c, 0);
+    paint(h, c, 1);
+    h.markSaved();
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(h.undo());
+    paint(h, c, 2);
+    paint(h, c, 3);
+    /* Two steps are applied again, as when saved, but they are not the saved ones. */
+    ASSERT_TRUE(!h.atSavePoint());
+}
+
+TEST(save_point_is_lost_when_forgetting_cels)
+{
+    History h;
+    Cel a(4, 4);
+    Cel b(4, 4);
+    paint(h, a, 0);
+    paint(h, b, 0);
+    h.markSaved();
+    h.forgetCel(&a);
+    ASSERT_TRUE(!h.atSavePoint());
+}
+
 int main(void)
 {
     RUN(starts_empty);
@@ -396,5 +484,11 @@ int main(void)
     RUN(new_edit_releases_redone_actions);
     RUN(action_rejected_during_stroke_is_released);
     RUN(forget_cel_keeps_actions);
+    RUN(clip_rejects_pixels_outside_the_rect);
+    RUN(clearing_the_clip_allows_every_pixel_again);
+    RUN(save_point_starts_clean);
+    RUN(save_point_follows_edits_undo_and_redo);
+    RUN(save_point_is_lost_when_a_new_edit_discards_it);
+    RUN(save_point_is_lost_when_forgetting_cels);
     return TEST_SUMMARY();
 }

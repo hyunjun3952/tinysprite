@@ -96,12 +96,13 @@ void readLayer(Reader &chunk, Sprite &sprite, int index)
     uint32_t nameLength = chunk.u8();
     const uint8_t *nameBytes = chunk.take(nameLength);
     std::string name(nameBytes, nameBytes + nameLength);
-    bool visible = chunk.u8() != 0;
+    uint32_t flags = chunk.u8(); /* bit 0: visible, bit 1: locked */
     auto opacity = static_cast<uint8_t>(chunk.u8());
 
     Layer &layer = index == 0 ? *sprite.layer(0) : sprite.addLayer(name);
     layer.setName(name);
-    layer.setVisible(visible);
+    layer.setVisible((flags & 1) != 0);
+    layer.setLocked((flags & 2) != 0);
     layer.setOpacity(opacity);
     for (int frame = 0; frame < sprite.frameCount(); frame++) {
         Cel &cel = *layer.cel(frame);
@@ -179,7 +180,7 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
         putChunk(out, "LAYR", [&](std::vector<uint8_t> &o) {
             o.push_back(static_cast<uint8_t>(layer.name().size()));
             o.insert(o.end(), layer.name().begin(), layer.name().end());
-            o.push_back(layer.visible() ? 1 : 0);
+            o.push_back(static_cast<uint8_t>((layer.visible() ? 1 : 0) | (layer.locked() ? 2 : 0)));
             o.push_back(layer.opacity());
             for (int frame = 0; frame < layer.frameCount(); frame++) {
                 const Cel &cel = *layer.cel(frame);

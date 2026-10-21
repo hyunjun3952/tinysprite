@@ -31,11 +31,12 @@ Layer *layer_op_duplicate(History &history, Sprite &sprite, int index);
 /* Draws the layer at `index` onto the layer below it (every frame, with the upper layer's opacity
  * applied to its pixels) and removes it; the lower layer keeps its own name and properties. The
  * pixel change and the removal are one undo step. Returns false if there is no layer below,
- * either layer is hidden, or a stroke is active. */
+ * either layer is hidden, the lower layer is locked, or a stroke is active. */
 bool layer_op_merge_down(History &history, Sprite &sprite, int index);
 
 bool layer_op_set_name(History &history, Layer &layer, const std::string &name);
 bool layer_op_set_visible(History &history, Layer &layer, bool visible);
+bool layer_op_set_locked(History &history, Layer &layer, bool locked);
 bool layer_op_set_opacity(History &history, Layer &layer, uint8_t opacity);
 
 /* For an edit made live with Layer::set*: the layer already holds the new value and `before` is

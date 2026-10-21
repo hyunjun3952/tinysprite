@@ -3,6 +3,7 @@
 
 #include <SDL.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -16,6 +17,7 @@ struct AppOptions {
     int width = 64;
     int height = 64;
     int maxFrames = 0; /* >0: exit after this many frames (smoke runs without a display) */
+    std::string file;  /* a .pxa or image to open at start, "" for a blank sprite */
 };
 
 /* Owns the window, the ImGui context and the editor, and runs the main loop. Everything it sets up
@@ -47,6 +49,18 @@ class App
     void fileDialog();
     bool runFileAction(const std::string &path);
 
+    /* Opens a .pxa file or imports an image as the document; on failure sets fileError_. */
+    bool openPath(const std::string &path);
+
+    /* Unsaved changes: `proceed` runs at once if the document is saved, otherwise after the user
+     * chose Save (then it runs once the save went through) or Discard in a confirmation popup. */
+    bool dirty() const;
+    void guardUnsaved(std::function<void()> proceed);
+    void confirmDialog();
+    void updateTitle();
+    void dropFile(const std::string &path);
+    void helpWindow();
+
     SDL_Window *window_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;
     bool imguiContext_ = false;
@@ -58,6 +72,12 @@ class App
     std::string filePath_;     /* the .pxa the document was opened from / saved to, "" if none */
     char pathInput_[512] = ""; /* the dialog's text field */
     std::string fileError_;
+
+    std::function<void()> pending_;   /* waits for the unsaved-changes popup */
+    std::function<void()> afterSave_; /* runs once the Save as dialog it opened succeeds */
+    bool openConfirm_ = false;
+    bool showHelp_ = false;
+    std::string title_;
 
     Panels panels_;
     std::unique_ptr<Editor> editor_;

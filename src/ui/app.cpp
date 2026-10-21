@@ -86,7 +86,102 @@ bool App::init(const AppOptions &options)
     canvas_ = std::make_unique<Canvas>(*editor_);
     toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
     layersPanel_ = std::make_unique<LayersPanel>(*editor_);
+    if (!options.file.empty() && !openPath(options.file)) {
+        std::fprintf(stderr, "%s\n", fileError_.c_str());
+        return false;
+    }
     return true;
+}
+
+bool App::dirty() const
+{
+    return !editor_->history().atSavePoint();
+}
+
+/* "name.pxa" or "untitled", with a trailing "*" while there are unsaved changes. */
+void App::updateTitle()
+{
+    std::string name =
+        filePath_.empty() ? "untitled" : filePath_.substr(filePath_.find_last_of('/') + 1);
+    std::string title = (dirty() ? name + "*" : name) + " - tinysprite";
+    if (title != title_) {
+        title_ = title;
+        SDL_SetWindowTitle(window_, title_.c_str());
+    }
+}
+
+void App::guardUnsaved(std::function<void()> proceed)
+{
+    if (!dirty()) {
+        proceed();
+        return;
+    }
+    pending_ = std::move(proceed);
+    openConfirm_ = true;
+}
+
+void App::confirmDialog()
+{
+    static const char *const TITLE = "Unsaved changes";
+    if (openConfirm_) {
+        ImGui::OpenPopup(TITLE);
+        openConfirm_ = false;
+    }
+    if (!ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        return;
+    }
+    ImGui::TextUnformatted("The sprite has changes that are not saved.");
+    bool close = false;
+    if (ImGui::Button("Save")) {
+        close = true;
+        std::function<void()> proceed = std::move(pending_);
+        pending_ = nullptr;
+        if (!filePath_.empty()) {
+            save();
+        }
+        /* Without a path (or after a failed save) the Save as dialog is open: go on from there. */
+        if (dirty()) {
+            if (filePath_.empty()) {
+                askForPath(FileAction::SaveAs);
+            }
+            afterSave_ = std::move(proceed);
+        } else {
+            proceed();
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Discard")) {
+        close = true;
+        std::function<void()> proceed = std::move(pending_);
+        pending_ = nullptr;
+        proceed();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        close = true;
+    }
+    if (close) {
+        pending_ = nullptr;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
+/* A file dropped on the window replaces the document; a failure shows in the Open dialog with
+ * the dropped path filled in. */
+void App::dropFile(const std::string &path)
+{
+    if (editor_->stroking()) {
+        return;
+    }
+    guardUnsaved([this, path] {
+        if (!openPath(path)) {
+            std::string error = fileError_;
+            askForPath(FileAction::Open);
+            fileError_ = error;
+            std::snprintf(pathInput_, sizeof(pathInput_), "%s", path.c_str());
+        }
+    });
 }
 
 void App::layersWindow(float height)
@@ -105,7 +200,7 @@ void App::menuBar()
     if (ImGui::BeginMenu("File")) {
         bool idle = !editor_->stroking();
         if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
-            askForPath(FileAction::Open);
+            guardUnsaved([this] { askForPath(FileAction::Open); });
         }
         if (ImGui::MenuItem("Save", "Ctrl+S")) {
             save();
@@ -118,7 +213,7 @@ void App::menuBar()
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Quit")) {
-            running_ = false;
+            guardUnsaved([this] { running_ = false; });
         }
         ImGui::EndMenu();
     }
@@ -162,6 +257,10 @@ void App::menuBar()
         ImGui::EndMenu();
     }
     panels_.windowMenu();
+    if (ImGui::BeginMenu("Help")) {
+        ImGui::MenuItem("Keyboard shortcuts", "F1", &showHelp_);
+        ImGui::EndMenu();
+    }
     ImGui::EndMainMenuBar();
 }
 
@@ -204,6 +303,10 @@ void App::handleShortcuts()
     }
     /* Holding Alt turns the active tool into the eyedropper until it is released. */
     editor_->tempPick(io.KeyAlt);
+    if (ImGui::IsKeyPressed(ImGuiKey_F1, false) ||
+        (io.KeyShift && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Slash, false))) {
+        showHelp_ = !showHelp_;
+    }
     if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
         if (editor_->stroking()) {
             editor_->cancelDrag();
@@ -224,7 +327,7 @@ void App::handleShortcuts()
         return;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_O, false)) {
-        askForPath(FileAction::Open);
+        guardUnsaved([this] { askForPath(FileAction::Open); });
     } else if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
         save();
     } else if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
@@ -246,6 +349,45 @@ void App::handleShortcuts()
     }
 }
 
+/* Every shortcut in one place, since the tooltips only mention the tool letters. */
+void App::helpWindow()
+{
+    if (!showHelp_) {
+        return;
+    }
+    static const char *const ROWS[][2] = {
+        {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
+        {"Alt (hold)", "Temporary eyedropper"},
+        {"X", "Swap foreground / background colors"},
+        {"[  ]", "Smaller / larger brush"},
+        {"Shift + click", "Pencil / eraser: straight line from the last point"},
+        {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
+        {"Wheel", "Zoom at the cursor"},
+        {"Middle drag, Space + drag", "Pan"},
+        {"+  -  F", "Zoom in, zoom out, fit"},
+        {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
+        {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
+        {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
+        {"Ctrl+O, Ctrl+S", "Open, save"},
+        {"F1", "This window"},
+    };
+    ImGui::SetNextWindowSize(ImVec2(620, 0), ImGuiCond_Appearing);
+    if (ImGui::Begin("Keyboard shortcuts", &showHelp_, ImGuiWindowFlags_NoCollapse)) {
+        if (ImGui::BeginTable("shortcuts", 2,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
+            for (const auto &row : ROWS) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(row[0]);
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(row[1]);
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::End();
+}
+
 void App::askForPath(FileAction action)
 {
     fileAction_ = action;
@@ -260,38 +402,45 @@ void App::save()
     if (filePath_.empty()) {
         askForPath(FileAction::SaveAs);
     } else if (!pxa_save(editor_->sprite(), filePath_)) {
-        fileError_ = "Cannot write " + filePath_;
         askForPath(FileAction::SaveAs);
+        fileError_ = "Cannot write " + filePath_;
+    } else {
+        editor_->history().markSaved();
     }
+}
+
+bool App::openPath(const std::string &path)
+{
+    /* A .pxa file starts with its magic number; anything else may be an image. */
+    std::optional<Sprite> sprite = pxa_load(path);
+    bool isPxa = sprite.has_value();
+    if (!isPxa) {
+        sprite = image_import(path);
+    }
+    if (!sprite) {
+        fileError_ = "Cannot read " + path;
+    } else if (!editor_->setSprite(std::move(*sprite))) {
+        fileError_ = "Cannot open " + path + " right now";
+    } else {
+        filePath_ = isPxa ? path : "";
+        return true;
+    }
+    return false;
 }
 
 /* Runs the action the dialog asked for; on failure sets fileError_ and returns false. */
 bool App::runFileAction(const std::string &path)
 {
     switch (fileAction_) {
-    case FileAction::Open: {
-        /* A .pxa file starts with its magic number; anything else may be an image. */
-        std::optional<Sprite> sprite = pxa_load(path);
-        bool isPxa = sprite.has_value();
-        if (!isPxa) {
-            sprite = image_import(path);
-        }
-        if (!sprite) {
-            fileError_ = "Cannot read " + path;
-        } else if (!editor_->setSprite(std::move(*sprite))) {
-            fileError_ = "Cannot open " + path + " right now";
-        } else {
-            filePath_ = isPxa ? path : "";
-            return true;
-        }
-        return false;
-    }
+    case FileAction::Open:
+        return openPath(path);
     case FileAction::SaveAs:
         if (!pxa_save(editor_->sprite(), path)) {
             fileError_ = "Cannot write " + path;
             return false;
         }
         filePath_ = path;
+        editor_->history().markSaved();
         return true;
     case FileAction::ExportImage:
         if (!image_export(editor_->sprite(), editor_->frame(), path)) {
@@ -334,8 +483,14 @@ void App::fileDialog()
         done = true;
     }
     if (done) {
+        bool saved = fileAction_ == FileAction::SaveAs && !dirty();
         fileAction_ = FileAction::None;
         ImGui::CloseCurrentPopup();
+        std::function<void()> proceed = std::move(afterSave_);
+        afterSave_ = nullptr;
+        if (saved && proceed) {
+            proceed();
+        }
     }
     ImGui::EndPopup();
 }
@@ -348,7 +503,12 @@ void App::run(const AppOptions &options)
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) {
-                running_ = false;
+                guardUnsaved([this] { running_ = false; });
+            } else if (event.type == SDL_DROPFILE) {
+                dropFile(event.drop.file);
+            }
+            if (event.type == SDL_DROPFILE) {
+                SDL_free(event.drop.file);
             }
         }
 
@@ -365,7 +525,10 @@ void App::run(const AppOptions &options)
         canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
                       viewport->WorkSize.x - left - right, viewport->WorkSize.y);
         fileDialog();
+        confirmDialog();
+        helpWindow();
         handleShortcuts();
+        updateTitle();
 
         SDL_SetRenderDrawColor(renderer_, 30, 30, 32, 255);
         SDL_RenderClear(renderer_);

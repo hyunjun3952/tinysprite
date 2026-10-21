@@ -94,6 +94,7 @@ void Editor::resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture)
     pixels_.assign(static_cast<size_t>(sprite_.width()) * static_cast<size_t>(sprite_.height()),
                    Rgba{});
     history_ = History{};
+    lastDrawPoint_.reset();
     activeLayer_ = 0;
     hasSelection_ = false;
     paletteSelected_ = -1;
@@ -209,10 +210,21 @@ void Editor::tempPick(bool on)
     }
 }
 
-void Editor::press(int cx, int cy)
+void Editor::press(int cx, int cy, bool shift)
 {
     if (!stroking()) {
+        /* Drawing tools stay inside the selection; the select tool moves it and must not be
+         * clipped by it. */
+        bool draws = tool_ != ToolKind::Select && tool_ != ToolKind::Eyedropper;
+        history_.setClip(draws && hasSelection_ ? std::optional<Rect>(selection_) : std::nullopt);
+        if (shift && (tool_ == ToolKind::Pencil || tool_ == ToolKind::Eraser)) {
+            lineFrom_ = lastDrawPoint_;
+        }
         drag_ = beginDrag(*this, cx, cy);
+        lineFrom_.reset();
+        if (!drag_) {
+            history_.setClip(std::nullopt);
+        }
     }
 }
 
@@ -228,6 +240,7 @@ void Editor::release()
     if (drag_) {
         drag_->finish();
         drag_.reset();
+        history_.setClip(std::nullopt);
     }
 }
 
@@ -238,6 +251,7 @@ void Editor::cancelDrag()
     }
     drag_->cancel();
     drag_.reset();
+    history_.setClip(std::nullopt);
     moveDx_ = 0;
     moveDy_ = 0;
     markAllDirty();
@@ -321,7 +335,7 @@ Cel *Editor::activeCel()
 Cel *Editor::editableCel()
 {
     Layer *layer = sprite().layer(activeLayer_);
-    return stroking() || !layer || !layer->visible() ? nullptr : activeCel();
+    return stroking() || !layer || !layer->visible() || layer->locked() ? nullptr : activeCel();
 }
 
 void Editor::addLayer()
@@ -367,6 +381,14 @@ void Editor::setLayerVisible(int index, bool visible)
     Layer *layer = sprite().layer(index);
     if (!stroking() && layer && layer_op_set_visible(history(), *layer, visible)) {
         markAllDirty();
+    }
+}
+
+void Editor::setLayerLocked(int index, bool locked)
+{
+    Layer *layer = sprite().layer(index);
+    if (!stroking() && layer) {
+        layer_op_set_locked(history(), *layer, locked);
     }
 }
 

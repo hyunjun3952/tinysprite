@@ -173,6 +173,29 @@ TEST(tools_ignore_a_hidden_layer)
     delete e;
 }
 
+TEST(lock_toggle_is_undoable)
+{
+    Editor *e = make_editor();
+    e->setLayerLocked(0, true);
+    ASSERT_TRUE(e->sprite().layer(0)->locked());
+    e->undo();
+    ASSERT_TRUE(!e->sprite().layer(0)->locked());
+    delete e;
+}
+
+TEST(tools_ignore_a_locked_layer)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Pencil);
+    e->setLayerLocked(0, true);
+    click(e, 2, 2);
+    ASSERT_EQ_INT(0, alpha(e, 2, 2));
+    e->setLayerLocked(0, false);
+    click(e, 2, 2);
+    ASSERT_EQ_INT(255, alpha(e, 2, 2));
+    delete e;
+}
+
 TEST(swap_colors_exchanges_foreground_and_background)
 {
     Editor *e = make_editor();
@@ -248,6 +271,86 @@ static void select_rect(Editor *e, int x0, int y0, int x1, int y1)
     e->press(x0, y0);
     e->drag(x1, y1);
     e->release();
+}
+
+TEST(drawing_stays_inside_the_selection)
+{
+    Editor *e = make_editor();
+    select_rect(e, 1, 1, 2, 2);
+    e->selectTool(ToolKind::Pencil);
+    click(e, 0, 0);
+    ASSERT_EQ_INT(0, alpha(e, 0, 0));
+    e->press(0, 1);
+    e->drag(3, 1);
+    e->release();
+    ASSERT_EQ_INT(0, alpha(e, 0, 1));
+    ASSERT_EQ_INT(255, alpha(e, 1, 1));
+    ASSERT_EQ_INT(255, alpha(e, 2, 1));
+    ASSERT_EQ_INT(0, alpha(e, 3, 1));
+    e->selectTool(ToolKind::Bucket);
+    click(e, 2, 2);
+    ASSERT_EQ_INT(255, alpha(e, 2, 2));
+    ASSERT_EQ_INT(0, alpha(e, 0, 3));
+    ASSERT_TRUE(e->hasSelection());
+    delete e;
+}
+
+TEST(shift_press_joins_the_last_pencil_point_with_a_line)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Pencil);
+    click(e, 1, 1);
+    e->press(5, 1, true);
+    e->release();
+    for (int x = 1; x <= 5; x++) {
+        ASSERT_EQ_INT(255, alpha(e, x, 1));
+    }
+    e->undo();
+    ASSERT_EQ_INT(255, alpha(e, 1, 1));
+    ASSERT_EQ_INT(0, alpha(e, 3, 1));
+    ASSERT_EQ_INT(0, alpha(e, 5, 1));
+    delete e;
+}
+
+TEST(shift_press_without_a_previous_point_draws_a_dot)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Pencil);
+    e->press(2, 2, true);
+    e->release();
+    ASSERT_EQ_INT(255, alpha(e, 2, 2));
+    ASSERT_EQ_INT(0, alpha(e, 1, 2));
+    delete e;
+}
+
+TEST(shift_line_chains_from_its_own_end_and_resets_with_the_document)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Pencil);
+    click(e, 0, 0);
+    e->press(3, 0, true);
+    e->release();
+    e->press(3, 3, true);
+    e->release();
+    ASSERT_EQ_INT(255, alpha(e, 3, 2));
+    ASSERT_TRUE(e->setSprite(Sprite(8, 8)));
+    e->press(5, 5, true);
+    e->release();
+    ASSERT_EQ_INT(255, alpha(e, 5, 5));
+    ASSERT_EQ_INT(0, alpha(e, 0, 0));
+    delete e;
+}
+
+TEST(clip_is_lifted_after_the_stroke)
+{
+    Editor *e = make_editor();
+    select_rect(e, 1, 1, 2, 2);
+    e->selectTool(ToolKind::Pencil);
+    click(e, 1, 1);
+    e->clearSelection();
+    click(e, 0, 0);
+    ASSERT_EQ_INT(255, alpha(e, 0, 0));
+    delete e;
 }
 
 TEST(copy_and_paste_at_the_hovered_cel)
@@ -686,6 +789,13 @@ int main(void)
     RUN(unchanged_live_edit_records_nothing);
     RUN(layer_edits_are_held_off_while_dragging);
     RUN(tools_ignore_a_hidden_layer);
+    RUN(lock_toggle_is_undoable);
+    RUN(tools_ignore_a_locked_layer);
+    RUN(drawing_stays_inside_the_selection);
+    RUN(clip_is_lifted_after_the_stroke);
+    RUN(shift_press_joins_the_last_pencil_point_with_a_line);
+    RUN(shift_press_without_a_previous_point_draws_a_dot);
+    RUN(shift_line_chains_from_its_own_end_and_resets_with_the_document);
     RUN(swap_colors_exchanges_foreground_and_background);
     RUN(temp_pick_switches_to_the_picker_and_back);
     RUN(temp_pick_keeps_the_picker_when_it_is_already_active);

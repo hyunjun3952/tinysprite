@@ -3,9 +3,11 @@
 
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "tinysprite/cel.h"
+#include "tinysprite/rect.h"
 
 /* A non-pixel edit with its own undo / redo (layer operations). The callables are destroyed
  * exactly once when the step is dropped (a new edit discards it from the redo side, or the history
@@ -45,6 +47,13 @@ class History
         return active_.cel != nullptr;
     }
 
+    /* Limits setPixel to the cels inside `area` (nullopt lifts the limit); a pixel outside it is
+     * rejected like one out of bounds. Undo and redo are not affected. */
+    void setClip(std::optional<Rect> area)
+    {
+        clip_ = area;
+    }
+
     /* Records an action whose effect the caller has already applied, as one undo step, and
      * discards the redo steps. Returns false (dropping the action) if a stroke is active. */
     bool pushAction(HistoryAction action);
@@ -61,6 +70,15 @@ class History
     /* Return false if there is nothing to undo/redo or a stroke is active. */
     bool undo();
     bool redo();
+
+    /* Remembers the current state as the saved one. atSavePoint() is true again whenever undo /
+     * redo bring the history back to it, and false once an edit replaces the steps it stood on
+     * (or forgetCel drops steps). A new history counts as saved. */
+    void markSaved();
+    bool atSavePoint() const
+    {
+        return saved_ && *saved_ == cursor_;
+    }
 
     /* Drops every undo/redo step that touches `cel` (cancelling the active stroke if it is on
      * `cel`), so the cel can be destroyed. The remaining steps keep their order and the undo/redo
@@ -89,6 +107,8 @@ class History
 
     std::vector<Step> steps_; /* steps_[0..cursor_) are applied, the rest can be redone */
     size_t cursor_ = 0;
+    std::optional<Rect> clip_;
+    std::optional<size_t> saved_ = 0; /* cursor_ value of the saved state, if still reachable */
     Step active_; /* the open stroke; it is open exactly while active_.cel is set */
 };
 

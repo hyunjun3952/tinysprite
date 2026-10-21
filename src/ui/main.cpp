@@ -21,7 +21,10 @@ bool parseNumber(const char *text, int min, int max, int &out)
     return true;
 }
 
-/* usage: [width [height]] [--frames N]; a lone width is also the height. */
+constexpr const char *USAGE = "usage: %s [file | width [height]] [--frames N] [--help]\n";
+
+/* usage: [file | width [height]] [--frames N]; a lone width is also the height. Any other
+ * argument is a file to open (so a size and a file exclude each other). */
 bool parseOptions(int argc, char **argv, AppOptions &options)
 {
     int sizes[2];
@@ -34,9 +37,14 @@ bool parseOptions(int argc, char **argv, AppOptions &options)
             }
         } else if (sizeCount < 2 && parseNumber(argv[i], 1, CEL_MAX_DIMENSION, sizes[sizeCount])) {
             sizeCount++;
+        } else if (argv[i][0] != '-' && options.file.empty() && sizeCount == 0) {
+            options.file = argv[i];
         } else {
             return false;
         }
+    }
+    if (!options.file.empty() && sizeCount > 0) {
+        return false;
     }
     if (sizeCount > 0) {
         options.width = sizes[0];
@@ -49,9 +57,15 @@ bool parseOptions(int argc, char **argv, AppOptions &options)
 
 int main(int argc, char **argv)
 {
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+            std::printf(USAGE, argv[0]);
+            return 0;
+        }
+    }
     AppOptions options;
     if (!parseOptions(argc, argv, options)) {
-        std::fprintf(stderr, "usage: %s [width [height]] [--frames N]\n", argv[0]);
+        std::fprintf(stderr, USAGE, argv[0]);
         return 2;
     }
     App app;
