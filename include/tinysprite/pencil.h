@@ -19,14 +19,30 @@ int eraser_stroke(History *history, Cel *cel, const ToolPoint *points, int count
  * from pencil_stroke_begin until pencil_stroke_end / pencil_stroke_cancel. */
 typedef struct PencilStroke PencilStroke;
 
+#define PENCIL_BRUSH_MAX 64
+
 /* Options for live strokes. Symmetry mirrors every pixel across the cel's center line(s); a
  * mirrored copy that falls outside the cel is clipped. Pixel-perfect drops the middle pixel of
- * every L-shaped corner so diagonal runs stay one pixel wide. All fields default to 0 (off). */
+ * every L-shaped corner so diagonal runs stay one pixel wide; it only applies to a one-pixel
+ * brush. `size` is the brush width in pixels (values below 1 mean 1, above PENCIL_BRUSH_MAX are
+ * capped): the brush covers size x size pixels around each plotted point, an even size reaching
+ * one pixel further right and down, with the corners cut off when `round` is set. All fields
+ * default to 0 (off, one-pixel square brush). */
 typedef struct PencilOptions {
     int pixel_perfect;
     int mirror_x; /* reflect left <-> right */
     int mirror_y; /* reflect top <-> bottom */
+    int size;
+    int round;
 } PencilOptions;
+
+/* The brush a PencilOptions describes. pencil_brush_size is the effective width (1..
+ * PENCIL_BRUSH_MAX); the brush covers the pixels (i, j), 0 <= i, j < size, for which
+ * pencil_brush_contains is non-zero, laid out so that plotting (x, y) paints (x - origin + i,
+ * y - origin + j). */
+int pencil_brush_size(const PencilOptions *options);
+int pencil_brush_origin(const PencilOptions *options);
+int pencil_brush_contains(const PencilOptions *options, int i, int j);
 
 /* Starts a stroke at (x, y), plotting that pixel; `erase` plots fully transparent pixels instead
  * of `color`. Returns NULL on invalid arguments, an active stroke, or allocation failure. */

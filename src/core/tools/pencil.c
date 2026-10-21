@@ -101,6 +101,50 @@ static void unplace_pixel(PencilStroke *stroke, const Placed *placed)
     }
 }
 
+int pencil_brush_size(const PencilOptions *options)
+{
+    if (options->size < 1) {
+        return 1;
+    }
+    return options->size > PENCIL_BRUSH_MAX ? PENCIL_BRUSH_MAX : options->size;
+}
+
+int pencil_brush_origin(const PencilOptions *options)
+{
+    return (pencil_brush_size(options) - 1) / 2;
+}
+
+/* A round brush leaves out the pixels whose center lies too far from the brush center;
+ * (2i - size + 1) is twice the offset from it. */
+int pencil_brush_contains(const PencilOptions *options, int i, int j)
+{
+    int size = pencil_brush_size(options);
+    if (i < 0 || j < 0 || i >= size || j >= size) {
+        return 0;
+    }
+    if (!options->round) {
+        return 1;
+    }
+    int dx = 2 * i - size + 1;
+    int dy = 2 * j - size + 1;
+    return dx * dx + dy * dy <= size * size - size;
+}
+
+/* Paints the whole brush at (x, y), mirroring each of its pixels separately so a reflected stamp
+ * is the exact mirror image even for an even size. */
+static void stamp_brush(PencilStroke *stroke, int size, int x, int y)
+{
+    int origin = pencil_brush_origin(&stroke->options);
+    Placed unused;
+    for (int j = 0; j < size; j++) {
+        for (int i = 0; i < size; i++) {
+            if (pencil_brush_contains(&stroke->options, i, j)) {
+                place_pixel(stroke, x - origin + i, y - origin + j, &unused);
+            }
+        }
+    }
+}
+
 static int is_adjacent(int x0, int y0, int x1, int y1)
 {
     return abs(x0 - x1) + abs(y0 - y1) == 1;
@@ -109,6 +153,11 @@ static int is_adjacent(int x0, int y0, int x1, int y1)
 static void plot_pixel(int x, int y, void *user)
 {
     PencilStroke *stroke = user;
+    int size = pencil_brush_size(&stroke->options);
+    if (size > 1) {
+        stamp_brush(stroke, size, x, y);
+        return;
+    }
     if (!stroke->options.pixel_perfect) {
         Placed placed;
         place_pixel(stroke, x, y, &placed);
