@@ -1,0 +1,39 @@
+{
+    // The UI sources only exist in the build-ui compile database.
+    "cmake.buildDirectory": "${workspaceFolder}/build-ui",
+    "cmake.configureArgs": ["-DTINYSPRITE_BUILD_UI=ON"],
+    "cmake.configureOnOpen": false,
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build-ui",
+        "--background-index",
+        "--header-insertion=never"
+    ],
+    // clangd does the language work; cpptools is only here for the debugger.
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
+    "editor.tabSize": 4,
+    "editor.rulers": [100],
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format",
+        "editor.formatOnSave": true
+    },
+    "[c]": {
+        "editor.defaultFormatter": "xaver.clang-format",
+        "editor.formatOnSave": true
+    },
+    "files.exclude": {
+        "**/.cache": true
+    },
+    "search.exclude": {
+        "build": true,
+        "build-ui": true,
+        "third_party": true
+    },
+    "files.watcherExclude": {
+        "**/build/**": true,
+        "**/build-ui/**": true
+    }
+}

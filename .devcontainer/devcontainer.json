@@ -7,7 +7,9 @@
             "extensions": [
                 "ms-vscode.cmake-tools",
                 "llvm-vs-code-extensions.vscode-clangd",
-                "xaver.clang-format"
+                "xaver.clang-format",
+                "ms-vscode.cpptools",
+                "timonwong.shellcheck"
             ]
         }
     }

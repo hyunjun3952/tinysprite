@@ -34,6 +34,14 @@ cmake --build build-ui
 
 ASan/UBSan are enabled by default; pass `-DTINYSPRITE_SANITIZE=OFF` to disable them.
 
+### VS Code
+
+`.vscode/` is checked in: CMake Tools and clangd use the `build-ui` directory (so `src/ui` is indexed too), clang-format runs on
+save, and there are tasks (`Ctrl+Shift+B` builds, `test`, `format`, `lint`) and launch configs for the app and for a single
+test binary (gdb through the C/C++ extension, whose IntelliSense is turned off in favour of clangd). Run
+`cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON` once so clangd finds `compile_commands.json`.
+The recommended extensions are listed in `.vscode/extensions.json`.
+
 ### Devcontainer
 
 `.devcontainer/` sets up an Ubuntu container with the build tools, `clang-format`, `clang-tidy`, `shellcheck` and
