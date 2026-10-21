@@ -60,7 +60,7 @@ static const char *const SAMPLE[] = {"abc", "d.f"};
 static Clip *sample_clip(Cel *cel)
 {
     fill(cel, 1, 1, 2, SAMPLE);
-    return clip_copy(cel, 1, 1, 3, 2);
+    return clip_copy(cel, (Rect){1, 1, 3, 2});
 }
 
 TEST(copy_captures_the_region)
@@ -88,13 +88,13 @@ TEST(copy_is_clipped_to_the_cel)
     Cel *cel = cel_create(4, 3);
     const char *const rows[] = {"ab", "cd"};
     fill(cel, 2, 1, 2, rows);
-    Clip *clip = clip_copy(cel, 2, 1, 5, 5);
+    Clip *clip = clip_copy(cel, (Rect){2, 1, 5, 5});
     ASSERT_TRUE(clip != NULL);
     expect_clip(clip, 2, rows);
     clip_destroy(clip);
-    ASSERT_TRUE(clip_copy(cel, 4, 0, 2, 2) == NULL);
-    ASSERT_TRUE(clip_copy(cel, 0, 0, 0, 2) == NULL);
-    ASSERT_TRUE(clip_copy(NULL, 0, 0, 1, 1) == NULL);
+    ASSERT_TRUE(clip_copy(cel, (Rect){4, 0, 2, 2}) == NULL);
+    ASSERT_TRUE(clip_copy(cel, (Rect){0, 0, 0, 2}) == NULL);
+    ASSERT_TRUE(clip_copy(NULL, (Rect){0, 0, 1, 1}) == NULL);
     cel_destroy(cel);
 }
 
@@ -183,7 +183,7 @@ TEST(replace_clears_the_old_rect_and_is_one_undo_step)
     Clip *clip = sample_clip(cel);
     History *h = history_create();
     clip_flip_horizontal(clip);
-    ASSERT_EQ_INT(0, clip_replace(h, cel, 1, 1, 3, 2, clip, 1, 1));
+    ASSERT_EQ_INT(0, clip_replace(h, cel, (Rect){1, 1, 3, 2}, clip, 1, 1));
     const char *const flipped[] = {"cba", "f.d"};
     expect_cel(cel, 1, 1, 2, flipped);
 
@@ -200,7 +200,7 @@ TEST(replace_to_another_place_moves_the_pixels)
     Cel *cel = cel_create(6, 5);
     Clip *clip = sample_clip(cel);
     History *h = history_create();
-    ASSERT_EQ_INT(0, clip_replace(h, cel, 1, 1, 3, 2, clip, 2, 2));
+    ASSERT_EQ_INT(0, clip_replace(h, cel, (Rect){1, 1, 3, 2}, clip, 2, 2));
     ASSERT_EQ_INT('.', letter(cel_get(cel, 1, 1)));
     const char *const moved[] = {"abc", "d.f"};
     expect_cel(cel, 2, 2, 2, moved);

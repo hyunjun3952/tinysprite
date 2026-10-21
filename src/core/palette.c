@@ -34,7 +34,7 @@ int palette_add(Palette *palette, Rgba color)
 Rgba palette_get(const Palette *palette, int index)
 {
     if (index < 0 || index >= palette->count) {
-        return (Rgba){0, 0, 0, 0};
+        return RGBA_TRANSPARENT;
     }
     return palette->colors[index];
 }
@@ -56,15 +56,14 @@ int palette_remove(Palette *palette, int index)
     for (int i = index; i < palette->count - 1; i++) {
         palette->colors[i] = palette->colors[i + 1];
     }
-    palette->colors[--palette->count] = (Rgba){0, 0, 0, 0};
+    palette->colors[--palette->count] = RGBA_TRANSPARENT;
     return 0;
 }
 
 int palette_find(const Palette *palette, Rgba color)
 {
     for (int i = 0; i < palette->count; i++) {
-        const Rgba *c = &palette->colors[i];
-        if (c->r == color.r && c->g == color.g && c->b == color.b && c->a == color.a) {
+        if (rgba_equal(palette->colors[i], color)) {
             return i;
         }
     }

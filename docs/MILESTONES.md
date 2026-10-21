@@ -35,7 +35,7 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       Core (all TDD, public headers in `include/tinysprite/`): `bucket.h` (`bucket_fill`), `eyedropper.h`
       (`eyedropper_pick_cel` / `_sprite`, the latter via new `composite_pixel`), `shape.h` (line / rect / ellipse;
       batch `shape_stroke` plus live `shape_stroke_begin/update/end/cancel`), `move.h` (rectangular selection move,
-      batch `move_stroke` plus live `move_stroke_*`), `PencilOptions` + `pencil_stroke_begin_ex` (pixel-perfect,
+      batch `move_stroke` plus live `move_stroke_*`), `PencilOptions` + `pencil_stroke_begin` (pixel-perfect,
       mirror X / Y), `sprite_remove_layer` / `sprite_move_layer`, `layer_set_name`, `history_forget_cel`.
       UI: `src/ui/editor/tools.c` (press / drag / release / cancel per tool), `src/ui/panels/layers_panel.c`; the tools panel
       lists all eight tools plus Pixel-perfect / Mirror X / Mirror Y / Filled options.
@@ -79,7 +79,7 @@ headless CLI export, optional Aseprite import.
 - Pixel-perfect also cuts the corner of a 90-degree turn (the L-shaped corner pixel is removed), like Aseprite.
   A removed pixel is restored to the color it had before the stroke touched it.
 - Symmetry (`symmetry.h`) mirrors across the cel's center and applies to pencil / eraser, shapes
-  (`shape_stroke_ex` / `shape_stroke_begin_ex`) and bucket (`bucket_fill_ex`).
+  (`shape_stroke` / `shape_stroke_begin` with a `ShapeStyle`) and bucket (`bucket_fill`).
 - The selection is a single rectangle clipped to the sprite. Moving it loses pixels pushed off the sprite, and
   transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
   it, unless the click only dismisses an existing selection. There is no selection copy / paste yet.

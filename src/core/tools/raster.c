@@ -43,7 +43,7 @@ static void order(int *a, int *b)
     }
 }
 
-void raster_rect(int x0, int y0, int x1, int y1, int filled, RasterPlotFn plot, void *user)
+void raster_rect(int x0, int y0, int x1, int y1, bool filled, RasterPlotFn plot, void *user)
 {
     order(&x0, &x1);
     order(&y0, &y1);
@@ -68,8 +68,11 @@ void raster_rect(int x0, int y0, int x1, int y1, int filled, RasterPlotFn plot, 
 }
 
 /* Midpoint ellipse over the bounding box, after Alois Zingl's "rasterizing ellipses in a
- * rectangle". Walks one quadrant and mirrors it into the other three. */
-void raster_ellipse(int x0, int y0, int x1, int y1, int filled, RasterPlotFn plot, void *user)
+ * rectangle". Walks the upper-left quadrant outwards and mirrors every step into the other three
+ * (lx/rx are the left and right columns, up/dn the upper and lower rows). `err` is the error term
+ * of the next diagonal step; dx and dy are its increments for stepping in x or in y. A box with an
+ * even height has two middle rows, so up starts one row above dn (b1 is 1 for an even height). */
+void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, RasterPlotFn plot, void *user)
 {
     order(&x0, &x1);
     order(&y0, &y1);
@@ -123,7 +126,8 @@ void raster_ellipse(int x0, int y0, int x1, int y1, int filled, RasterPlotFn plo
         }
     } while (lx <= rx);
 
-    /* Flat ellipses sdn early: finish the remaining rows at the tips. */
+    /* A flat ellipse stops the loop above before its top and bottom rows are reached; finish the
+     * remaining rows at the tips. */
     while (dn - up <= b) {
         if (filled) {
             hspan((int)lx - 1, (int)rx + 1, (int)dn, plot, user);
@@ -163,11 +167,6 @@ static int stack_push(SeedStack *s, int x, int y)
     return 0;
 }
 
-static int same_color(Rgba a, Rgba b)
-{
-    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
-}
-
 /* Queues one seed per run of fillable pixels in row y, between x0 and x1. */
 static int push_runs(SeedStack *s, const Cel *cel, const unsigned char *seen, Rgba target, int x0,
                      int x1, int y)
@@ -178,7 +177,7 @@ static int push_runs(SeedStack *s, const Cel *cel, const unsigned char *seen, Rg
     int w = cel_width(cel);
     int in_run = 0;
     for (int x = x0; x <= x1; x++) {
-        int fillable = !seen[(size_t)y * w + x] && same_color(cel_get(cel, x, y), target);
+        int fillable = !seen[(size_t)y * w + x] && rgba_equal(cel_get(cel, x, y), target);
         if (fillable && !in_run && stack_push(s, x, y) != 0) {
             return -1;
         }
@@ -210,11 +209,11 @@ int raster_flood_fill(const Cel *cel, int x, int y, RasterPlotFn plot, void *use
         int left = seed.x;
         int right = seed.x;
         while (left > 0 && !seen[(size_t)seed.y * w + left - 1] &&
-               same_color(cel_get(cel, left - 1, seed.y), target)) {
+               rgba_equal(cel_get(cel, left - 1, seed.y), target)) {
             left--;
         }
         while (right < w - 1 && !seen[(size_t)seed.y * w + right + 1] &&
-               same_color(cel_get(cel, right + 1, seed.y), target)) {
+               rgba_equal(cel_get(cel, right + 1, seed.y), target)) {
             right++;
         }
         for (int i = left; i <= right; i++) {

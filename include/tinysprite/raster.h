@@ -13,10 +13,10 @@ typedef void (*RasterPlotFn)(int x, int y, void *user);
 void raster_line(int x0, int y0, int x1, int y1, RasterPlotFn plot, void *user);
 
 /* Axis-aligned rectangle spanning the two corners (any order, both inclusive). */
-void raster_rect(int x0, int y0, int x1, int y1, int filled, RasterPlotFn plot, void *user);
+void raster_rect(int x0, int y0, int x1, int y1, bool filled, RasterPlotFn plot, void *user);
 
 /* Ellipse inscribed in the bounding box spanned by the two corners (any order, both inclusive). */
-void raster_ellipse(int x0, int y0, int x1, int y1, int filled, RasterPlotFn plot, void *user);
+void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, RasterPlotFn plot, void *user);
 
 /* Reports the 4-connected region of cel pixels sharing the exact color of (x, y), in row-major
  * order. The cel is only read, so the callback may edit it. Returns 0 on success, -1 if (x, y)

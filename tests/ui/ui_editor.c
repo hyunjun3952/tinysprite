@@ -60,7 +60,7 @@ TEST(select_click_outside_a_selection_only_dismisses_it)
 TEST(mirrored_shape_and_bucket_are_symmetric)
 {
     Editor *e = make_editor();
-    e->mirror_x = 1;
+    e->symmetry.mirror_x = true;
     e->tool = TOOL_LINE;
     tools_press(e, 0, 0);
     tools_drag(e, 2, 0);
@@ -526,7 +526,7 @@ TEST(round_brush_and_eraser_follow_the_options)
 {
     Editor *e = make_editor();
     e->brush_size = 3;
-    e->brush_round = 1;
+    e->brush_round = true;
     e->tool = TOOL_PENCIL;
     click(e, 3, 2);
     ASSERT_EQ_INT(0, alpha(e, 2, 1)); /* corner cut off */

@@ -2,68 +2,50 @@
 
 #include <stdlib.h>
 
+#include "tinysprite/clip.h"
+
 struct MoveStroke {
     History *history;
     Cel *cel;
-    int x, y, w, h; /* selection clipped to the cel */
-    Rgba *pixels;   /* captured selection, w * h row-major */
+    Rect area;    /* selection clipped to the cel */
+    Clip *pixels; /* the selection as it was when the move began */
+    bool failed;
 };
 
-static int clip_selection(const Cel *cel, int *x, int *y, int *w, int *h)
+/* Pixels outside the cel are lost, which is how a selection dragged off the edge gets clipped. */
+static void put_pixel(MoveStroke *stroke, int x, int y, Rgba color)
 {
-    if (*w < 1 || *h < 1) {
-        return -1;
+    if (cel_in_bounds(stroke->cel, x, y) && history_set_pixel(stroke->history, x, y, color) != 0) {
+        stroke->failed = true;
     }
-    long x0 = *x < 0 ? 0 : *x;
-    long y0 = *y < 0 ? 0 : *y;
-    long x1 = (long)*x + *w;
-    long y1 = (long)*y + *h;
-    if (x1 > cel_width(cel)) {
-        x1 = cel_width(cel);
-    }
-    if (y1 > cel_height(cel)) {
-        y1 = cel_height(cel);
-    }
-    if (x0 >= x1 || y0 >= y1) {
-        return -1;
-    }
-    *x = (int)x0;
-    *y = (int)y0;
-    *w = (int)(x1 - x0);
-    *h = (int)(y1 - y0);
-    return 0;
 }
 
-MoveStroke *move_stroke_begin(History *history, Cel *cel, int x, int y, int w, int h)
+MoveStroke *move_stroke_begin(History *history, Cel *cel, Rect selection)
 {
-    if (!history || !cel || clip_selection(cel, &x, &y, &w, &h) != 0) {
+    if (!history || !cel) {
+        return NULL;
+    }
+    Rect area = rect_clip(selection, cel_width(cel), cel_height(cel));
+    if (rect_is_empty(area)) {
         return NULL;
     }
     MoveStroke *stroke = calloc(1, sizeof(*stroke));
     if (!stroke) {
         return NULL;
     }
-    stroke->pixels = malloc((size_t)w * (size_t)h * sizeof(*stroke->pixels));
+    stroke->pixels = clip_copy(cel, area);
     if (!stroke->pixels) {
         free(stroke);
         return NULL;
     }
     if (history_begin_stroke(history, cel) != 0) {
-        free(stroke->pixels);
+        clip_destroy(stroke->pixels);
         free(stroke);
         return NULL;
     }
     stroke->history = history;
     stroke->cel = cel;
-    stroke->x = x;
-    stroke->y = y;
-    stroke->w = w;
-    stroke->h = h;
-    for (int j = 0; j < h; j++) {
-        for (int i = 0; i < w; i++) {
-            stroke->pixels[(size_t)j * (size_t)w + (size_t)i] = cel_get(cel, x + i, y + j);
-        }
-    }
+    stroke->area = area;
     return stroke;
 }
 
@@ -77,26 +59,25 @@ int move_stroke_update(MoveStroke *stroke, int dx, int dy)
     if (history_begin_stroke(stroke->history, stroke->cel) != 0) {
         return -1;
     }
+    stroke->failed = false;
     if (dx == 0 && dy == 0) {
         return 0;
     }
-    for (int j = 0; j < stroke->h; j++) {
-        for (int i = 0; i < stroke->w; i++) {
-            (void)history_set_pixel(stroke->history, stroke->x + i, stroke->y + j,
-                                    (Rgba){0, 0, 0, 0});
+    Rect area = stroke->area;
+    for (int j = 0; j < area.h; j++) {
+        for (int i = 0; i < area.w; i++) {
+            put_pixel(stroke, area.x + i, area.y + j, RGBA_TRANSPARENT);
         }
     }
-    for (int j = 0; j < stroke->h; j++) {
-        for (int i = 0; i < stroke->w; i++) {
-            Rgba pixel = stroke->pixels[(size_t)j * (size_t)stroke->w + (size_t)i];
+    for (int j = 0; j < area.h; j++) {
+        for (int i = 0; i < area.w; i++) {
+            Rgba pixel = clip_get(stroke->pixels, i, j);
             if (pixel.a != 0) {
-                /* Out-of-bounds pixels are rejected by history: they are lost. */
-                (void)history_set_pixel(stroke->history, stroke->x + i + dx, stroke->y + j + dy,
-                                        pixel);
+                put_pixel(stroke, area.x + i + dx, area.y + j + dy, pixel);
             }
         }
     }
-    return 0;
+    return stroke->failed ? -1 : 0;
 }
 
 int move_stroke_end(MoveStroke *stroke)
@@ -104,8 +85,13 @@ int move_stroke_end(MoveStroke *stroke)
     if (!stroke) {
         return -1;
     }
-    int result = history_end_stroke(stroke->history);
-    free(stroke->pixels);
+    int result = -1;
+    if (stroke->failed) {
+        (void)history_cancel_stroke(stroke->history);
+    } else {
+        result = history_end_stroke(stroke->history);
+    }
+    clip_destroy(stroke->pixels);
     free(stroke);
     return result;
 }
@@ -116,13 +102,13 @@ void move_stroke_cancel(MoveStroke *stroke)
         return;
     }
     (void)history_cancel_stroke(stroke->history);
-    free(stroke->pixels);
+    clip_destroy(stroke->pixels);
     free(stroke);
 }
 
-int move_stroke(History *history, Cel *cel, int x, int y, int w, int h, int dx, int dy)
+int move_stroke(History *history, Cel *cel, Rect selection, int dx, int dy)
 {
-    MoveStroke *stroke = move_stroke_begin(history, cel, x, y, w, h);
+    MoveStroke *stroke = move_stroke_begin(history, cel, selection);
     if (!stroke) {
         return -1;
     }

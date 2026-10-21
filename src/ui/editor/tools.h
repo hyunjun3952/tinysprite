@@ -13,7 +13,4 @@ void tools_release(Editor *editor);
 /* Aborts the current drag, reverting its pixels. Does nothing when no drag is active. */
 void tools_cancel(Editor *editor);
 
-/* Name for the tools panel. */
-const char *tools_name(ToolKind tool);
-
 #endif

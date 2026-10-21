@@ -31,8 +31,8 @@ int history_end_stroke(History *history);
  * steps. Returns 0 on success, -1 if no stroke is active. */
 int history_cancel_stroke(History *history);
 
-/* Non-zero while a stroke is open (between history_begin_stroke and end / cancel). */
-int history_stroke_active(const History *history);
+/* True while a stroke is open (between history_begin_stroke and end / cancel). */
+bool history_stroke_active(const History *history);
 
 /* A non-pixel edit with its own undo / redo. `release` is called exactly once when the step is
  * dropped (new edit discards it from the redo side, or history_destroy) and must free `ctx`; the
@@ -50,8 +50,8 @@ typedef struct HistoryAction {
  * allocation failure; the action is then released immediately. */
 int history_push_action(History *history, HistoryAction action);
 
-int history_can_undo(const History *history);
-int history_can_redo(const History *history);
+bool history_can_undo(const History *history);
+bool history_can_redo(const History *history);
 
 /* Return 0 on success, -1 if there is nothing to undo/redo or a stroke is active. */
 int history_undo(History *history);

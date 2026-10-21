@@ -32,7 +32,7 @@ TEST(blank_sprite_composites_to_transparent)
 {
     Sprite *s = sprite_create(4, 3);
     Rgba *out = make_out(s, RED);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 4, 3}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 4, 3}, out);
     for (int y = 0; y < 3; y++) {
         for (int x = 0; x < 4; x++) {
             ASSERT_TRUE(same(at(s, out, x, y), CLEAR));
@@ -47,7 +47,7 @@ TEST(opaque_pixel_is_copied)
     Sprite *s = sprite_create(4, 3);
     cel_set(layer_cel(sprite_layer(s, 0), 0), 2, 1, RED);
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 4, 3}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 4, 3}, out);
     ASSERT_TRUE(same(at(s, out, 2, 1), RED));
     ASSERT_TRUE(same(at(s, out, 1, 1), CLEAR));
     free(out);
@@ -62,7 +62,7 @@ TEST(upper_layer_covers_lower_layer)
     cel_set(layer_cel(top, 0), 0, 0, RED);
     cel_set(layer_cel(sprite_layer(s, 0), 0), 1, 0, BLUE);
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 2, 2}, out);
     ASSERT_TRUE(same(at(s, out, 0, 0), RED));
     ASSERT_TRUE(same(at(s, out, 1, 0), BLUE));
     free(out);
@@ -77,7 +77,7 @@ TEST(hidden_layer_is_skipped)
     cel_set(layer_cel(top, 0), 0, 0, RED);
     layer_set_visible(top, 0);
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 2, 2}, out);
     ASSERT_TRUE(same(at(s, out, 0, 0), BLUE));
     free(out);
     sprite_destroy(s);
@@ -89,7 +89,7 @@ TEST(layer_opacity_scales_alpha)
     cel_set(layer_cel(sprite_layer(s, 0), 0), 0, 0, RED);
     layer_set_opacity(sprite_layer(s, 0), 128);
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 2, 2}, out);
     Rgba p = at(s, out, 0, 0);
     ASSERT_EQ_INT(255, p.r);
     ASSERT_EQ_INT(0, p.g);
@@ -105,7 +105,7 @@ TEST(zero_opacity_layer_contributes_nothing)
     cel_set(layer_cel(sprite_layer(s, 0), 0), 0, 0, RED);
     layer_set_opacity(sprite_layer(s, 0), 0);
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 2, 2}, out);
     ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
     free(out);
     sprite_destroy(s);
@@ -118,7 +118,7 @@ TEST(translucent_over_opaque_blends)
     cel_set(layer_cel(sprite_layer(s, 0), 0), 0, 0, BLUE);
     cel_set(layer_cel(top, 0), 0, 0, (Rgba){255, 0, 0, 128});
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 2, 2}, out);
     Rgba p = at(s, out, 0, 0);
     ASSERT_EQ_INT(255, p.a);
     ASSERT_TRUE(p.r >= 127 && p.r <= 129);
@@ -135,7 +135,7 @@ TEST(region_only_touches_requested_rect)
         cel_set(layer_cel(sprite_layer(s, 0), 0), i, i, RED);
     }
     Rgba *out = make_out(s, BLUE);
-    composite_sprite(s, 0, (CompositeRect){1, 1, 2, 2}, out);
+    composite_sprite(s, 0, (Rect){1, 1, 2, 2}, out);
     ASSERT_TRUE(same(at(s, out, 0, 0), BLUE));
     ASSERT_TRUE(same(at(s, out, 1, 1), RED));
     ASSERT_TRUE(same(at(s, out, 2, 2), RED));
@@ -150,11 +150,11 @@ TEST(region_is_clipped_to_the_sprite)
     Sprite *s = sprite_create(3, 3);
     cel_set(layer_cel(sprite_layer(s, 0), 0), 2, 2, RED);
     Rgba *out = make_out(s, BLUE);
-    composite_sprite(s, 0, (CompositeRect){-5, -5, 100, 100}, out);
+    composite_sprite(s, 0, (Rect){-5, -5, 100, 100}, out);
     ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
     ASSERT_TRUE(same(at(s, out, 2, 2), RED));
-    composite_sprite(s, 0, (CompositeRect){10, 10, 4, 4}, out);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 0, 0}, out);
+    composite_sprite(s, 0, (Rect){10, 10, 4, 4}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 0, 0}, out);
     free(out);
     sprite_destroy(s);
 }
@@ -163,9 +163,9 @@ TEST(invalid_frame_leaves_output_untouched)
 {
     Sprite *s = sprite_create(2, 2);
     Rgba *out = make_out(s, BLUE);
-    composite_sprite(s, 5, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(s, 5, (Rect){0, 0, 2, 2}, out);
     ASSERT_TRUE(same(at(s, out, 0, 0), BLUE));
-    composite_sprite(NULL, 0, (CompositeRect){0, 0, 2, 2}, out);
+    composite_sprite(NULL, 0, (Rect){0, 0, 2, 2}, out);
     free(out);
     sprite_destroy(s);
 }
@@ -178,7 +178,7 @@ TEST(composite_pixel_matches_full_composite)
     cel_set(layer_cel(top, 0), 1, 1, RED);
     layer_set_opacity(top, 128);
     Rgba *out = make_out(s, CLEAR);
-    composite_sprite(s, 0, (CompositeRect){0, 0, 3, 3}, out);
+    composite_sprite(s, 0, (Rect){0, 0, 3, 3}, out);
     ASSERT_TRUE(same(composite_pixel(s, 0, 1, 1), at(s, out, 1, 1)));
     ASSERT_TRUE(same(composite_pixel(s, 0, 0, 0), CLEAR));
     ASSERT_TRUE(same(composite_pixel(s, 0, -1, 0), CLEAR));

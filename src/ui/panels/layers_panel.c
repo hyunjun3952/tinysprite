@@ -1,10 +1,10 @@
 #include "panels/layers_panel.h"
 
 #include <stdio.h>
+#include <string.h>
 
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "cimgui.h"
 #include "icons/icons.h"
+#include "ui_common.h"
 
 static const ImVec2 AUTO_SIZE = {0.0f, 0.0f};
 
@@ -13,7 +13,7 @@ static void layer_rows(Editor *editor)
     for (int i = sprite_layer_count(editor->sprite) - 1; i >= 0; i--) {
         Layer *layer = sprite_layer(editor->sprite, i);
         igPushID_Int(i);
-        bool visible = layer_visible(layer) != 0;
+        bool visible = layer_visible(layer);
         if (igCheckbox("##visible", &visible)) {
             editor_set_layer_visible(editor, i, visible);
         }
@@ -31,26 +31,25 @@ static void layer_rows(Editor *editor)
  * it is released, so typing a name or dragging the slider is not one step per frame. */
 static void active_layer_details(Editor *editor)
 {
-    static char name_before[LAYER_NAME_MAX + 1];
-    static int opacity_before;
     int index = editor->active_layer;
     Layer *layer = sprite_layer(editor->sprite, index);
     if (!layer) {
         return;
     }
-    /* A widget can edit on the same frame it activates, so read the old value first. */
+    /* A widget can edit on the same frame it activates, so keep the old value to remember it
+     * once the activation shows up. */
     char name[LAYER_NAME_MAX + 1];
     snprintf(name, sizeof(name), "%s", layer_name(layer));
     char name_now[LAYER_NAME_MAX + 1];
-    snprintf(name_now, sizeof(name_now), "%s", name);
+    memcpy(name_now, name, sizeof(name_now));
     if (igInputText("Name", name, sizeof(name), 0, NULL, NULL)) {
         layer_set_name(layer, name);
     }
     if (igIsItemActivated()) {
-        snprintf(name_before, sizeof(name_before), "%s", name_now);
+        memcpy(editor->layer_edit.name_before, name_now, sizeof(name_now));
     }
     if (igIsItemDeactivatedAfterEdit()) {
-        editor_commit_layer_name(editor, index, name_before);
+        editor_commit_layer_name(editor, index, editor->layer_edit.name_before);
     }
 
     int opacity = layer_opacity(layer);
@@ -60,10 +59,10 @@ static void active_layer_details(Editor *editor)
         editor_mark_all_dirty(editor);
     }
     if (igIsItemActivated()) {
-        opacity_before = opacity_now;
+        editor->layer_edit.opacity_before = (uint8_t)opacity_now;
     }
     if (igIsItemDeactivatedAfterEdit()) {
-        editor_commit_layer_opacity(editor, index, (uint8_t)opacity_before);
+        editor_commit_layer_opacity(editor, index, editor->layer_edit.opacity_before);
     }
     if (!layer_visible(layer)) {
         igTextDisabled("Layer is hidden: tools cannot draw on it");

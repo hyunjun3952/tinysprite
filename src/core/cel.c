@@ -47,7 +47,7 @@ int cel_height(const Cel *cel)
     return cel->height;
 }
 
-int cel_in_bounds(const Cel *cel, int x, int y)
+bool cel_in_bounds(const Cel *cel, int x, int y)
 {
     return x >= 0 && x < cel->width && y >= 0 && y < cel->height;
 }
@@ -55,7 +55,7 @@ int cel_in_bounds(const Cel *cel, int x, int y)
 Rgba cel_get(const Cel *cel, int x, int y)
 {
     if (!cel_in_bounds(cel, x, y)) {
-        return (Rgba){0, 0, 0, 0};
+        return RGBA_TRANSPARENT;
     }
     return cel->pixels[(size_t)y * (size_t)cel->width + (size_t)x];
 }

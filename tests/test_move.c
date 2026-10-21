@@ -46,7 +46,7 @@ TEST(moves_the_selection_and_clears_the_source)
 {
     History *h = history_create();
     Cel *c = block();
-    ASSERT_EQ_INT(0, move_stroke(h, c, 1, 1, 2, 2, 3, 2));
+    ASSERT_EQ_INT(0, move_stroke(h, c, (Rect){1, 1, 2, 2}, 3, 2));
     const char *golden[H] = {"........", "........", "........",
                              "....rr..", "....rr..", "........"};
     expect_rows(c, golden);
@@ -58,7 +58,7 @@ TEST(overlapping_move_keeps_the_pixels_that_stay_covered)
 {
     History *h = history_create();
     Cel *c = block();
-    ASSERT_EQ_INT(0, move_stroke(h, c, 1, 1, 2, 2, 1, 0));
+    ASSERT_EQ_INT(0, move_stroke(h, c, (Rect){1, 1, 2, 2}, 1, 0));
     const char *golden[H] = {"........", "..rr....", "..rr....",
                              "........", "........", "........"};
     expect_rows(c, golden);
@@ -71,7 +71,7 @@ TEST(only_the_selected_area_moves)
     History *h = history_create();
     Cel *c = block();
     cel_set(c, 5, 5, BLUE);
-    ASSERT_EQ_INT(0, move_stroke(h, c, 1, 1, 1, 2, 0, 3)); /* left column of the block */
+    ASSERT_EQ_INT(0, move_stroke(h, c, (Rect){1, 1, 1, 2}, 0, 3)); /* left column of the block */
     const char *golden[H] = {"........", "..r.....", "..r.....",
                              "........", ".r......", ".r...b.."};
     expect_rows(c, golden);
@@ -85,7 +85,7 @@ TEST(transparent_pixels_do_not_erase_the_destination)
     Cel *c = cel_create(W, H);
     cel_set(c, 0, 0, RED);  /* selection (0,0)-(1,0): red then empty */
     cel_set(c, 5, 0, BLUE); /* sits where the empty half lands */
-    ASSERT_EQ_INT(0, move_stroke(h, c, 0, 0, 2, 1, 4, 0));
+    ASSERT_EQ_INT(0, move_stroke(h, c, (Rect){0, 0, 2, 1}, 4, 0));
     const char *golden[H] = {"....rb..", "........", "........",
                              "........", "........", "........"};
     expect_rows(c, golden);
@@ -97,7 +97,7 @@ TEST(pixels_moved_off_the_cel_are_lost)
 {
     History *h = history_create();
     Cel *c = block();
-    ASSERT_EQ_INT(0, move_stroke(h, c, 1, 1, 2, 2, 6, 4));
+    ASSERT_EQ_INT(0, move_stroke(h, c, (Rect){1, 1, 2, 2}, 6, 4));
     const char *golden[H] = {"........", "........", "........",
                              "........", "........", ".......r"};
     expect_rows(c, golden);
@@ -113,7 +113,7 @@ TEST(selection_is_clipped_to_the_cel)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     cel_set(c, 0, 0, RED);
-    ASSERT_EQ_INT(0, move_stroke(h, c, -3, -3, 5, 5, 2, 1));
+    ASSERT_EQ_INT(0, move_stroke(h, c, (Rect){-3, -3, 5, 5}, 2, 1));
     ASSERT_EQ_INT(0, cel_get(c, 0, 0).a);
     ASSERT_EQ_INT(255, cel_get(c, 2, 1).a);
     cel_destroy(c);
@@ -125,7 +125,7 @@ TEST(partial_colors_are_copied_exactly)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     cel_set(c, 0, 0, (Rgba){10, 20, 30, 40});
-    move_stroke(h, c, 0, 0, 1, 1, 2, 2);
+    move_stroke(h, c, (Rect){0, 0, 1, 1}, 2, 2);
     Rgba p = cel_get(c, 2, 2);
     ASSERT_EQ_INT(10, p.r);
     ASSERT_EQ_INT(20, p.g);
@@ -139,7 +139,7 @@ TEST(update_previews_replace_each_other)
 {
     History *h = history_create();
     Cel *c = block();
-    MoveStroke *m = move_stroke_begin(h, c, 1, 1, 2, 2);
+    MoveStroke *m = move_stroke_begin(h, c, (Rect){1, 1, 2, 2});
     ASSERT_TRUE(m != NULL);
     ASSERT_EQ_INT(0, move_stroke_update(m, 4, 0));
     ASSERT_EQ_INT(0, move_stroke_update(m, 0, 3));
@@ -156,7 +156,7 @@ TEST(whole_drag_is_one_undo_step)
 {
     History *h = history_create();
     Cel *c = block();
-    MoveStroke *m = move_stroke_begin(h, c, 1, 1, 2, 2);
+    MoveStroke *m = move_stroke_begin(h, c, (Rect){1, 1, 2, 2});
     move_stroke_update(m, 1, 1);
     move_stroke_update(m, 3, 3);
     move_stroke_end(m);
@@ -175,7 +175,7 @@ TEST(zero_offset_records_nothing)
 {
     History *h = history_create();
     Cel *c = block();
-    MoveStroke *m = move_stroke_begin(h, c, 1, 1, 2, 2);
+    MoveStroke *m = move_stroke_begin(h, c, (Rect){1, 1, 2, 2});
     ASSERT_EQ_INT(0, move_stroke_update(m, 2, 2));
     ASSERT_EQ_INT(0, move_stroke_update(m, 0, 0));
     ASSERT_EQ_INT(0, move_stroke_end(m));
@@ -190,7 +190,7 @@ TEST(cancel_restores_the_cel_and_records_nothing)
 {
     History *h = history_create();
     Cel *c = block();
-    MoveStroke *m = move_stroke_begin(h, c, 1, 1, 2, 2);
+    MoveStroke *m = move_stroke_begin(h, c, (Rect){1, 1, 2, 2});
     move_stroke_update(m, 3, 3);
     move_stroke_cancel(m);
     const char *original[H] = {"........", ".rr.....", ".rr.....",
@@ -207,14 +207,14 @@ TEST(invalid_arguments_fail)
 {
     History *h = history_create();
     Cel *c = block();
-    ASSERT_TRUE(move_stroke_begin(NULL, c, 0, 0, 2, 2) == NULL);
-    ASSERT_TRUE(move_stroke_begin(h, NULL, 0, 0, 2, 2) == NULL);
-    ASSERT_TRUE(move_stroke_begin(h, c, 0, 0, 0, 2) == NULL);
-    ASSERT_TRUE(move_stroke_begin(h, c, 0, 0, 2, -1) == NULL);
-    ASSERT_TRUE(move_stroke_begin(h, c, 20, 20, 2, 2) == NULL); /* nothing inside the cel */
-    MoveStroke *m = move_stroke_begin(h, c, 1, 1, 2, 2);
-    ASSERT_TRUE(move_stroke_begin(h, c, 1, 1, 2, 2) == NULL); /* one at a time */
-    ASSERT_EQ_INT(-1, move_stroke(h, c, 1, 1, 2, 2, 1, 1));
+    ASSERT_TRUE(move_stroke_begin(NULL, c, (Rect){0, 0, 2, 2}) == NULL);
+    ASSERT_TRUE(move_stroke_begin(h, NULL, (Rect){0, 0, 2, 2}) == NULL);
+    ASSERT_TRUE(move_stroke_begin(h, c, (Rect){0, 0, 0, 2}) == NULL);
+    ASSERT_TRUE(move_stroke_begin(h, c, (Rect){0, 0, 2, -1}) == NULL);
+    ASSERT_TRUE(move_stroke_begin(h, c, (Rect){20, 20, 2, 2}) == NULL); /* nothing inside the cel */
+    MoveStroke *m = move_stroke_begin(h, c, (Rect){1, 1, 2, 2});
+    ASSERT_TRUE(move_stroke_begin(h, c, (Rect){1, 1, 2, 2}) == NULL); /* one at a time */
+    ASSERT_EQ_INT(-1, move_stroke(h, c, (Rect){1, 1, 2, 2}, 1, 1));
     ASSERT_EQ_INT(-1, move_stroke_update(NULL, 1, 1));
     ASSERT_EQ_INT(-1, move_stroke_end(NULL));
     move_stroke_cancel(NULL);

@@ -1,8 +1,9 @@
 #include "panels/panels.h"
 
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "cimgui.h"
+#include <stdlib.h>
+
 #include "icons/icons.h"
+#include "ui_common.h"
 
 enum {
     TOOLS_PANEL_WIDTH = 250,
@@ -11,43 +12,59 @@ enum {
     RESIZE_GRAB = 4,
     PANEL_MIN_WIDTH = 170,
     PANEL_MAX_WIDTH = 480,
-    DOCK_ZONE = 60, /* mouse distance from a window edge that docks a dragged panel */
+    DOCK_ZONE = 60,          /* mouse distance from a window edge that docks a dragged panel */
+    TITLE_DRAG_DISTANCE = 4, /* mouse travel that turns a title bar press into a drag */
 };
 
-/* A side panel is docked to the left or right edge (taking space from the canvas, side by side with
- * the other panels on that edge) or floating (a movable, resizable, closable window). Dragging a
- * floating panel's title bar to an edge docks it there. Hidden panels give their space away. */
 /* Translucent blue, ABGR. */
 #define COL32_PANEL_DROP 0x66d29a4aU
 
 typedef enum DockSide { DOCK_LEFT, DOCK_RIGHT, DOCK_FLOAT } DockSide;
 
+/* A side panel is docked to the left or right edge (taking space from the canvas, side by side with
+ * the other panels on that edge) or floating (a movable, resizable, closable window). Dragging a
+ * floating panel's title bar to an edge docks it there. Hidden panels give their space away. */
 typedef struct Panel {
     const char *title;
     float width;
-    int visible;
+    bool visible;
     DockSide side;
     DockSide home; /* where "dock" puts the panel back */
-    int place;     /* set when a panel just started floating: put it near where it was docked */
-    int title_press;
-    int resizing;
+    bool place;    /* set when a panel just started floating: put it near where it was docked */
+    bool title_press;
+    bool resizing;
     float dock_x; /* left edge while docked, assigned by panels_layout */
 } Panel;
 
-static Panel panels[PANEL_COUNT];
+struct Panels {
+    Panel panel[PANEL_COUNT];
+};
 
-void panels_reset(void)
+Panels *panels_create(void)
 {
-    panels[PANEL_TOOLS] =
-        (Panel){"Tools", TOOLS_PANEL_WIDTH, 1, DOCK_LEFT, DOCK_LEFT, 0, 0, 0, 0.0f};
-    panels[PANEL_LAYERS] =
-        (Panel){"Layers", LAYERS_PANEL_WIDTH, 1, DOCK_RIGHT, DOCK_RIGHT, 0, 0, 0, 0.0f};
+    Panels *panels = calloc(1, sizeof(*panels));
+    if (panels) {
+        panels_reset(panels);
+    }
+    return panels;
 }
 
+void panels_destroy(Panels *panels)
+{
+    free(panels);
+}
+
+void panels_reset(Panels *panels)
+{
+    panels->panel[PANEL_TOOLS] =
+        (Panel){"Tools", TOOLS_PANEL_WIDTH, true, DOCK_LEFT, DOCK_LEFT, false, false, false, 0.0f};
+    panels->panel[PANEL_LAYERS] = (Panel){
+        "Layers", LAYERS_PANEL_WIDTH, true, DOCK_RIGHT, DOCK_RIGHT, false, false, false, 0.0f};
+}
 static void panel_dock(Panel *panel, DockSide side)
 {
     panel->side = side;
-    panel->visible = 1;
+    panel->visible = true;
     panel->place = side == DOCK_FLOAT;
     if (side != DOCK_FLOAT) {
         panel->home = side;
@@ -56,14 +73,14 @@ static void panel_dock(Panel *panel, DockSide side)
 
 /* Assigns the docked panels their x position and returns the width the canvas loses on each side.
  */
-void panels_layout(float *left, float *right)
+void panels_layout(Panels *panels, float *left, float *right)
 {
     ImGuiViewport *viewport = igGetMainViewport();
     float right_edge = viewport->WorkPos.x + viewport->WorkSize.x;
     *left = 0.0f;
     *right = 0.0f;
     for (int i = 0; i < PANEL_COUNT; i++) {
-        Panel *panel = &panels[i];
+        Panel *panel = &panels->panel[i];
         if (panel->visible && panel->side == DOCK_LEFT) {
             panel->dock_x = viewport->WorkPos.x + *left;
             *left += panel->width;
@@ -71,7 +88,7 @@ void panels_layout(float *left, float *right)
     }
     /* Right-docked panels keep the same order, so walk them from the outer edge inwards. */
     for (int i = PANEL_COUNT - 1; i >= 0; i--) {
-        Panel *panel = &panels[i];
+        Panel *panel = &panels->panel[i];
         if (panel->visible && panel->side == DOCK_RIGHT) {
             *right += panel->width;
             panel->dock_x = right_edge - *right;
@@ -96,18 +113,15 @@ static void panel_drag_to_dock(Panel *panel)
     }
     float left_edge = viewport->WorkPos.x;
     float right_edge = left_edge + viewport->WorkSize.x;
-    int side = -1;
-    if (mouse.x < left_edge + DOCK_ZONE) {
-        side = DOCK_LEFT;
-    } else if (mouse.x > right_edge - DOCK_ZONE) {
-        side = DOCK_RIGHT;
-    }
+    bool near_left = mouse.x < left_edge + DOCK_ZONE;
+    bool at_edge = near_left || mouse.x > right_edge - DOCK_ZONE;
+    DockSide side = near_left ? DOCK_LEFT : DOCK_RIGHT;
     if (igIsMouseReleased_Nil(ImGuiMouseButton_Left)) {
-        panel->title_press = 0;
-        if (side >= 0) {
-            panel_dock(panel, (DockSide)side);
+        panel->title_press = false;
+        if (at_edge) {
+            panel_dock(panel, side);
         }
-    } else if (side >= 0 && igIsMouseDragging(ImGuiMouseButton_Left, 4.0f)) {
+    } else if (at_edge && igIsMouseDragging(ImGuiMouseButton_Left, TITLE_DRAG_DISTANCE)) {
         float x0 = side == DOCK_LEFT ? left_edge : right_edge - panel->width;
         ImDrawList *draw = igGetForegroundDrawList_Nil();
         ImDrawList_AddRectFilled(
@@ -123,19 +137,19 @@ static void panel_resize_edge(Panel *panel)
     ImGuiViewport *viewport = igGetMainViewport();
     ImVec2 mouse = igGetMousePos();
     float edge = panel->side == DOCK_LEFT ? panel->dock_x + panel->width : panel->dock_x;
-    int inside =
+    bool inside =
         mouse.y >= viewport->WorkPos.y && mouse.y < viewport->WorkPos.y + viewport->WorkSize.y;
     /* The grab strip lies inside the panel: outside it the canvas would take the click. */
     float grab_x0 = panel->side == DOCK_LEFT ? edge - RESIZE_GRAB : edge;
-    int hovered = inside && mouse.x >= grab_x0 && mouse.x <= grab_x0 + RESIZE_GRAB;
+    bool hovered = inside && mouse.x >= grab_x0 && mouse.x <= grab_x0 + RESIZE_GRAB;
     if (hovered && !igIsAnyItemActive()) {
         igSetMouseCursor(ImGuiMouseCursor_ResizeEW);
         if (igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
-            panel->resizing = 1;
+            panel->resizing = true;
         }
     }
     if (panel->resizing && !igIsMouseDown_Nil(ImGuiMouseButton_Left)) {
-        panel->resizing = 0;
+        panel->resizing = false;
     }
     if (panel->resizing) {
         igSetMouseCursor(ImGuiMouseCursor_ResizeEW);
@@ -158,7 +172,7 @@ static void panel_resize_edge(Panel *panel)
  */
 static void panel_title_button(Panel *panel)
 {
-    int floating = panel->side == DOCK_FLOAT;
+    bool floating = panel->side == DOCK_FLOAT;
     float close_button = floating ? igGetFrameHeight() : 0.0f;
     if (icon_title_button(ICON_POP_OUT, floating ? "Dock panel" : "Float panel", close_button)) {
         panel_dock(panel, floating ? panel->home : DOCK_FLOAT);
@@ -167,20 +181,20 @@ static void panel_title_button(Panel *panel)
 
 /* Starts the panel's window; the caller draws the content when this returns non-zero and always
  * calls panel_end. */
-int panel_begin(PanelId id, float height)
+bool panel_begin(Panels *panels, PanelId id, float height)
 {
-    Panel *panel = &panels[id];
+    Panel *panel = &panels->panel[id];
     ImGuiViewport *viewport = igGetMainViewport();
     if (!panel->visible) {
-        return 0;
+        return false;
     }
     if (panel->side != DOCK_FLOAT) {
         igSetNextWindowPos((ImVec2){panel->dock_x, viewport->WorkPos.y}, ImGuiCond_Always,
                            (ImVec2){0.0f, 0.0f});
         igSetNextWindowSize((ImVec2){panel->width, height}, ImGuiCond_Always);
-        int shown = igBegin(panel->title, NULL,
-                            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
-                                ImGuiWindowFlags_NoCollapse);
+        bool shown = igBegin(panel->title, NULL,
+                             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                                 ImGuiWindowFlags_NoCollapse);
         panel_title_button(panel);
         panel_resize_edge(panel);
         return shown;
@@ -189,14 +203,14 @@ int panel_begin(PanelId id, float height)
         igSetNextWindowPos(
             (ImVec2){panel->dock_x + FLOAT_OFFSET, viewport->WorkPos.y + FLOAT_OFFSET},
             ImGuiCond_Always, (ImVec2){0.0f, 0.0f});
-        panel->place = 0;
+        panel->place = false;
     }
     igSetNextWindowSize((ImVec2){panel->width, height * 0.8f}, ImGuiCond_FirstUseEver);
     bool open = true;
-    int shown = igBegin(panel->title, &open, 0);
+    bool shown = igBegin(panel->title, &open, 0);
     panel_title_button(panel);
     if (!open) {
-        panel->visible = 0;
+        panel->visible = false;
     }
     panel_drag_to_dock(panel);
     return shown;
@@ -207,13 +221,13 @@ void panel_end(void)
     igEnd();
 }
 
-void panels_window_menu(void)
+void panels_window_menu(Panels *panels)
 {
     if (igBeginMenu("Window", true)) {
         for (int i = 0; i < PANEL_COUNT; i++) {
-            Panel *panel = &panels[i];
+            Panel *panel = &panels->panel[i];
             if (igBeginMenu(panel->title, true)) {
-                bool shown = panel->visible != 0;
+                bool shown = panel->visible;
                 if (igMenuItem_BoolPtr("Show", NULL, &shown, true)) {
                     panel->visible = shown;
                 }
@@ -232,7 +246,7 @@ void panels_window_menu(void)
         }
         igSeparator();
         if (igMenuItem_Bool("Reset layout", NULL, false, true)) {
-            panels_reset();
+            panels_reset(panels);
         }
         igEndMenu();
     }

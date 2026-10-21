@@ -101,6 +101,16 @@ TEST(find_matches_exact_colors)
     palette_destroy(p);
 }
 
+TEST(rgba_equal_compares_all_four_channels)
+{
+    Rgba c = {1, 2, 3, 4};
+    ASSERT_TRUE(rgba_equal(c, (Rgba){1, 2, 3, 4}));
+    ASSERT_TRUE(!rgba_equal(c, (Rgba){0, 2, 3, 4}));
+    ASSERT_TRUE(!rgba_equal(c, (Rgba){1, 0, 3, 4}));
+    ASSERT_TRUE(!rgba_equal(c, (Rgba){1, 2, 0, 4}));
+    ASSERT_TRUE(!rgba_equal(c, (Rgba){1, 2, 3, 0}));
+}
+
 int main(void)
 {
     RUN(create_is_empty);
@@ -112,5 +122,6 @@ int main(void)
     RUN(remove_shifts_later_colors_down);
     RUN(remove_out_of_range_fails);
     RUN(find_matches_exact_colors);
+    RUN(rgba_equal_compares_all_four_channels);
     return TEST_SUMMARY();
 }

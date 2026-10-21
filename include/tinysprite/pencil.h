@@ -2,10 +2,7 @@
 #define TINYSPRITE_PENCIL_H
 
 #include "tinysprite/history.h"
-
-typedef struct ToolPoint {
-    int x, y;
-} ToolPoint;
+#include "tinysprite/symmetry.h"
 
 /* Draws one stroke through the points: a single point plots a pixel, several points are joined by
  * straight lines. Pixels outside the cel are skipped. Returns 0 on success (including strokes
@@ -29,34 +26,32 @@ typedef struct PencilStroke PencilStroke;
  * one pixel further right and down, with the corners cut off when `round` is set. All fields
  * default to 0 (off, one-pixel square brush). */
 typedef struct PencilOptions {
-    int pixel_perfect;
-    int mirror_x; /* reflect left <-> right */
-    int mirror_y; /* reflect top <-> bottom */
+    bool pixel_perfect;
+    Symmetry symmetry;
     int size;
-    int round;
+    bool round;
 } PencilOptions;
 
 /* The brush a PencilOptions describes. pencil_brush_size is the effective width (1..
  * PENCIL_BRUSH_MAX); the brush covers the pixels (i, j), 0 <= i, j < size, for which
- * pencil_brush_contains is non-zero, laid out so that plotting (x, y) paints (x - origin + i,
+ * pencil_brush_contains is true, laid out so that plotting (x, y) paints (x - origin + i,
  * y - origin + j). */
 int pencil_brush_size(const PencilOptions *options);
 int pencil_brush_origin(const PencilOptions *options);
-int pencil_brush_contains(const PencilOptions *options, int i, int j);
+bool pencil_brush_contains(const PencilOptions *options, int i, int j);
 
-/* Starts a stroke at (x, y), plotting that pixel; `erase` plots fully transparent pixels instead
- * of `color`. Returns NULL on invalid arguments, an active stroke, or allocation failure. */
-PencilStroke *pencil_stroke_begin(History *history, Cel *cel, Rgba color, int erase, int x, int y);
-
-/* pencil_stroke_begin with symmetry / pixel-perfect options. */
-PencilStroke *pencil_stroke_begin_ex(History *history, Cel *cel, Rgba color, int erase,
-                                     PencilOptions options, int x, int y);
+/* Starts a stroke at (x, y), plotting that pixel in `color` (pass transparent to erase). Returns
+ * NULL on invalid arguments, an active stroke, or allocation failure. */
+PencilStroke *pencil_stroke_begin(History *history, Cel *cel, Rgba color, PencilOptions options,
+                                  int x, int y);
 
 /* Joins the previous point to (x, y) with a line. Pixels outside the cel are skipped. Returns 0 on
- * success, -1 if stroke is NULL. */
+ * success, -1 if stroke is NULL or an allocation failed (now or earlier in the stroke: the stroke
+ * can then only be ended, which cancels it, or cancelled). */
 int pencil_stroke_extend(PencilStroke *stroke, int x, int y);
 
-/* Commits the stroke as one undo step and frees it. Returns the history_end_stroke result. */
+/* Commits the stroke as one undo step and frees it. Returns the history_end_stroke result, or -1
+ * (with the stroke reverted) if an allocation failed while drawing it. */
 int pencil_stroke_end(PencilStroke *stroke);
 
 /* Reverts the stroke's pixels, records no undo step, and frees it. */

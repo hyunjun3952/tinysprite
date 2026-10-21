@@ -6,45 +6,72 @@
 
 #include "tinysprite/composite.h"
 
-/* Add / remove: the step owns `layer` whenever it is not in the sprite. */
+/* Ownership rule for every op below: a layer belongs to the sprite while it is attached and to
+ * the step that detached it otherwise, so the history frees it only when it is dropped detached.
+ * history_push_action releases the step when it fails, which is why an op either records its step
+ * while the layer is still attached (remove, merge) or takes the layer back out of the sprite
+ * after a failed push (add, duplicate). */
+
+static int record(History *history, HistoryAction action, bool apply_now)
+{
+    if (history_push_action(history, action) != 0) {
+        return -1;
+    }
+    if (apply_now) {
+        action.redo(action.ctx);
+    }
+    return 0;
+}
+
+static bool editable(const History *history, const Layer *layer)
+{
+    return history && layer && !history_stroke_active(history);
+}
+
+/* Add / remove / merge: where a layer sits in its sprite, and whether it does right now. */
 typedef struct Membership {
     Sprite *sprite;
     Layer *layer;
     int index;
-    int in_sprite;
+    bool in_sprite;
 } Membership;
 
-static void attach(Membership *m)
+static void membership_attach(Membership *m)
 {
     if (sprite_insert_layer(m->sprite, m->index, m->layer) == 0) {
-        m->in_sprite = 1;
+        m->in_sprite = true;
     }
 }
 
-static void detach(Membership *m)
+static void membership_detach(Membership *m)
 {
     if (sprite_detach_layer(m->sprite, m->index) == m->layer) {
-        m->in_sprite = 0;
+        m->in_sprite = false;
     }
+}
+
+static void membership_destroy_if_detached(Membership *m)
+{
+    if (!m->in_sprite) {
+        layer_destroy(m->layer);
+    }
+}
+
+static void attach_step(void *ctx)
+{
+    membership_attach(ctx);
+}
+
+static void detach_step(void *ctx)
+{
+    membership_detach(ctx);
 }
 
 static void membership_release(void *ctx)
 {
     Membership *m = ctx;
-    if (!m->in_sprite) {
-        layer_destroy(m->layer);
-    }
+    membership_destroy_if_detached(m);
     free(m);
-}
-
-static void add_undo(void *ctx)
-{
-    detach(ctx);
-}
-
-static void add_redo(void *ctx)
-{
-    attach(ctx);
 }
 
 Layer *layer_op_add(History *history, Sprite *sprite, const char *name)
@@ -58,10 +85,9 @@ Layer *layer_op_add(History *history, Sprite *sprite, const char *name)
         free(m);
         return NULL;
     }
-    *m = (Membership){sprite, layer, sprite_layer_count(sprite) - 1, 1};
-    HistoryAction action = {add_undo, add_redo, membership_release, m};
-    if (history_push_action(history, action) != 0) {
-        /* The release callback has already run; take the layer back out of the sprite. */
+    *m = (Membership){sprite, layer, sprite_layer_count(sprite) - 1, true};
+    if (record(history, (HistoryAction){detach_step, attach_step, membership_release, m}, false) !=
+        0) {
         (void)sprite_remove_layer(sprite, sprite_layer_count(sprite) - 1);
         return NULL;
     }
@@ -74,19 +100,12 @@ int layer_op_remove(History *history, Sprite *sprite, int index)
         sprite_layer(sprite, index) == NULL || sprite_layer_count(sprite) < 2) {
         return -1;
     }
-    Membership *m = calloc(1, sizeof(*m));
+    Membership *m = malloc(sizeof(*m));
     if (!m) {
         return -1;
     }
-    /* Record the step while the layer is still in the sprite so a failed push (which releases the
-     * step) cannot destroy it, then detach. */
-    *m = (Membership){sprite, sprite_layer(sprite, index), index, 1};
-    HistoryAction action = {add_redo, add_undo, membership_release, m};
-    if (history_push_action(history, action) != 0) {
-        return -1;
-    }
-    detach(m);
-    return 0;
+    *m = (Membership){sprite, sprite_layer(sprite, index), index, true};
+    return record(history, (HistoryAction){attach_step, detach_step, membership_release, m}, true);
 }
 
 Layer *layer_op_duplicate(History *history, Sprite *sprite, int index)
@@ -116,27 +135,24 @@ Layer *layer_op_duplicate(History *history, Sprite *sprite, int index)
         free(m);
         return NULL;
     }
-    *m = (Membership){sprite, copy, index + 1, 1};
-    HistoryAction action = {add_undo, add_redo, membership_release, m};
-    if (history_push_action(history, action) != 0) {
-        /* The release callback has already run; take the copy back out of the sprite. */
+    *m = (Membership){sprite, copy, index + 1, true};
+    if (record(history, (HistoryAction){detach_step, attach_step, membership_release, m}, false) !=
+        0) {
         (void)sprite_remove_layer(sprite, index + 1);
         return NULL;
     }
     return copy;
 }
 
-/* Merge down: the lower layer's cels before and after the merge, per frame, plus the upper layer,
- * which the step owns whenever it is not in the sprite. Restoring whole cels keeps the pixel steps
- * recorded earlier on either layer valid, since undo returns them to exactly the state they saw. */
+/* Merge down: the lower layer's cels before and after the merge, per frame, plus the upper layer.
+ * Restoring whole cels keeps the pixel steps recorded earlier on either layer valid, since undo
+ * returns them to exactly the state they saw. */
 typedef struct Merge {
-    Sprite *sprite;
-    Layer *upper, *lower;
-    int index; /* the upper layer's index while it is in the sprite */
-    int in_sprite;
+    Membership upper;
+    Layer *lower;
     int frames;
-    size_t pixels;
-    Rgba *before; /* frames * pixels */
+    size_t pixels; /* per frame */
+    Rgba *before;  /* frames * pixels */
     Rgba *after;
 } Merge;
 
@@ -152,26 +168,20 @@ static void merge_undo(void *ctx)
 {
     Merge *m = ctx;
     merge_write(m, m->before);
-    if (sprite_insert_layer(m->sprite, m->index, m->upper) == 0) {
-        m->in_sprite = 1;
-    }
+    membership_attach(&m->upper);
 }
 
 static void merge_redo(void *ctx)
 {
     Merge *m = ctx;
     merge_write(m, m->after);
-    if (sprite_detach_layer(m->sprite, m->index) == m->upper) {
-        m->in_sprite = 0;
-    }
+    membership_detach(&m->upper);
 }
 
 static void merge_release(void *ctx)
 {
     Merge *m = ctx;
-    if (!m->in_sprite) {
-        layer_destroy(m->upper);
-    }
+    membership_destroy_if_detached(&m->upper);
     free(m->before);
     free(m->after);
     free(m);
@@ -189,11 +199,8 @@ int layer_op_merge_down(History *history, Sprite *sprite, int index)
     if (!m) {
         return -1;
     }
-    m->sprite = sprite;
-    m->upper = upper;
+    m->upper = (Membership){sprite, upper, index, true};
     m->lower = lower;
-    m->index = index;
-    m->in_sprite = 1;
     m->frames = layer_frame_count(lower);
     m->pixels = (size_t)sprite_width(sprite) * (size_t)sprite_height(sprite);
     m->before = malloc((size_t)m->frames * m->pixels * sizeof(Rgba));
@@ -212,14 +219,7 @@ int layer_op_merge_down(History *history, Sprite *sprite, int index)
             after[i] = composite_over(low[i], up[i], layer_opacity(upper));
         }
     }
-    /* Record the step while the upper layer is still in the sprite so a failed push (which
-     * releases the step) cannot destroy it, then apply. */
-    HistoryAction action = {merge_undo, merge_redo, merge_release, m};
-    if (history_push_action(history, action) != 0) {
-        return -1;
-    }
-    merge_redo(m);
-    return 0;
+    return record(history, (HistoryAction){merge_undo, merge_redo, merge_release, m}, true);
 }
 
 typedef struct Move {
@@ -253,116 +253,120 @@ int layer_op_move(History *history, Sprite *sprite, int from, int to)
         return -1;
     }
     *m = (Move){sprite, from, to};
-    HistoryAction action = {move_undo, move_redo, free, m};
-    if (history_push_action(history, action) != 0) {
-        return -1;
-    }
-    move_redo(m);
-    return 0;
+    return record(history, (HistoryAction){move_undo, move_redo, free, m}, true);
 }
 
-typedef enum Property { PROP_NAME, PROP_VISIBLE, PROP_OPACITY } Property;
-
-typedef struct PropertyChange {
+typedef struct NameChange {
     Layer *layer;
-    Property property;
     char old_name[LAYER_NAME_MAX + 1];
     char new_name[LAYER_NAME_MAX + 1];
-    int old_value, new_value; /* visibility / opacity */
-} PropertyChange;
+} NameChange;
 
-static void property_set(const PropertyChange *c, const char *name, int value)
+static void name_undo(void *ctx)
 {
-    switch (c->property) {
-    case PROP_NAME:
-        layer_set_name(c->layer, name);
-        break;
-    case PROP_VISIBLE:
-        layer_set_visible(c->layer, value);
-        break;
-    case PROP_OPACITY:
-        layer_set_opacity(c->layer, (uint8_t)value);
-        break;
-    }
+    const NameChange *c = ctx;
+    layer_set_name(c->layer, c->old_name);
 }
 
-static void property_undo(void *ctx)
+static void name_redo(void *ctx)
 {
-    const PropertyChange *c = ctx;
-    property_set(c, c->old_name, c->old_value);
+    const NameChange *c = ctx;
+    layer_set_name(c->layer, c->new_name);
 }
 
-static void property_redo(void *ctx)
+/* Records old -> new. `apply_now` is false when the layer already holds `new_name`. */
+static int change_name(History *history, Layer *layer, const char *old_name, const char *new_name,
+                       bool apply_now)
 {
-    const PropertyChange *c = ctx;
-    property_set(c, c->new_name, c->new_value);
-}
-
-static int record_property(History *history, PropertyChange *change)
-{
-    HistoryAction action = {property_undo, property_redo, free, change};
-    if (history_push_action(history, action) != 0) {
+    if (!editable(history, layer)) {
         return -1;
     }
-    property_redo(change);
-    return 0;
-}
-
-static PropertyChange *property_change(History *history, Layer *layer, Property property)
-{
-    if (!history || !layer || history_stroke_active(history)) {
-        return NULL;
+    NameChange *c = calloc(1, sizeof(*c));
+    if (!c) {
+        return -1;
     }
-    PropertyChange *change = calloc(1, sizeof(*change));
-    if (change) {
-        change->layer = layer;
-        change->property = property;
+    c->layer = layer;
+    /* Same truncation as layer_set_name, so the comparison and the undo match what the layer holds.
+     */
+    snprintf(c->old_name, sizeof(c->old_name), "%.*s", LAYER_NAME_MAX, old_name ? old_name : "");
+    snprintf(c->new_name, sizeof(c->new_name), "%.*s", LAYER_NAME_MAX, new_name ? new_name : "");
+    if (strcmp(c->old_name, c->new_name) == 0) {
+        free(c);
+        return 0;
     }
-    return change;
+    return record(history, (HistoryAction){name_undo, name_redo, free, c}, apply_now);
 }
 
 int layer_op_set_name(History *history, Layer *layer, const char *name)
 {
-    PropertyChange *change = property_change(history, layer, PROP_NAME);
-    if (!change) {
-        return -1;
-    }
-    /* Round-trip through a layer so truncation matches layer_set_name. */
-    snprintf(change->old_name, sizeof(change->old_name), "%s", layer_name(layer));
-    snprintf(change->new_name, sizeof(change->new_name), "%.*s", LAYER_NAME_MAX, name ? name : "");
-    if (strcmp(change->old_name, change->new_name) == 0) {
-        free(change);
-        return 0;
-    }
-    return record_property(history, change);
+    return change_name(history, layer, layer ? layer_name(layer) : NULL, name, true);
 }
 
-int layer_op_set_visible(History *history, Layer *layer, int visible)
+int layer_op_record_name(History *history, Layer *layer, const char *before)
 {
-    PropertyChange *change = property_change(history, layer, PROP_VISIBLE);
-    if (!change) {
+    return change_name(history, layer, before, layer ? layer_name(layer) : NULL, false);
+}
+
+/* Visibility and opacity are both a small integer behind a setter. */
+typedef struct ValueChange {
+    Layer *layer;
+    void (*set)(Layer *layer, int value);
+    int old_value, new_value;
+} ValueChange;
+
+static void value_undo(void *ctx)
+{
+    const ValueChange *c = ctx;
+    c->set(c->layer, c->old_value);
+}
+
+static void value_redo(void *ctx)
+{
+    const ValueChange *c = ctx;
+    c->set(c->layer, c->new_value);
+}
+
+static void set_visible_value(Layer *layer, int value)
+{
+    layer_set_visible(layer, value != 0);
+}
+
+static void set_opacity_value(Layer *layer, int value)
+{
+    layer_set_opacity(layer, (uint8_t)value);
+}
+
+static int change_value(History *history, Layer *layer, void (*set)(Layer *, int), int old_value,
+                        int new_value, bool apply_now)
+{
+    if (!editable(history, layer)) {
         return -1;
     }
-    change->old_value = layer_visible(layer) != 0;
-    change->new_value = visible != 0;
-    if (change->old_value == change->new_value) {
-        free(change);
+    if (old_value == new_value) {
         return 0;
     }
-    return record_property(history, change);
+    ValueChange *c = malloc(sizeof(*c));
+    if (!c) {
+        return -1;
+    }
+    *c = (ValueChange){layer, set, old_value, new_value};
+    return record(history, (HistoryAction){value_undo, value_redo, free, c}, apply_now);
+}
+
+int layer_op_set_visible(History *history, Layer *layer, bool visible)
+{
+    int old_value = layer && layer_visible(layer);
+    return change_value(history, layer, set_visible_value, old_value, (int)visible, true);
 }
 
 int layer_op_set_opacity(History *history, Layer *layer, uint8_t opacity)
 {
-    PropertyChange *change = property_change(history, layer, PROP_OPACITY);
-    if (!change) {
-        return -1;
-    }
-    change->old_value = layer_opacity(layer);
-    change->new_value = opacity;
-    if (change->old_value == change->new_value) {
-        free(change);
-        return 0;
-    }
-    return record_property(history, change);
+    return change_value(history, layer, set_opacity_value, layer ? layer_opacity(layer) : 0,
+                        opacity, true);
+}
+
+int layer_op_record_opacity(History *history, Layer *layer, uint8_t before)
+{
+    return change_value(history, layer, set_opacity_value, before, layer ? layer_opacity(layer) : 0,
+                        false);
 }

@@ -46,7 +46,7 @@ TEST(fills_the_connected_region_only)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     build_wall(h, c);
-    ASSERT_EQ_INT(0, bucket_fill(h, c, 0, 0, BLUE));
+    ASSERT_EQ_INT(0, bucket_fill(h, c, 0, 0, BLUE, SYMMETRY_NONE));
     const char *golden[H] = {"bbr...", "bbr...", "bbr...", "bbr..."};
     expect_rows(c, golden);
     cel_destroy(c);
@@ -58,7 +58,7 @@ TEST(fill_is_one_undo_step)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     build_wall(h, c);
-    bucket_fill(h, c, 4, 1, BLUE);
+    bucket_fill(h, c, 4, 1, BLUE, SYMMETRY_NONE);
     ASSERT_EQ_INT(0, history_undo(h));
     const char *after_undo[H] = {"..r...", "..r...", "..r...", "..r..."};
     expect_rows(c, after_undo);
@@ -73,7 +73,7 @@ TEST(filling_with_the_same_color_records_nothing)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ASSERT_EQ_INT(0, bucket_fill(h, c, 0, 0, (Rgba){0, 0, 0, 0}));
+    ASSERT_EQ_INT(0, bucket_fill(h, c, 0, 0, (Rgba){0, 0, 0, 0}, SYMMETRY_NONE));
     ASSERT_TRUE(!history_can_undo(h));
     cel_destroy(c);
     history_destroy(h);
@@ -84,7 +84,7 @@ TEST(fill_replaces_with_transparent_too)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     build_wall(h, c);
-    bucket_fill(h, c, 2, 2, (Rgba){0, 0, 0, 0});
+    bucket_fill(h, c, 2, 2, (Rgba){0, 0, 0, 0}, SYMMETRY_NONE);
     const char *golden[H] = {"......", "......", "......", "......"};
     expect_rows(c, golden);
     cel_destroy(c);
@@ -95,12 +95,12 @@ TEST(invalid_arguments_and_active_stroke_fail)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ASSERT_EQ_INT(-1, bucket_fill(h, c, -1, 0, BLUE));
-    ASSERT_EQ_INT(-1, bucket_fill(h, c, 0, H, BLUE));
-    ASSERT_EQ_INT(-1, bucket_fill(NULL, c, 0, 0, BLUE));
-    ASSERT_EQ_INT(-1, bucket_fill(h, NULL, 0, 0, BLUE));
+    ASSERT_EQ_INT(-1, bucket_fill(h, c, -1, 0, BLUE, SYMMETRY_NONE));
+    ASSERT_EQ_INT(-1, bucket_fill(h, c, 0, H, BLUE, SYMMETRY_NONE));
+    ASSERT_EQ_INT(-1, bucket_fill(NULL, c, 0, 0, BLUE, SYMMETRY_NONE));
+    ASSERT_EQ_INT(-1, bucket_fill(h, NULL, 0, 0, BLUE, SYMMETRY_NONE));
     history_begin_stroke(h, c);
-    ASSERT_EQ_INT(-1, bucket_fill(h, c, 0, 0, BLUE));
+    ASSERT_EQ_INT(-1, bucket_fill(h, c, 0, 0, BLUE, SYMMETRY_NONE));
     history_cancel_stroke(h);
     ASSERT_TRUE(!history_can_undo(h));
     cel_destroy(c);
@@ -117,7 +117,7 @@ TEST(mirror_x_fills_the_reflected_region_too)
         cel_set(c, 3, y, BLUE);
     }
     Symmetry sym = {.mirror_x = 1};
-    ASSERT_EQ_INT(0, bucket_fill_ex(h, c, 0, 0, RED, sym));
+    ASSERT_EQ_INT(0, bucket_fill(h, c, 0, 0, RED, sym));
     const char *golden[H] = {"rrbbrr", "rrbbrr", "rrbbrr", "rrbbrr"};
     expect_rows(c, golden);
     ASSERT_EQ_INT(0, history_undo(h));
@@ -132,7 +132,7 @@ TEST(mirror_seed_on_the_axis_fills_once)
     History *h = history_create();
     Cel *c = cel_create(5, 4);
     Symmetry sym = {.mirror_x = 1, .mirror_y = 1};
-    ASSERT_EQ_INT(0, bucket_fill_ex(h, c, 2, 1, RED, sym));
+    ASSERT_EQ_INT(0, bucket_fill(h, c, 2, 1, RED, sym));
     ASSERT_EQ_INT(255, cel_get(c, 0, 0).a);
     ASSERT_EQ_INT(0, history_undo(h));
     ASSERT_EQ_INT(0, cel_get(c, 0, 0).a);
@@ -154,7 +154,7 @@ TEST(mirror_x_with_four_corners_fills_four_regions)
         cel_set(c, 3, y, BLUE);
     }
     Symmetry sym = {.mirror_x = 1, .mirror_y = 1};
-    ASSERT_EQ_INT(0, bucket_fill_ex(h, c, 0, 0, RED, sym));
+    ASSERT_EQ_INT(0, bucket_fill(h, c, 0, 0, RED, sym));
     ASSERT_EQ_INT(255, cel_get(c, 0, 0).r);
     ASSERT_EQ_INT(255, cel_get(c, 5, 0).r);
     ASSERT_EQ_INT(255, cel_get(c, 0, 3).r);

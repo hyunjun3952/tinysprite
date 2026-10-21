@@ -38,7 +38,7 @@ TEST(without_options_the_staircase_keeps_every_pixel)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, (PencilOptions){0}, 0, 0);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, (PencilOptions){0}, 0, 0);
     ASSERT_TRUE(s != NULL);
     draw_staircase(s);
     pencil_stroke_end(s);
@@ -52,8 +52,8 @@ TEST(pixel_perfect_removes_l_corners)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.pixel_perfect = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 0, 0);
     ASSERT_TRUE(s != NULL);
     draw_staircase(s);
     pencil_stroke_end(s);
@@ -67,11 +67,11 @@ TEST(pixel_perfect_leaves_straight_lines_and_diagonals_alone)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.pixel_perfect = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 0, 0);
     pencil_stroke_extend(s, 7, 0);
     pencil_stroke_end(s);
-    s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 1);
+    s = pencil_stroke_begin(h, c, RED, opt, 0, 1);
     pencil_stroke_extend(s, 3, 4);
     pencil_stroke_end(s);
     const char *golden[H] = {"########", "#.......", ".#......", "..#.....", "...#...."};
@@ -84,8 +84,8 @@ TEST(pixel_perfect_cuts_the_corner_of_a_right_angle_turn)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.pixel_perfect = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 0, 0);
     pencil_stroke_extend(s, 3, 0);
     pencil_stroke_extend(s, 3, 3);
     pencil_stroke_end(s);
@@ -100,8 +100,8 @@ TEST(pixel_perfect_restores_the_pixel_that_was_there_before)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     cel_set(c, 1, 0, BLUE); /* will be overdrawn, then un-drawn as a corner */
-    PencilOptions opt = {.pixel_perfect = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 0, 0);
     pencil_stroke_extend(s, 1, 0);
     pencil_stroke_extend(s, 1, 1);
     pencil_stroke_end(s);
@@ -117,8 +117,8 @@ TEST(pixel_perfect_stroke_undoes_in_one_step)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.pixel_perfect = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 0, 0);
     draw_staircase(s);
     pencil_stroke_end(s);
     ASSERT_EQ_INT(0, history_undo(h));
@@ -137,8 +137,8 @@ TEST(pixel_perfect_eraser_also_skips_corners)
             cel_set(c, i, j, RED);
         }
     }
-    PencilOptions opt = {.pixel_perfect = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 1, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true};
+    PencilStroke *s = pencil_stroke_begin(h, c, RGBA_TRANSPARENT, opt, 0, 0);
     draw_staircase(s);
     pencil_stroke_end(s);
     ASSERT_EQ_INT(0, cel_get(c, 0, 0).a);
@@ -154,8 +154,8 @@ TEST(mirror_x_reflects_across_the_vertical_axis)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.mirror_x = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 1, 1);
+    PencilOptions opt = {.symmetry = {.mirror_x = true}};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 1, 1);
     pencil_stroke_extend(s, 2, 1);
     pencil_stroke_end(s);
     const char *golden[H] = {"........", ".##..##.", "........", "........", "........"};
@@ -168,8 +168,8 @@ TEST(mirror_y_reflects_across_the_horizontal_axis)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.mirror_y = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 3, 0);
+    PencilOptions opt = {.symmetry = {.mirror_y = true}};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 3, 0);
     pencil_stroke_extend(s, 3, 1);
     pencil_stroke_end(s);
     const char *golden[H] = {"...#....", "...#....", "........", "...#....", "...#...."};
@@ -182,8 +182,8 @@ TEST(mirror_both_axes_makes_four_copies_and_one_undo_step)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.mirror_x = 1, .mirror_y = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 1, 1);
+    PencilOptions opt = {.symmetry = {.mirror_x = true, .mirror_y = true}};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 1, 1);
     pencil_stroke_end(s);
     const char *golden[H] = {"........", ".#....#.", "........", ".#....#.", "........"};
     expect_rows(c, golden);
@@ -198,8 +198,8 @@ TEST(pixel_on_the_axis_is_not_drawn_twice)
 {
     History *h = history_create();
     Cel *c = cel_create(7, 5); /* odd width: x == 3 is its own mirror */
-    PencilOptions opt = {.mirror_x = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 3, 2);
+    PencilOptions opt = {.symmetry = {.mirror_x = true}};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 3, 2);
     pencil_stroke_end(s);
     ASSERT_EQ_INT(255, cel_get(c, 3, 2).a);
     ASSERT_EQ_INT(0, cel_get(c, 2, 2).a);
@@ -212,8 +212,8 @@ TEST(mirror_copy_outside_the_cel_is_clipped)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.mirror_x = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, -2, 1); /* mirror lands on x == 9 */
+    PencilOptions opt = {.symmetry = {.mirror_x = true}};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, -2, 1); /* mirror lands on x == 9 */
     pencil_stroke_extend(s, 0, 1);
     pencil_stroke_end(s);
     const char *golden[H] = {"........", "#......#", "........", "........", "........"};
@@ -226,8 +226,8 @@ TEST(pixel_perfect_and_mirror_work_together)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.pixel_perfect = 1, .mirror_x = 1};
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 0, 0);
+    PencilOptions opt = {.pixel_perfect = true, .symmetry = {.mirror_x = true}};
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 0, 0);
     draw_staircase(s);
     pencil_stroke_end(s);
     const char *golden[H] = {"#......#", ".#....#.", "..#..#..", "........", "........"};
@@ -240,11 +240,11 @@ TEST(begin_ex_rejects_bad_arguments_and_cancel_rolls_back)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilOptions opt = {.pixel_perfect = 1, .mirror_x = 1};
-    ASSERT_TRUE(pencil_stroke_begin_ex(NULL, c, RED, 0, opt, 0, 0) == NULL);
-    ASSERT_TRUE(pencil_stroke_begin_ex(h, NULL, RED, 0, opt, 0, 0) == NULL);
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, opt, 1, 1);
-    ASSERT_TRUE(pencil_stroke_begin_ex(h, c, RED, 0, opt, 2, 2) == NULL);
+    PencilOptions opt = {.pixel_perfect = true, .symmetry = {.mirror_x = true}};
+    ASSERT_TRUE(pencil_stroke_begin(NULL, c, RED, opt, 0, 0) == NULL);
+    ASSERT_TRUE(pencil_stroke_begin(h, NULL, RED, opt, 0, 0) == NULL);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, opt, 1, 1);
+    ASSERT_TRUE(pencil_stroke_begin(h, c, RED, opt, 2, 2) == NULL);
     draw_staircase(s);
     pencil_stroke_cancel(s);
     expect_rows(c, BLANK);

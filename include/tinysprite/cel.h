@@ -15,7 +15,7 @@ void cel_destroy(Cel *cel);
 int cel_width(const Cel *cel);
 int cel_height(const Cel *cel);
 
-int cel_in_bounds(const Cel *cel, int x, int y);
+bool cel_in_bounds(const Cel *cel, int x, int y);
 
 /* Returns transparent black for out-of-bounds coordinates. */
 Rgba cel_get(const Cel *cel, int x, int y);

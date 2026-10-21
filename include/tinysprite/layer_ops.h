@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_LAYER_OPS_H
 #define TINYSPRITE_LAYER_OPS_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "tinysprite/history.h"
@@ -35,7 +36,15 @@ Layer *layer_op_duplicate(History *history, Sprite *sprite, int index);
 int layer_op_merge_down(History *history, Sprite *sprite, int index);
 
 int layer_op_set_name(History *history, Layer *layer, const char *name);
-int layer_op_set_visible(History *history, Layer *layer, int visible);
+int layer_op_set_visible(History *history, Layer *layer, bool visible);
 int layer_op_set_opacity(History *history, Layer *layer, uint8_t opacity);
+
+/* For an edit made live with layer_set_*: the layer already holds the new value and `before` is
+ * what it held when the edit began. Records that change as one undo step without applying it
+ * again (nothing if the value did not change). Typing a name or dragging a slider calls this once
+ * when the widget is released. Returns 0 on success, -1 on invalid arguments, an active stroke,
+ * or allocation failure. */
+int layer_op_record_name(History *history, Layer *layer, const char *before);
+int layer_op_record_opacity(History *history, Layer *layer, uint8_t before);
 
 #endif

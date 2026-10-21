@@ -5,7 +5,7 @@
 
 struct Layer {
     char name[LAYER_NAME_MAX + 1];
-    int visible;
+    bool visible;
     uint8_t opacity;
     int frame_count;
     Cel **cels;
@@ -20,12 +20,14 @@ Layer *layer_create(const char *name, int width, int height, int frame_count)
     if (layer == NULL) {
         return NULL;
     }
+    /* The explicit casts through void * (here and in free) satisfy clang-tidy's
+     * bugprone-multi-level-implicit-pointer-conversion. */
     layer->cels = (Cel **)calloc((size_t)frame_count, sizeof(Cel *));
     if (layer->cels == NULL) {
         free(layer);
         return NULL;
     }
-    layer->visible = 1;
+    layer->visible = true;
     layer->opacity = 255;
     layer->frame_count = frame_count;
 
@@ -64,14 +66,14 @@ void layer_set_name(Layer *layer, const char *name)
     snprintf(layer->name, sizeof(layer->name), "%.*s", LAYER_NAME_MAX, name != NULL ? name : "");
 }
 
-int layer_visible(const Layer *layer)
+bool layer_visible(const Layer *layer)
 {
     return layer->visible;
 }
 
-void layer_set_visible(Layer *layer, int visible)
+void layer_set_visible(Layer *layer, bool visible)
 {
-    layer->visible = visible != 0;
+    layer->visible = visible;
 }
 
 uint8_t layer_opacity(const Layer *layer)

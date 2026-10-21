@@ -27,7 +27,7 @@ static Cel *dab(PencilOptions options, int x, int y)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, options, x, y);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, options, x, y);
     ASSERT_TRUE(s != NULL);
     pencil_stroke_end(s);
     history_destroy(h);
@@ -63,17 +63,17 @@ TEST(odd_square_brush_is_centered)
 
 TEST(round_brush_rounds_the_corners)
 {
-    Cel *c = dab((PencilOptions){.size = 3, .round = 1}, 3, 2);
+    Cel *c = dab((PencilOptions){.size = 3, .round = true}, 3, 2);
     const char *three[H] = {"........", "...#....", "..###...", "...#....", "........"};
     expect_rows(c, three);
     cel_destroy(c);
 
-    c = dab((PencilOptions){.size = 4, .round = 1}, 3, 2);
+    c = dab((PencilOptions){.size = 4, .round = true}, 3, 2);
     const char *four[H] = {"........", "...##...", "..####..", "..####..", "...##..."};
     expect_rows(c, four);
     cel_destroy(c);
 
-    c = dab((PencilOptions){.size = 2, .round = 1}, 3, 2);
+    c = dab((PencilOptions){.size = 2, .round = true}, 3, 2);
     const char *two[H] = {"........", "........", "...##...", "...##...", "........"};
     expect_rows(c, two);
     cel_destroy(c);
@@ -91,7 +91,7 @@ TEST(dragging_sweeps_the_brush_along_the_line)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 0, (PencilOptions){.size = 2}, 1, 2);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, (PencilOptions){.size = 2}, 1, 2);
     pencil_stroke_extend(s, 5, 2);
     pencil_stroke_end(s);
     const char *golden[H] = {"........", "........", ".######.", ".######.", "........"};
@@ -104,12 +104,12 @@ TEST(dragging_sweeps_the_brush_along_the_line)
 
 TEST(mirrored_brush_reflects_every_pixel_of_the_stamp)
 {
-    Cel *c = dab((PencilOptions){.size = 2, .mirror_x = 1}, 1, 1);
+    Cel *c = dab((PencilOptions){.size = 2, .symmetry = {.mirror_x = true}}, 1, 1);
     const char *golden[H] = {"........", ".##..##.", ".##..##.", "........", "........"};
     expect_rows(c, golden);
     cel_destroy(c);
 
-    c = dab((PencilOptions){.size = 2, .mirror_y = 1}, 1, 0);
+    c = dab((PencilOptions){.size = 2, .symmetry = {.mirror_y = true}}, 1, 0);
     const char *vertical[H] = {".##.....", ".##.....", "........", ".##.....", ".##....."};
     expect_rows(c, vertical);
     cel_destroy(c);
@@ -124,7 +124,7 @@ TEST(eraser_uses_the_brush_too)
             cel_set(c, x, y, RED);
         }
     }
-    PencilStroke *s = pencil_stroke_begin_ex(h, c, RED, 1, (PencilOptions){.size = 3}, 3, 2);
+    PencilStroke *s = pencil_stroke_begin(h, c, RGBA_TRANSPARENT, (PencilOptions){.size = 3}, 3, 2);
     pencil_stroke_end(s);
     const char *golden[H] = {"########", "##...###", "##...###", "##...###", "########"};
     expect_rows(c, golden);
@@ -140,8 +140,8 @@ TEST(pixel_perfect_is_ignored_for_a_big_brush)
     for (int perfect = 0; perfect < 2; perfect++) {
         History *h = history_create();
         plain[perfect] = cel_create(W, H);
-        PencilStroke *s = pencil_stroke_begin_ex(
-            h, plain[perfect], RED, 0, (PencilOptions){.size = 2, .pixel_perfect = perfect}, 0, 0);
+        PencilStroke *s = pencil_stroke_begin(
+            h, plain[perfect], RED, (PencilOptions){.size = 2, .pixel_perfect = perfect}, 0, 0);
         pencil_stroke_extend(s, 1, 0);
         pencil_stroke_extend(s, 1, 1);
         pencil_stroke_extend(s, 2, 1);
@@ -171,7 +171,7 @@ TEST(brush_helpers_describe_the_footprint)
     ASSERT_EQ_INT(1, pencil_brush_size(&(PencilOptions){0}));
     ASSERT_EQ_INT(5, pencil_brush_size(&(PencilOptions){.size = 5}));
     ASSERT_EQ_INT(PENCIL_BRUSH_MAX, pencil_brush_size(&(PencilOptions){.size = 9999}));
-    PencilOptions round = {.size = 3, .round = 1};
+    PencilOptions round = {.size = 3, .round = true};
     ASSERT_TRUE(!pencil_brush_contains(&round, 0, 0));
     ASSERT_TRUE(pencil_brush_contains(&round, 1, 0));
     ASSERT_TRUE(pencil_brush_contains(&round, 1, 1));

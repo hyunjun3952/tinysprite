@@ -1,17 +1,14 @@
 #ifndef TINYSPRITE_COMPOSITE_H
 #define TINYSPRITE_COMPOSITE_H
 
+#include "tinysprite/rect.h"
 #include "tinysprite/sprite.h"
-
-typedef struct CompositeRect {
-    int x, y, w, h;
-} CompositeRect;
 
 /* Flattens the visible layers of `frame` (bottom to top, straight-alpha "over", scaled by layer
  * opacity) into `out`, a sprite_width x sprite_height row-major buffer. Only the pixels inside
  * `region` (clipped to the sprite) are written, so callers can re-composite a dirty rect. Does
  * nothing if sprite or out is NULL or the frame is out of range. */
-void composite_sprite(Sprite *sprite, int frame, CompositeRect region, Rgba *out);
+void composite_sprite(Sprite *sprite, int frame, Rect region, Rgba *out);
 
 /* The flattened color at (x, y) of `frame`, computed like composite_sprite. Returns transparent
  * black if sprite is NULL, the frame is out of range, or (x, y) is out of bounds. */

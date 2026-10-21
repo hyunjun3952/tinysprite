@@ -162,7 +162,7 @@ TEST(live_stroke_joins_extended_points)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 1, 1);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, (PencilOptions){0}, 1, 1);
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, pencil_stroke_extend(s, 5, 1));
     ASSERT_EQ_INT(0, pencil_stroke_extend(s, 5, 3));
@@ -180,7 +180,7 @@ TEST(live_stroke_without_extend_plots_start_pixel)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 2, 2);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, (PencilOptions){0}, 2, 2);
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, pencil_stroke_end(s));
     ASSERT_EQ_INT(1, cel_get(c, 2, 2).a ? 1 : 0);
@@ -194,7 +194,7 @@ TEST(live_stroke_erase_clears_pixels)
     Cel *c = cel_create(W, H);
     ToolPoint p[] = {{0, 0}, {3, 0}};
     ASSERT_EQ_INT(0, pencil_stroke(h, c, p, 2, RED));
-    PencilStroke *s = pencil_stroke_begin(h, c, RED, 1, 1, 0);
+    PencilStroke *s = pencil_stroke_begin(h, c, RGBA_TRANSPARENT, (PencilOptions){0}, 1, 0);
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, pencil_stroke_extend(s, 2, 0));
     ASSERT_EQ_INT(0, pencil_stroke_end(s));
@@ -208,7 +208,7 @@ TEST(live_stroke_clips_out_of_bounds_and_skips_repeats)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 6, 0);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, (PencilOptions){0}, 6, 0);
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, pencil_stroke_extend(s, 6, 0));
     ASSERT_EQ_INT(0, pencil_stroke_extend(s, 10, 0));
@@ -224,9 +224,9 @@ TEST(live_stroke_fails_while_another_stroke_is_active)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     ASSERT_EQ_INT(0, history_begin_stroke(h, c));
-    ASSERT_TRUE(pencil_stroke_begin(h, c, RED, 0, 0, 0) == NULL);
-    ASSERT_TRUE(pencil_stroke_begin(NULL, c, RED, 0, 0, 0) == NULL);
-    ASSERT_TRUE(pencil_stroke_begin(h, NULL, RED, 0, 0, 0) == NULL);
+    ASSERT_TRUE(pencil_stroke_begin(h, c, RED, (PencilOptions){0}, 0, 0) == NULL);
+    ASSERT_TRUE(pencil_stroke_begin(NULL, c, RED, (PencilOptions){0}, 0, 0) == NULL);
+    ASSERT_TRUE(pencil_stroke_begin(h, NULL, RED, (PencilOptions){0}, 0, 0) == NULL);
     ASSERT_EQ_INT(0, history_end_stroke(h));
     cel_destroy(c);
     history_destroy(h);
@@ -236,7 +236,7 @@ TEST(live_stroke_cancel_rolls_back)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    PencilStroke *s = pencil_stroke_begin(h, c, RED, 0, 1, 1);
+    PencilStroke *s = pencil_stroke_begin(h, c, RED, (PencilOptions){0}, 1, 1);
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, pencil_stroke_extend(s, 4, 1));
     pencil_stroke_cancel(s);

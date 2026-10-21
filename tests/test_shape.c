@@ -35,7 +35,8 @@ TEST(line_connects_the_corners)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ASSERT_EQ_INT(0, shape_stroke(h, c, SHAPE_LINE, 0, RED, 0, 0, 4, 4));
+    ASSERT_EQ_INT(0, shape_stroke(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, SYMMETRY_NONE},
+                                  (ToolPoint){0, 0}, (ToolPoint){4, 4}));
     const char *golden[H] = {"#.......", ".#......", "..#.....",
                              "...#....", "....#...", "........"};
     expect_rows(c, golden);
@@ -47,11 +48,13 @@ TEST(rectangle_outline_and_filled)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    shape_stroke(h, c, SHAPE_RECT, 0, RED, 1, 1, 4, 3);
+    shape_stroke(h, c, (ShapeStyle){SHAPE_RECT, 0, RED, SYMMETRY_NONE}, (ToolPoint){1, 1},
+                 (ToolPoint){4, 3});
     const char *outline[H] = {"........", ".####...", ".#..#...",
                               ".####...", "........", "........"};
     expect_rows(c, outline);
-    shape_stroke(h, c, SHAPE_RECT, 1, RED, 1, 1, 4, 3);
+    shape_stroke(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, SYMMETRY_NONE}, (ToolPoint){1, 1},
+                 (ToolPoint){4, 3});
     const char *filled[H] = {"........", ".####...", ".####...",
                              ".####...", "........", "........"};
     expect_rows(c, filled);
@@ -63,7 +66,8 @@ TEST(corners_may_be_given_in_any_order)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    shape_stroke(h, c, SHAPE_RECT, 1, RED, 4, 3, 1, 1);
+    shape_stroke(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, SYMMETRY_NONE}, (ToolPoint){4, 3},
+                 (ToolPoint){1, 1});
     const char *golden[H] = {"........", ".####...", ".####...",
                              ".####...", "........", "........"};
     expect_rows(c, golden);
@@ -78,7 +82,8 @@ TEST(ellipse_matches_the_rasterizer)
         Cel *c = cel_create(W, H);
         char want[W * H] = {0};
         raster_ellipse(1, 0, 6, 4, filled, mark, want);
-        ASSERT_EQ_INT(0, shape_stroke(h, c, SHAPE_ELLIPSE, filled, RED, 1, 0, 6, 4));
+        ASSERT_EQ_INT(0, shape_stroke(h, c, (ShapeStyle){SHAPE_ELLIPSE, filled, RED, SYMMETRY_NONE},
+                                      (ToolPoint){1, 0}, (ToolPoint){6, 4}));
         for (int i = 0; i < W * H; i++) {
             if ((cel_get(c, i % W, i / W).a != 0) != (want[i] != 0)) {
                 MT_FAIL("filled=%d pixel %d differs", filled, i);
@@ -93,7 +98,8 @@ TEST(shape_is_clipped_to_the_cel)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ASSERT_EQ_INT(0, shape_stroke(h, c, SHAPE_RECT, 1, RED, 6, 4, 20, 20));
+    ASSERT_EQ_INT(0, shape_stroke(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, SYMMETRY_NONE},
+                                  (ToolPoint){6, 4}, (ToolPoint){20, 20}));
     const char *golden[H] = {"........", "........", "........",
                              "........", "......##", "......##"};
     expect_rows(c, golden);
@@ -106,7 +112,8 @@ TEST(update_redraws_from_the_anchor)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     cel_set(c, 7, 5, RED); /* pre-existing pixel the preview must not destroy */
-    ShapeStroke *s = shape_stroke_begin(h, c, SHAPE_RECT, 1, RED, 1, 1);
+    ShapeStroke *s = shape_stroke_begin(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, SYMMETRY_NONE},
+                                        (ToolPoint){1, 1});
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, shape_stroke_update(s, 7, 5));
     ASSERT_EQ_INT(0, shape_stroke_update(s, 3, 2));
@@ -122,7 +129,8 @@ TEST(begin_plots_the_anchor_pixel)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ShapeStroke *s = shape_stroke_begin(h, c, SHAPE_ELLIPSE, 0, RED, 2, 3);
+    ShapeStroke *s = shape_stroke_begin(h, c, (ShapeStyle){SHAPE_ELLIPSE, 0, RED, SYMMETRY_NONE},
+                                        (ToolPoint){2, 3});
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(255, cel_get(c, 2, 3).a);
     ASSERT_EQ_INT(0, shape_stroke_end(s));
@@ -134,7 +142,8 @@ TEST(whole_shape_is_one_undo_step)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ShapeStroke *s = shape_stroke_begin(h, c, SHAPE_RECT, 1, RED, 0, 0);
+    ShapeStroke *s = shape_stroke_begin(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, SYMMETRY_NONE},
+                                        (ToolPoint){0, 0});
     shape_stroke_update(s, 3, 3);
     shape_stroke_update(s, 5, 2);
     shape_stroke_end(s);
@@ -152,7 +161,8 @@ TEST(cancel_restores_pixels_and_records_nothing)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ShapeStroke *s = shape_stroke_begin(h, c, SHAPE_RECT, 1, RED, 0, 0);
+    ShapeStroke *s = shape_stroke_begin(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, SYMMETRY_NONE},
+                                        (ToolPoint){0, 0});
     shape_stroke_update(s, 4, 4);
     shape_stroke_cancel(s);
     ASSERT_EQ_INT(0, cel_get(c, 2, 2).a);
@@ -167,15 +177,21 @@ TEST(invalid_arguments_fail)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ASSERT_TRUE(shape_stroke_begin(NULL, c, SHAPE_LINE, 0, RED, 0, 0) == NULL);
-    ASSERT_TRUE(shape_stroke_begin(h, NULL, SHAPE_LINE, 0, RED, 0, 0) == NULL);
+    ASSERT_TRUE(shape_stroke_begin(NULL, c, (ShapeStyle){SHAPE_LINE, 0, RED, SYMMETRY_NONE},
+                                   (ToolPoint){0, 0}) == NULL);
+    ASSERT_TRUE(shape_stroke_begin(h, NULL, (ShapeStyle){SHAPE_LINE, 0, RED, SYMMETRY_NONE},
+                                   (ToolPoint){0, 0}) == NULL);
     ShapeKind bad_kind;
     int raw_kind = 99;
     memcpy(&bad_kind, &raw_kind, sizeof(bad_kind));
-    ASSERT_EQ_INT(-1, shape_stroke(h, c, bad_kind, 0, RED, 0, 0, 1, 1));
-    ShapeStroke *s = shape_stroke_begin(h, c, SHAPE_LINE, 0, RED, 0, 0);
-    ASSERT_TRUE(shape_stroke_begin(h, c, SHAPE_LINE, 0, RED, 1, 1) == NULL); /* one at a time */
-    ASSERT_EQ_INT(-1, shape_stroke(h, c, SHAPE_LINE, 0, RED, 0, 0, 1, 1));
+    ASSERT_EQ_INT(-1, shape_stroke(h, c, (ShapeStyle){bad_kind, 0, RED, SYMMETRY_NONE},
+                                   (ToolPoint){0, 0}, (ToolPoint){1, 1}));
+    ShapeStroke *s = shape_stroke_begin(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, SYMMETRY_NONE},
+                                        (ToolPoint){0, 0});
+    ASSERT_TRUE(shape_stroke_begin(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, SYMMETRY_NONE},
+                                   (ToolPoint){1, 1}) == NULL); /* one at a time */
+    ASSERT_EQ_INT(-1, shape_stroke(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, SYMMETRY_NONE},
+                                   (ToolPoint){0, 0}, (ToolPoint){1, 1}));
     ASSERT_EQ_INT(-1, shape_stroke_update(NULL, 1, 1));
     ASSERT_EQ_INT(-1, shape_stroke_end(NULL));
     shape_stroke_cancel(NULL);
@@ -189,7 +205,8 @@ TEST(mirror_x_reflects_a_line)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     Symmetry sym = {.mirror_x = 1};
-    ASSERT_EQ_INT(0, shape_stroke_ex(h, c, SHAPE_LINE, 0, RED, sym, 0, 0, 2, 2));
+    ASSERT_EQ_INT(0, shape_stroke(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, sym}, (ToolPoint){0, 0},
+                                  (ToolPoint){2, 2}));
     const char *golden[H] = {"#......#", ".#....#.", "..#..#..",
                              "........", "........", "........"};
     expect_rows(c, golden);
@@ -205,7 +222,8 @@ TEST(mirror_both_reflects_a_filled_rect_into_four_corners)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     Symmetry sym = {.mirror_x = 1, .mirror_y = 1};
-    ASSERT_EQ_INT(0, shape_stroke_ex(h, c, SHAPE_RECT, 1, RED, sym, 0, 0, 1, 1));
+    ASSERT_EQ_INT(0, shape_stroke(h, c, (ShapeStyle){SHAPE_RECT, 1, RED, sym}, (ToolPoint){0, 0},
+                                  (ToolPoint){1, 1}));
     const char *golden[H] = {"##....##", "##....##", "........",
                              "........", "##....##", "##....##"};
     expect_rows(c, golden);
@@ -220,7 +238,8 @@ TEST(live_mirrored_shape_redraws_both_halves)
     History *h = history_create();
     Cel *c = cel_create(W, H);
     Symmetry sym = {.mirror_x = 1};
-    ShapeStroke *s = shape_stroke_begin_ex(h, c, SHAPE_LINE, 0, RED, sym, 0, 0);
+    ShapeStroke *s =
+        shape_stroke_begin(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, sym}, (ToolPoint){0, 0});
     ASSERT_TRUE(s != NULL);
     ASSERT_EQ_INT(0, shape_stroke_update(s, 3, 0));
     ASSERT_EQ_INT(0, shape_stroke_update(s, 1, 0));
@@ -238,7 +257,8 @@ TEST(zero_symmetry_matches_the_plain_api)
 {
     History *h = history_create();
     Cel *c = cel_create(W, H);
-    ASSERT_EQ_INT(0, shape_stroke_ex(h, c, SHAPE_LINE, 0, RED, (Symmetry){0}, 0, 0, 4, 4));
+    ASSERT_EQ_INT(0, shape_stroke(h, c, (ShapeStyle){SHAPE_LINE, 0, RED, (Symmetry){0}},
+                                  (ToolPoint){0, 0}, (ToolPoint){4, 4}));
     const char *golden[H] = {"#.......", ".#......", "..#.....",
                              "...#....", "....#...", "........"};
     expect_rows(c, golden);

@@ -1,29 +1,22 @@
 #include "panels/palette_panel.h"
 
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "cimgui.h"
+#include "ui_common.h"
 
 enum {
     SWATCH_SIZE = 18,
     SWATCHES_PER_ROW = 9,
 };
 
-static ImVec4 to_imvec4(Rgba color)
-{
-    return (ImVec4){(float)color.r / 255.0f, (float)color.g / 255.0f, (float)color.b / 255.0f,
-                    (float)color.a / 255.0f};
-}
-
 /* Draws one swatch and returns non-zero when it was clicked. A selected swatch gets a border. */
-static int swatch(Rgba color, int selected)
+static bool swatch(Rgba color, bool selected)
 {
     ImGuiColorEditFlags flags =
         ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip;
     if (selected) {
         igPushStyleVar_Float(ImGuiStyleVar_FrameBorderSize, 2.0f);
     }
-    int clicked =
-        igColorButton("##swatch", to_imvec4(color), flags, (ImVec2){SWATCH_SIZE, SWATCH_SIZE});
+    bool clicked = igColorButton("##swatch", imvec4_from_rgba(color), flags,
+                                 (ImVec2){SWATCH_SIZE, SWATCH_SIZE});
     if (selected) {
         igPopStyleVar(1);
     }
@@ -39,16 +32,19 @@ static void recent_row(Editor *editor)
         igPopTextWrapPos();
         return;
     }
+    /* Distinct from the palette swatches' IDs below. */
+    igPushID_Str("recent");
     for (int i = 0; i < editor->recent.count; i++) {
         igPushID_Int(i);
         if (i % SWATCHES_PER_ROW != 0) {
             igSameLine(0.0f, 4.0f);
         }
-        if (swatch(editor->recent.colors[i], 0)) {
+        if (swatch(editor->recent.colors[i], false)) {
             editor_set_color(editor, editor->recent.colors[i]);
         }
         igPopID();
     }
+    igPopID();
 }
 
 static void palette_swatches(Editor *editor)
@@ -56,8 +52,9 @@ static void palette_swatches(Editor *editor)
     Palette *palette = sprite_palette(editor->sprite);
     int count = palette_count(palette);
     igSeparatorText("Palette");
+    igPushID_Str("palette");
     for (int i = 0; i < count; i++) {
-        igPushID_Int(1000 + i);
+        igPushID_Int(i);
         if (i % SWATCHES_PER_ROW != 0) {
             igSameLine(0.0f, 4.0f);
         }
@@ -66,6 +63,7 @@ static void palette_swatches(Editor *editor)
         }
         igPopID();
     }
+    igPopID();
     if (igButton("Add", (ImVec2){0.0f, 0.0f})) {
         editor_palette_add(editor);
     }

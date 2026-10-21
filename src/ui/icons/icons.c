@@ -1,11 +1,7 @@
 #include "icons/icons.h"
 
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "cimgui.h"
 #include "icons/icon_font.h"
-
-#define COL32(r, g, b, a)                                                                          \
-    ((ImU32)(((ImU32)(a) << 24) | ((ImU32)(b) << 16) | ((ImU32)(g) << 8) | (ImU32)(r)))
+#include "ui_common.h"
 
 /* UTF-8 of the Material Symbols code point for each icon (see scripts/gen-icon-font.py). */
 static const char *const GLYPHS[] = {
@@ -31,21 +27,29 @@ static const char *const GLYPHS[] = {
     [ICON_POP_OUT] = "\xEE\xA2\x9E",    /* open_in_new U+E89E */
 };
 
+/* The size the glyphs were drawn at (the "opsz" axis in scripts/gen-icon-font.py). */
+#define ICON_FONT_PIXELS 24.0f
+
+/* The Material Symbols glyphs sit left of the center of their em box. These fractions of the glyph
+ * size put them back, measured from rendered output; ImGui snaps glyph positions to whole pixels,
+ * which is why the small buttons need a slightly different value than the large ones. Moving the
+ * glyphs inside the font (scripts/gen-icon-font.py) would make this correction unnecessary. */
 #define GLYPH_SHIFT_X 0.13f
 #define GLYPH_SHIFT_X_SMALL 0.15f
 
-#define SMALL_ICON_LIMIT 36.0f /* glyph pixel snapping differs below this button size */
+#define SMALL_ICON_LIMIT 36.0f /* buttons smaller than this use the _SMALL correction */
 
+/* Like ImGui's own context and font atlas, which it lives in, the icon font is process-wide. */
 static ImFont *icon_font;
 
-int icons_init(void)
+bool icons_init(void)
 {
     /* The first font added becomes the default, so register ImGui's own before the icon font. */
     ImFontAtlas_AddFontDefault(igGetIO_Nil()->Fonts, NULL);
     ImFontConfig *config = ImFontConfig_ImFontConfig();
     config->FontDataOwnedByAtlas = false; /* the data is a static array */
     icon_font = ImFontAtlas_AddFontFromMemoryTTF(igGetIO_Nil()->Fonts, (void *)ICON_FONT_DATA,
-                                                 ICON_FONT_SIZE, 24.0f, config, NULL);
+                                                 ICON_FONT_SIZE, ICON_FONT_PIXELS, config, NULL);
     ImFontConfig_destroy(config);
     return icon_font != NULL;
 }
@@ -57,8 +61,6 @@ static void draw_glyph(ImDrawList *draw, IconKind icon, ImVec2 pos, float size, 
     if (!icon_font) {
         return;
     }
-    /* The glyphs sit about a tenth of their size left of, and a bit above, the center of their em
-     * box; measured from rendered output. */
     float inset_x = (size - glyph_size) / 2.0f +
                     glyph_size * (size < SMALL_ICON_LIMIT ? GLYPH_SHIFT_X_SMALL : GLYPH_SHIFT_X);
     float inset_y = (size - glyph_size) / 2.0f + (size < SMALL_ICON_LIMIT ? 1.25f : 0.2f);
@@ -67,7 +69,7 @@ static void draw_glyph(ImDrawList *draw, IconKind icon, ImVec2 pos, float size, 
                                NULL, 0.0f, NULL);
 }
 
-int icon_title_button(IconKind icon, const char *tooltip, float right_inset)
+bool icon_title_button(IconKind icon, const char *tooltip, float right_inset)
 {
     ImVec2 window = igGetWindowPos();
     float bar = igGetFrameHeight();
@@ -75,7 +77,7 @@ int icon_title_button(IconKind icon, const char *tooltip, float right_inset)
     ImVec2 pos = {window.x + igGetWindowWidth() - igGetStyle()->FramePadding.x - right_inset - size,
                   window.y + 2.0f};
     ImVec2 end = {pos.x + size, pos.y + size};
-    int hovered = igIsWindowHovered(0) && igIsMouseHoveringRect(pos, end, false);
+    bool hovered = igIsWindowHovered(0) && igIsMouseHoveringRect(pos, end, false);
     ImDrawList *draw = igGetWindowDrawList();
     /* The title bar lies outside the window's content clip rect. */
     ImDrawList_PushClipRect(draw, window, (ImVec2){window.x + igGetWindowWidth(), window.y + bar},
@@ -91,13 +93,13 @@ int icon_title_button(IconKind icon, const char *tooltip, float right_inset)
     return hovered && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false);
 }
 
-int icon_button(IconKind icon, const char *id, const char *tooltip, int selected, float size)
+bool icon_button(IconKind icon, const char *id, const char *tooltip, bool selected, float size)
 {
     ImGuiStyle *style = igGetStyle();
     ImVec2 pos = igGetCursorScreenPos();
-    int clicked = igInvisibleButton(id, (ImVec2){size, size}, 0);
-    int hovered = igIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
-    int held = igIsItemActive();
+    bool clicked = igInvisibleButton(id, (ImVec2){size, size}, 0);
+    bool hovered = igIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+    bool held = igIsItemActive();
     ImDrawList *draw = igGetWindowDrawList();
     float alpha = style->Alpha;
 

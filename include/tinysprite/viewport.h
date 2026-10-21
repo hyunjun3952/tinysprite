@@ -36,8 +36,7 @@ float viewport_next_zoom(float zoom, int direction);
 
 /* Largest zoom that fits the sprite into an area_w x area_h screen area, with the sprite centered
  * in that area: a whole number when the sprite fits at 1x or more, otherwise a power of two below
- * 1 (never below VIEWPORT_ZOOM_MIN). Does nothing if the sprite has no
- * pixels. */
+ * 1 (never below VIEWPORT_ZOOM_MIN). Does nothing if the sprite has no pixels. */
 void viewport_fit(Viewport *view, int sprite_w, int sprite_h, float area_w, float area_h);
 
 #endif

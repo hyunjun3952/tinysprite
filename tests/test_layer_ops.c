@@ -376,6 +376,63 @@ TEST(merge_down_is_rejected_when_it_makes_no_sense)
     sprite_destroy(s);
 }
 
+TEST(record_name_logs_an_edit_the_layer_already_holds)
+{
+    Sprite *s = sprite_create(4, 4);
+    History *h = history_create();
+    Layer *l = sprite_layer(s, 0);
+    layer_set_name(l, "Typed live");
+    ASSERT_EQ_INT(0, layer_op_record_name(h, l, "Layer 1"));
+    ASSERT_TRUE(strcmp(layer_name(l), "Typed live") == 0);
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_TRUE(strcmp(layer_name(l), "Layer 1") == 0);
+    ASSERT_EQ_INT(0, history_redo(h));
+    ASSERT_TRUE(strcmp(layer_name(l), "Typed live") == 0);
+    history_destroy(h);
+    sprite_destroy(s);
+}
+
+TEST(record_opacity_logs_an_edit_the_layer_already_holds)
+{
+    Sprite *s = sprite_create(4, 4);
+    History *h = history_create();
+    Layer *l = sprite_layer(s, 0);
+    layer_set_opacity(l, 90);
+    ASSERT_EQ_INT(0, layer_op_record_opacity(h, l, 255));
+    ASSERT_EQ_INT(90, layer_opacity(l));
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(255, layer_opacity(l));
+    ASSERT_EQ_INT(0, history_redo(h));
+    ASSERT_EQ_INT(90, layer_opacity(l));
+    history_destroy(h);
+    sprite_destroy(s);
+}
+
+TEST(record_records_nothing_when_the_value_is_unchanged)
+{
+    Sprite *s = sprite_create(4, 4);
+    History *h = history_create();
+    Layer *l = sprite_layer(s, 0);
+    ASSERT_EQ_INT(0, layer_op_record_name(h, l, "Layer 1"));
+    ASSERT_EQ_INT(0, layer_op_record_opacity(h, l, 255));
+    ASSERT_TRUE(!history_can_undo(h));
+    history_destroy(h);
+    sprite_destroy(s);
+}
+
+TEST(record_is_rejected_during_a_stroke)
+{
+    Sprite *s = sprite_create(4, 4);
+    History *h = history_create();
+    Layer *l = sprite_layer(s, 0);
+    ASSERT_EQ_INT(0, history_begin_stroke(h, layer_cel(l, 0)));
+    layer_set_opacity(l, 90);
+    ASSERT_EQ_INT(-1, layer_op_record_opacity(h, l, 255));
+    ASSERT_EQ_INT(-1, layer_op_record_name(h, l, "other"));
+    history_destroy(h);
+    sprite_destroy(s);
+}
+
 int main(void)
 {
     RUN(add_is_undoable);
@@ -397,5 +454,9 @@ int main(void)
     RUN(pixel_steps_around_a_merge_stay_valid);
     RUN(merge_down_frees_the_merged_layer_with_the_history);
     RUN(merge_down_is_rejected_when_it_makes_no_sense);
+    RUN(record_name_logs_an_edit_the_layer_already_holds);
+    RUN(record_opacity_logs_an_edit_the_layer_already_holds);
+    RUN(record_records_nothing_when_the_value_is_unchanged);
+    RUN(record_is_rejected_during_a_stroke);
     return TEST_SUMMARY();
 }

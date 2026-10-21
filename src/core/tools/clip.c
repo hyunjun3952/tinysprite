@@ -7,24 +7,21 @@ struct Clip {
     Rgba *pixels; /* row-major, width * height */
 };
 
-Clip *clip_copy(const Cel *cel, int x, int y, int w, int h)
+Clip *clip_copy(const Cel *cel, Rect area)
 {
     if (!cel) {
         return NULL;
     }
-    int x0 = x < 0 ? 0 : x;
-    int y0 = y < 0 ? 0 : y;
-    int x1 = x + w > cel_width(cel) ? cel_width(cel) : x + w;
-    int y1 = y + h > cel_height(cel) ? cel_height(cel) : y + h;
-    if (w < 1 || h < 1 || x0 >= x1 || y0 >= y1) {
+    Rect r = rect_clip(area, cel_width(cel), cel_height(cel));
+    if (rect_is_empty(r)) {
         return NULL;
     }
     Clip *clip = calloc(1, sizeof(*clip));
     if (!clip) {
         return NULL;
     }
-    clip->width = x1 - x0;
-    clip->height = y1 - y0;
+    clip->width = r.w;
+    clip->height = r.h;
     clip->pixels = malloc((size_t)clip->width * (size_t)clip->height * sizeof(*clip->pixels));
     if (!clip->pixels) {
         free(clip);
@@ -33,7 +30,7 @@ Clip *clip_copy(const Cel *cel, int x, int y, int w, int h)
     for (int j = 0; j < clip->height; j++) {
         for (int i = 0; i < clip->width; i++) {
             clip->pixels[(size_t)j * (size_t)clip->width + (size_t)i] =
-                cel_get(cel, x0 + i, y0 + j);
+                cel_get(cel, r.x + i, r.y + j);
         }
     }
     return clip;
@@ -60,7 +57,7 @@ int clip_height(const Clip *clip)
 Rgba clip_get(const Clip *clip, int x, int y)
 {
     if (!clip || x < 0 || y < 0 || x >= clip->width || y >= clip->height) {
-        return (Rgba){0, 0, 0, 0};
+        return RGBA_TRANSPARENT;
     }
     return clip->pixels[(size_t)y * (size_t)clip->width + (size_t)x];
 }
@@ -96,7 +93,7 @@ void clip_flip_vertical(Clip *clip)
     }
 }
 
-int clip_rotate(Clip *clip, int clockwise)
+int clip_rotate(Clip *clip, bool clockwise)
 {
     if (!clip) {
         return -1;
@@ -123,17 +120,31 @@ int clip_rotate(Clip *clip, int clockwise)
     return 0;
 }
 
-static void write_clip(History *history, const Cel *cel, const Clip *clip, int x, int y)
+/* Draws the clip's opaque pixels; those landing outside the cel are skipped. Returns -1 if a
+ * pixel could not be recorded. */
+static int write_clip(History *history, const Cel *cel, const Clip *clip, int x, int y)
 {
+    int result = 0;
     for (int j = 0; j < clip->height; j++) {
         for (int i = 0; i < clip->width; i++) {
             Rgba color = clip->pixels[(size_t)j * (size_t)clip->width + (size_t)i];
-            /* Out-of-bounds pixels are rejected by history, which is the clipping we want. */
-            if (color.a != 0 && cel_in_bounds(cel, x + i, y + j)) {
-                (void)history_set_pixel(history, x + i, y + j, color);
+            if (color.a != 0 && cel_in_bounds(cel, x + i, y + j) &&
+                history_set_pixel(history, x + i, y + j, color) != 0) {
+                result = -1;
             }
         }
     }
+    return result;
+}
+
+/* Ends the open stroke, or abandons it if `result` says drawing it failed. */
+static int finish(History *history, int result)
+{
+    if (result != 0) {
+        (void)history_cancel_stroke(history);
+        return -1;
+    }
+    return history_end_stroke(history);
 }
 
 int clip_paste(History *history, Cel *cel, const Clip *clip, int x, int y)
@@ -141,23 +152,25 @@ int clip_paste(History *history, Cel *cel, const Clip *clip, int x, int y)
     if (!history || !cel || !clip || history_begin_stroke(history, cel) != 0) {
         return -1;
     }
-    write_clip(history, cel, clip, x, y);
-    return history_end_stroke(history);
+    return finish(history, write_clip(history, cel, clip, x, y));
 }
 
-int clip_replace(History *history, Cel *cel, int x, int y, int w, int h, const Clip *clip, int nx,
-                 int ny)
+int clip_replace(History *history, Cel *cel, Rect cleared, const Clip *clip, int x, int y)
 {
     if (!history || !cel || !clip || history_begin_stroke(history, cel) != 0) {
         return -1;
     }
-    for (int j = y; j < y + h; j++) {
-        for (int i = x; i < x + w; i++) {
-            if (cel_in_bounds(cel, i, j)) {
-                (void)history_set_pixel(history, i, j, (Rgba){0, 0, 0, 0});
+    Rect area = rect_clip(cleared, cel_width(cel), cel_height(cel));
+    int result = 0;
+    for (int j = area.y; j < area.y + area.h; j++) {
+        for (int i = area.x; i < area.x + area.w; i++) {
+            if (history_set_pixel(history, i, j, RGBA_TRANSPARENT) != 0) {
+                result = -1;
             }
         }
     }
-    write_clip(history, cel, clip, nx, ny);
-    return history_end_stroke(history);
+    if (write_clip(history, cel, clip, x, y) != 0) {
+        result = -1;
+    }
+    return finish(history, result);
 }

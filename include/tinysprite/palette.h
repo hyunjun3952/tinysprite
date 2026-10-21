@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_PALETTE_H
 #define TINYSPRITE_PALETTE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define PALETTE_MAX_COLORS 256
@@ -8,6 +9,13 @@
 typedef struct Rgba {
     uint8_t r, g, b, a;
 } Rgba;
+
+#define RGBA_TRANSPARENT ((Rgba){0, 0, 0, 0})
+
+static inline bool rgba_equal(Rgba a, Rgba b)
+{
+    return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
 
 typedef struct Palette Palette;
 

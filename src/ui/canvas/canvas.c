@@ -1,15 +1,11 @@
 #include "canvas/canvas.h"
 
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "editor/tools.h"
-
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "cimgui.h"
-
-#define COL32(r, g, b, a)                                                                          \
-    ((ImU32)(((ImU32)(a) << 24) | ((ImU32)(b) << 16) | ((ImU32)(g) << 8) | (ImU32)(r)))
+#include "ui_common.h"
 
 enum {
     CHECKER_TILE = 8,
@@ -17,22 +13,12 @@ enum {
     FIT_MARGIN = 16,
 };
 
-static float maxf(float a, float b)
-{
-    return a > b ? a : b;
-}
-
-static float minf(float a, float b)
-{
-    return a < b ? a : b;
-}
-
 /* Screen-space rectangle (canvas window origin + view transform) of the whole sprite. */
 typedef struct ScreenRect {
     float x0, y0, x1, y1;
 } ScreenRect;
 
-static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
+static void handle_input(Editor *editor, ImVec2 origin, bool hovered, bool active)
 {
     ImGuiIO *io = igGetIO_Nil();
     ImVec2 mouse = igGetMousePos();
@@ -48,21 +34,22 @@ static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
     if (hovered && io->MouseWheel != 0.0f) {
         float zoom = viewport_next_zoom(editor->view.zoom, io->MouseWheel > 0.0f ? 1 : -1);
         viewport_zoom_at(&editor->view, zoom, local_x, local_y);
-        editor->auto_fit = 0;
+        editor->auto_fit = false;
     }
     /* Space + left drag pans like the middle button, without drawing. */
-    int space_pan = igIsKeyDown_Nil(ImGuiKey_Space) && !editor->dragging;
+    bool space_pan = igIsKeyDown_Nil(ImGuiKey_Space) && !editor_stroking(editor);
     if (active && (igIsMouseDown_Nil(ImGuiMouseButton_Middle) ||
                    (space_pan && igIsMouseDown_Nil(ImGuiMouseButton_Left)))) {
         editor->view.pan_x += io->MouseDelta.x;
         editor->view.pan_y += io->MouseDelta.y;
-        editor->auto_fit = 0;
+        editor->auto_fit = false;
         return;
     }
 
-    if (!editor->dragging && hovered && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
+    if (!editor_stroking(editor) && hovered &&
+        igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
         tools_press(editor, cx, cy);
-    } else if (editor->dragging) {
+    } else if (editor_stroking(editor)) {
         if (igIsMouseDown_Nil(ImGuiMouseButton_Left)) {
             tools_drag(editor, cx, cy);
         } else {
@@ -84,10 +71,10 @@ static void draw_checkerboard(ImDrawList *draw, ScreenRect visible, ScreenRect s
             if ((tx + ty) % 2 == 0) {
                 continue;
             }
-            float x0 = maxf(sprite.x0 + (float)(tx * CHECKER_TILE), visible.x0);
-            float y0 = maxf(sprite.y0 + (float)(ty * CHECKER_TILE), visible.y0);
-            float x1 = minf(sprite.x0 + (float)((tx + 1) * CHECKER_TILE), visible.x1);
-            float y1 = minf(sprite.y0 + (float)((ty + 1) * CHECKER_TILE), visible.y1);
+            float x0 = fmaxf(sprite.x0 + (float)(tx * CHECKER_TILE), visible.x0);
+            float y0 = fmaxf(sprite.y0 + (float)(ty * CHECKER_TILE), visible.y0);
+            float x1 = fminf(sprite.x0 + (float)((tx + 1) * CHECKER_TILE), visible.x1);
+            float y1 = fminf(sprite.y0 + (float)((ty + 1) * CHECKER_TILE), visible.y1);
             if (x0 < x1 && y0 < y1) {
                 ImDrawList_AddRectFilled(draw, (ImVec2){x0, y0}, (ImVec2){x1, y1},
                                          COL32(150, 150, 150, 255), 0.0f, 0);
@@ -132,6 +119,11 @@ static void draw_grid(ImDrawList *draw, const Editor *editor, ImVec2 origin, Scr
     }
 }
 
+static void draw_rect_outline(ImDrawList *draw, ImVec2 p0, ImVec2 p1, ImU32 color)
+{
+    ImDrawList_AddRect(draw, p0, p1, color, 0.0f, 1.0f, 0);
+}
+
 /* The cels the pencil / eraser would paint at the hovered cel, as filled squares. */
 static void draw_brush_preview(ImDrawList *draw, const Editor *editor, ImVec2 origin)
 {
@@ -156,10 +148,7 @@ static void draw_brush_preview(ImDrawList *draw, const Editor *editor, ImVec2 or
 
 static void draw_hover_outline(ImDrawList *draw, const Editor *editor, ImVec2 origin)
 {
-    int w = sprite_width(editor->sprite);
-    int h = sprite_height(editor->sprite);
-    if (!editor->hovering || editor->hover_x < 0 || editor->hover_y < 0 || editor->hover_x >= w ||
-        editor->hover_y >= h) {
+    if (!editor_hover_in_sprite(editor)) {
         return;
     }
     if ((editor->tool == TOOL_PENCIL || editor->tool == TOOL_ERASER) && editor->brush_size > 1) {
@@ -167,18 +156,9 @@ static void draw_hover_outline(ImDrawList *draw, const Editor *editor, ImVec2 or
     }
     float x0 = origin.x + viewport_cel_to_screen_x(&editor->view, editor->hover_x);
     float y0 = origin.y + viewport_cel_to_screen_y(&editor->view, editor->hover_y);
-    float x1 = x0 + editor->view.zoom;
-    float y1 = y0 + editor->view.zoom;
-    ImU32 color = COL32(255, 255, 255, 220);
-    ImDrawList_AddLine(draw, (ImVec2){x0, y0}, (ImVec2){x1, y0}, color, 1.0f, 0);
-    ImDrawList_AddLine(draw, (ImVec2){x1, y0}, (ImVec2){x1, y1}, color, 1.0f, 0);
-    ImDrawList_AddLine(draw, (ImVec2){x1, y1}, (ImVec2){x0, y1}, color, 1.0f, 0);
-    ImDrawList_AddLine(draw, (ImVec2){x0, y1}, (ImVec2){x0, y0}, color, 1.0f, 0);
-}
-
-static void draw_rect_outline(ImDrawList *draw, ImVec2 p0, ImVec2 p1, ImU32 color)
-{
-    ImDrawList_AddRect(draw, p0, p1, color, 0.0f, 1.0f, 0);
+    draw_rect_outline(draw, (ImVec2){x0, y0},
+                      (ImVec2){x0 + editor->view.zoom, y0 + editor->view.zoom},
+                      COL32(255, 255, 255, 220));
 }
 
 /* Selection outline: a dark rectangle under a light one so it shows on any background. */
@@ -187,9 +167,9 @@ static void draw_selection(ImDrawList *draw, const Editor *editor, ImVec2 origin
     if (!editor->has_selection) {
         return;
     }
-    const CompositeRect *r = &editor->selection;
-    int dx = editor->move ? editor->move_dx : 0;
-    int dy = editor->move ? editor->move_dy : 0;
+    const Rect *r = &editor->selection;
+    int dx = editor->drag == DRAG_MOVE ? editor->move_dx : 0;
+    int dy = editor->drag == DRAG_MOVE ? editor->move_dy : 0;
     ImVec2 p0 = {origin.x + viewport_cel_to_screen_x(&editor->view, r->x + dx),
                  origin.y + viewport_cel_to_screen_y(&editor->view, r->y + dy)};
     ImVec2 p1 = {p0.x + (float)r->w * editor->view.zoom, p0.y + (float)r->h * editor->view.zoom};
@@ -202,11 +182,11 @@ static void draw_selection(ImDrawList *draw, const Editor *editor, ImVec2 origin
 static void draw_mirror_axes(ImDrawList *draw, const Editor *editor, ScreenRect sprite)
 {
     ImU32 color = COL32(0, 200, 255, 200);
-    if (editor->mirror_x) {
+    if (editor->symmetry.mirror_x) {
         float x = (sprite.x0 + sprite.x1) / 2.0f;
         ImDrawList_AddLine(draw, (ImVec2){x, sprite.y0}, (ImVec2){x, sprite.y1}, color, 1.0f, 0);
     }
-    if (editor->mirror_y) {
+    if (editor->symmetry.mirror_y) {
         float y = (sprite.y0 + sprite.y1) / 2.0f;
         ImDrawList_AddLine(draw, (ImVec2){sprite.x0, y}, (ImVec2){sprite.x1, y}, color, 1.0f, 0);
     }
@@ -221,9 +201,7 @@ static void draw_status(ImDrawList *draw, const Editor *editor, ImVec2 origin, I
     int len = snprintf(text, sizeof(text), "%dx%d   Zoom: %g%%   Layer: %s",
                        sprite_width(editor->sprite), sprite_height(editor->sprite),
                        (double)editor->view.zoom * 100.0, layer ? layer_name(layer) : "-");
-    if (editor->hovering && editor->hover_x >= 0 && editor->hover_y >= 0 &&
-        editor->hover_x < sprite_width(editor->sprite) &&
-        editor->hover_y < sprite_height(editor->sprite)) {
+    if (editor_hover_in_sprite(editor)) {
         snprintf(text + len, sizeof(text) - (size_t)len, "   Cel: %d, %d", editor->hover_x,
                  editor->hover_y);
     }
@@ -250,19 +228,19 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
     ImVec2 origin = igGetCursorScreenPos();
     ImVec2 avail = igGetContentRegionAvail();
     if (editor->auto_fit && (avail.x != editor->canvas_w || avail.y != editor->canvas_h)) {
-        editor->needs_fit = 1; /* the canvas was resized (window, panel dock / resize) */
+        editor->needs_fit = true; /* the canvas was resized (window, panel dock / resize) */
     }
     editor->canvas_w = avail.x;
     editor->canvas_h = avail.y;
     int sprite_w = sprite_width(editor->sprite);
     int sprite_h = sprite_height(editor->sprite);
     if (editor->needs_fit && avail.x > 0.0f && avail.y > 0.0f) {
-        viewport_fit(&editor->view, sprite_w, sprite_h, maxf(avail.x - FIT_MARGIN, 1.0f),
-                     maxf(avail.y - FIT_MARGIN, 1.0f));
+        viewport_fit(&editor->view, sprite_w, sprite_h, fmaxf(avail.x - FIT_MARGIN, 1.0f),
+                     fmaxf(avail.y - FIT_MARGIN, 1.0f));
         editor->view.pan_x += FIT_MARGIN / 2.0f;
         editor->view.pan_y += FIT_MARGIN / 2.0f;
-        editor->needs_fit = 0;
-        editor->auto_fit = 1;
+        editor->needs_fit = false;
+        editor->auto_fit = true;
     }
 
     igInvisibleButton("canvas", avail,
@@ -279,8 +257,8 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
                          origin.y + viewport_cel_to_screen_y(&editor->view, 0), 0.0f, 0.0f};
     sprite.x1 = sprite.x0 + (float)sprite_w * editor->view.zoom;
     sprite.y1 = sprite.y0 + (float)sprite_h * editor->view.zoom;
-    ScreenRect visible = {maxf(sprite.x0, origin.x), maxf(sprite.y0, origin.y),
-                          minf(sprite.x1, clip_max.x), minf(sprite.y1, clip_max.y)};
+    ScreenRect visible = {fmaxf(sprite.x0, origin.x), fmaxf(sprite.y0, origin.y),
+                          fminf(sprite.x1, clip_max.x), fminf(sprite.y1, clip_max.y)};
     if (visible.x0 < visible.x1 && visible.y0 < visible.y1) {
         draw_checkerboard(draw, visible, sprite);
         draw_image(draw, editor->texture, visible, sprite);

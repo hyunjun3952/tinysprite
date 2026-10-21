@@ -1,61 +1,36 @@
 #include "editor/tools.h"
 
+#include <string.h>
+
 #include "tinysprite/bucket.h"
 #include "tinysprite/eyedropper.h"
+#include "tinysprite/util.h"
 
-static int min_int(int a, int b)
+/* Marks a stroke's bounding box dirty, `pad` cels beyond it. Mirrored copies land outside the box
+ * of the new points, so symmetry re-composites everything. */
+static void mark_stroke(Editor *editor, int x0, int y0, int x1, int y1, int pad)
 {
-    return a < b ? a : b;
-}
-
-static int max_int(int a, int b)
-{
-    return a > b ? a : b;
-}
-
-static int clamp_int(int value, int low, int high)
-{
-    return max_int(low, min_int(value, high));
-}
-
-/* Marks a stroke's bounding box dirty, `pad` cels beyond it. Mirrored copies and pixel-perfect
- * corrections land outside the box of the new points, so those cases re-composite more. */
-static void mark_stroke_padded(Editor *editor, int x0, int y0, int x1, int y1, int pad)
-{
-    if (editor->mirror_x || editor->mirror_y) {
+    if (symmetry_count(editor->symmetry) > 1) {
         editor_mark_all_dirty(editor);
     } else {
-        editor_mark_dirty(editor, min_int(x0, x1) - pad, min_int(y0, y1) - pad,
-                          max_int(x0, x1) + pad, max_int(y0, y1) + pad);
+        editor_mark_dirty(editor, rect_grow(rect_from_corners(x0, y0, x1, y1), pad));
     }
-}
-
-static void mark_stroke(Editor *editor, int x0, int y0, int x1, int y1)
-{
-    mark_stroke_padded(editor, x0, y0, x1, y1, 1);
 }
 
 /* The pencil and eraser paint a brush around every point, which reaches up to the brush size away.
  */
 static void mark_brush_stroke(Editor *editor, int x0, int y0, int x1, int y1)
 {
-    mark_stroke_padded(editor, x0, y0, x1, y1, max_int(1, editor->brush_size));
+    mark_stroke(editor, x0, y0, x1, y1, max_int(1, editor->brush_size));
 }
 
-static void mark_rect(Editor *editor, CompositeRect r, int dx, int dy)
+/* The selection's rectangle shifted by (dx, dy). */
+static void mark_selection(Editor *editor, int dx, int dy)
 {
-    editor_mark_dirty(editor, r.x + dx, r.y + dy, r.x + dx + r.w - 1, r.y + dy + r.h - 1);
-}
-
-static int inside_selection(const Editor *editor, int x, int y)
-{
-    const CompositeRect *r = &editor->selection;
-    return editor->has_selection && x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h;
-}
-
-static Symmetry symmetry(const Editor *editor)
-{
-    return (Symmetry){editor->mirror_x, editor->mirror_y};
+    Rect r = editor->selection;
+    r.x += dx;
+    r.y += dy;
+    editor_mark_dirty(editor, r);
 }
 
 static ShapeKind shape_kind(ToolKind tool)
@@ -78,46 +53,105 @@ static void pick_color(Editor *editor, int cx, int cy)
     }
 }
 
+static int clamp_x(const Editor *editor, int x)
+{
+    return clamp_int(x, 0, sprite_width(editor->sprite) - 1);
+}
+
+static int clamp_y(const Editor *editor, int y)
+{
+    return clamp_int(y, 0, sprite_height(editor->sprite) - 1);
+}
+
+/* The selection spans the anchor and (cx, cy); the anchor is always inside the sprite, so the
+ * clipped rectangle is never empty. */
 static void update_selection(Editor *editor, int cx, int cy)
 {
-    int w = sprite_width(editor->sprite);
-    int h = sprite_height(editor->sprite);
-    int x0 = clamp_int(min_int(editor->anchor_x, cx), 0, w - 1);
-    int y0 = clamp_int(min_int(editor->anchor_y, cy), 0, h - 1);
-    int x1 = clamp_int(max_int(editor->anchor_x, cx), 0, w - 1);
-    int y1 = clamp_int(max_int(editor->anchor_y, cy), 0, h - 1);
-    editor->selection = (CompositeRect){x0, y0, x1 - x0 + 1, y1 - y0 + 1};
+    Rect box = rect_from_corners(editor->anchor_x, editor->anchor_y, cx, cy);
+    editor->selection = rect_clip(box, sprite_width(editor->sprite), sprite_height(editor->sprite));
 }
 
 static void press_select(Editor *editor, int cx, int cy)
 {
-    if (inside_selection(editor, cx, cy)) {
-        Layer *layer = sprite_layer(editor->sprite, editor->active_layer);
-        Cel *cel = editor_active_cel(editor);
-        if (!cel || !layer_visible(layer)) {
+    if (editor->has_selection && rect_contains(editor->selection, cx, cy)) {
+        Cel *cel = editor_editable_cel(editor);
+        if (!cel) {
             return;
         }
-        const CompositeRect *r = &editor->selection;
-        editor->move = move_stroke_begin(editor->history, cel, r->x, r->y, r->w, r->h);
-        if (!editor->move) {
+        editor->stroke.move = move_stroke_begin(editor->history, cel, editor->selection);
+        if (!editor->stroke.move) {
             return;
         }
         editor->move_dx = 0;
         editor->move_dy = 0;
-    } else {
-        /* Remember whether a selection existed: a plain click on empty canvas selects one cel, but
-         * a click that merely dismisses an old selection must not start a new one. */
-        editor->had_selection = editor->has_selection;
-        editor->selecting = 1;
-        editor->has_selection = 1;
-        update_selection(editor, cx, cy);
+        editor->drag = DRAG_MOVE;
+        return;
     }
-    editor->dragging = 1;
+    /* A new selection starts at the clamped press point. */
+    editor->anchor_x = clamp_x(editor, cx);
+    editor->anchor_y = clamp_y(editor, cy);
+    editor->drag_x = editor->anchor_x;
+    editor->drag_y = editor->anchor_y;
+    /* Remember whether a selection existed: a plain click on empty canvas selects one cel, but a
+     * click that merely dismisses an old selection must not start a new one. */
+    editor->had_selection = editor->has_selection;
+    editor->has_selection = true;
+    update_selection(editor, cx, cy);
+    editor->drag = DRAG_SELECT;
+}
+
+static void press_draw(Editor *editor, int cx, int cy)
+{
+    Cel *cel = editor_editable_cel(editor);
+    if (!cel) {
+        return;
+    }
+    bool erasing = editor->tool == TOOL_ERASER;
+    Rgba color = editor_color(editor);
+    if (!erasing) {
+        recent_colors_push(&editor->recent, color);
+    }
+    switch (editor->tool) {
+    case TOOL_PENCIL:
+    case TOOL_ERASER: {
+        PencilOptions options = {editor->pixel_perfect, editor->symmetry, editor->brush_size,
+                                 editor->brush_round};
+        editor->stroke.pencil = pencil_stroke_begin(
+            editor->history, cel, erasing ? RGBA_TRANSPARENT : color, options, cx, cy);
+        if (editor->stroke.pencil) {
+            editor->drag = DRAG_PENCIL;
+            mark_brush_stroke(editor, cx, cy, cx, cy);
+        }
+        break;
+    }
+    case TOOL_BUCKET:
+        /* A single click: no drag state. */
+        if (bucket_fill(editor->history, cel, cx, cy, color, editor->symmetry) == 0) {
+            editor_mark_all_dirty(editor);
+        }
+        break;
+    case TOOL_LINE:
+    case TOOL_RECT:
+    case TOOL_ELLIPSE: {
+        ShapeStyle style = {shape_kind(editor->tool), editor->shape_filled, color,
+                            editor->symmetry};
+        editor->stroke.shape = shape_stroke_begin(editor->history, cel, style, (ToolPoint){cx, cy});
+        if (editor->stroke.shape) {
+            editor->drag = DRAG_SHAPE;
+            mark_stroke(editor, cx, cy, cx, cy, 1);
+        }
+        break;
+    }
+    case TOOL_EYEDROPPER:
+    case TOOL_SELECT:
+    case TOOL_COUNT:
+        break;
+    }
 }
 
 void tools_press(Editor *editor, int cx, int cy)
 {
-    if (editor->dragging) {
+    if (editor_stroking(editor)) {
         return;
     }
     editor->anchor_x = cx;
@@ -125,178 +159,161 @@ void tools_press(Editor *editor, int cx, int cy)
     editor->drag_x = cx;
     editor->drag_y = cy;
 
-    if (editor->tool == TOOL_EYEDROPPER) {
-        pick_color(editor, cx, cy);
-        editor->dragging = 1;
-        return;
-    }
-    if (editor->tool == TOOL_SELECT) {
-        if (!editor->has_selection || !inside_selection(editor, cx, cy)) {
-            /* A new selection starts at the clamped press point. */
-            editor->anchor_x = clamp_int(cx, 0, sprite_width(editor->sprite) - 1);
-            editor->anchor_y = clamp_int(cy, 0, sprite_height(editor->sprite) - 1);
-            editor->drag_x = editor->anchor_x;
-            editor->drag_y = editor->anchor_y;
-        }
-        press_select(editor, cx, cy);
-        return;
-    }
-
-    Layer *layer = sprite_layer(editor->sprite, editor->active_layer);
-    Cel *cel = editor_active_cel(editor);
-    if (!cel || !layer_visible(layer)) {
-        return;
-    }
-    Rgba color = editor_color(editor);
-    if (editor->tool != TOOL_ERASER) {
-        recent_colors_push(&editor->recent, color);
-    }
     switch (editor->tool) {
-    case TOOL_PENCIL:
-    case TOOL_ERASER: {
-        PencilOptions options = {editor->pixel_perfect, editor->mirror_x, editor->mirror_y,
-                                 editor->brush_size, editor->brush_round};
-        editor->stroke = pencil_stroke_begin_ex(editor->history, cel, color,
-                                                editor->tool == TOOL_ERASER, options, cx, cy);
-        if (editor->stroke) {
-            editor->dragging = 1;
-            mark_brush_stroke(editor, cx, cy, cx, cy);
-        }
+    case TOOL_EYEDROPPER:
+        pick_color(editor, cx, cy);
+        editor->drag = DRAG_PICK;
         break;
-    }
-    case TOOL_BUCKET:
-        /* A single click: no drag state. */
-        if (bucket_fill_ex(editor->history, cel, cx, cy, color, symmetry(editor)) == 0) {
-            editor_mark_all_dirty(editor);
-        }
-        break;
-    case TOOL_LINE:
-    case TOOL_RECT:
-    case TOOL_ELLIPSE:
-        editor->shape =
-            shape_stroke_begin_ex(editor->history, cel, shape_kind(editor->tool),
-                                  editor->shape_filled, color, symmetry(editor), cx, cy);
-        if (editor->shape) {
-            editor->dragging = 1;
-            mark_stroke(editor, cx, cy, cx, cy);
-        }
+    case TOOL_SELECT:
+        press_select(editor, cx, cy);
         break;
     default:
+        press_draw(editor, cx, cy);
         break;
     }
 }
 
+/* Applies one drag step to the live stroke; false if it ran out of memory. */
+static bool extend_stroke(Editor *editor, int cx, int cy)
+{
+    switch (editor->drag) {
+    case DRAG_PENCIL:
+        if (pencil_stroke_extend(editor->stroke.pencil, cx, cy) != 0) {
+            return false;
+        }
+        mark_brush_stroke(editor, editor->drag_x, editor->drag_y, cx, cy);
+        return true;
+    case DRAG_SHAPE:
+        if (shape_stroke_update(editor->stroke.shape, cx, cy) != 0) {
+            return false;
+        }
+        /* The old and new shapes both lie in a box spanned by the anchor and the cursor. */
+        mark_stroke(editor, editor->anchor_x, editor->anchor_y, editor->drag_x, editor->drag_y, 1);
+        mark_stroke(editor, editor->anchor_x, editor->anchor_y, cx, cy, 1);
+        return true;
+    case DRAG_MOVE:
+        mark_selection(editor, editor->move_dx, editor->move_dy);
+        editor->move_dx = cx - editor->anchor_x;
+        editor->move_dy = cy - editor->anchor_y;
+        if (move_stroke_update(editor->stroke.move, editor->move_dx, editor->move_dy) != 0) {
+            return false;
+        }
+        mark_selection(editor, 0, 0);
+        mark_selection(editor, editor->move_dx, editor->move_dy);
+        return true;
+    case DRAG_NONE:
+    case DRAG_PICK:
+    case DRAG_SELECT:
+        break;
+    }
+    return true;
+}
+
 void tools_drag(Editor *editor, int cx, int cy)
 {
-    if (!editor->dragging) {
+    switch (editor->drag) {
+    case DRAG_NONE:
         return;
-    }
-    if (editor->tool == TOOL_EYEDROPPER) {
+    case DRAG_PICK:
         pick_color(editor, cx, cy);
         return;
-    }
-    if (editor->selecting) {
+    case DRAG_SELECT:
         update_selection(editor, cx, cy);
-        editor->drag_x = clamp_int(cx, 0, sprite_width(editor->sprite) - 1);
-        editor->drag_y = clamp_int(cy, 0, sprite_height(editor->sprite) - 1);
+        editor->drag_x = clamp_x(editor, cx);
+        editor->drag_y = clamp_y(editor, cy);
         return;
+    case DRAG_PENCIL:
+    case DRAG_SHAPE:
+    case DRAG_MOVE:
+        break;
     }
     if (cx == editor->drag_x && cy == editor->drag_y) {
         return;
     }
-
-    if (editor->stroke) {
-        pencil_stroke_extend(editor->stroke, cx, cy);
-        mark_brush_stroke(editor, editor->drag_x, editor->drag_y, cx, cy);
-    } else if (editor->shape) {
-        shape_stroke_update(editor->shape, cx, cy);
-        /* The old and new shapes both lie in a box spanned by the anchor and the cursor. */
-        mark_stroke(editor, editor->anchor_x, editor->anchor_y, editor->drag_x, editor->drag_y);
-        mark_stroke(editor, editor->anchor_x, editor->anchor_y, cx, cy);
-    } else if (editor->move) {
-        mark_rect(editor, editor->selection, editor->move_dx, editor->move_dy);
-        editor->move_dx = cx - editor->anchor_x;
-        editor->move_dy = cy - editor->anchor_y;
-        move_stroke_update(editor->move, editor->move_dx, editor->move_dy);
-        mark_rect(editor, editor->selection, 0, 0);
-        mark_rect(editor, editor->selection, editor->move_dx, editor->move_dy);
+    if (!extend_stroke(editor, cx, cy)) {
+        tools_cancel(editor);
+        return;
     }
     editor->drag_x = cx;
     editor->drag_y = cy;
 }
 
+/* The selection follows its pixels; the part that left the sprite is gone. */
 static void finish_move(Editor *editor)
 {
-    move_stroke_end(editor->move);
-    editor->move = NULL;
-
-    /* The selection follows its pixels; the part that left the sprite is gone. */
-    int w = sprite_width(editor->sprite);
-    int h = sprite_height(editor->sprite);
-    CompositeRect r = editor->selection;
-    int x0 = max_int(r.x + editor->move_dx, 0);
-    int y0 = max_int(r.y + editor->move_dy, 0);
-    int x1 = min_int(r.x + editor->move_dx + r.w, w);
-    int y1 = min_int(r.y + editor->move_dy + r.h, h);
-    if (x0 < x1 && y0 < y1) {
-        editor->selection = (CompositeRect){x0, y0, x1 - x0, y1 - y0};
+    if (move_stroke_end(editor->stroke.move) != 0) {
+        editor_mark_all_dirty(editor);
     } else {
-        editor->has_selection = 0;
+        Rect moved = editor->selection;
+        moved.x += editor->move_dx;
+        moved.y += editor->move_dy;
+        editor_set_selection_clipped(editor, moved);
     }
     editor->move_dx = 0;
     editor->move_dy = 0;
+}
+
+/* A click without dragging selects the single cel under it, unless it only dismisses an existing
+ * selection. */
+static void finish_select(Editor *editor)
+{
+    if (editor->drag_x == editor->anchor_x && editor->drag_y == editor->anchor_y &&
+        editor->had_selection) {
+        editor->has_selection = false;
+    }
+    editor->had_selection = false;
 }
 
 void tools_release(Editor *editor)
 {
-    if (!editor->dragging) {
-        return;
-    }
-    if (editor->stroke) {
-        pencil_stroke_end(editor->stroke);
-        editor->stroke = NULL;
-    } else if (editor->shape) {
-        shape_stroke_end(editor->shape);
-        editor->shape = NULL;
-    } else if (editor->move) {
-        finish_move(editor);
-    } else if (editor->selecting) {
-        editor->selecting = 0;
-        /* A click without dragging selects the single cel under it, unless it only dismisses an
-         * existing selection. */
-        if (editor->drag_x == editor->anchor_x && editor->drag_y == editor->anchor_y &&
-            editor->had_selection) {
-            editor->has_selection = 0;
+    switch (editor->drag) {
+    case DRAG_PENCIL:
+        if (pencil_stroke_end(editor->stroke.pencil) != 0) {
+            editor_mark_all_dirty(editor);
         }
-        editor->had_selection = 0;
+        break;
+    case DRAG_SHAPE:
+        if (shape_stroke_end(editor->stroke.shape) != 0) {
+            editor_mark_all_dirty(editor);
+        }
+        break;
+    case DRAG_MOVE:
+        finish_move(editor);
+        break;
+    case DRAG_SELECT:
+        finish_select(editor);
+        break;
+    case DRAG_NONE:
+    case DRAG_PICK:
+        break;
     }
-    editor->dragging = 0;
+    memset(&editor->stroke, 0, sizeof(editor->stroke));
+    editor->drag = DRAG_NONE;
 }
 
 void tools_cancel(Editor *editor)
 {
-    if (!editor->dragging) {
+    switch (editor->drag) {
+    case DRAG_NONE:
         return;
+    case DRAG_PENCIL:
+        pencil_stroke_cancel(editor->stroke.pencil);
+        break;
+    case DRAG_SHAPE:
+        shape_stroke_cancel(editor->stroke.shape);
+        break;
+    case DRAG_MOVE:
+        move_stroke_cancel(editor->stroke.move);
+        break;
+    case DRAG_SELECT:
+        editor->has_selection = false;
+        break;
+    case DRAG_PICK:
+        break;
     }
-    pencil_stroke_cancel(editor->stroke);
-    shape_stroke_cancel(editor->shape);
-    move_stroke_cancel(editor->move);
-    if (editor->selecting) {
-        editor->has_selection = 0;
-    }
-    editor->stroke = NULL;
-    editor->shape = NULL;
-    editor->move = NULL;
-    editor->selecting = 0;
+    memset(&editor->stroke, 0, sizeof(editor->stroke));
     editor->move_dx = 0;
     editor->move_dy = 0;
-    editor->dragging = 0;
+    editor->drag = DRAG_NONE;
     editor_mark_all_dirty(editor);
-}
-
-const char *tools_name(ToolKind tool)
-{
-    static const char *const names[TOOL_COUNT] = {"Pencil", "Eraser", "Bucket",  "Picker",
-                                                  "Line",   "Rect",   "Ellipse", "Select"};
-    return (unsigned)tool < TOOL_COUNT ? names[tool] : "";
 }

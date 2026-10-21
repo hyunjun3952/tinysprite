@@ -40,7 +40,8 @@ void sprite_destroy(Sprite *sprite)
     for (int i = 0; i < sprite->layer_count; i++) {
         layer_destroy(sprite->layers[i]);
     }
-    free((void *)sprite->layers);
+    free((void *)
+             sprite->layers); /* explicit cast: bugprone-multi-level-implicit-pointer-conversion */
     palette_destroy(sprite->palette);
     free(sprite);
 }
