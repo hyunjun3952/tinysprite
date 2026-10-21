@@ -1,5 +1,7 @@
 #include "icons/icons.h"
 
+#include <math.h>
+
 #include "icons/icon_font.h"
 #include "ui_common.h"
 
@@ -27,17 +29,14 @@ static const char *const GLYPHS[] = {
     [ICON_POP_OUT] = "\xEE\xA2\x9E",    /* open_in_new U+E89E */
 };
 
-/* The size the glyphs were drawn at (the "opsz" axis in scripts/gen-icon-font.py). */
+/* How much of its square a glyph fills. These are the sizes the buttons have always drawn at: they
+ * used to ask for 0.7 and 1.05 of the size, but the font's line box was 1.2 em tall, so the glyphs
+ * came out 5/6 of that. */
+#define BUTTON_GLYPH_FILL (0.7f * 5.0f / 6.0f)
+#define TITLE_GLYPH_FILL (1.05f * 5.0f / 6.0f)
+
+/* The size the font is first baked at; ImGui bakes other sizes on demand. */
 #define ICON_FONT_PIXELS 24.0f
-
-/* The Material Symbols glyphs sit left of the center of their em box. These fractions of the glyph
- * size put them back, measured from rendered output; ImGui snaps glyph positions to whole pixels,
- * which is why the small buttons need a slightly different value than the large ones. Moving the
- * glyphs inside the font (scripts/gen-icon-font.py) would make this correction unnecessary. */
-#define GLYPH_SHIFT_X 0.13f
-#define GLYPH_SHIFT_X_SMALL 0.15f
-
-#define SMALL_ICON_LIMIT 36.0f /* buttons smaller than this use the _SMALL correction */
 
 /* Like ImGui's own context and font atlas, which it lives in, the icon font is process-wide. */
 static ImFont *icon_font;
@@ -48,24 +47,30 @@ bool icons_init(void)
     ImFontAtlas_AddFontDefault(igGetIO_Nil()->Fonts, NULL);
     ImFontConfig *config = ImFontConfig_ImFontConfig();
     config->FontDataOwnedByAtlas = false; /* the data is a static array */
+    /* Oversampling blurs a glyph and shifts it half a pixel sideways; icons are drawn at
+     * whole-pixel sizes, so it only costs sharpness and centering. */
+    config->OversampleH = 1;
     icon_font = ImFontAtlas_AddFontFromMemoryTTF(igGetIO_Nil()->Fonts, (void *)ICON_FONT_DATA,
                                                  ICON_FONT_SIZE, ICON_FONT_PIXELS, config, NULL);
     ImFontConfig_destroy(config);
     return icon_font != NULL;
 }
 
-/* Draws the icon's glyph centered in the square at `pos` of side `size`. */
+/* Draws the icon's glyph, about `glyph_size` big, centered in the square at `pos` of side `size`.
+ */
 static void draw_glyph(ImDrawList *draw, IconKind icon, ImVec2 pos, float size, float glyph_size,
                        ImU32 color)
 {
     if (!icon_font) {
         return;
     }
-    float inset_x = (size - glyph_size) / 2.0f +
-                    glyph_size * (size < SMALL_ICON_LIMIT ? GLYPH_SHIFT_X_SMALL : GLYPH_SHIFT_X);
-    float inset_y = (size - glyph_size) / 2.0f + (size < SMALL_ICON_LIMIT ? 1.25f : 0.2f);
-    ImDrawList_AddText_FontPtr(draw, icon_font, glyph_size,
-                               (ImVec2){pos.x + inset_x, pos.y + inset_y}, color, GLYPHS[icon],
+    /* The font's line box is exactly its em (see scripts/gen-icon-font.py), so text of size S fills
+     * an S x S square and centering is plain arithmetic. ImGui bakes a glyph per size and snaps the
+     * text position to whole pixels, so both must be whole numbers, and the margin on each side
+     * the same whole number: an odd leftover would put the glyph half a pixel off-center. */
+    float margin = roundf((size - glyph_size) / 2.0f);
+    ImVec2 origin = {roundf(pos.x + margin), roundf(pos.y + margin)};
+    ImDrawList_AddText_FontPtr(draw, icon_font, size - 2.0f * margin, origin, color, GLYPHS[icon],
                                NULL, 0.0f, NULL);
 }
 
@@ -85,7 +90,7 @@ bool icon_title_button(IconKind icon, const char *tooltip, float right_inset)
     if (hovered) {
         ImDrawList_AddRectFilled(draw, pos, end, COL32(255, 255, 255, 45), 3.0f, 0);
     }
-    draw_glyph(draw, icon, pos, size, size * 1.05f, COL32(255, 255, 255, 255));
+    draw_glyph(draw, icon, pos, size, size * TITLE_GLYPH_FILL, COL32(255, 255, 255, 255));
     ImDrawList_PopClipRect(draw);
     if (hovered && tooltip) {
         igSetTooltip("%s", tooltip);
@@ -118,7 +123,7 @@ bool icon_button(IconKind icon, const char *id, const char *tooltip, bool select
     ImDrawList_AddRect(draw, pos, end, COL32(75, 75, 82, (int)(255.0f * alpha)), 3.0f, 1.0f, 0);
 
     int shade = selected || hovered ? 240 : 170;
-    draw_glyph(draw, icon, pos, size, size * 0.7f,
+    draw_glyph(draw, icon, pos, size, size * BUTTON_GLYPH_FILL,
                COL32(shade, shade, shade + 4, (int)(255.0f * alpha)));
 
     if (hovered && tooltip) {

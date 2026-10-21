@@ -108,5 +108,8 @@ headless CLI export, optional Aseprite import.
   on resize until the user zooms or pans (`Editor.auto_fit`). Open / Save / Export in the File menu are disabled
   until `src/io` has the `.pxa` reader / writer.
 - Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icons/icon_font.c`, regenerate with
-  `scripts/gen-icon-font.py`; needs `pip install fonttools`). Glyph centering offsets in `icons/icons.c` were measured
-  from rendered output, so re-measure if the font size or ImGui version changes.
+  `scripts/gen-icon-font.py`; needs `pip install fonttools`). ImGui sizes a font by its line height, so the script
+  makes the line box exactly one em (descent 1 unit, not 0: ImGui `ImCeil`s the scaled ascent and an exact fit can
+  round up a pixel). That is what lets `icons/icons.c` center a glyph with plain arithmetic instead of per-size fudge
+  factors. Whole-pixel sizes and an even margin keep the center from landing half a pixel off; `OversampleH = 1`
+  stops ImGui from blurring and shifting the glyph. Re-check centering if the ImGui version changes.
