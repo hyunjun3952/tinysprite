@@ -111,41 +111,35 @@ class App
     void shutdown();
     bool saveScreenshot(const std::string &path) const;
 
-    bool persist_ = false;     /* keep settings and an autosave copy (off for --frames runs) */
-    std::string configDir_;    /* where they live, "" when there is no home directory */
-    Uint32 lastAutosave_ = 0;  /* SDL_GetTicks of the last autosave check */
-    bool hasAutosave_ = false; /* an autosave copy of this session is on disk */
+    std::string configDir_;              /* where they live, "" when there is no home directory */
     std::optional<Recovered> recovered_; /* the copy an earlier session left, awaiting an answer */
-    bool openRecover_ = false;
-    bool openNew_ = false;
-    bool newShown_ = false;     /* the New sprite dialog is open (set while it is drawn) */
-    bool recoverShown_ = false; /* ... and the recovery question */
+    std::vector<std::string> recent_;    /* recently opened / saved .pxa files, newest first */
+
+    /* What the GIF and sprite sheet dialogs ask beyond the path and the scale. */
+    struct ExportChoices {
+        int tag = -1;   /* the tag they cover, -1 for all frames */
+        int layout = 0; /* SheetLayout */
+        int columns = 0;
+        int spacing = 0;
+        bool loop = true;
+    };
+    ExportChoices export_;
     int newWidth_ = 64;
     int newHeight_ = 64;
-    int exportScale_ = 1; /* the Export dialogs' enlargement */
-    int exportTag_ = -1;  /* the tag the GIF / sheet covers, -1 for all frames */
-    bool gifLoop_ = true;
-    int sheetLayout_ = 0; /* SheetLayout */
-    int sheetColumns_ = 0;
-    int sheetSpacing_ = 0;
-    std::vector<std::string> recent_; /* recently opened / saved .pxa files, newest first */
+    int exportScale_ = 1;     /* the Export dialogs' enlargement */
+    Uint32 lastAutosave_ = 0; /* SDL_GetTicks of the last autosave check */
+    Uint32 lastTick_ = 0;     /* SDL_GetTicks of the previous frame, for playback */
 
     SDL_Window *window_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;
-    bool imguiContext_ = false;
-    bool backends_ = false;
-    bool running_ = true;
 
     FileAction fileAction_ = FileAction::None;
-    bool openFileDialog_ = false;
     std::string filePath_;     /* the .pxa the document was opened from / saved to, "" if none */
     char pathInput_[512] = ""; /* the dialog's text field */
     std::string fileError_;
 
     std::function<void()> pending_;   /* waits for the unsaved-changes popup */
     std::function<void()> afterSave_; /* runs once the Save as dialog it opened succeeds */
-    bool openConfirm_ = false;
-    bool showHelp_ = false;
     std::string title_;
 
     Panels panels_;
@@ -154,7 +148,19 @@ class App
     std::unique_ptr<ToolsPanel> toolsPanel_;
     std::unique_ptr<LayersPanel> layersPanel_;
     std::unique_ptr<TimelinePanel> timelinePanel_;
-    Uint32 lastTick_ = 0; /* SDL_GetTicks of the previous frame, for playback */
+
+    bool persist_ = false;     /* keep settings and an autosave copy (off for --frames runs) */
+    bool hasAutosave_ = false; /* an autosave copy of this session is on disk */
+    bool openRecover_ = false;
+    bool openNew_ = false;
+    bool newShown_ = false;     /* the New sprite dialog is open (set while it is drawn) */
+    bool recoverShown_ = false; /* ... and the recovery question */
+    bool imguiContext_ = false;
+    bool backends_ = false;
+    bool running_ = true;
+    bool openFileDialog_ = false;
+    bool openConfirm_ = false;
+    bool showHelp_ = false;
 };
 
 #endif

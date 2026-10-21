@@ -82,7 +82,7 @@ bool App::runFileAction(const std::string &path)
         GifOptions options;
         exportRange(options.first, options.last, options.direction);
         options.scale = exportScale_;
-        options.loop = gifLoop_;
+        options.loop = export_.loop;
         if (!gif_export(editor_->sprite(), path, options)) {
             fileError_ = "Cannot write " + path + " (use a .gif file name; up to 16384 px)";
             return false;
@@ -93,9 +93,9 @@ bool App::runFileAction(const std::string &path)
         SheetOptions options;
         PlayMode unused = PlayMode::Forward;
         exportRange(options.first, options.last, unused);
-        options.layout = static_cast<SheetLayout>(sheetLayout_);
-        options.columns = sheetColumns_;
-        options.spacing = sheetSpacing_;
+        options.layout = static_cast<SheetLayout>(export_.layout);
+        options.columns = export_.columns;
+        options.spacing = export_.spacing;
         options.scale = exportScale_;
         if (!spritesheet_export(editor_->sprite(), path, options)) {
             fileError_ = "Cannot write " + path +
@@ -131,8 +131,8 @@ void App::exportRange(int &first, int &last, PlayMode &direction) const
     first = 0;
     last = -1;
     direction = PlayMode::Forward;
-    if (exportTag_ >= 0 && exportTag_ < static_cast<int>(tags.size())) {
-        const Sprite::Tag &tag = tags[static_cast<size_t>(exportTag_)];
+    if (export_.tag >= 0 && export_.tag < static_cast<int>(tags.size())) {
+        const Sprite::Tag &tag = tags[static_cast<size_t>(export_.tag)];
         first = tag.from;
         last = tag.to;
         direction = tag.direction;
@@ -145,23 +145,23 @@ void App::exportOptions()
 {
     const bool gif = fileAction_ == FileAction::ExportGif;
     const std::vector<Sprite::Tag> &tags = editor_->sprite().tags();
-    if (exportTag_ >= static_cast<int>(tags.size())) {
-        exportTag_ = -1;
+    if (export_.tag >= static_cast<int>(tags.size())) {
+        export_.tag = -1;
     }
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Frames");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200.0f);
     std::string current =
-        exportTag_ < 0 ? "All frames" : tags[static_cast<size_t>(exportTag_)].name;
+        export_.tag < 0 ? "All frames" : tags[static_cast<size_t>(export_.tag)].name;
     if (ImGui::BeginCombo("##export_range", current.c_str())) {
-        if (ImGui::Selectable("All frames", exportTag_ < 0)) {
-            exportTag_ = -1;
+        if (ImGui::Selectable("All frames", export_.tag < 0)) {
+            export_.tag = -1;
         }
         for (int t = 0; t < static_cast<int>(tags.size()); t++) {
             ImGui::PushID(t);
-            if (ImGui::Selectable(tags[static_cast<size_t>(t)].name.c_str(), t == exportTag_)) {
-                exportTag_ = t;
+            if (ImGui::Selectable(tags[static_cast<size_t>(t)].name.c_str(), t == export_.tag)) {
+                export_.tag = t;
             }
             ImGui::PopID();
         }
@@ -173,7 +173,7 @@ void App::exportOptions()
     ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
     exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
     if (gif) {
-        ImGui::Checkbox("Loop forever", &gifLoop_);
+        ImGui::Checkbox("Loop forever", &export_.loop);
         return;
     }
     static const char *const LAYOUTS[] = {"Horizontal strip", "Vertical strip", "Grid"};
@@ -181,28 +181,28 @@ void App::exportOptions()
     ImGui::TextUnformatted("Layout");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200.0f);
-    if (ImGui::BeginCombo("##sheet_layout", LAYOUTS[sheetLayout_])) {
+    if (ImGui::BeginCombo("##sheet_layout", LAYOUTS[export_.layout])) {
         for (int i = 0; i < 3; i++) {
-            if (ImGui::Selectable(LAYOUTS[i], i == sheetLayout_)) {
-                sheetLayout_ = i;
+            if (ImGui::Selectable(LAYOUTS[i], i == export_.layout)) {
+                export_.layout = i;
             }
         }
         ImGui::EndCombo();
     }
-    if (sheetLayout_ == static_cast<int>(SheetLayout::Grid)) {
+    if (export_.layout == static_cast<int>(SheetLayout::Grid)) {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Columns");
         ImGui::SameLine();
-        ImGui::InputInt("##sheet_columns", &sheetColumns_, 1, 2);
-        sheetColumns_ = std::clamp(sheetColumns_, 0, 256);
+        ImGui::InputInt("##sheet_columns", &export_.columns, 1, 2);
+        export_.columns = std::clamp(export_.columns, 0, 256);
         ImGui::SameLine();
         ImGui::TextDisabled("0 = square-ish");
     }
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Spacing");
     ImGui::SameLine();
-    ImGui::InputInt("##sheet_spacing", &sheetSpacing_, 1, 4);
-    sheetSpacing_ = std::clamp(sheetSpacing_, 0, 256);
+    ImGui::InputInt("##sheet_spacing", &export_.spacing, 1, 4);
+    export_.spacing = std::clamp(export_.spacing, 0, 256);
 }
 
 void App::fileDialog()
