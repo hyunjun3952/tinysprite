@@ -15,6 +15,16 @@ ctest --test-dir build -R history          # one test (ctest name = file name mi
 cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON   # SDL2/cimgui frontend (off by default; needs libsdl2-dev)
 ```
 
+Format/lint (needs `clang-format` and `clang-tidy`; K&R style, 4-space indent, config in `.clang-format` / `.clang-tidy`):
+
+```sh
+scripts/format.sh           # apply formatting (--check to verify only)
+scripts/lint.sh             # clang-tidy via build/compile_commands.json
+scripts/setup-hooks.sh      # once per clone: pre-commit = format check, pre-push = format + lint
+```
+
+CI (`.github/workflows/ci.yml`) runs format check, lint, build and tests. Run format and lint before committing; `third_party/` is excluded from both.
+
 ## Architecture
 
 - **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + cimgui) → executable. Tests link only core/io. Never include SDL/ImGui headers from `src/core` or `src/io`.

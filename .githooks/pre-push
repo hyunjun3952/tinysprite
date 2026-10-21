@@ -1,0 +1,5 @@
+#!/bin/sh
+# Enable with: scripts/setup-hooks.sh
+set -e
+scripts/format.sh --check
+scripts/lint.sh

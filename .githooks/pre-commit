@@ -1,0 +1,3 @@
+#!/bin/sh
+# Enable with: scripts/setup-hooks.sh
+exec scripts/format.sh --check

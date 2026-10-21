@@ -1,0 +1,16 @@
+---
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  misc-*,
+  performance-*,
+  portability-*,
+  readability-braces-around-statements,
+  readability-misleading-indentation,
+  readability-non-const-parameter,
+  -bugprone-easily-swappable-parameters,
+  -misc-include-cleaner
+WarningsAsErrors: '*'
+# Own code only; vendored code in third_party/ is excluded by scripts/lint.sh
+HeaderFilterRegex: '(include/tinysprite|src)/.*'
