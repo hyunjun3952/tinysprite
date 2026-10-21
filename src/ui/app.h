@@ -16,8 +16,9 @@
 struct AppOptions {
     int width = 64;
     int height = 64;
-    int maxFrames = 0; /* >0: exit after this many frames (smoke runs without a display) */
-    std::string file;  /* a .pxa or image to open at start, "" for a blank sprite */
+    int maxFrames = 0;      /* >0: exit after this many frames (smoke runs without a display) */
+    std::string screenshot; /* with --frames: save the last frame to this .bmp before exiting */
+    std::string file;       /* a .pxa or image to open at start, "" for a blank sprite */
 };
 
 /* Owns the window, the ImGui context and the editor, and runs the main loop. Everything it sets up
@@ -60,6 +61,7 @@ class App
     void updateTitle();
     void dropFile(const std::string &path);
     void helpWindow();
+    bool saveScreenshot(const std::string &path) const;
 
     SDL_Window *window_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;

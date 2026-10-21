@@ -148,6 +148,23 @@ class Editor
         return paletteSelected_;
     }
 
+    /* Which canvas decorations are drawn (the pixel grid is showGrid): the status line, the outline
+     * of the cel under the mouse (with the brush footprint) and the mirror axes. Kept when a
+     * document is opened. */
+    struct Overlays {
+        bool status = true;
+        bool cursor = true;
+        bool mirror_axes = true;
+    };
+    Overlays &overlays()
+    {
+        return overlays_;
+    }
+    const Overlays &overlays() const
+    {
+        return overlays_;
+    }
+
     bool showGrid() const
     {
         return showGrid_;
@@ -266,6 +283,19 @@ class Editor
         return drag_ != nullptr;
     }
 
+    /* Counts the calls of markDirty / markAllDirty, i.e. every change of what the layers show, so
+     * something derived from the pixels (the layer thumbnails) can tell when to refresh. */
+    uint64_t revision() const
+    {
+        return revision_;
+    }
+
+    /* The renderer the editor was created with, for things that need textures of their own. */
+    SDL_Renderer *renderer() const
+    {
+        return renderer_;
+    }
+
     /* Marks cels for re-compositing; `area` must not be empty. */
     void markDirty(Rect area);
     void markAllDirty();
@@ -367,6 +397,7 @@ class Editor
     RecentColors recent_ = {};
     int paletteSelected_ = -1;
     bool showGrid_ = true;
+    Overlays overlays_;
     int activeLayer_ = 0;
     int frame_ = 0;
     ToolOptions options_;
@@ -385,6 +416,7 @@ class Editor
     std::unique_ptr<SDL_Texture, TextureDeleter> texture_;
     std::optional<Clip> clipboard_; /* last copied / cut selection */
     std::vector<Rgba> pixels_;      /* composited frame */
+    uint64_t revision_ = 0;
     bool dirty_ = false;
     Rect dirtyRect_ = {};
 

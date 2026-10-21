@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "theme.h"
+
 namespace
 {
 
@@ -245,7 +247,7 @@ void Canvas::show(float x, float y, float w, float h)
     ImDrawList *draw = ImGui::GetWindowDrawList();
     ImVec2 clipMax(origin.x + avail.x, origin.y + avail.y);
     draw->PushClipRect(origin, clipMax, true);
-    draw->AddRectFilled(origin, clipMax, IM_COL32(45, 45, 48, 255));
+    draw->AddRectFilled(origin, clipMax, theme::workspaceColor());
 
     ScreenRect sprite = {origin.x + editor_.view().viewport.celToScreenX(0),
                          origin.y + editor_.view().viewport.celToScreenY(0), 0.0f, 0.0f};
@@ -268,10 +270,16 @@ void Canvas::show(float x, float y, float w, float h)
     }
     drawRectOutline(draw, ImVec2(sprite.x0 - 1.0f, sprite.y0 - 1.0f),
                     ImVec2(sprite.x1 + 1.0f, sprite.y1 + 1.0f), IM_COL32(200, 200, 205, 255));
-    drawMirrorAxes(draw, sprite);
+    if (editor_.overlays().mirror_axes) {
+        drawMirrorAxes(draw, sprite);
+    }
     drawSelection(draw, origin);
-    drawHoverOutline(draw, origin);
-    drawStatus(draw, origin, avail);
+    if (editor_.overlays().cursor) {
+        drawHoverOutline(draw, origin);
+    }
+    if (editor_.overlays().status) {
+        drawStatus(draw, origin, avail);
+    }
     draw->PopClipRect();
 
     ImGui::End();

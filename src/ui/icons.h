@@ -1,46 +1,35 @@
 #ifndef TINYSPRITE_UI_ICONS_H
 #define TINYSPRITE_UI_ICONS_H
 
+#include <array>
+
+#include "imgui.h"
+
+/* Pixel-art icons, drawn from 16x16 bitmaps kept in icons.cpp (an 'X' is a lit pixel). They are
+ * used only where a picture reads faster than a word: the layer rows and the layer buttons. No font
+ * or generator is involved: to change an icon, edit its rows. */
 namespace icons
 {
 
-enum class Icon {
-    Pencil,
-    Eraser,
-    Bucket,
-    Eyedropper,
-    Line,
-    Rect,
-    Ellipse,
-    Select,
-    FlipH,
-    FlipV,
-    RotateCw,
-    RotateCcw,
-    Swap,
-    Add,
-    Remove,
-    Duplicate,
-    MergeDown,
-    MoveUp,
-    MoveDown,
-    PopOut,
-};
+enum class Icon { Eye, EyeOff, Lock, Unlock, Plus, Copy, Trash, Merge, Count };
 
-/* Loads the icon font into ImGui's atlas; call once after the ImGui context exists. Returns false
- * on failure (buttons then draw without an icon). */
-bool init();
+inline constexpr int SIZE = 16; /* the bitmaps' width and height */
 
-/* A square button drawn with a gray Material Symbols icon. `id` must be unique in
- * the current ImGui ID scope; `tooltip` is shown on hover, also while disabled. A selected button
- * gets an accent background. The icon dims with ImGui's disabled alpha. Returns true when
- * clicked. Call between the backends' new-frame calls and ImGui::Render. */
-bool button(Icon icon, const char *id, const char *tooltip, bool selected, float size);
+/* The bitmap of `icon`: SIZE rows of SIZE characters, 'X' for a lit pixel and '.' for a clear one.
+ */
+const std::array<const char *, SIZE> &bitmap(Icon icon);
 
-/* A white icon-only button at the right end of the current window's title bar, `right_inset` pixels
- * left of the edge (room for the window's close button). Returns true when clicked. Call right
- * after ImGui::Begin. */
-bool titleButton(Icon icon, const char *tooltip, float right_inset);
+/* Draws the icon centered in the rectangle [min, max], one screen pixel per bitmap pixel. */
+void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
+
+/* A framed button with the icon centered, like the other buttons. `id` must be unique in the ID
+ * scope and start with "##" (there is no label). The tooltip shows also while disabled. Returns
+ * true when clicked. */
+bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled = true);
+
+/* A frameless square toggle for a list row: shows `on` in the text color or `off` muted, with a
+ * hover highlight. Returns true when clicked. */
+bool toggle(Icon on, Icon off, const char *id, const char *tooltip, bool state, float size);
 
 } // namespace icons
 

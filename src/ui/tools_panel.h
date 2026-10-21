@@ -5,8 +5,8 @@
 #include "imgui.h"
 #include "panels.h"
 
-/* The Tools window: tool buttons, tool options, selection transforms, the color pickers, the recent
- * colors and the palette. */
+/* The Tools window, in collapsible sections: the tools, the options of the active tool, symmetry,
+ * selection transforms, the color pickers, the recent colors and the palette. */
 class ToolsPanel
 {
   public:
@@ -18,6 +18,9 @@ class ToolsPanel
     static ImGuiKey shortcutKey(ToolKind tool);
 
   private:
+    void toolGrid();
+    void toolOptions();
+    void symmetryOptions();
     void colorWidget();
     void selectionButtons();
     void recentColors();

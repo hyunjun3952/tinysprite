@@ -106,15 +106,34 @@ headless CLI export, optional Aseprite import.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
 - UI layout (`src/ui/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
-  floating windows; dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
+  floating windows; dragging a docked panel's title bar pulls it out (it follows the mouse until release), and
+  dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`).
-- Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icon_font.inc`, regenerate with
-  `scripts/gen-icon-font.py`; needs `pip install fonttools`). ImGui sizes a font by its line height, so the script
-  makes the line box exactly one em (descent 1 unit, not 0: ImGui `ImCeil`s the scaled ascent and an exact fit can
-  round up a pixel). That is what lets `icons/icons.cpp` center a glyph with plain arithmetic instead of per-size fudge
-  factors. Material Symbols have 2-unit strokes on a 24-unit grid, so glyphs are crispest at a 12 px multiple (24 px has about
-  half as many smeared edge pixels as 16 px; buttons use 20 px, a little softer, because 24 px looked too big). For the same reason `OversampleH = 1`; oversampling blurs aligned strokes and shifts the glyph
-  by about half a pixel. Re-check centering and crispness if the ImGui version changes.
+- Look (`src/ui/theme.cpp`): a warm near-charcoal dark theme after the Warp design language (canvas `#2b2622`, cards /
+  inputs `#383330`, 1 px hairlines `#3f3a36`, 3-4 px corner radii, no shadows). The off-white `#f7f5f0` is the only accent:
+  the selected tool is drawn inverted (`theme::choiceButton`). Buttons are text, grouped into collapsible
+  sections (`theme::section`) in the Tools and Layers panels, with the shortcut letter at the button's right end;
+  only the layer rows and layer buttons have icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
+  as rects, so there is no font or generator: edit the rows to change one; `tests/ui/ui_icons.cpp` checks their shape). The
+  Tool options section shows only what the active tool uses. ImGui's built-in font is still used (Inter / DM Mono are not
+  embedded yet). `tinysprite --frames N --screenshot out.bmp` saves the last frame, for checking the look without a
+  display; `ctest -R ui_smoke` runs three frames of the app.
+- Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
+  `namespace sections`; the menu stays open while toggling; "Reset layout and sections" restores everything). View
+  toggles the pixel grid, cursor outline, mirror axes and status line (`Editor::overlays`, kept across documents).
+  Each layer row shows a thumbnail of what is painted on that layer (`LayerThumbnails`: one texture per layer, sized by
+  `thumbnail_size`, filled by `thumbnail_pixels` which samples nearest so the cost is independent of the sprite size,
+  refreshed when `Editor::revision()` changes, dimmed while the layer is hidden).
+  Layers are reordered by dragging a row onto another (`moveLayer`, one undo step, the dragged layer stays active;
+  there are no up / down buttons). With the layer list focused (`LayersPanel::focused`, set from the window's
+  focus in the frame it is drawn) the Delete key and the trash button ask "Delete layer?" first (Enter confirms,
+  Escape cancels, undo brings it back); elsewhere Delete still clears the selected pixels. While that dialog is
+  open the app's shortcuts are off.
+  Double-clicking a layer row renames it in place (live, one undo step on release; Esc cancels).
+  None of this is persisted yet. Items whose purpose is not obvious from the label have a tooltip (`theme::tip`, shown
+  after the style's hover delay, also on disabled widgets).
+- `Panels::end` only calls `ImGui::End` if `begin` started a window: a hidden panel (closed with its X button or
+  hidden from the Window menu) used to trip "Calling End() too many times!". `tests/ui/ui_panels.cpp` covers it.
 - Unsaved changes: `History::markSaved` / `atSavePoint` track the saved state (undoing back to it counts as clean; an
   edit that replaces the saved steps or `forgetCel` makes it permanently dirty). Palette edits are outside undo, so
   they do not mark the document dirty. `App` shows `*` in the window title and asks Save / Discard / Cancel before

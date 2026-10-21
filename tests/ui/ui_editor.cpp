@@ -196,6 +196,28 @@ TEST(tools_ignore_a_locked_layer)
     delete e;
 }
 
+TEST(overlay_settings_survive_opening_a_document)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->overlays().status && e->overlays().cursor && e->overlays().mirror_axes);
+    e->overlays().status = false;
+    ASSERT_TRUE(e->setSprite(Sprite(8, 8)));
+    ASSERT_TRUE(!e->overlays().status);
+    delete e;
+}
+
+TEST(revision_counts_every_change_of_the_pixels)
+{
+    Editor *e = make_editor();
+    uint64_t before = e->revision();
+    click(e, 1, 1);
+    ASSERT_TRUE(e->revision() > before);
+    uint64_t afterStroke = e->revision();
+    e->undo();
+    ASSERT_TRUE(e->revision() > afterStroke);
+    delete e;
+}
+
 TEST(swap_colors_exchanges_foreground_and_background)
 {
     Editor *e = make_editor();
@@ -790,6 +812,8 @@ int main(void)
     RUN(layer_edits_are_held_off_while_dragging);
     RUN(tools_ignore_a_hidden_layer);
     RUN(lock_toggle_is_undoable);
+    RUN(revision_counts_every_change_of_the_pixels);
+    RUN(overlay_settings_survive_opening_a_document);
     RUN(tools_ignore_a_locked_layer);
     RUN(drawing_stays_inside_the_selection);
     RUN(clip_is_lifted_after_the_stroke);

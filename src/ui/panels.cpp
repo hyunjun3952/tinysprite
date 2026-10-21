@@ -1,15 +1,17 @@
 #include "panels.h"
 
 #include <algorithm>
+#include <cstring>
+#include <initializer_list>
 
-#include "icons.h"
 #include "imgui.h"
+#include "theme.h"
 
 namespace
 {
 
 constexpr float TOOLS_PANEL_WIDTH = 250.0f;
-constexpr float LAYERS_PANEL_WIDTH = 220.0f;
+constexpr float LAYERS_PANEL_WIDTH = 280.0f;
 constexpr float FLOAT_OFFSET = 40.0f;
 constexpr float RESIZE_GRAB = 4.0f;
 constexpr float PANEL_MIN_WIDTH = 170.0f;
@@ -18,8 +20,8 @@ constexpr float DOCK_ZONE =
     60.0f; /* mouse distance from a window edge that docks a dragged panel */
 constexpr float TITLE_DRAG_DISTANCE = 4.0f; /* mouse travel that turns a title press into a drag */
 
-/* Translucent blue, ABGR. */
-constexpr ImU32 COL32_PANEL_DROP = 0x66d29a4aU;
+/* Translucent off-white, ABGR. */
+constexpr ImU32 COL32_PANEL_DROP = 0x66f0f5f7U;
 
 } // namespace
 
@@ -30,10 +32,43 @@ Panels::Panels()
 
 void Panels::reset()
 {
-    panels_[static_cast<size_t>(PanelId::Tools)] = {"Tools", TOOLS_PANEL_WIDTH, true,
-                                                    DockSide::Left, DockSide::Left};
-    panels_[static_cast<size_t>(PanelId::Layers)] = {"Layers", LAYERS_PANEL_WIDTH, true,
-                                                     DockSide::Right, DockSide::Right};
+    auto make = [](const char *title, float width, DockSide side,
+                   std::initializer_list<const char *> sectionNames) {
+        Panel panel{};
+        panel.title = title;
+        panel.width = width;
+        panel.side = side;
+        panel.home = side;
+        for (const char *name : sectionNames) {
+            panel.sections.push_back({name, true});
+        }
+        return panel;
+    };
+    panels_[static_cast<size_t>(PanelId::Tools)] =
+        make("Tools", TOOLS_PANEL_WIDTH, DockSide::Left,
+             {sections::TOOLS, sections::TOOL_OPTIONS, sections::SYMMETRY, sections::SELECTION,
+              sections::COLOR, sections::RECENT, sections::PALETTE});
+    panels_[static_cast<size_t>(PanelId::Layers)] = make(
+        "Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS, sections::PROPERTIES});
+}
+
+bool Panels::sectionVisible(PanelId id, const char *name) const
+{
+    for (const Section &section : panels_[static_cast<size_t>(id)].sections) {
+        if (std::strcmp(section.name, name) == 0) {
+            return section.visible;
+        }
+    }
+    return true;
+}
+
+void Panels::setSectionVisible(PanelId id, const char *name, bool visible)
+{
+    for (Section &section : panels_[static_cast<size_t>(id)].sections) {
+        if (std::strcmp(section.name, name) == 0) {
+            section.visible = visible;
+        }
+    }
 }
 
 void Panels::dock(Panel &panel, DockSide side)
@@ -67,17 +102,46 @@ void Panels::layout(float &left, float &right)
     }
 }
 
+/* True when the mouse is over the title bar of the current window. */
+bool Panels::titleHovered()
+{
+    ImVec2 mouse = ImGui::GetMousePos();
+    ImVec2 pos = ImGui::GetWindowPos();
+    return ImGui::IsWindowHovered() && mouse.y >= pos.y &&
+           mouse.y < pos.y + ImGui::GetFrameHeight() && mouse.x < pos.x + ImGui::GetWindowWidth();
+}
+
+/* Dragging a docked panel's title bar pulls it out: it floats under the mouse and follows it (see
+ * begin) until the button is released, where dragToDock may dock it to an edge again. */
+void Panels::undockOnDrag(Panel &panel)
+{
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
+        panel.titlePress = titleHovered();
+    }
+    if (!panel.titlePress) {
+        return;
+    }
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        panel.titlePress = false;
+    } else if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, TITLE_DRAG_DISTANCE)) {
+        ImVec2 mouse = ImGui::GetMousePos();
+        ImVec2 pos = ImGui::GetWindowPos();
+        panel.grabX = std::clamp(mouse.x - pos.x, 0.0f, panel.width);
+        panel.grabY = mouse.y - pos.y;
+        dock(panel, DockSide::Float);
+        panel.place = false;
+        panel.moving = true;
+    }
+}
+
 /* While a floating panel's title bar is dragged near a window edge, highlights where it would dock
  * and docks it on release. */
 void Panels::dragToDock(Panel &panel)
 {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 mouse = ImGui::GetMousePos();
-    ImVec2 pos = ImGui::GetWindowPos();
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
-        panel.titlePress = ImGui::IsWindowHovered() && mouse.y >= pos.y &&
-                           mouse.y < pos.y + ImGui::GetFrameHeight() &&
-                           mouse.x < pos.x + ImGui::GetWindowWidth();
+        panel.titlePress = titleHovered();
     }
     if (!panel.titlePress) {
         return;
@@ -133,18 +197,6 @@ void Panels::resizeEdge(Panel &panel)
     }
 }
 
-/* Pop-out / dock icon at the right end of the title bar (left of the close button when floating).
- */
-void Panels::titleButton(Panel &panel)
-{
-    bool floating = panel.side == DockSide::Float;
-    float closeButton = floating ? ImGui::GetFrameHeight() : 0.0f;
-    if (icons::titleButton(icons::Icon::PopOut, floating ? "Dock panel" : "Float panel",
-                           closeButton)) {
-        dock(panel, floating ? panel.home : DockSide::Float);
-    }
-}
-
 bool Panels::begin(PanelId id, float height)
 {
     Panel &panel = panels_[static_cast<size_t>(id)];
@@ -155,22 +207,29 @@ bool Panels::begin(PanelId id, float height)
     if (panel.side != DockSide::Float) {
         ImGui::SetNextWindowPos(ImVec2(panel.dockX, viewport->WorkPos.y));
         ImGui::SetNextWindowSize(ImVec2(panel.width, height));
+        windowOpen_ = true;
         bool shown = ImGui::Begin(panel.title, nullptr,
                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
                                       ImGuiWindowFlags_NoCollapse);
-        titleButton(panel);
+        undockOnDrag(panel);
         resizeEdge(panel);
         return shown;
     }
-    if (panel.place) {
+    if (panel.moving && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        panel.moving = false;
+    }
+    if (panel.moving) {
+        ImVec2 mouse = ImGui::GetMousePos();
+        ImGui::SetNextWindowPos(ImVec2(mouse.x - panel.grabX, mouse.y - panel.grabY));
+    } else if (panel.place) {
         ImGui::SetNextWindowPos(
             ImVec2(panel.dockX + FLOAT_OFFSET, viewport->WorkPos.y + FLOAT_OFFSET));
         panel.place = false;
     }
     ImGui::SetNextWindowSize(ImVec2(panel.width, height * 0.8f), ImGuiCond_FirstUseEver);
     bool open = true;
+    windowOpen_ = true;
     bool shown = ImGui::Begin(panel.title, &open);
-    titleButton(panel);
     if (!open) {
         panel.visible = false;
     }
@@ -178,9 +237,27 @@ bool Panels::begin(PanelId id, float height)
     return shown;
 }
 
+bool Panels::visible(PanelId id) const
+{
+    return panels_[static_cast<size_t>(id)].visible;
+}
+
+void Panels::setVisible(PanelId id, bool visible)
+{
+    panels_[static_cast<size_t>(id)].visible = visible;
+}
+
+bool Panels::floating(PanelId id) const
+{
+    return panels_[static_cast<size_t>(id)].side == DockSide::Float;
+}
+
 void Panels::end()
 {
-    ImGui::End();
+    if (windowOpen_) {
+        ImGui::End();
+        windowOpen_ = false;
+    }
 }
 
 void Panels::windowMenu()
@@ -201,11 +278,25 @@ void Panels::windowMenu()
             if (ImGui::MenuItem("Float", nullptr, panel.side == DockSide::Float)) {
                 dock(panel, DockSide::Float);
             }
+            ImGui::Separator();
+            ImGui::TextDisabled("Sections");
+            theme::tip("Choose which sections of this panel are shown.");
+            /* Stay open while the sections are toggled one after another. */
+            ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+            for (Section &section : panel.sections) {
+                ImGui::MenuItem(section.name, nullptr, &section.visible);
+            }
+            if (ImGui::MenuItem("Show all")) {
+                for (Section &section : panel.sections) {
+                    section.visible = true;
+                }
+            }
+            ImGui::PopItemFlag();
             ImGui::EndMenu();
         }
     }
     ImGui::Separator();
-    if (ImGui::MenuItem("Reset layout")) {
+    if (ImGui::MenuItem("Reset layout and sections")) {
         reset();
     }
     ImGui::EndMenu();

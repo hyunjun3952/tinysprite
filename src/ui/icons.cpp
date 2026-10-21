@@ -3,14 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "imgui.h"
-
-namespace
-{
-
-#include "icon_font.inc"
-
-} // namespace
+#include "theme.h"
 
 namespace icons
 {
@@ -18,139 +11,243 @@ namespace icons
 namespace
 {
 
-/* UTF-8 of the Material Symbols code point for each icon, in Icon order (see
- * scripts/gen-icon-font.py). */
-const char *const GLYPHS[] = {
-    "\xEF\x82\x97", /* edit U+F097 */
-    "\xEE\x9B\x90", /* ink_eraser U+E6D0 */
-    "\xEE\x88\xBA", /* format_color_fill U+E23A */
-    "\xEE\x8E\xB8", /* colorize U+E3B8 */
-    "\xEF\x90\x9E", /* diagonal_line U+F41E */
-    "\xEE\x8F\x86", /* crop_square U+E3C6 */
-    "\xEE\xBD\x8A", /* circle U+EF4A */
-    "\xEE\xBD\x92", /* highlight_alt U+EF52 */
-    "\xEE\x8F\xA8", /* flip U+E3E8 */
-    "\xEE\x80\x80", /* flip rotated, U+E000 */
-    "\xEE\x90\x9A", /* rotate_right U+E41A */
-    "\xEE\x90\x99", /* rotate_left U+E419 */
-    "\xEE\xA3\x94", /* swap_horiz U+E8D4 */
-    "\xEE\x85\x85", /* add U+E145 */
-    "\xEE\x85\x9B", /* remove U+E15B */
-    "\xEE\x85\x8D", /* content_copy U+E14D */
-    "\xEE\x89\x98", /* vertical_align_bottom U+E258 */
-    "\xEE\x97\x98", /* arrow_upward U+E5D8 */
-    "\xEE\x97\x9B", /* arrow_downward U+E5DB */
-    "\xEE\xA2\x9E", /* open_in_new U+E89E */
-};
-static_assert(sizeof(GLYPHS) / sizeof(GLYPHS[0]) == static_cast<size_t>(Icon::PopOut) + 1,
-              "one glyph per Icon");
+constexpr size_t ICON_COUNT = static_cast<size_t>(Icon::Count);
 
-/* Material Symbols are drawn on a 24-unit grid with 2-unit strokes, so every stroke is a whole
- * number of pixels only when the em is a multiple of 12 px (24 px is crisp, 20 px is a little
- * softer; a 16 px glyph smears most edges). 24 px glyphs looked too big in these buttons, so a
- * button's glyph fills BUTTON_GLYPH_FILL of it, but never more than BUTTON_GLYPH_MAX_EM. */
-constexpr float BUTTON_GLYPH_FILL = 0.72f;
-constexpr float BUTTON_GLYPH_MAX_EM = 20.0f;
-constexpr float TITLE_GLYPH_EM = 12.0f;
+/* Indexed by Icon. */
+const std::array<std::array<const char *, SIZE>, ICON_COUNT> BITMAPS = {{
+    /* Eye */
+    {{
+        "................",
+        "................",
+        "................",
+        "....XXXXXXXX....",
+        "..XXX......XXX..",
+        ".XX...XXXX...XX.",
+        "XX...XXXXXX...XX",
+        "XX...XXXXXX...XX",
+        ".XX...XXXX...XX.",
+        "..XXX......XXX..",
+        "....XXXXXXXX....",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+    }},
+    /* EyeOff */
+    {{
+        "................",
+        "................",
+        ".............XX.",
+        "....XXXXXXXXXX..",
+        "..XXX......XXX..",
+        ".XX.......XX.XX.",
+        "XX.......XX...XX",
+        "XX......XX....XX",
+        ".XX....XX....XX.",
+        "..XXX.XX...XXX..",
+        "....XXXXXXXX....",
+        "....XX..........",
+        "...XX...........",
+        "..XX............",
+        "................",
+        "................",
+    }},
+    /* Lock */
+    {{
+        "................",
+        ".....XXXXXX.....",
+        "....XX....XX....",
+        "....XX....XX....",
+        "....XX....XX....",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "..XXXXX..XXXXX..",
+        "..XXXXX..XXXXX..",
+        "..XXXXX..XXXXX..",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "................",
+        "................",
+        "................",
+    }},
+    /* Unlock */
+    {{
+        "................",
+        ".....XXXXXX.....",
+        "....XX....XX....",
+        "....XX..........",
+        "....XX..........",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "..XXXXX..XXXXX..",
+        "..XXXXX..XXXXX..",
+        "..XXXXX..XXXXX..",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "................",
+        "................",
+        "................",
+    }},
+    /* Plus */
+    {{
+        "................",
+        "................",
+        "................",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        "...XXXXXXXXXX...",
+        "...XXXXXXXXXX...",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        "................",
+        "................",
+        "................",
+    }},
+    /* Copy */
+    {{
+        "................",
+        "................",
+        "..XXXXXXXX......",
+        "..X......X......",
+        "..X......X......",
+        "..X..XXXXXXXXX..",
+        "..X..X.......X..",
+        "..X..X.......X..",
+        "..X..X.......X..",
+        "..XXXX.......X..",
+        ".....X.......X..",
+        ".....X.......X..",
+        ".....X.......X..",
+        ".....XXXXXXXXX..",
+        "................",
+        "................",
+    }},
+    /* Trash */
+    {{
+        "................",
+        "................",
+        "......XXXX......",
+        "...XXXXXXXXXX...",
+        "................",
+        "....XXXXXXXX....",
+        "....X......X....",
+        "....X.X..X.X....",
+        "....X.X..X.X....",
+        "....X.X..X.X....",
+        "....X.X..X.X....",
+        "....X.X..X.X....",
+        "....X......X....",
+        "....XXXXXXXX....",
+        "................",
+        "................",
+    }},
+    /* Merge */
+    {{
+        "................",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        ".......XX.......",
+        "....XXXXXXXX....",
+        ".....XXXXXX.....",
+        "......XXXX......",
+        ".......XX.......",
+        "................",
+        "................",
+        "..XXXXXXXXXXXX..",
+        "..XXXXXXXXXXXX..",
+        "................",
+        "................",
+    }},
+}};
 
-/* The size the font is first baked at; ImGui bakes other sizes on demand. */
-constexpr float ICON_FONT_PIXELS = 24.0f;
+constexpr float ROUND = 3.0f;
 
-/* Like ImGui's own context and font atlas, which it lives in, the icon font is process-wide. */
-ImFont *iconFont = nullptr;
-
-/* The em of a glyph in a button of side `size`: even, so it leaves the same whole margin on both
- * sides in the even-sized buttons the UI uses. */
-float buttonGlyphEm(float size)
+ImU32 withAlpha(unsigned hex, float alpha)
 {
-    return std::min(BUTTON_GLYPH_MAX_EM, 2.0f * std::floor(size * BUTTON_GLYPH_FILL / 2.0f));
-}
-
-/* Draws the icon's glyph at `em` pixels, centered in the square at `pos` of side `size`. */
-void drawGlyph(ImDrawList *draw, Icon icon, ImVec2 pos, float size, float em, ImU32 color)
-{
-    if (!iconFont) {
-        return;
-    }
-    /* The font's line box is exactly its em (see scripts/gen-icon-font.py), so text of size S fills
-     * an S x S square and centering is plain arithmetic. ImGui snaps the text position to whole
-     * pixels, so round it here; an odd difference between `size` and `em` still leaves the glyph
-     * half a pixel off-center, which is not worth changing the glyph size for. */
-    ImVec2 origin(std::round(pos.x + (size - em) / 2.0f), std::round(pos.y + (size - em) / 2.0f));
-    draw->AddText(iconFont, em, origin, color, GLYPHS[static_cast<size_t>(icon)]);
+    return ImGui::ColorConvertFloat4ToU32(theme::rgb(hex, alpha));
 }
 
 } // namespace
 
-bool init()
+const std::array<const char *, SIZE> &bitmap(Icon icon)
 {
-    ImFontAtlas *fonts = ImGui::GetIO().Fonts;
-    /* The first font added becomes the default, so register ImGui's own before the icon font. */
-    fonts->AddFontDefault();
-    ImFontConfig config;
-    config.FontDataOwnedByAtlas = false; /* the data is a static array */
-    /* Oversampling softens a glyph and shifts it about half a pixel sideways. Icons are drawn at
-     * sizes that put their strokes on whole pixels, so it would only blur them. */
-    config.OversampleH = 1;
-    iconFont = fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(ICON_FONT_DATA),
-                                           ICON_FONT_SIZE, ICON_FONT_PIXELS, &config);
-    return iconFont != nullptr;
+    return BITMAPS[static_cast<size_t>(icon)];
 }
 
-bool titleButton(Icon icon, const char *tooltip, float rightInset)
+void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
 {
-    ImVec2 window = ImGui::GetWindowPos();
-    float bar = ImGui::GetFrameHeight();
-    float size = bar - 4.0f;
-    ImVec2 pos(window.x + ImGui::GetWindowWidth() - ImGui::GetStyle().FramePadding.x - rightInset -
-                   size,
-               window.y + 2.0f);
-    ImVec2 end(pos.x + size, pos.y + size);
-    bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(pos, end, false);
-    ImDrawList *draw = ImGui::GetWindowDrawList();
-    /* The title bar lies outside the window's content clip rect. */
-    draw->PushClipRect(window, ImVec2(window.x + ImGui::GetWindowWidth(), window.y + bar), false);
-    if (hovered) {
-        draw->AddRectFilled(pos, end, IM_COL32(255, 255, 255, 45), 3.0f);
+    const std::array<const char *, SIZE> &rows = bitmap(icon);
+    /* Center what is lit, not the 16x16 cell, so a small icon does not sit in a corner. */
+    int x0 = SIZE;
+    int x1 = -1;
+    int y0 = SIZE;
+    int y1 = -1;
+    for (int y = 0; y < SIZE; y++) {
+        for (int x = 0; x < SIZE; x++) {
+            if (rows[static_cast<size_t>(y)][x] == 'X') {
+                x0 = std::min(x0, x);
+                x1 = std::max(x1, x);
+                y0 = std::min(y0, y);
+                y1 = std::max(y1, y);
+            }
+        }
     }
-    drawGlyph(draw, icon, pos, size, TITLE_GLYPH_EM, IM_COL32(255, 255, 255, 255));
-    draw->PopClipRect();
-    if (hovered && tooltip) {
-        ImGui::SetTooltip("%s", tooltip);
+    if (x1 < 0) {
+        return;
     }
-    return hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left, false);
+    float originX = std::floor((min.x + max.x) / 2.0f - static_cast<float>(x0 + x1 + 1) / 2.0f);
+    float originY = std::floor((min.y + max.y) / 2.0f - static_cast<float>(y0 + y1 + 1) / 2.0f);
+    for (int y = y0; y <= y1; y++) {
+        const char *row = rows[static_cast<size_t>(y)];
+        for (int x = x0; x <= x1; x++) {
+            if (row[x] != 'X') {
+                continue;
+            }
+            int end = x;
+            while (end + 1 <= x1 && row[end + 1] == 'X') {
+                end++;
+            }
+            list->AddRectFilled(
+                ImVec2(originX + static_cast<float>(x), originY + static_cast<float>(y)),
+                ImVec2(originX + static_cast<float>(end + 1), originY + static_cast<float>(y + 1)),
+                color);
+            x = end;
+        }
+    }
 }
 
-bool button(Icon icon, const char *id, const char *tooltip, bool selected, float size)
+bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled)
 {
-    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImGui::BeginDisabled(!enabled);
+    bool clicked = ImGui::Button(id, size);
+    ImGui::EndDisabled();
+    draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+         enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f));
+    theme::tip(tooltip);
+    return clicked && enabled;
+}
+
+bool toggle(Icon on, Icon off, const char *id, const char *tooltip, bool state, float size)
+{
     bool clicked = ImGui::InvisibleButton(id, ImVec2(size, size));
-    bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
-    bool held = ImGui::IsItemActive();
-    ImDrawList *draw = ImGui::GetWindowDrawList();
-    float alpha = ImGui::GetStyle().Alpha;
-    int a = static_cast<int>(255.0f * alpha);
-
-    ImU32 background = 0;
-    if (selected) {
-        background = IM_COL32(70, 100, 150, a);
-    } else if (held) {
-        background = IM_COL32(80, 80, 86, a);
-    } else if (hovered) {
-        background = IM_COL32(62, 62, 68, a);
+    ImVec2 min = ImGui::GetItemRectMin();
+    ImVec2 max = ImGui::GetItemRectMax();
+    ImDrawList *list = ImGui::GetWindowDrawList();
+    if (ImGui::IsItemHovered()) {
+        list->AddRectFilled(min, max, withAlpha(theme::HOVER, 1.0f), ROUND);
     }
-    ImVec2 end(pos.x + size, pos.y + size);
-    if (background != 0) {
-        draw->AddRectFilled(pos, end, background, 3.0f);
-    }
-    draw->AddRect(pos, end, IM_COL32(75, 75, 82, a), 3.0f, 0, 1.0f);
-
-    int shade = selected || hovered ? 240 : 170;
-    drawGlyph(draw, icon, pos, size, buttonGlyphEm(size), IM_COL32(shade, shade, shade + 4, a));
-
-    if (hovered && tooltip) {
-        ImGui::SetTooltip("%s", tooltip);
-    }
+    draw(list, state ? on : off, min, max,
+         state ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.7f));
+    theme::tip(tooltip);
     return clicked;
 }
 

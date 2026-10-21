@@ -264,12 +264,14 @@ Rect Editor::spriteBounds() const
 
 void Editor::markDirty(Rect area)
 {
+    revision_++;
     dirtyRect_ = dirty_ ? rect_union(dirtyRect_, area) : area;
     dirty_ = true;
 }
 
 void Editor::markAllDirty()
 {
+    revision_++;
     dirtyRect_ = spriteBounds();
     dirty_ = true;
 }

@@ -8,8 +8,8 @@
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
-#include "icons.h"
 #include "imgui.h"
+#include "theme.h"
 #include "tinysprite/io.h"
 
 namespace
@@ -22,6 +22,11 @@ constexpr int WINDOW_HEIGHT = 720;
 
 App::~App()
 {
+    /* Everything that owns textures goes before the renderer they belong to. */
+    layersPanel_.reset();
+    toolsPanel_.reset();
+    canvas_.reset();
+    editor_.reset();
     if (backends_) {
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
@@ -60,21 +65,13 @@ bool App::init(const AppOptions &options)
     ImGui::CreateContext();
     imguiContext_ = true;
     ImGui::GetIO().IniFilename = nullptr;
-    ImGui::StyleColorsDark();
-    /* Unchecked boxes and sliders must stand out from the dark panel background. */
-    ImGuiStyle &style = ImGui::GetStyle();
-    style.FrameBorderSize = 1.0f;
-    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.21f, 0.24f, 1.0f);
-    style.Colors[ImGuiCol_Border] = ImVec4(0.42f, 0.43f, 0.48f, 0.8f);
+    theme::apply();
     if (ImGui_ImplSDL2_InitForSDLRenderer(window_, renderer_)) {
         if (ImGui_ImplSDLRenderer2_Init(renderer_)) {
             backends_ = true;
         } else {
             ImGui_ImplSDL2_Shutdown();
         }
-    }
-    if (backends_ && !icons::init()) {
-        std::fprintf(stderr, "icon font failed to load; buttons will have no icons\n");
     }
     if (backends_) {
         editor_ = Editor::create(renderer_, options.width, options.height);
@@ -187,7 +184,7 @@ void App::dropFile(const std::string &path)
 void App::layersWindow(float height)
 {
     if (panels_.begin(PanelId::Layers, height)) {
-        layersPanel_->show();
+        layersPanel_->show(panels_);
     }
     panels_.end();
 }
@@ -250,10 +247,17 @@ void App::menuBar()
         if (ImGui::MenuItem("Fit", "F")) {
             editor_->view().needs_fit = true;
         }
+        ImGui::Separator();
         bool grid = editor_->showGrid();
-        if (ImGui::MenuItem("Grid", nullptr, &grid)) {
+        if (ImGui::MenuItem("Pixel grid", nullptr, &grid)) {
             editor_->setShowGrid(grid);
         }
+        ImGui::MenuItem("Cursor outline", nullptr, &editor_->overlays().cursor);
+        theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
+        ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
+        theme::tip("Draw the center lines that Mirror X / Y reflect across.");
+        ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);
+        theme::tip("Show the size, zoom, active layer and hovered cel in the canvas corner.");
         ImGui::EndMenu();
     }
     panels_.windowMenu();
@@ -297,7 +301,7 @@ void App::plainShortcuts()
 void App::handleShortcuts()
 {
     const ImGuiIO &io = ImGui::GetIO();
-    if (io.WantTextInput) {
+    if (io.WantTextInput || layersPanel_->dialogOpen()) {
         editor_->tempPick(false);
         return;
     }
@@ -318,7 +322,13 @@ void App::handleShortcuts()
         return;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-        editor_->deleteSelection();
+        /* With the layer list focused Delete means "delete the layer" (after asking); anywhere
+         * else it clears the selected pixels. */
+        if (layersPanel_->focused()) {
+            layersPanel_->askToDelete();
+        } else {
+            editor_->deleteSelection();
+        }
     }
     if (!io.KeyCtrl) {
         if (!io.KeyAlt) {
@@ -367,6 +377,7 @@ void App::helpWindow()
         {"+  -  F", "Zoom in, zoom out, fit"},
         {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
         {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
+        {"Delete (layer list focused)", "Delete the active layer, after asking"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
         {"Ctrl+O, Ctrl+S", "Open, save"},
         {"F1", "This window"},
@@ -495,6 +506,27 @@ void App::fileDialog()
     ImGui::EndPopup();
 }
 
+/* Reads the rendered frame back and writes it as a BMP (a development aid for checking the look
+ * without a display). */
+bool App::saveScreenshot(const std::string &path) const
+{
+    int width = 0;
+    int height = 0;
+    if (SDL_GetRendererOutputSize(renderer_, &width, &height) != 0) {
+        return false;
+    }
+    SDL_Surface *surface =
+        SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!surface) {
+        return false;
+    }
+    bool ok = SDL_RenderReadPixels(renderer_, nullptr, SDL_PIXELFORMAT_ARGB8888, surface->pixels,
+                                   surface->pitch) == 0 &&
+              SDL_SaveBMP(surface, path.c_str()) == 0;
+    SDL_FreeSurface(surface);
+    return ok;
+}
+
 void App::run(const AppOptions &options)
 {
     int frames = 0;
@@ -530,10 +562,15 @@ void App::run(const AppOptions &options)
         handleShortcuts();
         updateTitle();
 
-        SDL_SetRenderDrawColor(renderer_, 30, 30, 32, 255);
+        SDL_SetRenderDrawColor(renderer_, (theme::WORKSPACE >> 16) & 0xff,
+                               (theme::WORKSPACE >> 8) & 0xff, theme::WORKSPACE & 0xff, 255);
         SDL_RenderClear(renderer_);
         ImGui::Render();
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer_);
+        if (!options.screenshot.empty() && options.maxFrames > 0 &&
+            frames + 1 >= options.maxFrames && !saveScreenshot(options.screenshot)) {
+            std::fprintf(stderr, "cannot save %s\n", options.screenshot.c_str());
+        }
         SDL_RenderPresent(renderer_);
 
         if (options.maxFrames > 0 && ++frames >= options.maxFrames) {
