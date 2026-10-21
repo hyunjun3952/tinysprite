@@ -54,7 +54,7 @@ std::unique_ptr<Editor> Editor::create(SDL_Renderer *renderer, int width, int he
     for (const Rgba &color : DEFAULT_PALETTE) {
         (void)palette_add(sprite_palette(editor->sprite()), color);
     }
-    editor->view = viewport_default();
+    editor->view_.viewport = viewport_default();
     editor->markAllDirty();
     return editor;
 }
@@ -66,12 +66,12 @@ Editor::~Editor()
 
 Rgba Editor::foreground() const
 {
-    return Rgba{toByte(color[0]), toByte(color[1]), toByte(color[2]), toByte(color[3])};
+    return Rgba{toByte(color_[0]), toByte(color_[1]), toByte(color_[2]), toByte(color_[3])};
 }
 
 void Editor::setForeground(Rgba rgba)
 {
-    setFloats(color, rgba);
+    setFloats(color_, rgba);
 }
 
 int Editor::paletteAdd()
@@ -83,7 +83,7 @@ int Editor::paletteAdd()
         index = palette_add(palette, current);
     }
     if (index >= 0) {
-        palette_selected = index;
+        paletteSelected_ = index;
     }
     return index;
 }
@@ -94,7 +94,7 @@ void Editor::palettePick(int index)
     if (index < 0 || index >= palette_count(palette)) {
         return;
     }
-    palette_selected = index;
+    paletteSelected_ = index;
     setForeground(palette_get(palette, index));
 }
 
@@ -103,18 +103,44 @@ void Editor::paletteRemove(int index)
     if (palette_remove(sprite_palette(sprite()), index) != 0) {
         return;
     }
-    if (palette_selected == index) {
-        palette_selected = -1;
-    } else if (palette_selected > index) {
-        palette_selected--;
+    if (paletteSelected_ == index) {
+        paletteSelected_ = -1;
+    } else if (paletteSelected_ > index) {
+        paletteSelected_--;
     }
 }
 
 void Editor::swapColors()
 {
     for (int i = 0; i < 4; i++) {
-        std::swap(color[i], bg_color[i]);
+        std::swap(color_[i], bgColor_[i]);
     }
+}
+
+void Editor::setActiveLayer(int index)
+{
+    if (sprite_layer(sprite(), index)) {
+        activeLayer_ = index;
+    }
+}
+
+void Editor::setHover(int x, int y, bool hovering)
+{
+    hoverX_ = x;
+    hoverY_ = y;
+    hovering_ = hovering;
+}
+
+void Editor::setSelection(Rect r)
+{
+    hasSelection_ = true;
+    selection_ = r;
+}
+
+void Editor::setMoveOffset(int dx, int dy)
+{
+    moveDx_ = dx;
+    moveDy_ = dy;
 }
 
 void Editor::selectTool(ToolKind kind)
@@ -123,7 +149,7 @@ void Editor::selectTool(ToolKind kind)
         return;
     }
     tempPick_ = false;
-    tool = kind;
+    tool_ = kind;
 }
 
 void Editor::tempPick(bool on)
@@ -131,12 +157,12 @@ void Editor::tempPick(bool on)
     if (stroking()) {
         return;
     }
-    if (on && !tempPick_ && tool != ToolKind::Eyedropper) {
-        pickReturn_ = tool;
-        tool = ToolKind::Eyedropper;
+    if (on && !tempPick_ && tool_ != ToolKind::Eyedropper) {
+        pickReturn_ = tool_;
+        tool_ = ToolKind::Eyedropper;
         tempPick_ = true;
     } else if (!on && tempPick_) {
-        tool = pickReturn_;
+        tool_ = pickReturn_;
         tempPick_ = false;
     }
 }
@@ -170,8 +196,8 @@ void Editor::cancelDrag()
     }
     drag_->cancel();
     drag_.reset();
-    move_dx = 0;
-    move_dy = 0;
+    moveDx_ = 0;
+    moveDy_ = 0;
     markAllDirty();
 }
 
@@ -203,7 +229,7 @@ void Editor::updateTexture()
     if (rect_is_empty(r)) {
         return;
     }
-    composite_sprite(sprite(), frame, r, pixels_.data());
+    composite_sprite(sprite(), frame_, r, pixels_.data());
     SDL_Rect rect = {r.x, r.y, r.w, r.h};
     const Rgba *origin =
         &pixels_[static_cast<size_t>(r.y) * static_cast<size_t>(width) + static_cast<size_t>(r.x)];
@@ -212,15 +238,15 @@ void Editor::updateTexture()
 
 void Editor::zoomStep(int direction)
 {
-    float zoom = viewport_next_zoom(view.zoom, direction);
-    viewport_zoom_at(&view, zoom, canvas_w / 2.0f, canvas_h / 2.0f);
-    auto_fit = false;
+    float zoom = viewport_next_zoom(view_.viewport.zoom, direction);
+    viewport_zoom_at(&view_.viewport, zoom, view_.canvas_w / 2.0f, view_.canvas_h / 2.0f);
+    view_.auto_fit = false;
 }
 
 /* Undoing / redoing a layer operation can change the layer count under the active index. */
 void Editor::afterHistoryStep()
 {
-    active_layer = std::min(active_layer, sprite_layer_count(sprite()) - 1);
+    activeLayer_ = std::min(activeLayer_, sprite_layer_count(sprite()) - 1);
     markAllDirty();
 }
 
@@ -240,19 +266,19 @@ void Editor::redo()
 
 bool Editor::hoverInSprite() const
 {
-    return hovering && hover_x >= 0 && hover_y >= 0 && hover_x < sprite_width(sprite()) &&
-           hover_y < sprite_height(sprite());
+    return hovering_ && hoverX_ >= 0 && hoverY_ >= 0 && hoverX_ < sprite_width(sprite()) &&
+           hoverY_ < sprite_height(sprite());
 }
 
 Cel *Editor::activeCel()
 {
-    Layer *layer = sprite_layer(sprite(), active_layer);
-    return layer ? layer_cel(layer, frame) : nullptr;
+    Layer *layer = sprite_layer(sprite(), activeLayer_);
+    return layer ? layer_cel(layer, frame_) : nullptr;
 }
 
 Cel *Editor::editableCel()
 {
-    Layer *layer = sprite_layer(sprite(), active_layer);
+    Layer *layer = sprite_layer(sprite(), activeLayer_);
     return stroking() || !layer || !layer_visible(layer) ? nullptr : activeCel();
 }
 
@@ -264,7 +290,7 @@ void Editor::addLayer()
     char name[LAYER_NAME_MAX + 1];
     std::snprintf(name, sizeof(name), "Layer %d", sprite_layer_count(sprite()) + 1);
     if (layer_op_add(history(), sprite(), name)) {
-        active_layer = sprite_layer_count(sprite()) - 1;
+        activeLayer_ = sprite_layer_count(sprite()) - 1;
     }
 }
 
@@ -273,8 +299,8 @@ void Editor::removeLayer(int index)
     if (stroking() || layer_op_remove(history(), sprite(), index) != 0) {
         return;
     }
-    if (active_layer > index) {
-        active_layer--;
+    if (activeLayer_ > index) {
+        activeLayer_--;
     }
     afterHistoryStep();
 }
@@ -285,13 +311,13 @@ void Editor::moveLayer(int from, int to)
         return;
     }
     /* The active layer keeps pointing at the same layer. */
-    int active = active_layer;
+    int active = activeLayer_;
     if (active == from) {
-        active_layer = to;
+        activeLayer_ = to;
     } else if (from < active && active <= to) {
-        active_layer = active - 1;
+        activeLayer_ = active - 1;
     } else if (to <= active && active < from) {
-        active_layer = active + 1;
+        activeLayer_ = active + 1;
     }
     markAllDirty();
 }
@@ -307,7 +333,7 @@ void Editor::setLayerVisible(int index, bool visible)
 void Editor::duplicateLayer(int index)
 {
     if (!stroking() && layer_op_duplicate(history(), sprite(), index)) {
-        active_layer = index + 1;
+        activeLayer_ = index + 1;
         markAllDirty();
     }
 }
@@ -318,10 +344,10 @@ void Editor::mergeLayerDown(int index)
         return;
     }
     /* The merged layer is gone: its selection moves down, layers above it shift down by one. */
-    if (active_layer == index) {
-        active_layer = index - 1;
-    } else if (active_layer > index) {
-        active_layer--;
+    if (activeLayer_ == index) {
+        activeLayer_ = index - 1;
+    } else if (activeLayer_ > index) {
+        activeLayer_--;
     }
     markAllDirty();
 }
@@ -348,24 +374,24 @@ void Editor::selectAll()
     if (stroking()) {
         return;
     }
-    has_selection = true;
-    selection = spriteBounds();
+    hasSelection_ = true;
+    selection_ = spriteBounds();
 }
 
 void Editor::clearSelection()
 {
     if (!stroking()) {
-        has_selection = false;
+        hasSelection_ = false;
     }
 }
 
 void Editor::deleteSelection()
 {
     Cel *cel = editableCel();
-    if (!cel || !has_selection) {
+    if (!cel || !hasSelection_) {
         return;
     }
-    Rect r = selection;
+    Rect r = selection_;
     ShapeStyle erase = {SHAPE_RECT, true, Rgba{0, 0, 0, 0}, Symmetry{}};
     if (shape_stroke(history(), cel, erase, ToolPoint{r.x, r.y},
                      ToolPoint{r.x + r.w - 1, r.y + r.h - 1}) == 0) {
@@ -376,10 +402,10 @@ void Editor::deleteSelection()
 bool Editor::copySelection()
 {
     Cel *cel = activeCel();
-    if (stroking() || !has_selection || !cel) {
+    if (stroking() || !hasSelection_ || !cel) {
         return false;
     }
-    Clip *clip = clip_copy(cel, selection);
+    Clip *clip = clip_copy(cel, selection_);
     if (!clip) {
         return false;
     }
@@ -405,11 +431,11 @@ void Editor::paste()
     int x = 0;
     int y = 0;
     if (hoverInSprite()) {
-        x = hover_x;
-        y = hover_y;
-    } else if (has_selection) {
-        x = selection.x;
-        y = selection.y;
+        x = hoverX_;
+        y = hoverY_;
+    } else if (hasSelection_) {
+        x = selection_.x;
+        y = selection_.y;
     }
     if (clip_paste(history(), cel, clipboard_.get(), x, y) != 0) {
         return;
@@ -423,19 +449,19 @@ void Editor::paste()
 void Editor::setSelectionClipped(Rect r)
 {
     Rect clipped = rect_clip(r, sprite_width(sprite()), sprite_height(sprite()));
-    has_selection = !rect_is_empty(clipped);
-    if (has_selection) {
-        selection = clipped;
+    hasSelection_ = !rect_is_empty(clipped);
+    if (hasSelection_) {
+        selection_ = clipped;
     }
 }
 
 void Editor::flipSelection(bool horizontal)
 {
     Cel *cel = editableCel();
-    if (!cel || !has_selection) {
+    if (!cel || !hasSelection_) {
         return;
     }
-    Rect r = selection;
+    Rect r = selection_;
     std::unique_ptr<Clip, Deleter<clip_destroy>> clip(clip_copy(cel, r));
     if (!clip) {
         return;
@@ -453,10 +479,10 @@ void Editor::flipSelection(bool horizontal)
 void Editor::rotateSelection(bool clockwise)
 {
     Cel *cel = editableCel();
-    if (!cel || !has_selection) {
+    if (!cel || !hasSelection_) {
         return;
     }
-    Rect r = selection;
+    Rect r = selection_;
     std::unique_ptr<Clip, Deleter<clip_destroy>> clip(clip_copy(cel, r));
     if (!clip || clip_rotate(clip.get(), clockwise) != 0) {
         return;

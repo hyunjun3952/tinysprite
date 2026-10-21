@@ -13,7 +13,7 @@ namespace
  * of the new points, so symmetry re-composites everything. */
 void markStroke(Editor &editor, int x0, int y0, int x1, int y1, int pad)
 {
-    if (symmetry_count(editor.symmetry) > 1) {
+    if (symmetry_count(editor.options().symmetry) > 1) {
         editor.markAllDirty();
     } else {
         editor.markDirty(rect_grow(rect_from_corners(x0, y0, x1, y1), pad));
@@ -24,7 +24,7 @@ void markStroke(Editor &editor, int x0, int y0, int x1, int y1, int pad)
  */
 void markBrushStroke(Editor &editor, int x0, int y0, int x1, int y1)
 {
-    markStroke(editor, x0, y0, x1, y1, std::max(1, editor.brush_size));
+    markStroke(editor, x0, y0, x1, y1, std::max(1, editor.options().brush_size));
 }
 
 ShapeKind shapeKind(ToolKind tool)
@@ -42,7 +42,7 @@ ShapeKind shapeKind(ToolKind tool)
 void pickColor(Editor &editor, int cx, int cy)
 {
     Rgba color;
-    if (eyedropper_pick_sprite(editor.sprite(), editor.frame, cx, cy, &color) == 0) {
+    if (eyedropper_pick_sprite(editor.sprite(), editor.frame(), cx, cy, &color) == 0) {
         editor.setForeground(color);
     }
 }
@@ -164,8 +164,7 @@ class MoveDrag : public Drag
     MoveDrag(Editor &editor, int cx, int cy, MoveStroke *stroke)
         : Drag(editor, cx, cy), stroke_(stroke)
     {
-        editor.move_dx = 0;
-        editor.move_dy = 0;
+        editor.setMoveOffset(0, 0);
     }
 
     bool update(int cx, int cy) override
@@ -173,14 +172,13 @@ class MoveDrag : public Drag
         if (cx == lastX_ && cy == lastY_) {
             return true;
         }
-        markSelection(editor_.move_dx, editor_.move_dy);
-        editor_.move_dx = cx - anchorX_;
-        editor_.move_dy = cy - anchorY_;
-        if (move_stroke_update(stroke_, editor_.move_dx, editor_.move_dy) != 0) {
+        markSelection(editor_.moveDx(), editor_.moveDy());
+        editor_.setMoveOffset(cx - anchorX_, cy - anchorY_);
+        if (move_stroke_update(stroke_, editor_.moveDx(), editor_.moveDy()) != 0) {
             return false;
         }
         markSelection(0, 0);
-        markSelection(editor_.move_dx, editor_.move_dy);
+        markSelection(editor_.moveDx(), editor_.moveDy());
         lastX_ = cx;
         lastY_ = cy;
         return true;
@@ -192,13 +190,12 @@ class MoveDrag : public Drag
         if (move_stroke_end(stroke_) != 0) {
             editor_.markAllDirty();
         } else {
-            Rect moved = editor_.selection;
-            moved.x += editor_.move_dx;
-            moved.y += editor_.move_dy;
+            Rect moved = editor_.selection();
+            moved.x += editor_.moveDx();
+            moved.y += editor_.moveDy();
             editor_.setSelectionClipped(moved);
         }
-        editor_.move_dx = 0;
-        editor_.move_dy = 0;
+        editor_.setMoveOffset(0, 0);
     }
     void cancel() override
     {
@@ -209,7 +206,7 @@ class MoveDrag : public Drag
     /* The selection's rectangle shifted by (dx, dy). */
     void markSelection(int dx, int dy)
     {
-        Rect r = editor_.selection;
+        Rect r = editor_.selection();
         r.x += dx;
         r.y += dy;
         editor_.markDirty(r);
@@ -225,11 +222,10 @@ class SelectDrag : public Drag
     /* The anchor is the clamped press point, so it is always inside the sprite and the clipped
      * rectangle is never empty. */
     SelectDrag(Editor &editor, int cx, int cy)
-        : Drag(editor, clampX(editor, cx), clampY(editor, cy)), hadSelection_(editor.has_selection)
+        : Drag(editor, clampX(editor, cx), clampY(editor, cy)), hadSelection_(editor.hasSelection())
     {
         /* Remember whether a selection existed: a plain click on empty canvas selects one cel, but
          * a click that merely dismisses an old selection must not start a new one. */
-        editor.has_selection = true;
         updateSelection(cx, cy);
     }
 
@@ -246,12 +242,12 @@ class SelectDrag : public Drag
     void finish() override
     {
         if (lastX_ == anchorX_ && lastY_ == anchorY_ && hadSelection_) {
-            editor_.has_selection = false;
+            editor_.dropSelection();
         }
     }
     void cancel() override
     {
-        editor_.has_selection = false;
+        editor_.dropSelection();
     }
 
   private:
@@ -259,8 +255,8 @@ class SelectDrag : public Drag
     void updateSelection(int cx, int cy)
     {
         Rect box = rect_from_corners(anchorX_, anchorY_, cx, cy);
-        editor_.selection =
-            rect_clip(box, sprite_width(editor_.sprite()), sprite_height(editor_.sprite()));
+        editor_.setSelection(
+            rect_clip(box, sprite_width(editor_.sprite()), sprite_height(editor_.sprite())));
     }
 
     bool hadSelection_;
@@ -268,12 +264,12 @@ class SelectDrag : public Drag
 
 std::unique_ptr<Drag> beginSelect(Editor &editor, int cx, int cy)
 {
-    if (editor.has_selection && rect_contains(editor.selection, cx, cy)) {
+    if (editor.hasSelection() && rect_contains(editor.selection(), cx, cy)) {
         Cel *cel = editor.editableCel();
         if (!cel) {
             return nullptr;
         }
-        MoveStroke *stroke = move_stroke_begin(editor.history(), cel, editor.selection);
+        MoveStroke *stroke = move_stroke_begin(editor.history(), cel, editor.selection());
         if (!stroke) {
             return nullptr;
         }
@@ -288,30 +284,31 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
     if (!cel) {
         return nullptr;
     }
-    bool erasing = editor.tool == ToolKind::Eraser;
+    bool erasing = editor.tool() == ToolKind::Eraser;
     Rgba color = editor.foreground();
     if (!erasing) {
-        recent_colors_push(&editor.recent, color);
+        editor.recordRecent(color);
     }
-    switch (editor.tool) {
+    switch (editor.tool()) {
     case ToolKind::Pencil:
     case ToolKind::Eraser: {
-        PencilOptions options = {editor.pixel_perfect, editor.symmetry, editor.brush_size,
-                                 editor.brush_round};
+        PencilOptions options = {editor.options().pixel_perfect, editor.options().symmetry,
+                                 editor.options().brush_size, editor.options().brush_round};
         PencilStroke *stroke = pencil_stroke_begin(
             editor.history(), cel, erasing ? Rgba{0, 0, 0, 0} : color, options, cx, cy);
         return stroke ? std::make_unique<PencilDrag>(editor, cx, cy, stroke) : nullptr;
     }
     case ToolKind::Bucket:
         /* A single click: no drag. */
-        if (bucket_fill(editor.history(), cel, cx, cy, color, editor.symmetry) == 0) {
+        if (bucket_fill(editor.history(), cel, cx, cy, color, editor.options().symmetry) == 0) {
             editor.markAllDirty();
         }
         return nullptr;
     case ToolKind::Line:
     case ToolKind::Rect:
     case ToolKind::Ellipse: {
-        ShapeStyle style = {shapeKind(editor.tool), editor.shape_filled, color, editor.symmetry};
+        ShapeStyle style = {shapeKind(editor.tool()), editor.options().shape_filled, color,
+                            editor.options().symmetry};
         ShapeStroke *stroke = shape_stroke_begin(editor.history(), cel, style, ToolPoint{cx, cy});
         return stroke ? std::make_unique<ShapeDrag>(editor, cx, cy, stroke) : nullptr;
     }
@@ -327,7 +324,7 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
 
 std::unique_ptr<Drag> beginDrag(Editor &editor, int cx, int cy)
 {
-    switch (editor.tool) {
+    switch (editor.tool()) {
     case ToolKind::Eyedropper:
         return std::make_unique<PickDrag>(editor, cx, cy);
     case ToolKind::Select:

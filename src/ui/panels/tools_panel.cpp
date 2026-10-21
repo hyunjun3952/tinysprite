@@ -60,14 +60,16 @@ void ToolsPanel::colorWidget()
 
     /* Background first so the foreground, drawn later, wins the overlap. */
     ImGui::SetCursorPos(ImVec2(start.x + COLOR_SWATCH_OFFSET, start.y + COLOR_SWATCH_OFFSET));
-    if (ImGui::ColorButton("##bg_swatch", imvec4FromFloats(editor_.bg_color), buttonFlags, size)) {
+    if (ImGui::ColorButton("##bg_swatch", imvec4FromFloats(editor_.backgroundFloats()), buttonFlags,
+                           size)) {
         ImGui::OpenPopup("bg_picker");
     }
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Background color");
     }
     ImGui::SetCursorPos(start);
-    if (ImGui::ColorButton("##fg_swatch", imvec4FromFloats(editor_.color), buttonFlags, size)) {
+    if (ImGui::ColorButton("##fg_swatch", imvec4FromFloats(editor_.foregroundFloats()), buttonFlags,
+                           size)) {
         ImGui::OpenPopup("fg_picker");
     }
     if (ImGui::IsItemHovered()) {
@@ -84,12 +86,12 @@ void ToolsPanel::colorWidget()
 
     if (ImGui::BeginPopup("fg_picker")) {
         ImGui::Text("Foreground");
-        ImGui::ColorPicker4("##fg_picker", editor_.color, pickerFlags);
+        ImGui::ColorPicker4("##fg_picker", editor_.foregroundFloats(), pickerFlags);
         ImGui::EndPopup();
     }
     if (ImGui::BeginPopup("bg_picker")) {
         ImGui::Text("Background");
-        ImGui::ColorPicker4("##bg_picker", editor_.bg_color, pickerFlags);
+        ImGui::ColorPicker4("##bg_picker", editor_.backgroundFloats(), pickerFlags);
         ImGui::EndPopup();
     }
 }
@@ -97,7 +99,7 @@ void ToolsPanel::colorWidget()
 void ToolsPanel::selectionButtons()
 {
     using icons::Icon;
-    ImGui::BeginDisabled(!editor_.has_selection || editor_.stroking());
+    ImGui::BeginDisabled(!editor_.hasSelection() || editor_.stroking());
     const float size = SMALL_BUTTON_SIZE;
     if (icons::button(Icon::FlipH, "##flip_h", "Flip horizontally", false, size)) {
         editor_.flipSelection(true);
@@ -131,20 +133,20 @@ void ToolsPanel::show(Panels &panels, float height)
         ImGui::PushID(tool);
         const ToolInfo &info = TOOLS[static_cast<size_t>(tool)];
         if (icons::button(info.icon, "##tool", info.label,
-                          editor_.tool == static_cast<ToolKind>(tool), TOOL_BUTTON_SIZE)) {
+                          editor_.tool() == static_cast<ToolKind>(tool), TOOL_BUTTON_SIZE)) {
             editor_.selectTool(static_cast<ToolKind>(tool));
         }
         ImGui::PopID();
     }
 
     ImGui::SeparatorText("Options");
-    ImGui::Checkbox("Pixel-perfect", &editor_.pixel_perfect);
-    ImGui::Checkbox("Mirror X", &editor_.symmetry.mirror_x);
+    ImGui::Checkbox("Pixel-perfect", &editor_.options().pixel_perfect);
+    ImGui::Checkbox("Mirror X", &editor_.options().symmetry.mirror_x);
     ImGui::SameLine(MIRROR_Y_COLUMN);
-    ImGui::Checkbox("Mirror Y", &editor_.symmetry.mirror_y);
-    ImGui::SliderInt("Brush", &editor_.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
-    ImGui::Checkbox("Round brush", &editor_.brush_round);
-    ImGui::Checkbox("Filled shapes", &editor_.shape_filled);
+    ImGui::Checkbox("Mirror Y", &editor_.options().symmetry.mirror_y);
+    ImGui::SliderInt("Brush", &editor_.options().brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
+    ImGui::Checkbox("Round brush", &editor_.options().brush_round);
+    ImGui::Checkbox("Filled shapes", &editor_.options().shape_filled);
 
     ImGui::SeparatorText("Selection");
     selectionButtons();

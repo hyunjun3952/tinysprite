@@ -59,39 +59,146 @@ class Editor
         return texture_.get();
     }
 
-    ToolKind tool = ToolKind::Pencil;
-    float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};    /* foreground color, straight alpha, 0..1 */
-    float bg_color[4] = {1.0f, 1.0f, 1.0f, 1.0f}; /* background, swapped with the foreground */
-    RecentColors recent = {};                     /* colors drawn with lately, newest first */
-    int palette_selected = -1; /* swatch of the sprite palette last picked or added, -1 for none */
-    bool show_grid = true;
-    int active_layer = 0;
-    int frame = 0;
-
     /* Tool options: pixel_perfect / brush_* apply to pencil and eraser, shape_filled to the
-     * rectangle and ellipse (symmetry also reaches shapes and the bucket). */
-    int brush_size = 1; /* 1..PENCIL_BRUSH_MAX */
-    bool brush_round = false;
-    bool pixel_perfect = false;
-    Symmetry symmetry = {};
-    bool shape_filled = false;
+     * rectangle and ellipse (symmetry also reaches shapes and the bucket). Edited directly by the
+     * tools panel and the shortcuts. */
+    struct ToolOptions {
+        int brush_size = 1; /* 1..PENCIL_BRUSH_MAX */
+        bool brush_round = false;
+        bool pixel_perfect = false;
+        Symmetry symmetry = {};
+        bool shape_filled = false;
+    };
 
-    Viewport view = {};
-    bool needs_fit = true; /* fit the sprite to the canvas on the next canvas frame */
-    bool auto_fit = false; /* the view is still the fitted one: refit when the canvas resizes */
-    float canvas_w = 0.0f; /* canvas size as of the last canvas frame */
-    float canvas_h = 0.0f;
+    /* The canvas view and the canvas window's size as of its last frame; the canvas owns the
+     * logic that keeps them current. */
+    struct ViewState {
+        Viewport viewport = {};
+        bool needs_fit = true; /* fit the sprite to the canvas on the next canvas frame */
+        bool auto_fit = false; /* the view is still the fitted one: refit when the canvas resizes */
+        float canvas_w = 0.0f;
+        float canvas_h = 0.0f;
+    };
+
+    ToolKind tool() const
+    {
+        return tool_;
+    }
+    ToolOptions &options()
+    {
+        return options_;
+    }
+    const ToolOptions &options() const
+    {
+        return options_;
+    }
+    ViewState &view()
+    {
+        return view_;
+    }
+    const ViewState &view() const
+    {
+        return view_;
+    }
+
+    /* The foreground / background colors as straight-alpha RGBA floats in 0..1, for the color
+     * pickers to edit in place. */
+    float *foregroundFloats()
+    {
+        return color_;
+    }
+    float *backgroundFloats()
+    {
+        return bgColor_;
+    }
+    const float *foregroundFloats() const
+    {
+        return color_;
+    }
+    const float *backgroundFloats() const
+    {
+        return bgColor_;
+    }
+
+    /* Colors drawn with lately, newest first. Tools record a color when a stroke starts. */
+    const RecentColors &recent() const
+    {
+        return recent_;
+    }
+    void recordRecent(Rgba color)
+    {
+        recent_colors_push(&recent_, color);
+    }
+
+    /* Swatch of the sprite palette last picked or added, -1 for none. */
+    int paletteSelected() const
+    {
+        return paletteSelected_;
+    }
+
+    bool showGrid() const
+    {
+        return showGrid_;
+    }
+    void setShowGrid(bool show)
+    {
+        showGrid_ = show;
+    }
+
+    int activeLayer() const
+    {
+        return activeLayer_;
+    }
+    /* Ignores an index with no layer. */
+    void setActiveLayer(int index);
+    int frame() const
+    {
+        return frame_;
+    }
+
+    /* The cel under the mouse, set by the canvas every frame; valid when hovering() is true. */
+    void setHover(int x, int y, bool hovering);
+    int hoverX() const
+    {
+        return hoverX_;
+    }
+    int hoverY() const
+    {
+        return hoverY_;
+    }
+    bool hovering() const
+    {
+        return hovering_;
+    }
 
     /* Rectangular selection in cel coordinates, always inside the sprite. While a selection is
-     * being moved it stays at its origin and move_dx/dy hold the drag offset (zero otherwise). */
-    bool has_selection = false;
-    Rect selection = {};
-    int move_dx = 0;
-    int move_dy = 0;
+     * being moved it stays at its origin and moveDx/Dy hold the drag offset (zero otherwise). */
+    bool hasSelection() const
+    {
+        return hasSelection_;
+    }
+    Rect selection() const
+    {
+        return selection_;
+    }
+    int moveDx() const
+    {
+        return moveDx_;
+    }
+    int moveDy() const
+    {
+        return moveDy_;
+    }
 
-    int hover_x = 0; /* cel under the mouse, valid when hovering is true */
-    int hover_y = 0;
-    bool hovering = false;
+    /* For the tool drags, which change the selection while stroking() is true: unlike
+     * selectAll / clearSelection / setSelectionClipped these are not held off, and setSelection
+     * does not clip. */
+    void setSelection(Rect r);
+    void dropSelection()
+    {
+        hasSelection_ = false;
+    }
+    void setMoveOffset(int dx, int dy);
 
     Rgba foreground() const;
     void setForeground(Rgba color);
@@ -221,6 +328,24 @@ class Editor
 
     Rect spriteBounds() const;
     void afterHistoryStep();
+
+    ToolKind tool_ = ToolKind::Pencil;
+    float color_[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    float bgColor_[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    RecentColors recent_ = {};
+    int paletteSelected_ = -1;
+    bool showGrid_ = true;
+    int activeLayer_ = 0;
+    int frame_ = 0;
+    ToolOptions options_;
+    ViewState view_;
+    int hoverX_ = 0;
+    int hoverY_ = 0;
+    bool hovering_ = false;
+    bool hasSelection_ = false;
+    Rect selection_ = {};
+    int moveDx_ = 0;
+    int moveDy_ = 0;
 
     std::unique_ptr<Sprite, Deleter<sprite_destroy>> sprite_;
     std::unique_ptr<History, Deleter<history_destroy>> history_;

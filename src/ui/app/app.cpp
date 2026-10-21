@@ -119,10 +119,10 @@ void App::menuBar()
             editor_->redo();
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->has_selection)) {
+        if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->hasSelection())) {
             editor_->cutSelection();
         }
-        if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->has_selection)) {
+        if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->hasSelection())) {
             editor_->copySelection();
         }
         if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
@@ -141,9 +141,12 @@ void App::menuBar()
             editor_->zoomStep(-1);
         }
         if (ImGui::MenuItem("Fit", "F")) {
-            editor_->needs_fit = true;
+            editor_->view().needs_fit = true;
         }
-        ImGui::MenuItem("Grid", nullptr, &editor_->show_grid);
+        bool grid = editor_->showGrid();
+        if (ImGui::MenuItem("Grid", nullptr, &grid)) {
+            editor_->setShowGrid(grid);
+        }
         ImGui::EndMenu();
     }
     panels_.windowMenu();
@@ -162,14 +165,15 @@ void App::plainShortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
         editor_->swapColors();
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket) && editor_->brush_size > 1) {
-        editor_->brush_size--;
+    if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket) && editor_->options().brush_size > 1) {
+        editor_->options().brush_size--;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) && editor_->brush_size < PENCIL_BRUSH_MAX) {
-        editor_->brush_size++;
+    if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) &&
+        editor_->options().brush_size < PENCIL_BRUSH_MAX) {
+        editor_->options().brush_size++;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
-        editor_->needs_fit = true;
+        editor_->view().needs_fit = true;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) {
         editor_->zoomStep(1);

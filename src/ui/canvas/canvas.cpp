@@ -53,25 +53,24 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
     ImVec2 mouse = ImGui::GetMousePos();
     float localX = mouse.x - origin.x;
     float localY = mouse.y - origin.y;
-    int cx = viewport_screen_to_cel_x(&editor_.view, localX);
-    int cy = viewport_screen_to_cel_y(&editor_.view, localY);
+    int cx = viewport_screen_to_cel_x(&editor_.view().viewport, localX);
+    int cy = viewport_screen_to_cel_y(&editor_.view().viewport, localY);
 
-    editor_.hovering = hovered;
-    editor_.hover_x = cx;
-    editor_.hover_y = cy;
+    editor_.setHover(cx, cy, hovered);
 
     if (hovered && io.MouseWheel != 0.0f) {
-        float zoom = viewport_next_zoom(editor_.view.zoom, io.MouseWheel > 0.0f ? 1 : -1);
-        viewport_zoom_at(&editor_.view, zoom, localX, localY);
-        editor_.auto_fit = false;
+        float zoom =
+            viewport_next_zoom(editor_.view().viewport.zoom, io.MouseWheel > 0.0f ? 1 : -1);
+        viewport_zoom_at(&editor_.view().viewport, zoom, localX, localY);
+        editor_.view().auto_fit = false;
     }
     /* Space + left drag pans like the middle button, without drawing. */
     bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_.stroking();
     if (active && (ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
                    (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)))) {
-        editor_.view.pan_x += io.MouseDelta.x;
-        editor_.view.pan_y += io.MouseDelta.y;
-        editor_.auto_fit = false;
+        editor_.view().viewport.pan_x += io.MouseDelta.x;
+        editor_.view().viewport.pan_y += io.MouseDelta.y;
+        editor_.view().auto_fit = false;
         return;
     }
 
@@ -88,7 +87,7 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
 
 void Canvas::drawGrid(ImDrawList *draw, ImVec2 origin, const ScreenRect &visible) const
 {
-    const Viewport *view = &editor_.view;
+    const Viewport *view = &editor_.view().viewport;
     int firstX = viewport_screen_to_cel_x(view, visible.x0 - origin.x);
     int lastX = viewport_screen_to_cel_x(view, visible.x1 - origin.x);
     int firstY = viewport_screen_to_cel_y(view, visible.y0 - origin.y);
@@ -112,8 +111,8 @@ void Canvas::drawGrid(ImDrawList *draw, ImVec2 origin, const ScreenRect &visible
 void Canvas::drawBrushPreview(ImDrawList *draw, ImVec2 origin) const
 {
     PencilOptions options = {};
-    options.size = editor_.brush_size;
-    options.round = editor_.brush_round;
+    options.size = editor_.options().brush_size;
+    options.round = editor_.options().brush_round;
     int size = pencil_brush_size(&options);
     int first = pencil_brush_origin(&options);
     for (int j = 0; j < size; j++) {
@@ -121,13 +120,14 @@ void Canvas::drawBrushPreview(ImDrawList *draw, ImVec2 origin) const
             if (!pencil_brush_contains(&options, i, j)) {
                 continue;
             }
-            float x0 =
-                origin.x + viewport_cel_to_screen_x(&editor_.view, editor_.hover_x - first + i);
-            float y0 =
-                origin.y + viewport_cel_to_screen_y(&editor_.view, editor_.hover_y - first + j);
-            draw->AddRectFilled(ImVec2(x0, y0),
-                                ImVec2(x0 + editor_.view.zoom, y0 + editor_.view.zoom),
-                                IM_COL32(255, 255, 255, 70));
+            float x0 = origin.x + viewport_cel_to_screen_x(&editor_.view().viewport,
+                                                           editor_.hoverX() - first + i);
+            float y0 = origin.y + viewport_cel_to_screen_y(&editor_.view().viewport,
+                                                           editor_.hoverY() - first + j);
+            draw->AddRectFilled(
+                ImVec2(x0, y0),
+                ImVec2(x0 + editor_.view().viewport.zoom, y0 + editor_.view().viewport.zoom),
+                IM_COL32(255, 255, 255, 70));
         }
     }
 }
@@ -137,29 +137,30 @@ void Canvas::drawHoverOutline(ImDrawList *draw, ImVec2 origin) const
     if (!editor_.hoverInSprite()) {
         return;
     }
-    if ((editor_.tool == ToolKind::Pencil || editor_.tool == ToolKind::Eraser) &&
-        editor_.brush_size > 1) {
+    if ((editor_.tool() == ToolKind::Pencil || editor_.tool() == ToolKind::Eraser) &&
+        editor_.options().brush_size > 1) {
         drawBrushPreview(draw, origin);
     }
-    float x0 = origin.x + viewport_cel_to_screen_x(&editor_.view, editor_.hover_x);
-    float y0 = origin.y + viewport_cel_to_screen_y(&editor_.view, editor_.hover_y);
-    drawRectOutline(draw, ImVec2(x0, y0), ImVec2(x0 + editor_.view.zoom, y0 + editor_.view.zoom),
+    float x0 = origin.x + viewport_cel_to_screen_x(&editor_.view().viewport, editor_.hoverX());
+    float y0 = origin.y + viewport_cel_to_screen_y(&editor_.view().viewport, editor_.hoverY());
+    drawRectOutline(draw, ImVec2(x0, y0),
+                    ImVec2(x0 + editor_.view().viewport.zoom, y0 + editor_.view().viewport.zoom),
                     IM_COL32(255, 255, 255, 220));
 }
 
 /* Selection outline: a dark rectangle under a light one so it shows on any background. */
 void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
 {
-    if (!editor_.has_selection) {
+    if (!editor_.hasSelection()) {
         return;
     }
-    const Rect &r = editor_.selection;
-    int dx = editor_.move_dx;
-    int dy = editor_.move_dy;
-    ImVec2 p0(origin.x + viewport_cel_to_screen_x(&editor_.view, r.x + dx),
-              origin.y + viewport_cel_to_screen_y(&editor_.view, r.y + dy));
-    ImVec2 p1(p0.x + static_cast<float>(r.w) * editor_.view.zoom,
-              p0.y + static_cast<float>(r.h) * editor_.view.zoom);
+    const Rect &r = editor_.selection();
+    int dx = editor_.moveDx();
+    int dy = editor_.moveDy();
+    ImVec2 p0(origin.x + viewport_cel_to_screen_x(&editor_.view().viewport, r.x + dx),
+              origin.y + viewport_cel_to_screen_y(&editor_.view().viewport, r.y + dy));
+    ImVec2 p1(p0.x + static_cast<float>(r.w) * editor_.view().viewport.zoom,
+              p0.y + static_cast<float>(r.h) * editor_.view().viewport.zoom);
     drawRectOutline(draw, ImVec2(p0.x - 1.0f, p0.y - 1.0f), ImVec2(p1.x + 1.0f, p1.y + 1.0f),
                     IM_COL32(0, 0, 0, 220));
     drawRectOutline(draw, p0, p1, IM_COL32(255, 255, 255, 255));
@@ -169,11 +170,11 @@ void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
 void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
 {
     ImU32 color = IM_COL32(0, 200, 255, 200);
-    if (editor_.symmetry.mirror_x) {
+    if (editor_.options().symmetry.mirror_x) {
         float x = (sprite.x0 + sprite.x1) / 2.0f;
         draw->AddLine(ImVec2(x, sprite.y0), ImVec2(x, sprite.y1), color);
     }
-    if (editor_.symmetry.mirror_y) {
+    if (editor_.options().symmetry.mirror_y) {
         float y = (sprite.y0 + sprite.y1) / 2.0f;
         draw->AddLine(ImVec2(sprite.x0, y), ImVec2(sprite.x1, y), color);
     }
@@ -184,14 +185,14 @@ void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
 void Canvas::drawStatus(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
 {
     char text[128];
-    const Layer *layer = sprite_layer(editor_.sprite(), editor_.active_layer);
+    const Layer *layer = sprite_layer(editor_.sprite(), editor_.activeLayer());
     int len = std::snprintf(text, sizeof(text), "%dx%d   Zoom: %g%%   Layer: %s",
                             sprite_width(editor_.sprite()), sprite_height(editor_.sprite()),
-                            static_cast<double>(editor_.view.zoom) * 100.0,
+                            static_cast<double>(editor_.view().viewport.zoom) * 100.0,
                             layer ? layer_name(layer) : "-");
     if (editor_.hoverInSprite()) {
         std::snprintf(text + len, sizeof(text) - static_cast<size_t>(len), "   Cel: %d, %d",
-                      editor_.hover_x, editor_.hover_y);
+                      editor_.hoverX(), editor_.hoverY());
     }
     ImVec2 size = ImGui::CalcTextSize(text);
     ImVec2 p0(origin.x + 6.0f, origin.y + avail.y - size.y - 10.0f);
@@ -213,20 +214,21 @@ void Canvas::show(float x, float y, float w, float h)
 
     ImVec2 origin = ImGui::GetCursorScreenPos();
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    if (editor_.auto_fit && (avail.x != editor_.canvas_w || avail.y != editor_.canvas_h)) {
-        editor_.needs_fit = true; /* the canvas was resized (window, panel dock / resize) */
+    if (editor_.view().auto_fit &&
+        (avail.x != editor_.view().canvas_w || avail.y != editor_.view().canvas_h)) {
+        editor_.view().needs_fit = true; /* the canvas was resized (window, panel dock / resize) */
     }
-    editor_.canvas_w = avail.x;
-    editor_.canvas_h = avail.y;
+    editor_.view().canvas_w = avail.x;
+    editor_.view().canvas_h = avail.y;
     int spriteW = sprite_width(editor_.sprite());
     int spriteH = sprite_height(editor_.sprite());
-    if (editor_.needs_fit && avail.x > 0.0f && avail.y > 0.0f) {
-        viewport_fit(&editor_.view, spriteW, spriteH, std::max(avail.x - FIT_MARGIN, 1.0f),
-                     std::max(avail.y - FIT_MARGIN, 1.0f));
-        editor_.view.pan_x += FIT_MARGIN / 2.0f;
-        editor_.view.pan_y += FIT_MARGIN / 2.0f;
-        editor_.needs_fit = false;
-        editor_.auto_fit = true;
+    if (editor_.view().needs_fit && avail.x > 0.0f && avail.y > 0.0f) {
+        viewport_fit(&editor_.view().viewport, spriteW, spriteH,
+                     std::max(avail.x - FIT_MARGIN, 1.0f), std::max(avail.y - FIT_MARGIN, 1.0f));
+        editor_.view().viewport.pan_x += FIT_MARGIN / 2.0f;
+        editor_.view().viewport.pan_y += FIT_MARGIN / 2.0f;
+        editor_.view().needs_fit = false;
+        editor_.view().auto_fit = true;
     }
 
     ImGui::InvisibleButton("canvas", avail,
@@ -239,10 +241,11 @@ void Canvas::show(float x, float y, float w, float h)
     draw->PushClipRect(origin, clipMax, true);
     draw->AddRectFilled(origin, clipMax, IM_COL32(45, 45, 48, 255));
 
-    ScreenRect sprite = {origin.x + viewport_cel_to_screen_x(&editor_.view, 0),
-                         origin.y + viewport_cel_to_screen_y(&editor_.view, 0), 0.0f, 0.0f};
-    sprite.x1 = sprite.x0 + static_cast<float>(spriteW) * editor_.view.zoom;
-    sprite.y1 = sprite.y0 + static_cast<float>(spriteH) * editor_.view.zoom;
+    ScreenRect sprite = {origin.x + viewport_cel_to_screen_x(&editor_.view().viewport, 0),
+                         origin.y + viewport_cel_to_screen_y(&editor_.view().viewport, 0), 0.0f,
+                         0.0f};
+    sprite.x1 = sprite.x0 + static_cast<float>(spriteW) * editor_.view().viewport.zoom;
+    sprite.y1 = sprite.y0 + static_cast<float>(spriteH) * editor_.view().viewport.zoom;
     ScreenRect visible = {std::max(sprite.x0, origin.x), std::max(sprite.y0, origin.y),
                           std::min(sprite.x1, clipMax.x), std::min(sprite.y1, clipMax.y)};
     if (visible.x0 < visible.x1 && visible.y0 < visible.y1) {
@@ -254,7 +257,7 @@ void Canvas::show(float x, float y, float w, float h)
                        ImVec2(visible.x0, visible.y0), ImVec2(visible.x1, visible.y1),
                        ImVec2((visible.x0 - sprite.x0) / width, (visible.y0 - sprite.y0) / height),
                        ImVec2((visible.x1 - sprite.x0) / width, (visible.y1 - sprite.y0) / height));
-        if (editor_.show_grid && editor_.view.zoom >= GRID_MIN_ZOOM) {
+        if (editor_.showGrid() && editor_.view().viewport.zoom >= GRID_MIN_ZOOM) {
             drawGrid(draw, origin, visible);
         }
     }

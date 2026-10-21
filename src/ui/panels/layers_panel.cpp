@@ -28,8 +28,8 @@ void LayersPanel::rows()
         }
         ImGui::SameLine();
         const char *name = layer_name(layer);
-        if (ImGui::Selectable(name[0] ? name : "(unnamed)", i == editor_.active_layer)) {
-            editor_.active_layer = i;
+        if (ImGui::Selectable(name[0] ? name : "(unnamed)", i == editor_.activeLayer())) {
+            editor_.setActiveLayer(i);
         }
         ImGui::PopID();
     }
@@ -39,7 +39,7 @@ void LayersPanel::rows()
  * it is released, so typing a name or dragging the slider is not one step per frame. */
 void LayersPanel::activeLayerDetails()
 {
-    int index = editor_.active_layer;
+    int index = editor_.activeLayer();
     Layer *layer = sprite_layer(editor_.sprite(), index);
     if (!layer) {
         return;
@@ -82,7 +82,7 @@ void LayersPanel::buttons()
     using icons::Icon;
     const float size = LAYER_BUTTON_SIZE;
     int count = sprite_layer_count(editor_.sprite());
-    int active = editor_.active_layer;
+    int active = editor_.activeLayer();
     if (icons::button(Icon::Add, "##add", "Add layer", false, size)) {
         editor_.addLayer();
     }

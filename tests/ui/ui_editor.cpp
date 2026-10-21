@@ -12,8 +12,8 @@ static SDL_Renderer *renderer;
 static Editor *make_editor(void)
 {
     Editor *e = Editor::create(renderer, 8, 6).release();
-    e->color[0] = 1.0f;
-    e->color[3] = 1.0f; /* opaque red */
+    e->foregroundFloats()[0] = 1.0f;
+    e->foregroundFloats()[3] = 1.0f; /* opaque red */
     return e;
 }
 
@@ -31,36 +31,36 @@ static void click(Editor *e, int x, int y)
 TEST(select_click_on_empty_canvas_selects_one_cel)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Select;
+    e->selectTool(ToolKind::Select);
     click(e, 3, 2);
-    ASSERT_TRUE(e->has_selection);
-    ASSERT_EQ_INT(1, e->selection.w);
-    ASSERT_EQ_INT(1, e->selection.h);
-    ASSERT_EQ_INT(3, e->selection.x);
-    ASSERT_EQ_INT(2, e->selection.y);
+    ASSERT_TRUE(e->hasSelection());
+    ASSERT_EQ_INT(1, e->selection().w);
+    ASSERT_EQ_INT(1, e->selection().h);
+    ASSERT_EQ_INT(3, e->selection().x);
+    ASSERT_EQ_INT(2, e->selection().y);
     delete e;
 }
 
 TEST(select_click_outside_a_selection_only_dismisses_it)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Select;
+    e->selectTool(ToolKind::Select);
     e->press(1, 1);
     e->drag(3, 3);
     e->release();
-    ASSERT_EQ_INT(3, e->selection.w);
+    ASSERT_EQ_INT(3, e->selection().w);
     click(e, 6, 5);
-    ASSERT_TRUE(!e->has_selection);
+    ASSERT_TRUE(!e->hasSelection());
     click(e, 6, 5);
-    ASSERT_TRUE(e->has_selection);
+    ASSERT_TRUE(e->hasSelection());
     delete e;
 }
 
 TEST(mirrored_shape_and_bucket_are_symmetric)
 {
     Editor *e = make_editor();
-    e->symmetry.mirror_x = true;
-    e->tool = ToolKind::Line;
+    e->options().symmetry.mirror_x = true;
+    e->selectTool(ToolKind::Line);
     e->press(0, 0);
     e->drag(2, 0);
     e->release();
@@ -69,11 +69,11 @@ TEST(mirrored_shape_and_bucket_are_symmetric)
     ASSERT_EQ_INT(0, alpha(e, 4, 0));
 
     e->undo();
-    e->tool = ToolKind::Rect;
+    e->selectTool(ToolKind::Rect);
     e->press(0, 0);
     e->drag(7, 0);
     e->release();
-    e->tool = ToolKind::Bucket;
+    e->selectTool(ToolKind::Bucket);
     click(e, 0, 3);
     ASSERT_EQ_INT(255, alpha(e, 0, 5));
     ASSERT_EQ_INT(255, alpha(e, 7, 5));
@@ -86,21 +86,21 @@ TEST(layer_add_remove_move_undo_redo)
     e->addLayer();
     e->addLayer();
     ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(2, e->active_layer);
-    e->tool = ToolKind::Pencil;
+    ASSERT_EQ_INT(2, e->activeLayer());
+    e->selectTool(ToolKind::Pencil);
     click(e, 1, 1);
     e->removeLayer(2);
     ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(1, e->active_layer);
+    ASSERT_EQ_INT(1, e->activeLayer());
     e->undo();
     ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
     e->undo(); /* the pixel on the restored layer */
     e->undo(); /* second add */
     ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(1, e->active_layer);
+    ASSERT_EQ_INT(1, e->activeLayer());
     e->undo();
     ASSERT_EQ_INT(1, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(0, e->active_layer);
+    ASSERT_EQ_INT(0, e->activeLayer());
     e->redo();
     e->redo();
     ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
@@ -152,7 +152,7 @@ TEST(unchanged_live_edit_records_nothing)
 TEST(layer_edits_are_held_off_while_dragging)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Pencil;
+    e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
     e->addLayer();
     e->setLayerVisible(0, 0);
@@ -165,7 +165,7 @@ TEST(layer_edits_are_held_off_while_dragging)
 TEST(tools_ignore_a_hidden_layer)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Pencil;
+    e->selectTool(ToolKind::Pencil);
     e->setLayerVisible(0, 0);
     click(e, 2, 2);
     ASSERT_EQ_INT(0, alpha(e, 2, 2));
@@ -179,8 +179,8 @@ TEST(swap_colors_exchanges_foreground_and_background)
     ASSERT_EQ_INT(0, e->foreground().g);
     e->swapColors();
     ASSERT_EQ_INT(255, e->foreground().g);
-    ASSERT_EQ_INT(255, e->bg_color[0] > 0.5f ? 255 : 0);
-    ASSERT_EQ_INT(0, e->bg_color[1] > 0.5f ? 255 : 0);
+    ASSERT_EQ_INT(255, e->backgroundFloats()[0] > 0.5f ? 255 : 0);
+    ASSERT_EQ_INT(0, e->backgroundFloats()[1] > 0.5f ? 255 : 0);
     e->swapColors();
     ASSERT_EQ_INT(0, e->foreground().g);
     delete e;
@@ -189,24 +189,24 @@ TEST(swap_colors_exchanges_foreground_and_background)
 TEST(temp_pick_switches_to_the_picker_and_back)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Rect;
+    e->selectTool(ToolKind::Rect);
     e->tempPick(1);
-    ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool);
+    ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool());
     e->tempPick(1); /* held: stays on the picker, remembers the first tool */
     e->tempPick(0);
-    ASSERT_EQ_INT(ToolKind::Rect, e->tool);
+    ASSERT_EQ_INT(ToolKind::Rect, e->tool());
     e->tempPick(0);
-    ASSERT_EQ_INT(ToolKind::Rect, e->tool);
+    ASSERT_EQ_INT(ToolKind::Rect, e->tool());
     delete e;
 }
 
 TEST(temp_pick_keeps_the_picker_when_it_is_already_active)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Eyedropper;
+    e->selectTool(ToolKind::Eyedropper);
     e->tempPick(1);
     e->tempPick(0);
-    ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool);
+    ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool());
     delete e;
 }
 
@@ -216,34 +216,34 @@ TEST(selecting_a_tool_ends_a_temp_pick)
     e->tempPick(1);
     e->selectTool(ToolKind::Bucket);
     e->tempPick(0);
-    ASSERT_EQ_INT(ToolKind::Bucket, e->tool);
+    ASSERT_EQ_INT(ToolKind::Bucket, e->tool());
     delete e;
 }
 
 TEST(tool_changes_are_held_off_while_dragging)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Pencil;
+    e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
     e->selectTool(ToolKind::Bucket);
     e->tempPick(1);
-    ASSERT_EQ_INT(ToolKind::Pencil, e->tool);
+    ASSERT_EQ_INT(ToolKind::Pencil, e->tool());
     e->release();
     e->tempPick(1);
-    ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool);
+    ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool());
     delete e;
 }
 
 /* Draws a red pixel at each of the given cels with the pencil. */
 static void dot(Editor *e, int x, int y)
 {
-    e->tool = ToolKind::Pencil;
+    e->selectTool(ToolKind::Pencil);
     click(e, x, y);
 }
 
 static void select_rect(Editor *e, int x0, int y0, int x1, int y1)
 {
-    e->tool = ToolKind::Select;
+    e->selectTool(ToolKind::Select);
     e->press(x0, y0);
     e->drag(x1, y1);
     e->release();
@@ -256,18 +256,16 @@ TEST(copy_and_paste_at_the_hovered_cel)
     dot(e, 2, 1);
     select_rect(e, 1, 1, 2, 1);
     ASSERT_TRUE(e->copySelection());
-    e->hovering = 1;
-    e->hover_x = 4;
-    e->hover_y = 3;
+    e->setHover(4, 3, 1);
     e->paste();
     ASSERT_EQ_INT(255, alpha(e, 4, 3));
     ASSERT_EQ_INT(255, alpha(e, 5, 3));
     ASSERT_EQ_INT(255, alpha(e, 1, 1)); /* copying leaves the source alone */
-    ASSERT_EQ_INT(ToolKind::Select, e->tool);
-    ASSERT_TRUE(e->has_selection);
-    ASSERT_EQ_INT(4, e->selection.x);
-    ASSERT_EQ_INT(3, e->selection.y);
-    ASSERT_EQ_INT(2, e->selection.w);
+    ASSERT_EQ_INT(ToolKind::Select, e->tool());
+    ASSERT_TRUE(e->hasSelection());
+    ASSERT_EQ_INT(4, e->selection().x);
+    ASSERT_EQ_INT(3, e->selection().y);
+    ASSERT_EQ_INT(2, e->selection().w);
     e->undo();
     ASSERT_EQ_INT(0, alpha(e, 4, 3));
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
@@ -306,9 +304,7 @@ TEST(cut_clears_the_selection_and_can_be_pasted_elsewhere)
     select_rect(e, 2, 2, 3, 3);
     ASSERT_TRUE(e->cutSelection());
     ASSERT_EQ_INT(0, alpha(e, 2, 2));
-    e->hovering = 1;
-    e->hover_x = 6;
-    e->hover_y = 0;
+    e->setHover(6, 0, 1);
     e->paste();
     ASSERT_EQ_INT(255, alpha(e, 6, 0));
     e->undo();
@@ -347,7 +343,7 @@ TEST(flip_selection_mirrors_only_inside_the_selection)
     e->undo();
     e->undo();
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
-    ASSERT_EQ_INT(1, e->selection.x);
+    ASSERT_EQ_INT(1, e->selection().x);
     delete e;
 }
 
@@ -357,10 +353,10 @@ TEST(rotate_selection_turns_it_around_its_center)
     dot(e, 1, 2);
     select_rect(e, 1, 2, 3, 2); /* a 3 x 1 strip with the pixel at its left end */
     e->rotateSelection(1);
-    ASSERT_EQ_INT(1, e->selection.w);
-    ASSERT_EQ_INT(3, e->selection.h);
-    ASSERT_EQ_INT(2, e->selection.x);
-    ASSERT_EQ_INT(1, e->selection.y);
+    ASSERT_EQ_INT(1, e->selection().w);
+    ASSERT_EQ_INT(3, e->selection().h);
+    ASSERT_EQ_INT(2, e->selection().x);
+    ASSERT_EQ_INT(1, e->selection().y);
     ASSERT_EQ_INT(0, alpha(e, 1, 2));
     ASSERT_EQ_INT(255, alpha(e, 2, 1)); /* clockwise: the left end goes to the top */
     e->undo();
@@ -377,9 +373,9 @@ TEST(rotate_selection_near_the_edge_keeps_what_fits)
     dot(e, 2, 0);
     select_rect(e, 0, 0, 2, 0);
     e->rotateSelection(1);
-    ASSERT_TRUE(e->has_selection);
-    ASSERT_EQ_INT(0, e->selection.y);
-    ASSERT_EQ_INT(2, e->selection.h); /* the top row of the turned strip fell off the sprite */
+    ASSERT_TRUE(e->hasSelection());
+    ASSERT_EQ_INT(0, e->selection().y);
+    ASSERT_EQ_INT(2, e->selection().h); /* the top row of the turned strip fell off the sprite */
     ASSERT_EQ_INT(255, alpha(e, 1, 0));
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
     delete e;
@@ -390,7 +386,7 @@ TEST(selection_transforms_are_held_off_while_dragging)
     Editor *e = make_editor();
     dot(e, 1, 1);
     select_rect(e, 1, 1, 2, 2);
-    e->tool = ToolKind::Pencil;
+    e->selectTool(ToolKind::Pencil);
     e->press(6, 5);
     e->flipSelection(1);
     e->rotateSelection(1);
@@ -403,36 +399,36 @@ TEST(selection_transforms_are_held_off_while_dragging)
 TEST(drawing_records_recent_colors)
 {
     Editor *e = make_editor();
-    ASSERT_EQ_INT(0, e->recent.count);
+    ASSERT_EQ_INT(0, e->recent().count);
     dot(e, 0, 0);
-    ASSERT_EQ_INT(1, e->recent.count);
-    ASSERT_EQ_INT(255, e->recent.colors[0].r);
+    ASSERT_EQ_INT(1, e->recent().count);
+    ASSERT_EQ_INT(255, e->recent().colors[0].r);
     dot(e, 1, 0); /* the same color again */
-    ASSERT_EQ_INT(1, e->recent.count);
+    ASSERT_EQ_INT(1, e->recent().count);
 
     e->setForeground(Rgba{0, 0, 255, 255});
-    e->tool = ToolKind::Bucket;
+    e->selectTool(ToolKind::Bucket);
     click(e, 5, 5);
-    ASSERT_EQ_INT(2, e->recent.count);
-    ASSERT_EQ_INT(255, e->recent.colors[0].b);
+    ASSERT_EQ_INT(2, e->recent().count);
+    ASSERT_EQ_INT(255, e->recent().colors[0].b);
 
     e->setForeground(Rgba{0, 255, 0, 255});
-    e->tool = ToolKind::Rect;
+    e->selectTool(ToolKind::Rect);
     e->press(2, 2);
     e->drag(3, 3);
     e->release();
-    ASSERT_EQ_INT(3, e->recent.count);
+    ASSERT_EQ_INT(3, e->recent().count);
     delete e;
 }
 
 TEST(eraser_and_picker_do_not_record_colors)
 {
     Editor *e = make_editor();
-    e->tool = ToolKind::Eraser;
+    e->selectTool(ToolKind::Eraser);
     click(e, 0, 0);
-    e->tool = ToolKind::Eyedropper;
+    e->selectTool(ToolKind::Eyedropper);
     click(e, 0, 0);
-    ASSERT_EQ_INT(0, e->recent.count);
+    ASSERT_EQ_INT(0, e->recent().count);
     delete e;
 }
 
@@ -464,7 +460,7 @@ TEST(palette_add_uses_the_current_color_once)
     int index = e->paletteAdd();
     ASSERT_EQ_INT(before, index);
     ASSERT_EQ_INT(before + 1, palette_count(p));
-    ASSERT_EQ_INT(index, e->palette_selected);
+    ASSERT_EQ_INT(index, e->paletteSelected());
     ASSERT_EQ_INT(56, palette_get(p, index).b);
     ASSERT_EQ_INT(index, e->paletteAdd()); /* already there: no duplicate */
     ASSERT_EQ_INT(before + 1, palette_count(p));
@@ -476,14 +472,14 @@ TEST(palette_remove_keeps_the_selection_on_the_same_color)
     Editor *e = make_editor();
     Palette *p = sprite_palette(e->sprite());
     int count = palette_count(p);
-    e->palette_selected = count - 1;
+    e->palettePick(count - 1);
     Rgba last = palette_get(p, count - 1);
     e->paletteRemove(0);
     ASSERT_EQ_INT(count - 1, palette_count(p));
-    ASSERT_EQ_INT(count - 2, e->palette_selected);
-    ASSERT_EQ_INT(last.r, palette_get(p, e->palette_selected).r);
-    e->paletteRemove(e->palette_selected); /* removing the selected swatch deselects */
-    ASSERT_TRUE(e->palette_selected < palette_count(p));
+    ASSERT_EQ_INT(count - 2, e->paletteSelected());
+    ASSERT_EQ_INT(last.r, palette_get(p, e->paletteSelected()).r);
+    e->paletteRemove(e->paletteSelected()); /* removing the selected swatch deselects */
+    ASSERT_TRUE(e->paletteSelected() < palette_count(p));
     e->paletteRemove(999);
     ASSERT_EQ_INT(count - 2, palette_count(p));
     delete e;
@@ -495,19 +491,19 @@ TEST(pick_palette_color_sets_the_foreground)
     Palette *p = sprite_palette(e->sprite());
     Rgba want = palette_get(p, 2);
     e->palettePick(2);
-    ASSERT_EQ_INT(2, e->palette_selected);
+    ASSERT_EQ_INT(2, e->paletteSelected());
     ASSERT_EQ_INT(want.g, e->foreground().g);
     ASSERT_EQ_INT(want.b, e->foreground().b);
     e->palettePick(999);
-    ASSERT_EQ_INT(2, e->palette_selected);
+    ASSERT_EQ_INT(2, e->paletteSelected());
     delete e;
 }
 
 TEST(pencil_uses_the_brush_size_and_marks_it_dirty)
 {
     Editor *e = make_editor();
-    e->brush_size = 3;
-    e->tool = ToolKind::Pencil;
+    e->options().brush_size = 3;
+    e->selectTool(ToolKind::Pencil);
     e->press(3, 2);
     e->release();
     ASSERT_EQ_INT(255, alpha(e, 2, 1));
@@ -524,14 +520,14 @@ TEST(pencil_uses_the_brush_size_and_marks_it_dirty)
 TEST(round_brush_and_eraser_follow_the_options)
 {
     Editor *e = make_editor();
-    e->brush_size = 3;
-    e->brush_round = true;
-    e->tool = ToolKind::Pencil;
+    e->options().brush_size = 3;
+    e->options().brush_round = true;
+    e->selectTool(ToolKind::Pencil);
     click(e, 3, 2);
     ASSERT_EQ_INT(0, alpha(e, 2, 1)); /* corner cut off */
     ASSERT_EQ_INT(255, alpha(e, 3, 1));
-    e->tool = ToolKind::Eraser;
-    e->brush_size = 1;
+    e->selectTool(ToolKind::Eraser);
+    e->options().brush_size = 1;
     click(e, 3, 2);
     ASSERT_EQ_INT(0, alpha(e, 3, 2));
     ASSERT_EQ_INT(255, alpha(e, 2, 2));
@@ -541,8 +537,8 @@ TEST(round_brush_and_eraser_follow_the_options)
 TEST(brush_size_does_not_change_shapes)
 {
     Editor *e = make_editor();
-    e->brush_size = 4;
-    e->tool = ToolKind::Line;
+    e->options().brush_size = 4;
+    e->selectTool(ToolKind::Line);
     e->press(0, 0);
     e->drag(3, 0);
     e->release();
@@ -558,12 +554,12 @@ TEST(duplicate_layer_selects_the_copy)
     e->addLayer();
     e->duplicateLayer(0);
     ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(1, e->active_layer);
+    ASSERT_EQ_INT(1, e->activeLayer());
     ASSERT_EQ_INT(255, alpha(e, 2, 2));
     ASSERT_TRUE(e->dirty());
     e->undo();
     ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(1, e->active_layer);
+    ASSERT_EQ_INT(1, e->activeLayer());
     e->redo();
     ASSERT_EQ_INT(3, sprite_layer_count(e->sprite()));
     delete e;
@@ -577,7 +573,7 @@ TEST(merge_layer_down_selects_the_lower_layer)
     dot(e, 3, 3);
     e->mergeLayerDown(1);
     ASSERT_EQ_INT(1, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(0, e->active_layer);
+    ASSERT_EQ_INT(0, e->activeLayer());
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
     ASSERT_EQ_INT(255, alpha(e, 3, 3));
     e->undo();
@@ -593,10 +589,10 @@ TEST(merge_down_follows_a_higher_active_layer)
     Editor *e = make_editor();
     e->addLayer();
     e->addLayer();
-    ASSERT_EQ_INT(2, e->active_layer);
+    ASSERT_EQ_INT(2, e->activeLayer());
     e->mergeLayerDown(1);
     ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
-    ASSERT_EQ_INT(1, e->active_layer);
+    ASSERT_EQ_INT(1, e->activeLayer());
     delete e;
 }
 
@@ -606,7 +602,7 @@ TEST(duplicate_and_merge_are_held_off_while_dragging_or_invalid)
     e->addLayer();
     e->mergeLayerDown(0); /* nothing below */
     ASSERT_EQ_INT(2, sprite_layer_count(e->sprite()));
-    e->tool = ToolKind::Pencil;
+    e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
     e->duplicateLayer(0);
     e->mergeLayerDown(1);
