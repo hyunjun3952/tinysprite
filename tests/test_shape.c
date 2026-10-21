@@ -184,6 +184,68 @@ TEST(invalid_arguments_fail)
     history_destroy(h);
 }
 
+TEST(mirror_x_reflects_a_line)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    Symmetry sym = {.mirror_x = 1};
+    ASSERT_EQ_INT(0, shape_stroke_ex(h, c, SHAPE_LINE, 0, RED, sym, 0, 0, 2, 2));
+    const char *golden[H] = {"#......#", ".#....#.", "..#..#..",
+                             "........", "........", "........"};
+    expect_rows(c, golden);
+    ASSERT_EQ_INT(0, history_undo(h));
+    const char *blank[H] = {"........", "........", "........", "........", "........", "........"};
+    expect_rows(c, blank);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(mirror_both_reflects_a_filled_rect_into_four_corners)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    Symmetry sym = {.mirror_x = 1, .mirror_y = 1};
+    ASSERT_EQ_INT(0, shape_stroke_ex(h, c, SHAPE_RECT, 1, RED, sym, 0, 0, 1, 1));
+    const char *golden[H] = {"##....##", "##....##", "........",
+                             "........", "##....##", "##....##"};
+    expect_rows(c, golden);
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_TRUE(!history_can_undo(h));
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(live_mirrored_shape_redraws_both_halves)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    Symmetry sym = {.mirror_x = 1};
+    ShapeStroke *s = shape_stroke_begin_ex(h, c, SHAPE_LINE, 0, RED, sym, 0, 0);
+    ASSERT_TRUE(s != NULL);
+    ASSERT_EQ_INT(0, shape_stroke_update(s, 3, 0));
+    ASSERT_EQ_INT(0, shape_stroke_update(s, 1, 0));
+    const char *golden[H] = {"##....##", "........", "........",
+                             "........", "........", "........"};
+    expect_rows(c, golden);
+    shape_stroke_end(s);
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(0, cel_get(c, 7, 0).a);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(zero_symmetry_matches_the_plain_api)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    ASSERT_EQ_INT(0, shape_stroke_ex(h, c, SHAPE_LINE, 0, RED, (Symmetry){0}, 0, 0, 4, 4));
+    const char *golden[H] = {"#.......", ".#......", "..#.....",
+                             "...#....", "....#...", "........"};
+    expect_rows(c, golden);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
 int main(void)
 {
     RUN(line_connects_the_corners);
@@ -196,5 +258,9 @@ int main(void)
     RUN(whole_shape_is_one_undo_step);
     RUN(cancel_restores_pixels_and_records_nothing);
     RUN(invalid_arguments_fail);
+    RUN(mirror_x_reflects_a_line);
+    RUN(mirror_both_reflects_a_filled_rect_into_four_corners);
+    RUN(live_mirrored_shape_redraws_both_halves);
+    RUN(zero_symmetry_matches_the_plain_api);
     return TEST_SUMMARY();
 }

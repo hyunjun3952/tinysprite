@@ -57,7 +57,8 @@ typedef struct Editor {
      * being moved (move != NULL) it stays at its origin and move_dx/dy hold the drag offset. */
     int has_selection;
     CompositeRect selection;
-    int selecting; /* dragging out a new selection */
+    int selecting;     /* dragging out a new selection */
+    int had_selection; /* a selection existed when the current selecting drag began */
     int move_dx, move_dy;
 
     int hover_x, hover_y; /* cel under the mouse, valid when hovering is non-zero */
@@ -95,11 +96,16 @@ Cel *editor_active_cel(Editor *editor);
 void editor_undo(Editor *editor);
 void editor_redo(Editor *editor);
 
-/* Layer operations (all do nothing while a tool is being dragged). Removing a layer also drops its
- * undo steps, since they refer to the layer's cels. */
+/* Layer operations (all do nothing while a tool is being dragged). Each is one undo step. */
 void editor_add_layer(Editor *editor);
 void editor_remove_layer(Editor *editor, int index);
 void editor_move_layer(Editor *editor, int from, int to);
+void editor_set_layer_visible(Editor *editor, int index, int visible);
+
+/* Records a name / opacity edit made live with layer_set_*: the layer currently holds the edited
+ * value, `before_*` is what it held when the edit began. One undo step; nothing if unchanged. */
+void editor_commit_layer_name(Editor *editor, int index, const char *before_name);
+void editor_commit_layer_opacity(Editor *editor, int index, uint8_t before_opacity);
 
 /* Selection helpers. Delete clears the selected pixels (one undo step). */
 void editor_select_all(Editor *editor);

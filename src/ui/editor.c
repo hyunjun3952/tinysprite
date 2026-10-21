@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "tinysprite/layer_ops.h"
+
 static uint8_t to_byte(float value)
 {
     float scaled = roundf(value * 255.0f);
@@ -132,17 +134,27 @@ void editor_zoom_step(Editor *editor, int direction)
     viewport_zoom_at(&editor->view, zoom, editor->canvas_w / 2.0f, editor->canvas_h / 2.0f);
 }
 
+/* Undoing / redoing a layer operation can change the layer count under the active index. */
+static void after_history_step(Editor *editor)
+{
+    int last = sprite_layer_count(editor->sprite) - 1;
+    if (editor->active_layer > last) {
+        editor->active_layer = last;
+    }
+    editor_mark_all_dirty(editor);
+}
+
 void editor_undo(Editor *editor)
 {
     if (history_undo(editor->history) == 0) {
-        editor_mark_all_dirty(editor);
+        after_history_step(editor);
     }
 }
 
 void editor_redo(Editor *editor)
 {
     if (history_redo(editor->history) == 0) {
-        editor_mark_all_dirty(editor);
+        after_history_step(editor);
     }
 }
 
@@ -164,36 +176,25 @@ void editor_add_layer(Editor *editor)
     }
     char name[LAYER_NAME_MAX + 1];
     snprintf(name, sizeof(name), "Layer %d", sprite_layer_count(editor->sprite) + 1);
-    if (sprite_add_layer(editor->sprite, name)) {
+    if (layer_op_add(editor->history, editor->sprite, name)) {
         editor->active_layer = sprite_layer_count(editor->sprite) - 1;
     }
 }
 
 void editor_remove_layer(Editor *editor, int index)
 {
-    Layer *layer = sprite_layer(editor->sprite, index);
-    if (editor->dragging || !layer || sprite_layer_count(editor->sprite) == 1) {
-        return;
-    }
-    for (int frame = 0; frame < layer_frame_count(layer); frame++) {
-        history_forget_cel(editor->history, layer_cel(layer, frame));
-    }
-    if (sprite_remove_layer(editor->sprite, index) != 0) {
+    if (editor->dragging || layer_op_remove(editor->history, editor->sprite, index) != 0) {
         return;
     }
     if (editor->active_layer > index) {
         editor->active_layer--;
     }
-    int last = sprite_layer_count(editor->sprite) - 1;
-    if (editor->active_layer > last) {
-        editor->active_layer = last;
-    }
-    editor_mark_all_dirty(editor);
+    after_history_step(editor);
 }
 
 void editor_move_layer(Editor *editor, int from, int to)
 {
-    if (editor->dragging || sprite_move_layer(editor->sprite, from, to) != 0) {
+    if (editor->dragging || layer_op_move(editor->history, editor->sprite, from, to) != 0) {
         return;
     }
     /* The active layer keeps pointing at the same layer. */
@@ -204,6 +205,43 @@ void editor_move_layer(Editor *editor, int from, int to)
         editor->active_layer = active - 1;
     } else if (to <= active && active < from) {
         editor->active_layer = active + 1;
+    }
+    editor_mark_all_dirty(editor);
+}
+
+void editor_set_layer_visible(Editor *editor, int index, int visible)
+{
+    Layer *layer = sprite_layer(editor->sprite, index);
+    if (!editor->dragging && layer && layer_op_set_visible(editor->history, layer, visible) == 0) {
+        editor_mark_all_dirty(editor);
+    }
+}
+
+/* The live edit already changed the layer: put the old value back so the op records old -> new. */
+void editor_commit_layer_name(Editor *editor, int index, const char *before_name)
+{
+    Layer *layer = sprite_layer(editor->sprite, index);
+    if (editor->dragging || !layer) {
+        return;
+    }
+    char edited[LAYER_NAME_MAX + 1];
+    snprintf(edited, sizeof(edited), "%s", layer_name(layer));
+    layer_set_name(layer, before_name);
+    if (layer_op_set_name(editor->history, layer, edited) != 0) {
+        layer_set_name(layer, edited);
+    }
+}
+
+void editor_commit_layer_opacity(Editor *editor, int index, uint8_t before_opacity)
+{
+    Layer *layer = sprite_layer(editor->sprite, index);
+    if (editor->dragging || !layer) {
+        return;
+    }
+    uint8_t edited = layer_opacity(layer);
+    layer_set_opacity(layer, before_opacity);
+    if (layer_op_set_opacity(editor->history, layer, edited) != 0) {
+        layer_set_opacity(layer, edited);
     }
     editor_mark_all_dirty(editor);
 }

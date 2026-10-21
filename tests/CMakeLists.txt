@@ -10,3 +10,11 @@ foreach(src ${TEST_SOURCES})
   target_link_libraries(${base} PRIVATE tinysprite_io tinysprite_test_support)
   add_test(NAME ${name} COMMAND ${base})
 endforeach()
+
+# UI tests need SDL (dummy video driver, no display): ctest name "ui_editor".
+if(TINYSPRITE_BUILD_UI)
+  add_executable(test_ui_editor ui/ui_editor.c)
+  target_link_libraries(test_ui_editor PRIVATE tinysprite_ui tinysprite_test_support)
+  add_test(NAME ui_editor COMMAND test_ui_editor)
+  set_tests_properties(ui_editor PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+endif()

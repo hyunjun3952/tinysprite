@@ -89,7 +89,6 @@ static void tools_panel(Editor *editor, float height)
                  ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_AlphaBar);
 
     igSeparatorText("View");
-    igText("Zoom: %gx", (double)editor->view.zoom);
     if (igButton("-", (ImVec2){0.0f, 0.0f})) {
         editor_zoom_step(editor, -1);
     }
@@ -104,13 +103,6 @@ static void tools_panel(Editor *editor, float height)
     bool grid = editor->show_grid != 0;
     if (igCheckbox("Grid", &grid)) {
         editor->show_grid = grid;
-    }
-    if (editor->hovering && editor->hover_x >= 0 && editor->hover_y >= 0 &&
-        editor->hover_x < sprite_width(editor->sprite) &&
-        editor->hover_y < sprite_height(editor->sprite)) {
-        igText("Cel: %d, %d", editor->hover_x, editor->hover_y);
-    } else {
-        igText("Cel: -");
     }
 
     igSeparatorText("History");

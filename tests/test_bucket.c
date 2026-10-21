@@ -107,6 +107,62 @@ TEST(invalid_arguments_and_active_stroke_fail)
     history_destroy(h);
 }
 
+TEST(mirror_x_fills_the_reflected_region_too)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    /* A blue wall splits the cel into a left and a right region. */
+    for (int y = 0; y < H; y++) {
+        cel_set(c, 2, y, BLUE);
+        cel_set(c, 3, y, BLUE);
+    }
+    Symmetry sym = {.mirror_x = 1};
+    ASSERT_EQ_INT(0, bucket_fill_ex(h, c, 0, 0, RED, sym));
+    const char *golden[H] = {"rrbbrr", "rrbbrr", "rrbbrr", "rrbbrr"};
+    expect_rows(c, golden);
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(0, cel_get(c, 0, 0).a);
+    ASSERT_EQ_INT(0, cel_get(c, 5, 0).a);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(mirror_seed_on_the_axis_fills_once)
+{
+    History *h = history_create();
+    Cel *c = cel_create(5, 4);
+    Symmetry sym = {.mirror_x = 1, .mirror_y = 1};
+    ASSERT_EQ_INT(0, bucket_fill_ex(h, c, 2, 1, RED, sym));
+    ASSERT_EQ_INT(255, cel_get(c, 0, 0).a);
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(0, cel_get(c, 0, 0).a);
+    ASSERT_TRUE(!history_can_undo(h));
+    cel_destroy(c);
+    history_destroy(h);
+}
+
+TEST(mirror_x_with_four_corners_fills_four_regions)
+{
+    History *h = history_create();
+    Cel *c = cel_create(W, H);
+    for (int x = 0; x < W; x++) {
+        cel_set(c, x, 1, BLUE);
+        cel_set(c, x, 2, BLUE);
+    }
+    for (int y = 0; y < H; y++) {
+        cel_set(c, 2, y, BLUE);
+        cel_set(c, 3, y, BLUE);
+    }
+    Symmetry sym = {.mirror_x = 1, .mirror_y = 1};
+    ASSERT_EQ_INT(0, bucket_fill_ex(h, c, 0, 0, RED, sym));
+    ASSERT_EQ_INT(255, cel_get(c, 0, 0).r);
+    ASSERT_EQ_INT(255, cel_get(c, 5, 0).r);
+    ASSERT_EQ_INT(255, cel_get(c, 0, 3).r);
+    ASSERT_EQ_INT(255, cel_get(c, 5, 3).r);
+    cel_destroy(c);
+    history_destroy(h);
+}
+
 int main(void)
 {
     RUN(fills_the_connected_region_only);
@@ -114,5 +170,8 @@ int main(void)
     RUN(filling_with_the_same_color_records_nothing);
     RUN(fill_replaces_with_transparent_too);
     RUN(invalid_arguments_and_active_stroke_fail);
+    RUN(mirror_x_fills_the_reflected_region_too);
+    RUN(mirror_seed_on_the_axis_fills_once);
+    RUN(mirror_x_with_four_corners_fills_four_regions);
     return TEST_SUMMARY();
 }

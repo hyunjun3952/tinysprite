@@ -121,6 +121,37 @@ TEST(move_layer_same_index_is_noop_and_bad_index_fails)
     sprite_destroy(s);
 }
 
+TEST(detach_and_insert_round_trip)
+{
+    Sprite *s = sprite_create(4, 4);
+    Layer *a = sprite_layer(s, 0);
+    Layer *b = sprite_add_layer(s, "B");
+    Layer *c = sprite_add_layer(s, "C");
+    ASSERT_TRUE(sprite_detach_layer(s, 1) == b);
+    ASSERT_EQ_INT(2, sprite_layer_count(s));
+    ASSERT_TRUE(sprite_layer(s, 0) == a && sprite_layer(s, 1) == c);
+    ASSERT_TRUE(cel_width(layer_cel(b, 0)) == 4); /* still alive */
+    ASSERT_EQ_INT(0, sprite_insert_layer(s, 1, b));
+    ASSERT_TRUE(sprite_layer(s, 1) == b && sprite_layer(s, 2) == c);
+    sprite_destroy(s);
+}
+
+TEST(detach_and_insert_reject_bad_arguments)
+{
+    Sprite *s = sprite_create(4, 4);
+    ASSERT_TRUE(sprite_detach_layer(s, 0) == NULL); /* last layer */
+    sprite_add_layer(s, "B");
+    ASSERT_TRUE(sprite_detach_layer(s, 5) == NULL);
+    ASSERT_TRUE(sprite_detach_layer(s, -1) == NULL);
+    Layer *spare = layer_create("X", 4, 4, 1);
+    ASSERT_EQ_INT(-1, sprite_insert_layer(s, 3, spare));
+    ASSERT_EQ_INT(-1, sprite_insert_layer(s, -1, spare));
+    ASSERT_EQ_INT(-1, sprite_insert_layer(s, 0, NULL));
+    ASSERT_EQ_INT(0, sprite_insert_layer(s, 2, spare)); /* append */
+    ASSERT_TRUE(sprite_layer(s, 2) == spare);
+    sprite_destroy(s);
+}
+
 int main(void)
 {
     RUN(create_has_one_frame_and_one_layer);
@@ -134,5 +165,7 @@ int main(void)
     RUN(remove_layer_keeps_at_least_one_layer);
     RUN(move_layer_up_and_down);
     RUN(move_layer_same_index_is_noop_and_bad_index_fails);
+    RUN(detach_and_insert_round_trip);
+    RUN(detach_and_insert_reject_bad_arguments);
     return TEST_SUMMARY();
 }

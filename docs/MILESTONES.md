@@ -66,20 +66,28 @@ headless CLI export, optional Aseprite import.
   sprites larger than the canvas.
 - Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh .githooks/*`).
 - `tinysprite_core` links `libm` (viewport uses `floorf`).
-- The canvas draws only layer 0 / frame 0 edits for now (`Editor.active_layer`, `Editor.frame`); the layer
-  panel arrives in milestone 6. The tools panel is drawn before the canvas, so its zoom readout lags one frame.
+- The canvas edits `Editor.active_layer` / `Editor.frame` (frame stays 0 until phase 2).
 - Live shape / move strokes redraw from scratch on every update (`history_cancel_stroke` + a new stroke), so
   previews never accumulate and the whole drag is one undo step.
-- Removing a layer calls `history_forget_cel`, which drops that layer's undo/redo steps (history holds raw cel
-  pointers). Layer add / remove / reorder / rename / visibility / opacity are not undoable yet.
+- Layer add / remove / reorder / rename / visibility / opacity are undoable through `layer_ops.h`, which records
+  them with `history_push_action` (a step with its own undo / redo / release callbacks). A removed layer, or an
+  added layer that was undone, is detached from the sprite and owned by its history step, so pixel steps on its
+  cels stay valid and replay correctly; release callbacks must not dereference layers because steps are dropped
+  oldest-first. `history_forget_cel` remains for callers that destroy a cel outside this path.
+- The layer panel edits name / opacity live and records one step on widget release
+  (`editor_commit_layer_name` / `_opacity` put the old value back and let `layer_op_*` record old -> new).
 - Pixel-perfect also cuts the corner of a 90-degree turn (the L-shaped corner pixel is removed), like Aseprite.
   A removed pixel is restored to the color it had before the stroke touched it.
-- Symmetry mirrors across the cel's center and applies to pencil / eraser only (not shapes or bucket).
+- Symmetry (`symmetry.h`) mirrors across the cel's center and applies to pencil / eraser, shapes
+  (`shape_stroke_ex` / `shape_stroke_begin_ex`) and bucket (`bucket_fill_ex`).
 - The selection is a single rectangle clipped to the sprite. Moving it loses pixels pushed off the sprite, and
-  transparent selected pixels do not erase the destination. A click without dragging deselects, so a 1x1
-  selection cannot be made by dragging. There is no selection copy / paste yet.
+  transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
+  it, unless the click only dismisses an existing selection. There is no selection copy / paste yet.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
 - `third_party/cimgui` declares `ImDrawList_AddRect(..., rounding, thickness, flags)`; the order differs from
   upstream ImGui's `(rounding, flags, thickness)`, and clang-tidy's narrowing check is what caught the swap.
-- `tools.c` / `layers_panel.c` have no ctest coverage (the UI is not built in CI); they were exercised with a
-  throw-away headless harness under `SDL_VIDEODRIVER=dummy` + ASan/UBSan.
+- `tests/ui/ui_editor.c` (ctest `ui_editor`, only with `-DTINYSPRITE_BUILD_UI=ON`, runs under
+  `SDL_VIDEODRIVER=dummy`) covers `editor.c` and `tools.c`; `layers_panel.c` (ImGui widgets) is still not covered.
+  CI builds core only, so the UI tests run locally. `scripts/lint.sh` skips `tests/ui` like `src/ui`.
+- Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
+  zoom / pan / hover, so they no longer lag the image by a frame.

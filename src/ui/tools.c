@@ -41,6 +41,11 @@ static int inside_selection(const Editor *editor, int x, int y)
     return editor->has_selection && x >= r->x && y >= r->y && x < r->x + r->w && y < r->y + r->h;
 }
 
+static Symmetry symmetry(const Editor *editor)
+{
+    return (Symmetry){editor->mirror_x, editor->mirror_y};
+}
+
 static ShapeKind shape_kind(ToolKind tool)
 {
     switch (tool) {
@@ -91,6 +96,9 @@ static void press_select(Editor *editor, int cx, int cy)
         editor->move_dx = 0;
         editor->move_dy = 0;
     } else {
+        /* Remember whether a selection existed: a plain click on empty canvas selects one cel, but
+         * a click that merely dismisses an old selection must not start a new one. */
+        editor->had_selection = editor->has_selection;
         editor->selecting = 1;
         editor->has_selection = 1;
         update_selection(editor, cx, cy);
@@ -145,15 +153,16 @@ void tools_press(Editor *editor, int cx, int cy)
     }
     case TOOL_BUCKET:
         /* A single click: no drag state. */
-        if (bucket_fill(editor->history, cel, cx, cy, color) == 0) {
+        if (bucket_fill_ex(editor->history, cel, cx, cy, color, symmetry(editor)) == 0) {
             editor_mark_all_dirty(editor);
         }
         break;
     case TOOL_LINE:
     case TOOL_RECT:
     case TOOL_ELLIPSE:
-        editor->shape = shape_stroke_begin(editor->history, cel, shape_kind(editor->tool),
-                                           editor->shape_filled, color, cx, cy);
+        editor->shape =
+            shape_stroke_begin_ex(editor->history, cel, shape_kind(editor->tool),
+                                  editor->shape_filled, color, symmetry(editor), cx, cy);
         if (editor->shape) {
             editor->dragging = 1;
             mark_stroke(editor, cx, cy, cx, cy);
@@ -240,10 +249,13 @@ void tools_release(Editor *editor)
         finish_move(editor);
     } else if (editor->selecting) {
         editor->selecting = 0;
-        /* A click without dragging deselects. */
-        if (editor->drag_x == editor->anchor_x && editor->drag_y == editor->anchor_y) {
+        /* A click without dragging selects the single cel under it, unless it only dismisses an
+         * existing selection. */
+        if (editor->drag_x == editor->anchor_x && editor->drag_y == editor->anchor_y &&
+            editor->had_selection) {
             editor->has_selection = 0;
         }
+        editor->had_selection = 0;
     }
     editor->dragging = 0;
 }

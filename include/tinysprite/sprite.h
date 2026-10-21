@@ -30,6 +30,15 @@ Layer *sprite_add_layer(Sprite *sprite, const char *name);
  * cels are freed, so callers must drop them from any history first (history_forget_cel). */
 int sprite_remove_layer(Sprite *sprite, int index);
 
+/* Like sprite_remove_layer, but hands the layer to the caller instead of destroying it (its cels
+ * stay valid). Returns NULL under the same conditions sprite_remove_layer fails. */
+Layer *sprite_detach_layer(Sprite *sprite, int index);
+
+/* Inserts a layer (made for this sprite's size and frame count) so it ends up at `index`,
+ * shifting the layers from there up. The sprite takes ownership. Returns 0 on success, -1 if index
+ * is outside 0..layer_count, layer is NULL, or on allocation failure. */
+int sprite_insert_layer(Sprite *sprite, int index, Layer *layer);
+
 /* Moves the layer at `from` so it ends up at index `to`, shifting the layers in between. Returns 0
  * on success, -1 if either index is out of range. */
 int sprite_move_layer(Sprite *sprite, int from, int to);

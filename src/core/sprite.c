@@ -78,17 +78,25 @@ Layer *sprite_layer(Sprite *sprite, int index)
     return sprite->layers[index];
 }
 
+static int reserve_layer_slot(Sprite *sprite)
+{
+    if (sprite->layer_count < sprite->layer_capacity) {
+        return 0;
+    }
+    int capacity = sprite->layer_capacity == 0 ? 4 : sprite->layer_capacity * 2;
+    Layer **grown = (Layer **)realloc((void *)sprite->layers, (size_t)capacity * sizeof(Layer *));
+    if (grown == NULL) {
+        return -1;
+    }
+    sprite->layers = grown;
+    sprite->layer_capacity = capacity;
+    return 0;
+}
+
 Layer *sprite_add_layer(Sprite *sprite, const char *name)
 {
-    if (sprite->layer_count == sprite->layer_capacity) {
-        int capacity = sprite->layer_capacity == 0 ? 4 : sprite->layer_capacity * 2;
-        Layer **grown =
-            (Layer **)realloc((void *)sprite->layers, (size_t)capacity * sizeof(Layer *));
-        if (grown == NULL) {
-            return NULL;
-        }
-        sprite->layers = grown;
-        sprite->layer_capacity = capacity;
+    if (reserve_layer_slot(sprite) != 0) {
+        return NULL;
     }
     Layer *layer = layer_create(name, sprite->width, sprite->height, sprite->frame_count);
     if (layer == NULL) {
@@ -98,16 +106,40 @@ Layer *sprite_add_layer(Sprite *sprite, const char *name)
     return layer;
 }
 
-int sprite_remove_layer(Sprite *sprite, int index)
+Layer *sprite_detach_layer(Sprite *sprite, int index)
 {
     if (index < 0 || index >= sprite->layer_count || sprite->layer_count == 1) {
-        return -1;
+        return NULL;
     }
-    layer_destroy(sprite->layers[index]);
+    Layer *layer = sprite->layers[index];
     for (int i = index + 1; i < sprite->layer_count; i++) {
         sprite->layers[i - 1] = sprite->layers[i];
     }
     sprite->layer_count--;
+    return layer;
+}
+
+int sprite_insert_layer(Sprite *sprite, int index, Layer *layer)
+{
+    if (layer == NULL || index < 0 || index > sprite->layer_count ||
+        reserve_layer_slot(sprite) != 0) {
+        return -1;
+    }
+    for (int i = sprite->layer_count; i > index; i--) {
+        sprite->layers[i] = sprite->layers[i - 1];
+    }
+    sprite->layers[index] = layer;
+    sprite->layer_count++;
+    return 0;
+}
+
+int sprite_remove_layer(Sprite *sprite, int index)
+{
+    Layer *layer = sprite_detach_layer(sprite, index);
+    if (layer == NULL) {
+        return -1;
+    }
+    layer_destroy(layer);
     return 0;
 }
 

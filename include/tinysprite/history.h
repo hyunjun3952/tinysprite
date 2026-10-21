@@ -4,7 +4,8 @@
 #include "tinysprite/cel.h"
 
 /* Undo/redo log. One undo step is one stroke; internally a stroke is a list of pixel deltas
- * (index, old, new). Every pixel edit must go through history_set_pixel.
+ * (index, old, new). Every pixel edit must go through history_set_pixel. Edits that are not pixel
+ * deltas (layer operations) are recorded as actions, see history_push_action.
  * A cel must outlive every history entry that refers to it. */
 typedef struct History History;
 
@@ -29,6 +30,25 @@ int history_end_stroke(History *history);
 /* Reverts every pixel written by the active stroke and discards it without touching the undo/redo
  * steps. Returns 0 on success, -1 if no stroke is active. */
 int history_cancel_stroke(History *history);
+
+/* Non-zero while a stroke is open (between history_begin_stroke and end / cancel). */
+int history_stroke_active(const History *history);
+
+/* A non-pixel edit with its own undo / redo. `release` is called exactly once when the step is
+ * dropped (new edit discards it from the redo side, or history_destroy) and must free `ctx`; the
+ * callbacks may be NULL. Release must not touch objects other steps refer to, since steps are
+ * dropped oldest-first. */
+typedef struct HistoryAction {
+    void (*undo)(void *ctx);
+    void (*redo)(void *ctx);
+    void (*release)(void *ctx);
+    void *ctx;
+} HistoryAction;
+
+/* Records an action whose effect the caller has already applied, as one undo step, and discards
+ * the redo steps. Returns 0 on success, -1 if a stroke is active, history is NULL, or on
+ * allocation failure; the action is then released immediately. */
+int history_push_action(History *history, HistoryAction action);
 
 int history_can_undo(const History *history);
 int history_can_redo(const History *history);

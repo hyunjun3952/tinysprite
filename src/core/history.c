@@ -9,7 +9,8 @@ typedef struct Delta {
 } Delta;
 
 typedef struct Stroke {
-    Cel *cel;
+    Cel *cel; /* NULL for an action step */
+    HistoryAction action;
     Delta *deltas;
     size_t count;
     size_t capacity;
@@ -26,6 +27,9 @@ struct History {
 
 static void stroke_release(Stroke *stroke)
 {
+    if (!stroke->cel && stroke->action.release) {
+        stroke->action.release(stroke->action.ctx);
+    }
     free(stroke->deltas);
     *stroke = (Stroke){0};
 }
@@ -33,6 +37,12 @@ static void stroke_release(Stroke *stroke)
 /* Restores old colors newest-first so a pixel written several times ends at its original value. */
 static void stroke_revert(const Stroke *stroke)
 {
+    if (!stroke->cel) {
+        if (stroke->action.undo) {
+            stroke->action.undo(stroke->action.ctx);
+        }
+        return;
+    }
     Rgba *pixels = cel_pixels(stroke->cel);
     for (size_t i = stroke->count; i > 0; i--) {
         pixels[stroke->deltas[i - 1].index] = stroke->deltas[i - 1].old_color;
@@ -41,6 +51,12 @@ static void stroke_revert(const Stroke *stroke)
 
 static void stroke_apply(const Stroke *stroke)
 {
+    if (!stroke->cel) {
+        if (stroke->action.redo) {
+            stroke->action.redo(stroke->action.ctx);
+        }
+        return;
+    }
     Rgba *pixels = cel_pixels(stroke->cel);
     for (size_t i = 0; i < stroke->count; i++) {
         pixels[stroke->deltas[i].index] = stroke->deltas[i].new_color;
@@ -103,6 +119,28 @@ int history_set_pixel(History *history, int x, int y, Rgba color)
     return 0;
 }
 
+/* Appends `step` after the cursor, discarding the redo steps. On success the history owns the
+ * step; on allocation failure nothing changes. */
+static int history_commit(History *history, const Stroke *step)
+{
+    if (history->count == history->capacity) {
+        size_t capacity = history->capacity ? history->capacity * 2 : 16;
+        Stroke *strokes = realloc(history->strokes, capacity * sizeof(*strokes));
+        if (!strokes) {
+            return -1;
+        }
+        history->strokes = strokes;
+        history->capacity = capacity;
+    }
+    for (size_t i = history->cursor; i < history->count; i++) {
+        stroke_release(&history->strokes[i]);
+    }
+    history->count = history->cursor;
+    history->strokes[history->count++] = *step;
+    history->cursor = history->count;
+    return 0;
+}
+
 int history_end_stroke(History *history)
 {
     if (!history || !history->stroke_open) {
@@ -115,23 +153,11 @@ int history_end_stroke(History *history)
         return 0;
     }
 
-    if (history->count == history->capacity) {
-        size_t capacity = history->capacity ? history->capacity * 2 : 16;
-        Stroke *strokes = realloc(history->strokes, capacity * sizeof(*strokes));
-        if (!strokes) {
-            stroke_revert(active);
-            stroke_release(active);
-            return -1;
-        }
-        history->strokes = strokes;
-        history->capacity = capacity;
+    if (history_commit(history, active) != 0) {
+        stroke_revert(active);
+        stroke_release(active);
+        return -1;
     }
-    for (size_t i = history->cursor; i < history->count; i++) {
-        stroke_release(&history->strokes[i]);
-    }
-    history->count = history->cursor;
-    history->strokes[history->count++] = *active;
-    history->cursor = history->count;
     *active = (Stroke){0};
     return 0;
 }
@@ -144,6 +170,21 @@ int history_cancel_stroke(History *history)
     stroke_revert(&history->active);
     stroke_release(&history->active);
     history->stroke_open = 0;
+    return 0;
+}
+
+int history_stroke_active(const History *history)
+{
+    return history && history->stroke_open;
+}
+
+int history_push_action(History *history, HistoryAction action)
+{
+    Stroke step = {.action = action};
+    if (!history || history->stroke_open || history_commit(history, &step) != 0) {
+        stroke_release(&step);
+        return -1;
+    }
     return 0;
 }
 

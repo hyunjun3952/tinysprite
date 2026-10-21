@@ -322,6 +322,113 @@ TEST(forget_cel_cancels_active_stroke_on_it)
     history_destroy(h);
 }
 
+typedef struct Counter {
+    int undos, redos, releases;
+} Counter;
+
+static void counter_undo(void *ctx)
+{
+    ((Counter *)ctx)->undos++;
+}
+
+static void counter_redo(void *ctx)
+{
+    ((Counter *)ctx)->redos++;
+}
+
+static void counter_release(void *ctx)
+{
+    ((Counter *)ctx)->releases++;
+}
+
+static HistoryAction counter_action(Counter *counter)
+{
+    return (HistoryAction){counter_undo, counter_redo, counter_release, counter};
+}
+
+TEST(action_undo_redo_calls_callbacks)
+{
+    History *h = history_create();
+    Counter n = {0};
+    ASSERT_EQ_INT(0, history_push_action(h, counter_action(&n)));
+    ASSERT_TRUE(history_can_undo(h));
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(1, n.undos);
+    ASSERT_TRUE(history_can_redo(h));
+    ASSERT_EQ_INT(0, history_redo(h));
+    ASSERT_EQ_INT(1, n.redos);
+    ASSERT_EQ_INT(0, n.releases);
+    history_destroy(h);
+    ASSERT_EQ_INT(1, n.releases);
+}
+
+TEST(action_interleaves_with_strokes)
+{
+    History *h = history_create();
+    Cel *c = cel_create(4, 4);
+    Counter n = {0};
+    history_begin_stroke(h, c);
+    history_set_pixel(h, 0, 0, RED);
+    history_end_stroke(h);
+    history_push_action(h, counter_action(&n));
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(255, alpha(c, 0, 0));
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(0, alpha(c, 0, 0));
+    ASSERT_EQ_INT(1, n.undos);
+    history_destroy(h);
+    cel_destroy(c);
+}
+
+TEST(new_edit_releases_redone_actions)
+{
+    History *h = history_create();
+    Cel *c = cel_create(4, 4);
+    Counter n = {0};
+    history_push_action(h, counter_action(&n));
+    history_undo(h);
+    history_begin_stroke(h, c);
+    history_set_pixel(h, 1, 1, BLUE);
+    history_end_stroke(h);
+    ASSERT_EQ_INT(1, n.releases);
+    history_destroy(h);
+    ASSERT_EQ_INT(1, n.releases);
+    cel_destroy(c);
+}
+
+TEST(action_rejected_during_stroke_is_released)
+{
+    History *h = history_create();
+    Cel *c = cel_create(4, 4);
+    Counter n = {0};
+    history_begin_stroke(h, c);
+    ASSERT_EQ_INT(-1, history_push_action(h, counter_action(&n)));
+    ASSERT_EQ_INT(1, n.releases);
+    ASSERT_EQ_INT(-1, history_push_action(NULL, counter_action(&n)));
+    ASSERT_EQ_INT(2, n.releases);
+    history_end_stroke(h);
+    history_destroy(h);
+    cel_destroy(c);
+}
+
+TEST(forget_cel_keeps_actions)
+{
+    History *h = history_create();
+    Cel *c = cel_create(4, 4);
+    Counter n = {0};
+    history_begin_stroke(h, c);
+    history_set_pixel(h, 0, 0, RED);
+    history_end_stroke(h);
+    history_push_action(h, counter_action(&n));
+    history_forget_cel(h, c);
+    ASSERT_EQ_INT(0, n.releases);
+    ASSERT_EQ_INT(0, history_undo(h));
+    ASSERT_EQ_INT(1, n.undos);
+    ASSERT_TRUE(!history_can_undo(h));
+    history_destroy(h);
+    cel_destroy(c);
+}
+
 int main(void)
 {
     RUN(starts_empty);
@@ -340,5 +447,10 @@ int main(void)
     RUN(forget_cel_drops_only_that_cels_steps);
     RUN(forget_cel_keeps_undo_redo_boundary);
     RUN(forget_cel_cancels_active_stroke_on_it);
+    RUN(action_undo_redo_calls_callbacks);
+    RUN(action_interleaves_with_strokes);
+    RUN(new_edit_releases_redone_actions);
+    RUN(action_rejected_during_stroke_is_released);
+    RUN(forget_cel_keeps_actions);
     return TEST_SUMMARY();
 }

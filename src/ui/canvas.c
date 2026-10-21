@@ -1,6 +1,7 @@
 #include "canvas.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "tools.h"
 
@@ -180,6 +181,27 @@ static void draw_mirror_axes(ImDrawList *draw, const Editor *editor, ScreenRect 
     }
 }
 
+/* Zoom and hovered cel in the canvas corner. Drawn here, after the canvas has applied this frame's
+ * zoom / pan / hover, so the numbers never lag the image. */
+static void draw_status(ImDrawList *draw, const Editor *editor, ImVec2 origin, ImVec2 avail)
+{
+    char text[64];
+    int len = snprintf(text, sizeof(text), "Zoom: %gx", (double)editor->view.zoom);
+    if (editor->hovering && editor->hover_x >= 0 && editor->hover_y >= 0 &&
+        editor->hover_x < sprite_width(editor->sprite) &&
+        editor->hover_y < sprite_height(editor->sprite)) {
+        snprintf(text + len, sizeof(text) - (size_t)len, "   Cel: %d, %d", editor->hover_x,
+                 editor->hover_y);
+    }
+    ImVec2_c measured = igCalcTextSize(text, NULL, false, -1.0f);
+    ImVec2 size = {measured.x, measured.y};
+    ImVec2 p0 = {origin.x + 6.0f, origin.y + avail.y - size.y - 10.0f};
+    ImDrawList_AddRectFilled(draw, (ImVec2){p0.x - 4.0f, p0.y - 2.0f},
+                             (ImVec2){p0.x + size.x + 4.0f, p0.y + size.y + 2.0f},
+                             COL32(0, 0, 0, 160), 0.0f, 0);
+    ImDrawList_AddText_Vec2(draw, p0, COL32(255, 255, 255, 255), text, NULL);
+}
+
 void canvas_show(Editor *editor, float x, float y, float w, float h)
 {
     igSetNextWindowPos((ImVec2){x, y}, ImGuiCond_Always, (ImVec2){0.0f, 0.0f});
@@ -231,6 +253,7 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
     draw_mirror_axes(draw, editor, sprite);
     draw_selection(draw, editor, origin);
     draw_hover_outline(draw, editor, origin);
+    draw_status(draw, editor, origin, avail);
     ImDrawList_PopClipRect(draw);
 
     igEnd();
