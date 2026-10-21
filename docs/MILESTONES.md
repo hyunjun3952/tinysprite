@@ -68,7 +68,7 @@ headless CLI export, optional Aseprite import.
   it, unless the click only dismisses an existing selection.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
 - `tests/ui/ui_editor_*.cpp` (ctest `ui_editor_{selection,layers,colors,drawing,document}`, shared helpers in
-  `ui_editor_support.h`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
+  `ui_editor_support.h`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor*.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
   CI builds the UI, so the `ui_*` tests run there too.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
@@ -76,11 +76,11 @@ headless CLI export, optional Aseprite import.
 ## Convenience features (outside the milestones)
 - Panning: the right or middle button drag (or Space + left drag) moves the view with a hand cursor; the canvas item accepts
   the right button for that, so a right click never draws (`tests/ui/ui_canvas.cpp`).
-- Shortcuts live in `src/ui/app.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
+- Shortcuts live in `src/ui/app_shortcuts.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
   `+` / `-` and `[` / `]` brush size (1 px; `Editor::changeBrushSize`), the wheel zooms, holding the middle button = temporary eyedropper (`Editor::tempPick`; dragging it pans), Space + drag pans.
 - Clipboard (`selection.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
-- Palette edits (`palette_remove`, add / pick in `editor.cpp`) and `RecentColors` are not part of undo. Recent
+- Palette edits (`palette_remove`, add / pick in `editor_palette.cpp`) and `RecentColors` are not part of undo. Recent
   colors are recorded on press by every drawing tool except the eraser and the eyedropper.
 - Brush (`PencilOptions.size` / `round`): square or round, 1..`PENCIL_BRUSH_MAX`; each stamp pixel is mirrored
   separately. Pixel-perfect is ignored above size 1. Shapes and the bucket do not use the brush.

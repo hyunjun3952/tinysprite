@@ -1,0 +1,188 @@
+/* App: the menu bar and the shortcut help window. */
+
+#include "app.h"
+
+#include <string>
+
+#include "imgui.h"
+#include "theme.h"
+
+/* The recent files; picking one asks about unsaved changes first. */
+void App::openRecentMenu(bool idle)
+{
+    if (!ImGui::BeginMenu("Open recent", idle && !recent_.empty())) {
+        return;
+    }
+    std::string chosen;
+    for (size_t i = 0; i < recent_.size(); i++) {
+        ImGui::PushID(static_cast<int>(i));
+        std::string name = recent_[i].substr(recent_[i].find_last_of("/\\") + 1);
+        if (ImGui::MenuItem(name.c_str())) {
+            chosen = recent_[i];
+        }
+        theme::tip(recent_[i].c_str());
+        ImGui::PopID();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Clear list")) {
+        recent_.clear();
+    }
+    ImGui::EndMenu();
+    if (!chosen.empty()) {
+        guardUnsaved([this, chosen] { openOrAsk(chosen); });
+    }
+}
+
+void App::fileMenu()
+{
+    if (!ImGui::BeginMenu("File")) {
+        return;
+    }
+    bool idle = !editor_->stroking();
+    if (ImGui::MenuItem("New...", "Ctrl+N", false, idle)) {
+        guardUnsaved([this] { openNew_ = true; });
+    }
+    if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
+        guardUnsaved([this] { askForPath(FileAction::Open); });
+    }
+    openRecentMenu(idle);
+    if (ImGui::MenuItem("Save", "Ctrl+S")) {
+        save();
+    }
+    if (ImGui::MenuItem("Save as...", "Ctrl+Shift+S")) {
+        askForPath(FileAction::SaveAs);
+    }
+    if (ImGui::MenuItem("Export image...", "Ctrl+E")) {
+        askForPath(FileAction::ExportImage);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
+        askForPath(FileAction::ImportPalette);
+    }
+    if (ImGui::MenuItem("Export palette...")) {
+        askForPath(FileAction::ExportPalette);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Quit")) {
+        guardUnsaved([this] { running_ = false; });
+    }
+    ImGui::EndMenu();
+}
+
+void App::editMenu()
+{
+    if (!ImGui::BeginMenu("Edit")) {
+        return;
+    }
+    bool idle = !editor_->stroking();
+    if (ImGui::MenuItem("Undo", "Ctrl+Z", false, idle && editor_->history().canUndo())) {
+        editor_->undo();
+    }
+    if (ImGui::MenuItem("Redo", "Ctrl+Y", false, idle && editor_->history().canRedo())) {
+        editor_->redo();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->hasSelection())) {
+        editor_->cutSelection();
+    }
+    if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->hasSelection())) {
+        editor_->copySelection();
+    }
+    if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
+        editor_->paste();
+    }
+    if (ImGui::MenuItem("Select all", "Ctrl+A", false, idle)) {
+        editor_->selectAll();
+    }
+    ImGui::EndMenu();
+}
+
+void App::viewMenu()
+{
+    if (!ImGui::BeginMenu("View")) {
+        return;
+    }
+    if (ImGui::MenuItem("Zoom in", "Ctrl++")) {
+        editor_->zoomStep(1);
+    }
+    if (ImGui::MenuItem("Zoom out", "Ctrl+-")) {
+        editor_->zoomStep(-1);
+    }
+    if (ImGui::MenuItem("Fit", "F, Ctrl+0")) {
+        editor_->view().needs_fit = true;
+    }
+    ImGui::Separator();
+    bool grid = editor_->showGrid();
+    if (ImGui::MenuItem("Pixel grid", nullptr, &grid)) {
+        editor_->setShowGrid(grid);
+    }
+    ImGui::MenuItem("Cursor outline", nullptr, &editor_->overlays().cursor);
+    theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
+    ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
+    theme::tip("Draw the center lines that Mirror X / Y reflect across.");
+    ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);
+    theme::tip("Show the size, zoom, active layer and hovered cel in the canvas corner.");
+    ImGui::EndMenu();
+}
+
+void App::menuBar()
+{
+    if (!ImGui::BeginMainMenuBar()) {
+        return;
+    }
+    fileMenu();
+    editMenu();
+    viewMenu();
+    panels_.windowMenu();
+    if (ImGui::BeginMenu("Help")) {
+        ImGui::MenuItem("Keyboard shortcuts", "F1", &showHelp_);
+        ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
+}
+
+/* Every shortcut in one place, since the tooltips only mention the tool letters. */
+void App::helpWindow()
+{
+    if (!showHelp_) {
+        return;
+    }
+    static const char *const ROWS[][2] = {
+        {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
+        {"T D H S C", "Triangle, diamond, hexagon, star, cross (shapes)"},
+        {"Hold middle button", "Eyedropper while held (drag instead to pan)"},
+        {"X", "Swap foreground / background colors"},
+        {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},
+        {"Shift + click", "Pencil / eraser: straight line from the last point"},
+        {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
+        {"Wheel", "Zoom at the cursor"},
+        {"Ctrl + / Ctrl - / Ctrl+0", "Zoom in / out / fit the sprite"},
+        {"Shift (while dragging a shape)", "Square box or circle; a line snaps to 45 degrees"},
+        {"Right / middle drag, Space + drag", "Pan"},
+        {"Mouse wheel, F", "Zoom at the cursor, fit the sprite"},
+        {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
+        {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
+        {"Click / Ctrl+click / Shift+click on layers",
+         "Select one layer, add or remove one, select a range"},
+        {"Delete (layer list focused)", "Delete the selected layers, after asking"},
+        {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
+        {"Ctrl+N, Ctrl+O", "New, open"},
+        {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},
+        {"F1", "This window"},
+    };
+    ImGui::SetNextWindowSize(ImVec2(620, 0), ImGuiCond_Appearing);
+    if (ImGui::Begin("Keyboard shortcuts", &showHelp_, ImGuiWindowFlags_NoCollapse)) {
+        if (ImGui::BeginTable("shortcuts", 2,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
+            for (const auto &row : ROWS) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(row[0]);
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(row[1]);
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::End();
+}
