@@ -257,6 +257,18 @@ TEST(every_shape_kind_draws_something)
     }
 }
 
+TEST(an_out_of_range_kind_draws_nothing_and_has_no_fill)
+{
+    History h;
+    Cel c(8, 8);
+    ShapeStyle style{ShapeKind::Count, true, RED, Symmetry{}};
+    shape_stroke(h, c, style, ToolPoint{1, 1}, ToolPoint{6, 6});
+    for (int i = 0; i < 8 * 8; i++) {
+        ASSERT_TRUE(c.pixels()[i].a == 0);
+    }
+    ASSERT_TRUE(!shape_has_fill(ShapeKind::Count));
+}
+
 TEST(only_a_line_has_no_fill)
 {
     for (int k = 0; k < SHAPE_COUNT; k++) {
@@ -373,6 +385,7 @@ int main(void)
     RUN(zero_symmetry_matches_the_plain_api);
     RUN(diamond_outline_and_filled);
     RUN(every_shape_kind_draws_something);
+    RUN(an_out_of_range_kind_draws_nothing_and_has_no_fill);
     RUN(only_a_line_has_no_fill);
     RUN(polygon_shapes_stay_in_their_box_and_are_symmetric);
     RUN(filled_polygon_covers_its_outline_and_more);

@@ -115,9 +115,12 @@ const std::array<ShapeSpec, SHAPE_COUNT> SHAPES = {{
     {true, drawPolygon<crossPoints>},
 }};
 
+/* A kind outside the table (ShapeKind::Count) draws nothing. */
 const ShapeSpec &specOf(ShapeKind kind)
 {
-    return SHAPES[static_cast<size_t>(kind)];
+    static const ShapeSpec NONE = {false, [](const RasterPlotFn &, ToolPoint, ToolPoint, bool) {}};
+    auto index = static_cast<size_t>(kind);
+    return index < SHAPES.size() ? SHAPES[index] : NONE;
 }
 
 void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, ToolPoint b)
