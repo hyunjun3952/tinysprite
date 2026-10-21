@@ -1,3 +1,5 @@
+#include <utility>
+
 #include "tinysprite/selection.h"
 
 #include <algorithm>
@@ -74,16 +76,17 @@ void Clip::writeTo(History &history, const Cel &cel, int x, int y) const
     }
 }
 
-bool clip_paste(History &history, Cel &cel, const Clip &clip, int x, int y)
+bool clip_paste(History &history, Cel &cel, const Clip &clip, int x, int y, HistoryAction also)
 {
     if (!history.beginStroke(cel)) {
         return false;
     }
     clip.writeTo(history, cel, x, y);
-    return history.endStroke();
+    return history.endStroke(std::move(also));
 }
 
-bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, int x, int y)
+bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, int x, int y,
+                  HistoryAction also)
 {
     if (!history.beginStroke(cel)) {
         return false;
@@ -95,5 +98,5 @@ bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, in
         }
     }
     clip.writeTo(history, cel, x, y);
-    return history.endStroke();
+    return history.endStroke(std::move(also));
 }

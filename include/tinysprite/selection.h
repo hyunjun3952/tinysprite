@@ -42,8 +42,8 @@ class Clip
     {
     }
 
-    friend bool clip_paste(History &, Cel &, const Clip &, int, int);
-    friend bool clip_replace(History &, Cel &, Rect, const Clip &, int, int);
+    friend bool clip_paste(History &, Cel &, const Clip &, int, int, HistoryAction);
+    friend bool clip_replace(History &, Cel &, Rect, const Clip &, int, int, HistoryAction);
 
     /* Draws the opaque pixels with their top-left corner at (x, y); those landing outside the cel
      * are skipped. */
@@ -56,13 +56,16 @@ class Clip
 /* Writes the clip with its top-left corner at (x, y) as one undo step: opaque pixels land over
  * whatever is there, transparent ones leave the destination alone, and pixels outside the cel are
  * skipped. Returns true on success (including a paste that changed nothing), false if a stroke is
- * active. */
-bool clip_paste(History &history, Cel &cel, const Clip &clip, int x, int y);
+ * active. `also` runs along with the undo / redo of the step (History::endStroke), for state that
+ * moves with the pixels, such as the selection. */
+bool clip_paste(History &history, Cel &cel, const Clip &clip, int x, int y,
+                HistoryAction also = {});
 
 /* Clears `cleared` and then pastes the clip with its top-left corner at (x, y), all in one undo
  * step. This is how a selection is flipped or rotated in place. Same return values as
  * clip_paste. */
-bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, int x, int y);
+bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, int x, int y,
+                  HistoryAction also = {});
 
 /* Moves the pixels of a rectangular selection: the selected area is cleared and its non-transparent
  * pixels are written at the offset, over whatever is there (transparent pixels leave the

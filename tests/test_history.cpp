@@ -572,6 +572,89 @@ TEST(group_counts_as_one_step_for_the_save_point)
     ASSERT_TRUE(h.atSavePoint());
 }
 
+TEST(a_stroke_can_carry_an_action_that_runs_with_its_undo_and_redo)
+{
+    Cel cel(4, 4);
+    History h;
+    int ran = 0;
+    int pixelWhenUndone = -1;
+    int pixelWhenRedone = -1;
+    h.beginStroke(cel);
+    h.setPixel(1, 1, RED);
+    HistoryAction also;
+    also.undo = [&] {
+        ran += 1;
+        pixelWhenUndone = cel.get(1, 1).a;
+    };
+    also.redo = [&] {
+        ran += 10;
+        pixelWhenRedone = cel.get(1, 1).a;
+    };
+    ASSERT_TRUE(h.endStroke(std::move(also)));
+    ASSERT_EQ_INT(0, ran);
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(1, ran);
+    ASSERT_EQ_INT(0, pixelWhenUndone); /* the pixels are back first */
+    ASSERT_TRUE(h.redo());
+    ASSERT_EQ_INT(11, ran);
+    ASSERT_EQ_INT(255, pixelWhenRedone); /* ... and redone first */
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(!h.canUndo()); /* one step, not two */
+}
+
+TEST(a_stroke_that_changed_nothing_still_records_the_action)
+{
+    Cel cel(4, 4);
+    History h;
+    int state = 0;
+    h.beginStroke(cel);
+    HistoryAction also;
+    also.undo = [&] { state = 0; };
+    also.redo = [&] { state = 1; };
+    ASSERT_TRUE(h.endStroke(also));
+    state = 1;
+    ASSERT_TRUE(h.canUndo());
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(0, state);
+    ASSERT_TRUE(h.redo());
+    ASSERT_EQ_INT(1, state);
+}
+
+TEST(a_stroke_that_changed_nothing_and_has_no_action_is_dropped_as_before)
+{
+    Cel cel(4, 4);
+    History h;
+    h.beginStroke(cel);
+    ASSERT_TRUE(h.endStroke(HistoryAction{}));
+    ASSERT_TRUE(!h.canUndo());
+}
+
+TEST(the_action_of_a_stroke_is_released_with_its_step)
+{
+    Cel cel(4, 4);
+    auto token = std::make_shared<int>(0);
+    {
+        History h;
+        h.beginStroke(cel);
+        h.setPixel(0, 0, RED);
+        HistoryAction also;
+        also.undo = [token] {};
+        ASSERT_TRUE(h.endStroke(std::move(also)));
+        ASSERT_EQ_INT(2, static_cast<int>(token.use_count()));
+    }
+    ASSERT_EQ_INT(1, static_cast<int>(token.use_count()));
+}
+
+TEST(ending_without_a_stroke_fails_and_drops_the_action)
+{
+    History h;
+    auto token = std::make_shared<int>(0);
+    HistoryAction also;
+    also.undo = [token] {};
+    ASSERT_TRUE(!h.endStroke(std::move(also)));
+    ASSERT_EQ_INT(1, static_cast<int>(token.use_count()));
+}
+
 int main(void)
 {
     RUN(starts_empty);
@@ -603,6 +686,11 @@ int main(void)
     RUN(group_rules);
     RUN(group_discards_redo_like_any_edit_and_releases_its_actions);
     RUN(group_counts_as_one_step_for_the_save_point);
+    RUN(a_stroke_can_carry_an_action_that_runs_with_its_undo_and_redo);
+    RUN(a_stroke_that_changed_nothing_still_records_the_action);
+    RUN(a_stroke_that_changed_nothing_and_has_no_action_is_dropped_as_before);
+    RUN(the_action_of_a_stroke_is_released_with_its_step);
+    RUN(ending_without_a_stroke_fails_and_drops_the_action);
     RUN(save_point_starts_clean);
     RUN(save_point_follows_edits_undo_and_redo);
     RUN(save_point_is_lost_when_a_new_edit_discards_it);

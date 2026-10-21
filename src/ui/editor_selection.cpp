@@ -73,10 +73,11 @@ void Editor::paste()
         x = selection_->x;
         y = selection_->y;
     }
-    if (!clip_paste(history(), *cel, clip, x, y)) {
+    Rect pasted = {x, y, clip.width(), clip.height()};
+    if (!clip_paste(history(), *cel, clip, x, y,
+                    selectionAction(selection_, clippedSelection(pasted)))) {
         return;
     }
-    Rect pasted = {x, y, clip.width(), clip.height()};
     markDirty(pasted);
     selectTool(ToolKind::Select);
     setSelectionClipped(pasted);
@@ -84,8 +85,19 @@ void Editor::paste()
 
 void Editor::setSelectionClipped(Rect r)
 {
+    selection_ = clippedSelection(r);
+}
+
+std::optional<Rect> Editor::clippedSelection(Rect r) const
+{
     Rect clipped = rect_clip(r, sprite().width(), sprite().height());
-    selection_ = rect_is_empty(clipped) ? std::nullopt : std::optional<Rect>(clipped);
+    return rect_is_empty(clipped) ? std::nullopt : std::optional<Rect>(clipped);
+}
+
+HistoryAction Editor::selectionAction(std::optional<Rect> before, std::optional<Rect> after)
+{
+    return HistoryAction{[this, before] { selection_ = before; },
+                         [this, after] { selection_ = after; }};
 }
 
 std::optional<Editor::SelectionEdit> Editor::beginSelectionEdit()
@@ -113,7 +125,7 @@ void Editor::flipSelection(bool horizontal)
     } else {
         edit->clip.flipVertical();
     }
-    if (clip_replace(history(), edit->cel, r, edit->clip, r.x, r.y)) {
+    if (clip_replace(history(), edit->cel, r, edit->clip, r.x, r.y, selectionAction(r, r))) {
         markDirty(r);
     }
 }
@@ -128,7 +140,8 @@ void Editor::rotateSelection(bool clockwise)
     edit->clip.rotate(clockwise);
     /* The turned rectangle shares the old one's center. */
     Rect turned = {r.x + (r.w - r.h) / 2, r.y + (r.h - r.w) / 2, r.h, r.w};
-    if (clip_replace(history(), edit->cel, r, edit->clip, turned.x, turned.y)) {
+    if (clip_replace(history(), edit->cel, r, edit->clip, turned.x, turned.y,
+                     selectionAction(r, clippedSelection(turned)))) {
         markDirty(r);
         markDirty(turned);
         setSelectionClipped(turned);

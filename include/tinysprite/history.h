@@ -37,6 +37,12 @@ class History
      * changed nothing is dropped. Returns false if no stroke is active. */
     bool endStroke();
 
+    /* Like endStroke, with `also` run along with the step: its redo after the pixels are redone,
+     * its undo after they are reverted (a selection that moves with the pixels, say). A stroke that
+     * changed nothing is recorded as the action alone when it has a callable, else dropped. The
+     * action is released with the step; it is dropped if no stroke is active. */
+    bool endStroke(HistoryAction also);
+
     /* Reverts every pixel written by the active stroke and discards it without touching the
      * undo/redo steps. Returns false if no stroke is active. */
     bool cancelStroke();
@@ -135,8 +141,10 @@ class LiveStroke
     LiveStroke(const LiveStroke &) = delete;
     LiveStroke &operator=(const LiveStroke &) = delete;
 
-    /* Commits the stroke as one undo step. */
+    /* Commits the stroke as one undo step, with `also` run along with it (see
+     * History::endStroke). */
     bool end();
+    bool end(HistoryAction also);
 
     /* Reverts the stroke's pixels and records no undo step. */
     void cancel();

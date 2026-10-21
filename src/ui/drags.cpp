@@ -85,7 +85,7 @@ template <class Stroke> class StrokeDrag : public Drag
 
     void finish() override
     {
-        bool changed = stroke_->end();
+        bool changed = stroke_->end(endAction());
         if (!changed) {
             editor_.markAllDirty();
         }
@@ -97,6 +97,12 @@ template <class Stroke> class StrokeDrag : public Drag
     }
 
   protected:
+    /* Run along with the undo / redo of the stroke's step (see History::endStroke). */
+    virtual HistoryAction endAction()
+    {
+        return HistoryAction{};
+    }
+
     /* After the stroke ended; `changed` is false when it left the cel as it was. */
     virtual void onFinish(bool /*changed*/)
     {
@@ -193,6 +199,19 @@ class MoveDrag : public StrokeDrag<MoveStroke>
     }
 
   protected:
+    /* Undoing the move puts the selection back where it was. */
+    HistoryAction endAction() override
+    {
+        if (editor_.moveDx() == 0 && editor_.moveDy() == 0) {
+            return HistoryAction{};
+        }
+        Rect before = editor_.selection();
+        Rect moved = before;
+        moved.x += editor_.moveDx();
+        moved.y += editor_.moveDy();
+        return editor_.selectionAction(before, editor_.clippedSelection(moved));
+    }
+
     /* The selection follows its pixels; the part that left the sprite is gone. */
     void onFinish(bool changed) override
     {

@@ -6,29 +6,27 @@
 /* Restores old colors newest-first so a pixel written several times ends at its original value. */
 void History::revert(const Step &step)
 {
-    if (!step.cel) {
-        if (step.action.undo) {
-            step.action.undo();
+    if (step.cel) {
+        Rgba *pixels = step.cel->pixels();
+        for (auto it = step.deltas.rbegin(); it != step.deltas.rend(); ++it) {
+            pixels[it->index] = it->oldColor;
         }
-        return;
     }
-    Rgba *pixels = step.cel->pixels();
-    for (auto it = step.deltas.rbegin(); it != step.deltas.rend(); ++it) {
-        pixels[it->index] = it->oldColor;
+    if (step.action.undo) {
+        step.action.undo();
     }
 }
 
 void History::apply(const Step &step)
 {
-    if (!step.cel) {
-        if (step.action.redo) {
-            step.action.redo();
+    if (step.cel) {
+        Rgba *pixels = step.cel->pixels();
+        for (const Delta &delta : step.deltas) {
+            pixels[delta.index] = delta.newColor;
         }
-        return;
     }
-    Rgba *pixels = step.cel->pixels();
-    for (const Delta &delta : step.deltas) {
-        pixels[delta.index] = delta.newColor;
+    if (step.action.redo) {
+        step.action.redo();
     }
 }
 
@@ -126,6 +124,26 @@ bool History::endStroke()
     return true;
 }
 
+bool History::endStroke(HistoryAction also)
+{
+    if (!strokeActive()) {
+        return false;
+    }
+    Step stroke = std::exchange(active_, Step{});
+    if (stroke.deltas.empty()) {
+        /* no pixels changed: only the action is worth keeping */
+        if (also.undo || also.redo) {
+            Step step;
+            step.action = std::move(also);
+            commit(std::move(step));
+        }
+        return true;
+    }
+    stroke.action = std::move(also);
+    commit(std::move(stroke));
+    return true;
+}
+
 bool History::cancelStroke()
 {
     if (!strokeActive()) {
@@ -211,11 +229,16 @@ void LiveStroke::restart()
 
 bool LiveStroke::end()
 {
+    return end(HistoryAction{});
+}
+
+bool LiveStroke::end(HistoryAction also)
+{
     if (!open_) {
         return false;
     }
     open_ = false;
-    return history_.endStroke();
+    return history_.endStroke(std::move(also));
 }
 
 void LiveStroke::cancel()

@@ -294,6 +294,14 @@ class Editor
         return moveDy_;
     }
 
+    /* An undo / redo pair that puts the selection back to `before` / `after` (none = no selection).
+     * Recorded with the pixel step of an edit that moves or reshapes the selection (move, paste,
+     * rotate), so undoing it brings the selection back too. */
+    HistoryAction selectionAction(std::optional<Rect> before, std::optional<Rect> after);
+
+    /* `r` clipped to the sprite, or none if nothing is left. */
+    std::optional<Rect> clippedSelection(Rect r) const;
+
     /* For the tool drags, which change the selection while stroking() is true: unlike
      * selectAll / clearSelection / setSelectionClipped these are not held off, and setSelection
      * does not clip. */

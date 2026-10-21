@@ -109,7 +109,8 @@ TEST(paste_without_hover_uses_the_selection_corner)
     e->paste();
     ASSERT_EQ_INT(255, alpha(e, 5, 4));
     e->clearSelection();
-    e->undo();
+    e->undo(); /* brings the earlier selection back with the pixels */
+    e->clearSelection();
     e->paste(); /* no selection and no hover: top-left of the sprite */
     ASSERT_EQ_INT(255, alpha(e, 0, 0));
     delete e;
@@ -246,6 +247,102 @@ TEST(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection)
     delete e;
 }
 
+TEST(undoing_a_rotate_brings_back_the_selection_rectangle)
+{
+    Editor *e = make_editor();
+    dot(e, 2, 2);
+    select_rect(e, 1, 2, 4, 3); /* 4 wide, 2 tall */
+    Rect before = e->selection();
+    e->rotateSelection(true);
+    Rect turned = e->selection();
+    ASSERT_TRUE(turned.w != before.w);
+    e->undo();
+    ASSERT_TRUE(e->hasSelection());
+    ASSERT_EQ_INT(before.x, e->selection().x);
+    ASSERT_EQ_INT(before.w, e->selection().w);
+    ASSERT_EQ_INT(before.h, e->selection().h);
+    e->redo();
+    ASSERT_EQ_INT(turned.w, e->selection().w);
+    ASSERT_EQ_INT(turned.x, e->selection().x);
+    delete e;
+}
+
+TEST(rotating_an_empty_selection_is_still_undoable)
+{
+    Editor *e = make_editor();
+    select_rect(e, 1, 1, 4, 2); /* nothing painted */
+    Rect before = e->selection();
+    e->rotateSelection(false);
+    ASSERT_TRUE(e->selection().w != before.w);
+    e->undo();
+    ASSERT_EQ_INT(before.w, e->selection().w);
+    delete e;
+}
+
+TEST(undoing_a_flip_selects_the_flipped_area_again)
+{
+    Editor *e = make_editor();
+    dot(e, 1, 1);
+    select_rect(e, 0, 0, 2, 2);
+    e->flipSelection(true);
+    select_rect(e, 5, 3, 6, 4); /* the user picks another area */
+    e->undo();
+    ASSERT_TRUE(e->hasSelection());
+    ASSERT_EQ_INT(0, e->selection().x);
+    ASSERT_EQ_INT(3, e->selection().w);
+    delete e;
+}
+
+TEST(undoing_a_paste_restores_the_previous_selection)
+{
+    Editor *e = make_editor();
+    dot(e, 1, 1);
+    select_rect(e, 1, 1, 1, 1);
+    e->copySelection();
+    e->clearSelection();
+    e->setHover(5, 3, true);
+    e->paste();
+    ASSERT_TRUE(e->hasSelection());
+    e->undo();
+    ASSERT_TRUE(!e->hasSelection());
+    e->redo();
+    ASSERT_EQ_INT(5, e->selection().x);
+    delete e;
+}
+
+TEST(undoing_a_move_puts_the_selection_back)
+{
+    Editor *e = make_editor();
+    dot(e, 1, 1);
+    select_rect(e, 0, 0, 2, 2);
+    e->press(1, 1);
+    e->drag(4, 3);
+    e->release();
+    ASSERT_EQ_INT(3, e->selection().x);
+    e->undo();
+    ASSERT_EQ_INT(0, e->selection().x);
+    ASSERT_EQ_INT(0, e->selection().y);
+    ASSERT_EQ_INT(255, alpha(e, 1, 1));
+    e->redo();
+    ASSERT_EQ_INT(3, e->selection().x);
+    ASSERT_EQ_INT(2, e->selection().y);
+    delete e;
+}
+
+TEST(a_click_that_moves_nothing_adds_no_undo_step)
+{
+    Editor *e = make_editor();
+    dot(e, 1, 1);
+    select_rect(e, 0, 0, 2, 2);
+    e->undo(); /* the dot */
+    e->redo();
+    e->press(1, 1);
+    e->release();
+    e->undo();
+    ASSERT_EQ_INT(0, alpha(e, 1, 1)); /* this undid the dot, not a phantom move */
+    delete e;
+}
+
 int main(void)
 {
     if (!ui_init()) {
@@ -266,6 +363,12 @@ int main(void)
     RUN(selection_transforms_are_held_off_while_dragging);
     RUN(pressing_beside_the_sprite_records_no_color_and_selects_nothing);
     RUN(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection);
+    RUN(undoing_a_rotate_brings_back_the_selection_rectangle);
+    RUN(rotating_an_empty_selection_is_still_undoable);
+    RUN(undoing_a_flip_selects_the_flipped_area_again);
+    RUN(undoing_a_paste_restores_the_previous_selection);
+    RUN(undoing_a_move_puts_the_selection_back);
+    RUN(a_click_that_moves_nothing_adds_no_undo_step);
     ui_quit();
     return TEST_SUMMARY();
 }
