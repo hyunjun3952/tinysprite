@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "composite_surface.h"
+#include "layer_selection.h"
 #include "settings.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
@@ -17,34 +19,9 @@
 #include "tinysprite/sprite.h"
 #include "tinysprite/tools.h"
 #include "tinysprite/viewport.h"
-
-enum class ToolKind {
-    Pencil,
-    Eraser,
-    Bucket,
-    Eyedropper,
-    Line,
-    Rect,
-    Ellipse,
-    Select,
-    Triangle,
-    Diamond,
-    Hexagon,
-    Star,
-    Cross,
-    Count,
-};
-
-inline constexpr int TOOL_COUNT = static_cast<int>(ToolKind::Count);
+#include "tool.h"
 
 class Drag;
-
-/* How a click on a layer changes the layer selection (see Editor::pickLayer). */
-enum class LayerPick {
-    Only,   /* select just this layer (a plain click) */
-    Toggle, /* add it to the selection, or remove it (Ctrl+click); the last one stays */
-    Range,  /* select from the last plain / Ctrl pick to this one (Shift+click) */
-};
 
 /* Everything the UI edits: the document, its undo history, the tool state and the CPU-composited
  * texture the canvas displays. Created once and passed to each panel. The tool and view state is
@@ -82,7 +59,7 @@ class Editor
     }
     SDL_Texture *texture() const
     {
-        return texture_.get();
+        return surface_->texture();
     }
 
     /* Tool options: pixel_perfect / brush_* apply to pencil and eraser, shape_filled to the
@@ -196,7 +173,7 @@ class Editor
 
     int activeLayer() const
     {
-        return activeLayer_;
+        return layers_.active();
     }
     /* Makes `index` the only selected layer. Ignores an index with no layer. */
     void setActiveLayer(int index);
@@ -232,11 +209,11 @@ class Editor
      * being moved it stays at its origin and moveDx/Dy hold the drag offset (zero otherwise). */
     bool hasSelection() const
     {
-        return hasSelection_;
+        return selection_.has_value();
     }
     Rect selection() const
     {
-        return selection_;
+        return selection_.value_or(Rect{});
     }
     int moveDx() const
     {
@@ -253,7 +230,7 @@ class Editor
     void setSelection(Rect r);
     void dropSelection()
     {
-        hasSelection_ = false;
+        selection_.reset();
     }
     void setMoveOffset(int dx, int dy);
 
@@ -356,11 +333,11 @@ class Editor
     void markAllDirty();
     bool dirty() const
     {
-        return dirty_;
+        return surface_->dirty();
     }
     Rect dirtyRect() const
     {
-        return dirtyRect_;
+        return surface_->dirtyRect();
     }
 
     /* Re-composites the dirty region and uploads it to the texture. */
@@ -470,21 +447,10 @@ class Editor
      * being dragged. */
     bool editSelectedLayers(const std::function<void(Layer &)> &edit);
 
-    void toggleLayerPick(int index);
-    void rangeLayerPick(int index);
-    struct TextureDeleter {
-        void operator()(SDL_Texture *texture) const
-        {
-            SDL_DestroyTexture(texture);
-        }
-    };
-
     Editor(SDL_Renderer *renderer, Sprite sprite);
 
-    std::unique_ptr<SDL_Texture, TextureDeleter> newTexture(int width, int height) const;
-
-    /* Starts over on the current sprite_ with `texture`: history, selection and view are reset. */
-    void resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture);
+    /* Starts over on the current sprite_ with `surface`: history, selection and view are reset. */
+    void resetDocument(std::unique_ptr<CompositeSurface> surface);
 
     Rect spriteBounds() const;
     void afterHistoryStep(const Layer *active = nullptr);
@@ -497,29 +463,23 @@ class Editor
     bool modifiedOutsideHistory_ = false;
     bool showGrid_ = true;
     Overlays overlays_;
-    int activeLayer_ = 0;
-    std::vector<const Layer *> picked_; /* selected layers besides the active one, by identity */
-    const Layer *anchor_ = nullptr;     /* where a Shift pick starts */
+    LayerSelection layers_;
     int frame_ = 0;
     ToolOptions options_;
     ViewState view_;
     int hoverX_ = 0;
     int hoverY_ = 0;
     bool hovering_ = false;
-    bool hasSelection_ = false;
-    Rect selection_ = {};
+    std::optional<Rect> selection_;
     int moveDx_ = 0;
     int moveDy_ = 0;
 
     SDL_Renderer *renderer_;
     Sprite sprite_;
     History history_;
-    std::unique_ptr<SDL_Texture, TextureDeleter> texture_;
+    std::unique_ptr<CompositeSurface> surface_;
     std::optional<Clip> clipboard_; /* last copied / cut selection */
-    std::vector<Rgba> pixels_;      /* composited frame */
     uint64_t revision_ = 0;
-    bool dirty_ = false;
-    Rect dirtyRect_ = {};
 
     std::optional<ToolPoint> lastDrawPoint_;
     std::optional<ToolPoint> lineFrom_;

@@ -1,6 +1,7 @@
 #include "tinysprite/tools.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <utility>
@@ -53,52 +54,78 @@ Points starPoints(int x0, int y0, int x1, int y1)
     return points;
 }
 
-/* The corners of `kind` inside the box spanned by a and b (both inclusive). */
-Points polygonPoints(ShapeKind kind, int x0, int y0, int x1, int y1)
+Points triangleCorners(int x0, int y0, int x1, int y1)
+{
+    return {{x0 + (x1 - x0) / 2, y0}, {x1, y1}, {x0, y1}};
+}
+
+Points diamondCorners(int x0, int y0, int x1, int y1)
+{
+    int mx = x0 + (x1 - x0) / 2;
+    int my = y0 + (y1 - y0) / 2;
+    return {{mx, y0}, {x1, my}, {mx, y1}, {x0, my}};
+}
+
+Points hexagonCorners(int x0, int y0, int x1, int y1)
 {
     int w = x1 - x0;
-    int h = y1 - y0;
-    int mx = x0 + w / 2;
-    int my = y0 + h / 2;
-    switch (kind) {
-    case ShapeKind::Triangle:
-        return {{mx, y0}, {x1, y1}, {x0, y1}};
-    case ShapeKind::Diamond:
-        return {{mx, y0}, {x1, my}, {mx, y1}, {x0, my}};
-    case ShapeKind::Hexagon:
-        return {{x0 + w / 4, y0}, {x1 - w / 4, y0}, {x1, my},
-                {x1 - w / 4, y1}, {x0 + w / 4, y1}, {x0, my}};
-    case ShapeKind::Cross:
-        return crossPoints(x0, y0, x1, y1);
-    case ShapeKind::Star:
-        return starPoints(x0, y0, x1, y1);
-    default:
-        return {};
-    }
+    int my = y0 + (y1 - y0) / 2;
+    return {{x0 + w / 4, y0}, {x1 - w / 4, y0}, {x1, my},
+            {x1 - w / 4, y1}, {x0 + w / 4, y1}, {x0, my}};
+}
+
+/* How each kind of shape is drawn inside the box spanned by a and b (both inclusive). */
+void drawLine(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool)
+{
+    raster_line(a.x, a.y, b.x, b.y, plot);
+}
+
+void drawRect(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled)
+{
+    raster_rect(a.x, a.y, b.x, b.y, filled, plot);
+}
+
+void drawEllipse(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled)
+{
+    raster_ellipse(a.x, a.y, b.x, b.y, filled, plot);
+}
+
+template <Points (*corners)(int, int, int, int)>
+void drawPolygon(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled)
+{
+    raster_polygon(
+        corners(std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)),
+        filled, plot);
+}
+
+struct ShapeSpec {
+    bool fillable;
+    void (*draw)(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled);
+};
+
+/* In ShapeKind order: a kind added to the enum needs its row here (a test draws every kind). */
+const std::array<ShapeSpec, SHAPE_COUNT> SHAPES = {{
+    {false, drawLine},
+    {true, drawRect},
+    {true, drawEllipse},
+    {true, drawPolygon<triangleCorners>},
+    {true, drawPolygon<diamondCorners>},
+    {true, drawPolygon<hexagonCorners>},
+    {true, drawPolygon<starPoints>},
+    {true, drawPolygon<crossPoints>},
+}};
+
+/* A kind outside the table (ShapeKind::Count) draws nothing. */
+const ShapeSpec &specOf(ShapeKind kind)
+{
+    static const ShapeSpec NONE = {false, [](const RasterPlotFn &, ToolPoint, ToolPoint, bool) {}};
+    auto index = static_cast<size_t>(kind);
+    return index < SHAPES.size() ? SHAPES[index] : NONE;
 }
 
 void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, ToolPoint b)
 {
-    switch (style.kind) {
-    case ShapeKind::Line:
-        raster_line(a.x, a.y, b.x, b.y, plot);
-        break;
-    case ShapeKind::Rect:
-        raster_rect(a.x, a.y, b.x, b.y, style.filled, plot);
-        break;
-    case ShapeKind::Ellipse:
-        raster_ellipse(a.x, a.y, b.x, b.y, style.filled, plot);
-        break;
-    case ShapeKind::Triangle:
-    case ShapeKind::Diamond:
-    case ShapeKind::Hexagon:
-    case ShapeKind::Star:
-    case ShapeKind::Cross:
-        raster_polygon(polygonPoints(style.kind, std::min(a.x, b.x), std::min(a.y, b.y),
-                                     std::max(a.x, b.x), std::max(a.y, b.y)),
-                       style.filled, plot);
-        break;
-    }
+    specOf(style.kind).draw(plot, a, b, style.filled);
 }
 
 /* Draws the shape and its reflections. Reflecting both end points reflects the whole shape since
@@ -113,6 +140,11 @@ void draw(History &history, const Cel &cel, const ShapeStyle &style, ToolPoint a
 }
 
 } // namespace
+
+bool shape_has_fill(ShapeKind kind)
+{
+    return specOf(kind).fillable;
+}
 
 ToolPoint shape_constrain(ShapeKind kind, ToolPoint anchor, ToolPoint to)
 {

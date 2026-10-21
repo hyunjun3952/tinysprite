@@ -234,8 +234,7 @@ void Canvas::drawHoverOutline(ImDrawList *draw, ImVec2 origin) const
     if (!editor_.hoverInSprite()) {
         return;
     }
-    if ((editor_.tool() == ToolKind::Pencil || editor_.tool() == ToolKind::Eraser) &&
-        editor_.options().brush_size > 1) {
+    if (tool_traits(editor_.tool()).group == ToolGroup::Brush && editor_.options().brush_size > 1) {
         drawBrushPreview(draw, origin);
     }
     float x0 = origin.x + editor_.view().viewport.celToScreenX(editor_.hoverX());

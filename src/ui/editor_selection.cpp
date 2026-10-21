@@ -10,24 +10,23 @@ void Editor::selectAll()
     if (stroking()) {
         return;
     }
-    hasSelection_ = true;
     selection_ = spriteBounds();
 }
 
 void Editor::clearSelection()
 {
     if (!stroking()) {
-        hasSelection_ = false;
+        selection_.reset();
     }
 }
 
 void Editor::deleteSelection()
 {
     Cel *cel = editableCel();
-    if (!cel || !hasSelection_) {
+    if (!cel || !selection_) {
         return;
     }
-    Rect r = selection_;
+    Rect r = *selection_;
     ShapeStyle erase{ShapeKind::Rect, true, Rgba{}, Symmetry{}};
     if (shape_stroke(history(), *cel, erase, ToolPoint{r.x, r.y},
                      ToolPoint{r.x + r.w - 1, r.y + r.h - 1})) {
@@ -38,10 +37,10 @@ void Editor::deleteSelection()
 bool Editor::copySelection()
 {
     Cel *cel = activeCel();
-    if (stroking() || !hasSelection_ || !cel) {
+    if (stroking() || !selection_ || !cel) {
         return false;
     }
-    std::optional<Clip> clip = Clip::copy(*cel, selection_);
+    std::optional<Clip> clip = Clip::copy(*cel, *selection_);
     if (!clip) {
         return false;
     }
@@ -70,9 +69,9 @@ void Editor::paste()
     if (hoverInSprite()) {
         x = hoverX_;
         y = hoverY_;
-    } else if (hasSelection_) {
-        x = selection_.x;
-        y = selection_.y;
+    } else if (selection_) {
+        x = selection_->x;
+        y = selection_->y;
     }
     if (!clip_paste(history(), *cel, clip, x, y)) {
         return;
@@ -86,23 +85,20 @@ void Editor::paste()
 void Editor::setSelectionClipped(Rect r)
 {
     Rect clipped = rect_clip(r, sprite().width(), sprite().height());
-    hasSelection_ = !rect_is_empty(clipped);
-    if (hasSelection_) {
-        selection_ = clipped;
-    }
+    selection_ = rect_is_empty(clipped) ? std::nullopt : std::optional<Rect>(clipped);
 }
 
 std::optional<Editor::SelectionEdit> Editor::beginSelectionEdit()
 {
     Cel *cel = editableCel();
-    if (!cel || !hasSelection_) {
+    if (!cel || !selection_) {
         return std::nullopt;
     }
-    std::optional<Clip> clip = Clip::copy(*cel, selection_);
+    std::optional<Clip> clip = Clip::copy(*cel, *selection_);
     if (!clip) {
         return std::nullopt;
     }
-    return SelectionEdit{*cel, selection_, std::move(*clip)};
+    return SelectionEdit{*cel, *selection_, std::move(*clip)};
 }
 
 void Editor::flipSelection(bool horizontal)

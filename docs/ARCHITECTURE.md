@@ -70,9 +70,21 @@ stay a few hundred lines each (the class declarations remain in `editor.h` and `
 `editor_selection.cpp`, `editor_settings.cpp`. Helpers shared between the `editor_*.cpp` files are declared in
 `editor_internal.h` and defined in `editor_internal.cpp`.
 
-`Editor::press` asks `beginDrag` (`drags.cpp`) for a `Drag` matching the active tool: pencil, shape, move, select,
-eyedropper. The editor holds at most one. `Canvas` calls `update` every frame while the button is down, then `finish`
+`Editor` delegates two self-contained pieces: `LayerSelection` (`layer_selection.h`: the active layer plus Ctrl/Shift
+picks, tracked by layer identity) and `CompositeSurface` (`composite_surface.h`: the CPU buffer, its texture and the
+dirty rectangle). Both are unit-tested without an `Editor`; the editor keeps the same public methods and forwards.
+
+Tools are a table, not switches: `tool.cpp` has one `ToolTraits` row per `ToolKind` (its `ToolGroup` and, for the shape
+tools, which `ShapeKind` it draws), and the editor, canvas and tools panel ask it instead of comparing tool kinds. Shapes
+are the same on the core side: `shape.cpp` has one row per `ShapeKind` (how to draw it, whether it can be filled).
+`Editor::press` asks `beginDrag` (`drags.cpp`) for a `Drag`, which picks a factory by the tool's group: pencil, bucket,
+eyedropper, shape, select (which also moves). The editor holds at most one. `Canvas` calls `update` every frame while the button is down, then `finish`
 on release or `cancel` on Esc, which is how one drag becomes exactly one undo step.
+
+The menu commands that have a Ctrl shortcut (file, edit, zoom) are one table in `commands.cpp`: label, keys, Shift
+rule, key repeat. The menus (`app_menus.cpp`) and the shortcut handler (`app_shortcuts.cpp`) both read it, and
+`app_commands.cpp` holds what each command does and when it is enabled. Tool letters and the single-key shortcuts
+stay in `app_shortcuts.cpp`; the help window text is still written by hand.
 
 Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an autosave copy
 of a document with unsaved changes; the next start offers to recover it. Neither is touched by `--frames` smoke runs

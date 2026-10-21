@@ -39,22 +39,12 @@ void App::fileMenu()
         return;
     }
     bool idle = !editor_->stroking();
-    if (ImGui::MenuItem("New...", "Ctrl+N", false, idle)) {
-        guardUnsaved([this] { openNew_ = true; });
-    }
-    if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
-        guardUnsaved([this] { askForPath(FileAction::Open); });
-    }
+    commandItem(CommandId::New);
+    commandItem(CommandId::Open);
     openRecentMenu(idle);
-    if (ImGui::MenuItem("Save", "Ctrl+S")) {
-        save();
-    }
-    if (ImGui::MenuItem("Save as...", "Ctrl+Shift+S")) {
-        askForPath(FileAction::SaveAs);
-    }
-    if (ImGui::MenuItem("Export image...", "Ctrl+E")) {
-        askForPath(FileAction::ExportImage);
-    }
+    commandItem(CommandId::Save);
+    commandItem(CommandId::SaveAs);
+    commandItem(CommandId::ExportImage);
     ImGui::Separator();
     if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
         askForPath(FileAction::ImportPalette);
@@ -74,26 +64,13 @@ void App::editMenu()
     if (!ImGui::BeginMenu("Edit")) {
         return;
     }
-    bool idle = !editor_->stroking();
-    if (ImGui::MenuItem("Undo", "Ctrl+Z", false, idle && editor_->history().canUndo())) {
-        editor_->undo();
-    }
-    if (ImGui::MenuItem("Redo", "Ctrl+Y", false, idle && editor_->history().canRedo())) {
-        editor_->redo();
-    }
+    commandItem(CommandId::Undo);
+    commandItem(CommandId::Redo);
     ImGui::Separator();
-    if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->hasSelection())) {
-        editor_->cutSelection();
-    }
-    if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->hasSelection())) {
-        editor_->copySelection();
-    }
-    if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
-        editor_->paste();
-    }
-    if (ImGui::MenuItem("Select all", "Ctrl+A", false, idle)) {
-        editor_->selectAll();
-    }
+    commandItem(CommandId::Cut);
+    commandItem(CommandId::Copy);
+    commandItem(CommandId::Paste);
+    commandItem(CommandId::SelectAll);
     ImGui::EndMenu();
 }
 
@@ -102,15 +79,9 @@ void App::viewMenu()
     if (!ImGui::BeginMenu("View")) {
         return;
     }
-    if (ImGui::MenuItem("Zoom in", "Ctrl++")) {
-        editor_->zoomStep(1);
-    }
-    if (ImGui::MenuItem("Zoom out", "Ctrl+-")) {
-        editor_->zoomStep(-1);
-    }
-    if (ImGui::MenuItem("Fit", "F, Ctrl+0")) {
-        editor_->view().needs_fit = true;
-    }
+    commandItem(CommandId::ZoomIn);
+    commandItem(CommandId::ZoomOut);
+    commandItem(CommandId::Fit);
     ImGui::Separator();
     bool grid = editor_->showGrid();
     if (ImGui::MenuItem("Pixel grid", nullptr, &grid)) {

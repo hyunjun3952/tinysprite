@@ -38,46 +38,15 @@ bool App::modalOpen() const
            openConfirm_ || openNew_ || openRecover_ || newShown_ || recoverShown_;
 }
 
-/* Ctrl+key shortcuts: file, zoom, undo / redo and the clipboard. */
+/* Ctrl+key shortcuts: the commands of commands.h (file, zoom, undo / redo, the clipboard). */
 void App::ctrlShortcuts()
 {
-    const ImGuiIO &io = ImGui::GetIO();
-    if (ImGui::IsKeyPressed(ImGuiKey_N, false)) {
-        guardUnsaved([this] { openNew_ = true; });
-    } else if (ImGui::IsKeyPressed(ImGuiKey_0, false) ||
-               ImGui::IsKeyPressed(ImGuiKey_Keypad0, false)) {
-        editor_->view().needs_fit = true;
-    } else if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) {
-        editor_->zoomStep(1);
-    } else if (ImGui::IsKeyPressed(ImGuiKey_Minus) ||
-               ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) {
-        editor_->zoomStep(-1);
-    } else if (ImGui::IsKeyPressed(ImGuiKey_O, false)) {
-        guardUnsaved([this] { askForPath(FileAction::Open); });
-    } else if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-        if (io.KeyShift) {
-            askForPath(FileAction::SaveAs);
-        } else {
-            save();
-        }
-    } else if (ImGui::IsKeyPressed(ImGuiKey_E, false)) {
-        askForPath(FileAction::ExportImage);
-    } else if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
-        if (io.KeyShift) {
-            editor_->redo();
-        } else {
-            editor_->undo();
-        }
-    } else if (ImGui::IsKeyPressed(ImGuiKey_Y)) {
-        editor_->redo();
-    } else if (ImGui::IsKeyPressed(ImGuiKey_A, false)) {
-        editor_->selectAll();
-    } else if (ImGui::IsKeyPressed(ImGuiKey_C, false)) {
-        editor_->copySelection();
-    } else if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
-        editor_->cutSelection();
-    } else if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
-        editor_->paste();
+    const Command *command = find_command(
+        ImGui::GetIO().KeyShift,
+        [](ImGuiKey key, bool repeat) { return ImGui::IsKeyPressed(key, repeat); },
+        [this](CommandId id) { return commandEnabled(id); });
+    if (command) {
+        runCommand(command->id);
     }
 }
 
