@@ -18,86 +18,17 @@ void Editor::setActiveLayer(int index)
 
 bool Editor::layerSelected(int index) const
 {
-    const Layer *layer = sprite().layer(index);
-    return layer && (index == activeLayer_ ||
-                     std::find(picked_.begin(), picked_.end(), layer) != picked_.end());
+    return layers_.contains(sprite(), index);
 }
 
 std::vector<int> Editor::selectedLayers() const
 {
-    std::vector<int> out;
-    for (int i = 0; i < sprite().layerCount(); i++) {
-        if (layerSelected(i)) {
-            out.push_back(i);
-        }
-    }
-    return out;
-}
-
-/* Ctrl+click: adds the layer to the selection, or removes it (never the last selected one). */
-void Editor::toggleLayerPick(int index)
-{
-    const Layer *layer = sprite().layer(index);
-    if (!layerSelected(index)) {
-        /* The active layer stays selected, now as one of the picked ones. */
-        picked_.push_back(sprite().layer(activeLayer_));
-        activeLayer_ = index;
-        anchor_ = layer;
-        return;
-    }
-    if (selectedLayers().size() <= 1) {
-        return;
-    }
-    picked_.erase(std::remove(picked_.begin(), picked_.end(), layer), picked_.end());
-    if (index != activeLayer_) {
-        return;
-    }
-    /* Another selected layer takes over as the active one: the topmost. */
-    for (int i = sprite().layerCount() - 1; i >= 0; i--) {
-        if (i != index && layerSelected(i)) {
-            activeLayer_ = i;
-            break;
-        }
-    }
-    picked_.erase(std::remove(picked_.begin(), picked_.end(), sprite().layer(activeLayer_)),
-                  picked_.end());
-}
-
-/* Shift+click: selects everything between the anchor and the layer. */
-void Editor::rangeLayerPick(int index)
-{
-    int from = editor_detail::indexOfLayer(sprite(), anchor_);
-    if (from < 0) {
-        from = activeLayer_;
-    }
-    picked_.clear();
-    for (int i = std::min(from, index); i <= std::max(from, index); i++) {
-        if (i != index) {
-            picked_.push_back(sprite().layer(i));
-        }
-    }
-    activeLayer_ = index;
+    return layers_.indexes(sprite());
 }
 
 void Editor::pickLayer(int index, LayerPick mode)
 {
-    const Layer *layer = sprite().layer(index);
-    if (!layer) {
-        return;
-    }
-    switch (mode) {
-    case LayerPick::Only:
-        picked_.clear();
-        activeLayer_ = index;
-        anchor_ = layer;
-        break;
-    case LayerPick::Toggle:
-        toggleLayerPick(index);
-        break;
-    case LayerPick::Range:
-        rangeLayerPick(index);
-        break;
-    }
+    layers_.pick(sprite(), index, mode);
 }
 
 void Editor::addLayer()
@@ -115,8 +46,8 @@ void Editor::removeLayer(int index)
     if (stroking() || !layer_op_remove(history(), sprite(), index)) {
         return;
     }
-    if (activeLayer_ > index) {
-        activeLayer_--;
+    if (layers_.active() > index) {
+        layers_.setActive(layers_.active() - 1);
     }
     afterHistoryStep();
 }
@@ -126,15 +57,7 @@ void Editor::moveLayer(int from, int to)
     if (stroking() || !layer_op_move(history(), sprite(), from, to)) {
         return;
     }
-    /* The active layer keeps pointing at the same layer. */
-    int active = activeLayer_;
-    if (active == from) {
-        activeLayer_ = to;
-    } else if (from < active && active <= to) {
-        activeLayer_ = active - 1;
-    } else if (to <= active && active < from) {
-        activeLayer_ = active + 1;
-    }
+    layers_.moved(from, to);
     markAllDirty();
 }
 
@@ -168,10 +91,10 @@ void Editor::mergeLayerDown(int index)
         return;
     }
     /* The merged layer is gone: its selection moves down, layers above it shift down by one. */
-    if (activeLayer_ == index) {
+    if (layers_.active() == index) {
         pickLayer(index - 1, LayerPick::Only);
-    } else if (activeLayer_ > index) {
-        activeLayer_--;
+    } else if (layers_.active() > index) {
+        layers_.setActive(layers_.active() - 1);
     }
     markAllDirty();
 }
@@ -205,7 +128,7 @@ void Editor::duplicateSelectedLayers()
         const Layer *copy = layer_op_duplicate(history(), sprite(), *it);
         if (copy) {
             copies.push_back(copy);
-            activeCopy = *it == activeLayer_ ? copy : activeCopy;
+            activeCopy = *it == layers_.active() ? copy : activeCopy;
         }
     }
     history().endGroup();
@@ -214,7 +137,7 @@ void Editor::duplicateSelectedLayers()
     }
     activeCopy = activeCopy ? activeCopy : copies.front();
     pickLayer(editor_detail::indexOfLayer(sprite(), activeCopy), LayerPick::Only);
-    picked_ = copies;
+    layers_.setPicked(copies);
     markAllDirty();
 }
 
@@ -316,7 +239,7 @@ void Editor::moveSelectedLayers(int from, int to)
     }
     auto target = std::find(remaining.begin(), remaining.end(), sprite().layer(to));
     remaining.insert(from < to ? target + 1 : target, block.begin(), block.end());
-    Layer *active = sprite().layer(activeLayer_);
+    Layer *active = sprite().layer(layers_.active());
     history().beginGroup();
     for (int pos = 0; pos < static_cast<int>(remaining.size()); pos++) {
         int at = editor_detail::indexOfLayer(sprite(), remaining[static_cast<size_t>(pos)]);
@@ -325,7 +248,7 @@ void Editor::moveSelectedLayers(int from, int to)
         }
     }
     history().endGroup();
-    activeLayer_ = editor_detail::indexOfLayer(sprite(), active);
+    layers_.setActive(editor_detail::indexOfLayer(sprite(), active));
     markAllDirty();
 }
 

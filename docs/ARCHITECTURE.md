@@ -70,6 +70,10 @@ stay a few hundred lines each (the class declarations remain in `editor.h` and `
 `editor_selection.cpp`, `editor_settings.cpp`. Helpers shared between the `editor_*.cpp` files are declared in
 `editor_internal.h` and defined in `editor_internal.cpp`.
 
+`Editor` delegates two self-contained pieces: `LayerSelection` (`layer_selection.h`: the active layer plus Ctrl/Shift
+picks, tracked by layer identity) and `CompositeSurface` (`composite_surface.h`: the CPU buffer, its texture and the
+dirty rectangle). Both are unit-tested without an `Editor`; the editor keeps the same public methods and forwards.
+
 Tools are a table, not switches: `tool.cpp` has one `ToolTraits` row per `ToolKind` (its `ToolGroup` and, for the shape
 tools, which `ShapeKind` it draws), and the editor, canvas and tools panel ask it instead of comparing tool kinds. Shapes
 are the same on the core side: `shape.cpp` has one row per `ShapeKind` (how to draw it, whether it can be filled).

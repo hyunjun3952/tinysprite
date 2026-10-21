@@ -13,17 +13,6 @@ Editor::Editor(SDL_Renderer *renderer, Sprite sprite)
 {
 }
 
-std::unique_ptr<SDL_Texture, Editor::TextureDeleter> Editor::newTexture(int width, int height) const
-{
-    std::unique_ptr<SDL_Texture, TextureDeleter> texture(SDL_CreateTexture(
-        renderer_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height));
-    if (texture) {
-        SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(texture.get(), SDL_ScaleModeNearest);
-    }
-    return texture;
-}
-
 std::unique_ptr<Editor> Editor::create(SDL_Renderer *renderer, int width, int height)
 {
     std::optional<Sprite> sprite = editor_detail::blankSprite(width, height);
@@ -31,11 +20,11 @@ std::unique_ptr<Editor> Editor::create(SDL_Renderer *renderer, int width, int he
         return nullptr;
     }
     std::unique_ptr<Editor> editor(new Editor(renderer, std::move(*sprite)));
-    auto texture = editor->newTexture(width, height);
-    if (!texture) {
+    auto surface = CompositeSurface::create(renderer, width, height);
+    if (!surface) {
         return nullptr;
     }
-    editor->resetDocument(std::move(texture));
+    editor->resetDocument(std::move(surface));
     return editor;
 }
 
@@ -44,26 +33,22 @@ bool Editor::setSprite(Sprite sprite)
     if (stroking()) {
         return false;
     }
-    auto texture = newTexture(sprite.width(), sprite.height());
-    if (!texture) {
+    auto surface = CompositeSurface::create(renderer_, sprite.width(), sprite.height());
+    if (!surface) {
         return false;
     }
     sprite_ = std::move(sprite);
-    resetDocument(std::move(texture));
+    resetDocument(std::move(surface));
     return true;
 }
 
-void Editor::resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture)
+void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
 {
-    texture_ = std::move(texture);
-    pixels_.assign(static_cast<size_t>(sprite_.width()) * static_cast<size_t>(sprite_.height()),
-                   Rgba{});
+    surface_ = std::move(surface);
     history_ = History{};
     lastDrawPoint_.reset();
-    activeLayer_ = 0;
-    picked_.clear();
-    anchor_ = nullptr;
-    hasSelection_ = false;
+    layers_.reset();
+    selection_.reset();
     paletteSelected_ = -1;
     modifiedOutsideHistory_ = false;
     view_ = ViewState{};
@@ -104,7 +89,6 @@ void Editor::setHover(int x, int y, bool hovering)
 
 void Editor::setSelection(Rect r)
 {
-    hasSelection_ = true;
     selection_ = r;
 }
 
@@ -145,8 +129,7 @@ void Editor::press(int cx, int cy, bool shift)
     }
     /* Drawing tools stay inside the selection; the select tool moves it and must not be clipped by
      * it. */
-    history_.setClip(tool_draws(tool_) && hasSelection_ ? std::optional<Rect>(selection_)
-                                                        : std::nullopt);
+    history_.setClip(tool_draws(tool_) ? selection_ : std::nullopt);
     if (shift && tool_traits(tool_).group == ToolGroup::Brush) {
         lineFrom_ = lastDrawPoint_;
     }
@@ -195,33 +178,18 @@ Rect Editor::spriteBounds() const
 void Editor::markDirty(Rect area)
 {
     revision_++;
-    dirtyRect_ = dirty_ ? rect_union(dirtyRect_, area) : area;
-    dirty_ = true;
+    surface_->markDirty(area);
 }
 
 void Editor::markAllDirty()
 {
     revision_++;
-    dirtyRect_ = spriteBounds();
-    dirty_ = true;
+    surface_->markAllDirty();
 }
 
 void Editor::updateTexture()
 {
-    if (!dirty_) {
-        return;
-    }
-    dirty_ = false;
-    int width = sprite().width();
-    Rect r = rect_clip(dirtyRect_, width, sprite().height());
-    if (rect_is_empty(r)) {
-        return;
-    }
-    composite_sprite(sprite(), frame_, r, pixels_.data());
-    SDL_Rect rect = {r.x, r.y, r.w, r.h};
-    const Rgba *origin =
-        &pixels_[static_cast<size_t>(r.y) * static_cast<size_t>(width) + static_cast<size_t>(r.x)];
-    SDL_UpdateTexture(texture(), &rect, origin, width * static_cast<int>(sizeof(Rgba)));
+    surface_->update(sprite(), frame_);
 }
 
 void Editor::zoomStep(int direction)
@@ -234,25 +202,13 @@ void Editor::zoomStep(int direction)
 /* Undoing / redoing a layer operation can change the layer count under the active index. */
 void Editor::afterHistoryStep(const Layer *active)
 {
-    /* Keep pointing at the same layer when it is still there. */
-    int found = active ? editor_detail::indexOfLayer(sprite(), active) : -1;
-    activeLayer_ = found >= 0 ? found : std::min(activeLayer_, sprite().layerCount() - 1);
-    /* Layers are tracked by address: forget the ones that left the sprite, so a new layer that
-     * reuses an address is not taken for a selected one. */
-    picked_.erase(std::remove_if(picked_.begin(), picked_.end(),
-                                 [this](const Layer *l) {
-                                     return editor_detail::indexOfLayer(sprite(), l) < 0;
-                                 }),
-                  picked_.end());
-    if (anchor_ && editor_detail::indexOfLayer(sprite(), anchor_) < 0) {
-        anchor_ = nullptr;
-    }
+    layers_.refresh(sprite(), active);
     markAllDirty();
 }
 
 void Editor::undo()
 {
-    const Layer *active = sprite().layer(activeLayer_);
+    const Layer *active = sprite().layer(layers_.active());
     if (history().undo()) {
         afterHistoryStep(active);
     }
@@ -260,7 +216,7 @@ void Editor::undo()
 
 void Editor::redo()
 {
-    const Layer *active = sprite().layer(activeLayer_);
+    const Layer *active = sprite().layer(layers_.active());
     if (history().redo()) {
         afterHistoryStep(active);
     }
@@ -274,12 +230,12 @@ bool Editor::hoverInSprite() const
 
 Cel *Editor::activeCel()
 {
-    Layer *layer = sprite().layer(activeLayer_);
+    Layer *layer = sprite().layer(layers_.active());
     return layer ? layer->cel(frame_) : nullptr;
 }
 
 Cel *Editor::editableCel()
 {
-    Layer *layer = sprite().layer(activeLayer_);
+    Layer *layer = sprite().layer(layers_.active());
     return stroking() || !layer || !layer->visible() || layer->locked() ? nullptr : activeCel();
 }
