@@ -1,7 +1,7 @@
 # tinysprite
 
 [![ci](https://github.com/hyunjun3952/tinysprite/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyunjun3952/tinysprite/actions/workflows/ci.yml)
-[![license](https://img.shields.io/github/license/hyunjun3952/tinysprite)](LICENSE)
+[![license](https://img.shields.io/github/license/hyunjun3952/tinysprite)](LICENSE.md)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)
 ![platforms](https://img.shields.io/badge/platform-linux%20%7C%20windows-lightgrey)
 
@@ -42,4 +42,4 @@ A devcontainer (`.devcontainer/`) and VS Code settings (`.vscode/`) are included
 
 ## License
 
-[MIT](LICENSE). Third-party components and their licenses are listed in [thirdparty/README.md](thirdparty/README.md).
+[MIT](LICENSE.md). Third-party components and their licenses are listed in [thirdparty/README.md](thirdparty/README.md).

@@ -3,9 +3,9 @@ name: ci
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', LICENSE]
+    paths-ignore: ['**.md']
   pull_request:
-    paths-ignore: ['**.md', LICENSE]
+    paths-ignore: ['**.md']
 
 permissions:
   contents: read
