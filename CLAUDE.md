@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-tinysprite is a pixel art / 2D sprite animation editor written in C11 (SDL2 + Dear ImGui via cimgui for the UI). The project is built incrementally by milestone; check `git log` and `src/` to see which are done. Planned scope: drawing tools first, then animation (timeline, onion skin, GIF/spritesheet export), then game pipeline features (tilemaps, JSON export, headless CLI).
+tinysprite is a pixel art / 2D sprite animation editor written in C11 (SDL2 + Dear ImGui via cimgui for the UI). The project is built incrementally by milestone; progress, remaining steps and known gotchas are tracked in `docs/MILESTONES.md` (update it when a milestone finishes). Planned scope: drawing tools first, then animation (timeline, onion skin, GIF/spritesheet export), then game pipeline features (tilemaps, JSON export, headless CLI).
 
 ## Commands
 
