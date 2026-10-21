@@ -38,9 +38,13 @@ void apply();
  * content goes under `if (theme::section("Name")) { ... }`. */
 bool section(const char *label, bool openByDefault = true);
 
-/* Shows `text` as a tooltip when the last item has been hovered a moment (also while disabled).
- * Call right after the item. */
+/* Shows `text` as a tooltip when the last item has been hovered a moment (never while it is
+ * disabled). Call right after the item. */
 void tip(const char *text);
+
+/* For the item just drawn, a button that can be disabled: its tooltip while it is enabled, and
+ * while it is disabled no tooltip but the "not allowed" mouse cursor. */
+void hint(const char *tooltip, bool enabled);
 
 /* Width of one of `count` equal columns that fill the available width. */
 float columnWidth(int count);

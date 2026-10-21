@@ -1,4 +1,5 @@
 #include <memory>
+#include <vector>
 
 #include "minitest.h"
 #include "tinysprite/history.h"
@@ -461,6 +462,116 @@ TEST(save_point_is_lost_when_forgetting_cels)
     ASSERT_TRUE(!h.atSavePoint());
 }
 
+/* An action that logs -n when undone and +n when redone, so the order of a group shows. */
+static HistoryAction logging_action(std::vector<int> *log, int n)
+{
+    return HistoryAction{[log, n] { log->push_back(-n); }, [log, n] { log->push_back(n); }};
+}
+
+TEST(group_is_one_undo_step_that_runs_its_actions_in_reverse)
+{
+    History h;
+    std::vector<int> log;
+    ASSERT_TRUE(h.beginGroup());
+    h.pushAction(logging_action(&log, 1));
+    h.pushAction(logging_action(&log, 2));
+    h.pushAction(logging_action(&log, 3));
+    ASSERT_TRUE(h.endGroup());
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(3, static_cast<int>(log.size()));
+    ASSERT_EQ_INT(-3, log[0]);
+    ASSERT_EQ_INT(-2, log[1]);
+    ASSERT_EQ_INT(-1, log[2]);
+    ASSERT_TRUE(!h.canUndo());
+    log.clear();
+    ASSERT_TRUE(h.redo());
+    ASSERT_EQ_INT(1, log[0]);
+    ASSERT_EQ_INT(2, log[1]);
+    ASSERT_EQ_INT(3, log[2]);
+    ASSERT_TRUE(!h.canRedo());
+}
+
+TEST(group_mixes_with_strokes_and_other_steps)
+{
+    History h;
+    Cel c(4, 4);
+    std::vector<int> log;
+    paint(h, c, 0);
+    h.beginGroup();
+    h.pushAction(logging_action(&log, 1));
+    h.pushAction(logging_action(&log, 2));
+    h.endGroup();
+    paint(h, c, 1);
+    ASSERT_TRUE(h.undo()); /* the stroke */
+    ASSERT_TRUE(log.empty());
+    ASSERT_TRUE(h.undo()); /* the whole group */
+    ASSERT_EQ_INT(2, static_cast<int>(log.size()));
+    ASSERT_EQ_INT(255, alpha(c, 0, 0));
+    ASSERT_TRUE(h.undo()); /* the first stroke */
+    ASSERT_EQ_INT(0, alpha(c, 0, 0));
+}
+
+TEST(an_empty_group_records_nothing_and_keeps_redo)
+{
+    History h;
+    Cel c(4, 4);
+    paint(h, c, 0);
+    h.undo();
+    ASSERT_TRUE(h.beginGroup());
+    ASSERT_TRUE(h.endGroup());
+    ASSERT_TRUE(!h.canUndo());
+    ASSERT_TRUE(h.canRedo());
+}
+
+TEST(group_rules)
+{
+    History h;
+    Cel c(4, 4);
+    std::vector<int> log;
+    ASSERT_TRUE(!h.endGroup());
+    ASSERT_TRUE(h.beginGroup());
+    ASSERT_TRUE(!h.beginGroup());   /* no nesting */
+    ASSERT_TRUE(!h.beginStroke(c)); /* strokes are not part of a group */
+    h.pushAction(logging_action(&log, 1));
+    ASSERT_TRUE(!h.undo()); /* nothing to undo until it ends */
+    ASSERT_TRUE(h.endGroup());
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(!h.beginGroup()); /* not during a stroke either */
+    h.endStroke();
+}
+
+TEST(group_discards_redo_like_any_edit_and_releases_its_actions)
+{
+    Counter n;
+    {
+        History h;
+        Cel c(4, 4);
+        h.beginGroup();
+        h.pushAction(counter_action(&n));
+        h.pushAction(counter_action(&n));
+        h.endGroup();
+        h.undo();
+        ASSERT_EQ_INT(0, n.releases);
+        paint(h, c, 0); /* a new edit drops the undone group */
+        ASSERT_EQ_INT(2, n.releases);
+    }
+    ASSERT_EQ_INT(2, n.releases);
+}
+
+TEST(group_counts_as_one_step_for_the_save_point)
+{
+    History h;
+    std::vector<int> log;
+    h.markSaved();
+    h.beginGroup();
+    h.pushAction(logging_action(&log, 1));
+    h.pushAction(logging_action(&log, 2));
+    h.endGroup();
+    ASSERT_TRUE(!h.atSavePoint());
+    h.undo();
+    ASSERT_TRUE(h.atSavePoint());
+}
+
 int main(void)
 {
     RUN(starts_empty);
@@ -486,6 +597,12 @@ int main(void)
     RUN(forget_cel_keeps_actions);
     RUN(clip_rejects_pixels_outside_the_rect);
     RUN(clearing_the_clip_allows_every_pixel_again);
+    RUN(group_is_one_undo_step_that_runs_its_actions_in_reverse);
+    RUN(group_mixes_with_strokes_and_other_steps);
+    RUN(an_empty_group_records_nothing_and_keeps_redo);
+    RUN(group_rules);
+    RUN(group_discards_redo_like_any_edit_and_releases_its_actions);
+    RUN(group_counts_as_one_step_for_the_save_point);
     RUN(save_point_starts_clean);
     RUN(save_point_follows_edits_undo_and_redo);
     RUN(save_point_is_lost_when_a_new_edit_discards_it);

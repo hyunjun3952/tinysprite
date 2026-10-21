@@ -125,6 +125,40 @@ TEST(dragging_a_row_moves_the_layer)
     ASSERT_TRUE(names(f) == "Layer 1,Layer 2,Layer 3");
 }
 
+/* Rows of the list whose pixel at x is the off-white that marks the drop position. */
+static int ink_rows(Fixture &f, int x)
+{
+    int count = 0;
+    for (int y = 40; y < 260; y++) {
+        unsigned c = f.h.pixel(x, y);
+        count += c == 0xf7f5f0u;
+    }
+    return count;
+}
+
+TEST(dragging_a_row_shows_a_line_where_it_will_land)
+{
+    Fixture f;
+    add_layers(f, 3);
+    const int x = 930; /* the empty opacity column: nothing else is that color there */
+    ASSERT_EQ_INT(0, ink_rows(f, x));
+    /* Hold the top row and move over the bottom one: the layer would end at the bottom. */
+    f.h.frame(ROW_X, row_y(0), false);
+    f.h.frame(ROW_X, row_y(0), true);
+    for (int i = 1; i <= 8; i++) {
+        f.h.frame(ROW_X, row_y(0) + 8.0f * static_cast<float>(i), true);
+    }
+    f.h.frame(ROW_X, row_y(2), true);
+    f.h.frame(ROW_X, row_y(2), true);
+    ASSERT_TRUE(ink_rows(f, x) >= 2); /* a line about 2 px thick */
+    ASSERT_TRUE(ink_rows(f, x) <= 4);
+    /* Over its own row nothing would change, so no line. */
+    f.h.frame(ROW_X, row_y(0), true);
+    f.h.frame(ROW_X, row_y(0), true);
+    ASSERT_EQ_INT(0, ink_rows(f, x));
+    f.h.frame(ROW_X, row_y(0), false);
+}
+
 TEST(dropping_a_row_on_itself_changes_nothing)
 {
     Fixture f;
@@ -174,6 +208,154 @@ TEST(the_only_layer_is_never_deleted)
     ASSERT_EQ_INT(1, f.editor->sprite().layerCount());
 }
 
+/* A click on the row `fromTop` with a modifier key held (ImGuiMod_Ctrl / ImGuiMod_Shift). */
+static void click_row_with(Fixture &f, int fromTop, ImGuiKey mod)
+{
+    float y = row_y(fromTop);
+    /* Idle frames around each change, so the input queue does not merge them. */
+    ImGui::GetIO().AddKeyEvent(mod, true);
+    f.h.frame(ROW_X, y, false);
+    f.h.frame(ROW_X, y, false);
+    f.h.frame(ROW_X, y, true);
+    f.h.frame(ROW_X, y, true);
+    f.h.frame(ROW_X, y, false);
+    f.h.frame(ROW_X, y, false);
+    ImGui::GetIO().AddKeyEvent(mod, false);
+    f.h.frame(ROW_X, y, false);
+    f.h.frame(ROW_X, y, false);
+}
+
+static std::string selected(Fixture &f)
+{
+    std::string out;
+    for (int i : f.editor->selectedLayers()) {
+        out += std::to_string(i);
+    }
+    return out;
+}
+
+TEST(ctrl_click_adds_and_removes_rows_from_the_selection)
+{
+    Fixture f;
+    add_layers(f, 3);
+    ASSERT_TRUE(selected(f) == "2");     /* the new layer on top */
+    click_row_with(f, 2, ImGuiMod_Ctrl); /* the bottom row */
+    ASSERT_TRUE(selected(f) == "02");
+    click_row_with(f, 1, ImGuiMod_Ctrl);
+    ASSERT_TRUE(selected(f) == "012");
+    click_row_with(f, 1, ImGuiMod_Ctrl);
+    ASSERT_TRUE(selected(f) == "02");
+}
+
+TEST(shift_click_selects_the_rows_in_between)
+{
+    Fixture f;
+    add_layers(f, 4);
+    f.h.frame(ROW_X, row_y(3), false);
+    f.h.frame(ROW_X, row_y(3), true); /* a plain click on the bottom row */
+    f.h.frame(ROW_X, row_y(3), false);
+    ASSERT_TRUE(selected(f) == "0");
+    click_row_with(f, 1, ImGuiMod_Shift); /* the second row from the top: layer 2 */
+    ASSERT_TRUE(selected(f) == "012");
+    ASSERT_EQ_INT(2, f.editor->activeLayer());
+}
+
+TEST(a_plain_click_collapses_the_selection)
+{
+    Fixture f;
+    add_layers(f, 3);
+    click_row_with(f, 2, ImGuiMod_Ctrl);
+    ASSERT_TRUE(selected(f) == "02");
+    f.h.frame(ROW_X, row_y(1), false);
+    f.h.frame(ROW_X, row_y(1), true);
+    f.h.frame(ROW_X, row_y(1), false);
+    ASSERT_TRUE(selected(f) == "1");
+}
+
+TEST(deleting_a_selection_asks_once_and_is_one_undo_step)
+{
+    Fixture f;
+    add_layers(f, 3);
+    click_row_with(f, 1, ImGuiMod_Ctrl); /* layers 2 and 1 */
+    f.layers->askToDelete();
+    f.h.frame(ROW_X, row_y(0), false);
+    f.h.frame(ROW_X, row_y(0), false);
+    ASSERT_TRUE(f.layers->dialogOpen());
+    f.h.key(ImGuiKey_Enter);
+    f.h.frame(ROW_X, row_y(0), false);
+    ASSERT_EQ_INT(1, f.editor->sprite().layerCount());
+    ASSERT_TRUE(std::string(f.name()) == "Layer 1");
+    f.editor->undo();
+    ASSERT_EQ_INT(3, f.editor->sprite().layerCount());
+}
+
+TEST(selecting_every_layer_blocks_the_delete)
+{
+    Fixture f;
+    add_layers(f, 3);
+    click_row_with(f, 2, ImGuiMod_Shift);
+    ASSERT_TRUE(selected(f) == "012");
+    f.layers->askToDelete();
+    f.h.frame(ROW_X, row_y(0), false);
+    f.h.frame(ROW_X, row_y(0), false);
+    ASSERT_TRUE(!f.layers->dialogOpen());
+    ASSERT_EQ_INT(3, f.editor->sprite().layerCount());
+}
+
+TEST(dragging_a_selected_row_moves_the_whole_selection)
+{
+    Fixture f;
+    add_layers(f, 4);
+    click_row_with(f, 3, ImGuiMod_Ctrl); /* layers 3 and 0 (bottom) */
+    ASSERT_TRUE(selected(f) == "03");
+    /* Drag the top row (layer 3) down onto the second row from the bottom (layer 1): the block
+     * goes under it. */
+    f.h.drag(ROW_X, row_y(0), ROW_X, row_y(2));
+    ASSERT_TRUE(names(f) == "Layer 1,Layer 4,Layer 2,Layer 3"); /* the block keeps its order */
+}
+
+/* Hovers (x, y) for a few frames and reports the cursor shape and whether a tooltip is showing. */
+struct Hover {
+    int cursor;
+    bool tooltip;
+};
+
+static Hover hover_at(Fixture &f, float x, float y)
+{
+    for (int i = 0; i < 4; i++) {
+        f.h.frame(x, y, false);
+    }
+    ImGuiWindow *tip = ImGui::FindWindowByName("##Tooltip_00");
+    return Hover{ImGui::GetMouseCursor(), tip && tip->Active && !tip->Hidden};
+}
+
+TEST(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip)
+{
+    Fixture f;
+    /* Show tooltips at once: the test frames take far less than the usual hover delays. */
+    ImGui::GetStyle().HoverDelayShort = 0.0f;
+    ImGui::GetStyle().HoverDelayNormal = 0.0f;
+    ImGui::GetStyle().HoverStationaryDelay = 0.0f;
+    /* A single layer: the buttons row has New and Copy enabled, Delete and Merge disabled. Find
+     * the row by scanning down the panel. */
+    bool sawEnabledTip = false;
+    bool sawBlockedCursor = false;
+    bool tipOnBlocked = false;
+    for (int row = 80; row < 160; row += 4) {
+        float y = static_cast<float>(row);
+        Hover enabled = hover_at(f, 778.0f, y); /* New */
+        sawEnabledTip = sawEnabledTip || enabled.tooltip;
+        ASSERT_TRUE(enabled.cursor != ImGuiMouseCursor_NotAllowed);
+        Hover disabled = hover_at(f, 892.0f, y); /* Delete */
+        sawBlockedCursor = sawBlockedCursor || disabled.cursor == ImGuiMouseCursor_NotAllowed;
+        tipOnBlocked =
+            tipOnBlocked || (disabled.cursor == ImGuiMouseCursor_NotAllowed && disabled.tooltip);
+    }
+    ASSERT_TRUE(sawEnabledTip);    /* an enabled button still explains itself */
+    ASSERT_TRUE(sawBlockedCursor); /* a disabled one says "not allowed" ... */
+    ASSERT_TRUE(!tipOnBlocked);    /* ... instead of showing a tooltip */
+}
+
 TEST(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere)
 {
     Fixture f;
@@ -193,10 +375,18 @@ int main(void)
     RUN(escape_keeps_the_old_name_and_records_nothing);
     RUN(a_single_click_does_not_start_renaming);
     RUN(dragging_a_row_moves_the_layer);
+    RUN(dragging_a_row_shows_a_line_where_it_will_land);
     RUN(dropping_a_row_on_itself_changes_nothing);
     RUN(delete_asks_first_and_enter_confirms);
     RUN(escape_cancels_the_delete);
     RUN(the_only_layer_is_never_deleted);
+    RUN(ctrl_click_adds_and_removes_rows_from_the_selection);
+    RUN(shift_click_selects_the_rows_in_between);
+    RUN(a_plain_click_collapses_the_selection);
+    RUN(deleting_a_selection_asks_once_and_is_one_undo_step);
+    RUN(selecting_every_layer_blocks_the_delete);
+    RUN(dragging_a_selected_row_moves_the_whole_selection);
+    RUN(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip);
     RUN(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere);
     return TEST_SUMMARY();
 }

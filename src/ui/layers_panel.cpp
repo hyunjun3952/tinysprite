@@ -3,6 +3,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <vector>
 
 #include "icons.h"
 #include "imgui.h"
@@ -17,11 +18,24 @@ constexpr int THUMB_WIDTH = 36;     /* the box a layer's thumbnail is fitted int
 constexpr int THUMB_HEIGHT = 24;
 constexpr float THUMB_COLUMN = static_cast<float>(THUMB_WIDTH) + 6.0f;
 constexpr int THUMB_CHECKER = 4;
+constexpr float DROP_LINE_THICKNESS = 2.0f;
+constexpr float ACTIVE_BAR = 3.0f;
 
 /* Moves the cursor down so an item of `itemHeight` sits in the middle of a row `rowHeight` tall. */
 void centerInRow(float rowHeight, float itemHeight)
 {
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - itemHeight) / 2.0f);
+}
+
+/* The line that shows where a dragged layer would land, across the row it is over. The list is top
+ * layer first, so a layer coming from below ends above this row and one coming from above ends
+ * below it. */
+void drawDropLine(ImVec2 rowMin, ImVec2 rowMax, bool fromBelow)
+{
+    float y = fromBelow ? rowMin.y : rowMax.y;
+    ImGui::GetForegroundDrawList()->AddLine(ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
+                                            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)),
+                                            DROP_LINE_THICKNESS);
 }
 
 } // namespace
@@ -115,6 +129,7 @@ void LayersPanel::rows()
     ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("##opacity", ImGuiTableColumnFlags_WidthFixed, OPACITY_COLUMN);
     ImGui::TableSetupColumn("##lock", ImGuiTableColumnFlags_WidthFixed, frameHeight + EDGE_MARGIN);
+    const bool multiple = editor_.selectedLayers().size() > 1;
     int moveFrom = -1; /* a drop is applied after the loop: the list must not change under it */
     int moveTo = -1;
     for (int i = editor_.sprite().layerCount() - 1; i >= 0; i--) {
@@ -122,22 +137,49 @@ void LayersPanel::rows()
         ImGui::PushID(i);
         ImGui::TableNextRow(ImGuiTableRowFlags_None, rowHeight);
         ImGui::TableSetColumnIndex(0);
-        if (ImGui::Selectable("##row", i == editor_.activeLayer(),
+        if (ImGui::Selectable("##row", editor_.layerSelected(i),
                               ImGuiSelectableFlags_SpanAllColumns |
                                   ImGuiSelectableFlags_AllowOverlap,
                               ImVec2(0.0f, rowHeight))) {
-            editor_.setActiveLayer(i);
+            /* Shift selects a range, Ctrl adds or removes one layer, neither selects only this. */
+            const ImGuiIO &io = ImGui::GetIO();
+            editor_.pickLayer(i, io.KeyShift  ? LayerPick::Range
+                                 : io.KeyCtrl ? LayerPick::Toggle
+                                              : LayerPick::Only);
+        }
+        if (multiple && i == editor_.activeLayer()) {
+            /* With several rows selected, a bar marks the one the tools draw on. */
+            ImGui::GetForegroundDrawList()->AddRectFilled(
+                ImGui::GetItemRectMin(),
+                ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
+                ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)));
         }
         /* Drag a row onto another to move the layer there. */
         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
             ImGui::SetDragDropPayload("LAYER_ROW", &i, sizeof(i));
-            ImGui::TextUnformatted(layer->name().c_str());
+            if (multiple && editor_.layerSelected(i)) {
+                ImGui::Text("%d layers", static_cast<int>(editor_.selectedLayers().size()));
+            } else {
+                ImGui::TextUnformatted(layer->name().c_str());
+            }
             ImGui::EndDragDropSource();
         }
         if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("LAYER_ROW")) {
-                moveFrom = *static_cast<const int *>(payload->Data);
-                moveTo = i;
+            /* Looked at while hovering (before the drop), to draw where the layer would land. */
+            constexpr ImGuiDragDropFlags FLAGS = ImGuiDragDropFlags_AcceptBeforeDelivery |
+                                                 ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
+            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("LAYER_ROW", FLAGS)) {
+                int from = *static_cast<const int *>(payload->Data);
+                /* Dropping a selection onto one of its own layers moves nothing. */
+                bool onItself =
+                    from == i || (editor_.layerSelected(from) && editor_.layerSelected(i));
+                if (!onItself) {
+                    drawDropLine(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), from < i);
+                    if (payload->IsDelivery()) {
+                        moveFrom = from;
+                        moveTo = i;
+                    }
+                }
             }
             ImGui::EndDragDropTarget();
         }
@@ -147,7 +189,10 @@ void LayersPanel::rows()
                       "Double-click to rename it.",
                       layer->name().c_str());
         theme::tip(hint);
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        /* A double click renames, unless Ctrl / Shift are held: those clicks change the selection,
+         * and two quick ones on the same row must not collapse it. */
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) &&
+            !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift) {
             editor_.setActiveLayer(i);
             renaming_ = i;
             renameBefore_ = layer->name();
@@ -160,7 +205,12 @@ void LayersPanel::rows()
                                            : "Hidden. Click to show the layer (tools cannot draw "
                                              "on a hidden layer).",
                           layer->visible(), frameHeight)) {
-            editor_.setLayerVisible(i, !layer->visible());
+            bool visible = !layer->visible();
+            if (multiple && editor_.layerSelected(i)) {
+                editor_.setSelectedLayersVisible(visible);
+            } else {
+                editor_.setLayerVisible(i, visible);
+            }
         }
 
         ImGui::TableSetColumnIndex(1);
@@ -193,14 +243,23 @@ void LayersPanel::rows()
                                           : "Unlocked. Click to lock the layer (it stays visible, "
                                             "tools cannot change it).",
                           layer->locked(), frameHeight)) {
-            editor_.setLayerLocked(i, !layer->locked());
+            bool locked = !layer->locked();
+            if (multiple && editor_.layerSelected(i)) {
+                editor_.setSelectedLayersLocked(locked);
+            } else {
+                editor_.setLayerLocked(i, locked);
+            }
         }
         ImGui::PopID();
     }
     ImGui::EndTable();
-    if (moveFrom >= 0 && moveFrom != moveTo) {
-        editor_.moveLayer(moveFrom, moveTo);
-        editor_.setActiveLayer(moveTo);
+    if (moveFrom >= 0) {
+        bool wasSelected = editor_.layerSelected(moveFrom);
+        editor_.moveSelectedLayers(moveFrom, moveTo);
+        if (!wasSelected) {
+            editor_.pickLayer(moveTo,
+                              LayerPick::Only); /* the dragged layer becomes the selection */
+        }
     }
 }
 
@@ -236,28 +295,29 @@ void LayersPanel::buttons()
     constexpr int COUNT = 4;
     ImVec2 size(theme::columnWidth(COUNT), ImGui::GetFrameHeight() + 6.0f);
     int count = editor_.sprite().layerCount();
-    int active = editor_.activeLayer();
-    Layer *layer = editor_.sprite().layer(active);
-    Layer *below = editor_.sprite().layer(active - 1);
-    bool canMerge = layer && below && layer->visible() && below->visible() && !below->locked();
+    int selected = static_cast<int>(editor_.selectedLayers().size());
 
     if (icons::button(Icon::Plus, "##new", "New layer on top", size)) {
         editor_.addLayer();
     }
     ImGui::SameLine();
-    if (icons::button(Icon::Copy, "##copy", "Duplicate the active layer", size)) {
-        editor_.duplicateLayer(active);
+    if (icons::button(Icon::Copy, "##copy", "Duplicate the selected layers", size)) {
+        editor_.duplicateSelectedLayers();
     }
     ImGui::SameLine();
-    if (icons::button(Icon::Trash, "##delete", "Delete the active layer (Delete key)", size,
-                      count >= 2)) {
+    if (icons::button(Icon::Trash, "##delete", "Delete the selected layers (Delete key)", size,
+                      count - selected >= 1)) {
         askToDelete();
     }
     ImGui::SameLine();
     if (icons::button(Icon::Merge, "##merge",
-                      "Merge into the layer below (both must be visible, the lower one unlocked)",
-                      size, canMerge)) {
-        editor_.mergeLayerDown(active);
+                      selected > 1
+                          ? "Merge the selected layers into the lowest one (all visible, the "
+                            "lowest unlocked)"
+                          : "Merge into the layer below (both visible, the lower one "
+                            "unlocked)",
+                      size, editor_.canMergeLayers())) {
+        editor_.mergeSelectedLayers();
     }
 }
 
@@ -268,10 +328,12 @@ bool LayersPanel::focused() const
 
 void LayersPanel::askToDelete()
 {
-    if (editor_.sprite().layerCount() < 2 || editor_.stroking()) {
-        return;
+    std::vector<int> selected = editor_.selectedLayers();
+    if (static_cast<int>(selected.size()) >= editor_.sprite().layerCount() || editor_.stroking()) {
+        return; /* at least one layer must stay */
     }
-    deleteIndex_ = editor_.activeLayer();
+    deleteCount_ = static_cast<int>(selected.size());
+    deleteName_ = editor_.sprite().layer(editor_.activeLayer())->name();
     openDelete_ = true;
 }
 
@@ -288,12 +350,15 @@ void LayersPanel::deleteDialog()
     if (!dialogOpen_) {
         return;
     }
-    const Layer *layer = editor_.sprite().layer(deleteIndex_);
-    ImGui::Text("Delete the layer \"%s\"?", layer ? layer->name().c_str() : "");
+    if (deleteCount_ > 1) {
+        ImGui::Text("Delete these %d layers?", deleteCount_);
+    } else {
+        ImGui::Text("Delete the layer \"%s\"?", deleteName_.c_str());
+    }
     ImGui::TextDisabled("Ctrl+Z brings it back.");
     bool close = false;
     if (ImGui::Button("Delete") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-        editor_.removeLayer(deleteIndex_);
+        editor_.removeSelectedLayers();
         close = true;
     }
     ImGui::SameLine();

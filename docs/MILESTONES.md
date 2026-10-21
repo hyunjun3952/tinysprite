@@ -95,8 +95,10 @@ headless CLI export, optional Aseprite import.
   zoom / pan / hover, so they no longer lag the image by a frame.
 
 ## Convenience features (outside the milestones)
+- Panning: the right or middle button drag (or Space + left drag) moves the view with a hand cursor; the canvas item accepts
+  the right button for that, so a right click never draws (`tests/ui/ui_canvas.cpp`).
 - Shortcuts live in `src/ui/app.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
-  `+` / `-` zoom, `[` / `]` brush size, Alt = temporary eyedropper (`editor_temp_pick`), Space + drag pans.
+  `+` / `-` and `[` / `]` brush size (1 px, 5 px with Shift; `Editor::changeBrushSize`), the wheel zooms, Alt = temporary eyedropper (`editor_temp_pick`), Space + drag pans.
 - Clipboard (`selection.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite. Undoing a flip / rotate does not restore the selection rectangle.
 - Palette edits (`palette_remove`, add / pick in `editor.cpp`) and `RecentColors` are not part of undo. Recent
@@ -124,13 +126,26 @@ headless CLI export, optional Aseprite import.
   Each layer row shows a thumbnail of what is painted on that layer (`LayerThumbnails`: one texture per layer, sized by
   `thumbnail_size`, filled by `thumbnail_pixels` which samples nearest so the cost is independent of the sprite size,
   refreshed when `Editor::revision()` changes, dimmed while the layer is hidden).
+  Layer selection (`Editor::pickLayer`): a click selects one layer, Ctrl+click adds / removes one (the last one cannot
+  be removed), Shift+click selects from the last plain / Ctrl pick to the clicked row. The selection is the active
+  layer (what the tools draw on, marked by a bar) plus the picked layers, kept by identity so it follows moves and
+  adds. Delete, duplicate, merge, dragging and the eye / lock toggles act on all selected layers as one undo step each
+  (`History::beginGroup` / `endGroup` fold the per-layer steps into one); deleting is refused when it would leave no
+  layer, the opacity slider stays single-layer, and a Ctrl / Shift double click never starts a rename.
+  Merging several layers (`Editor::mergeSelectedLayers`) draws them, bottom to top with their opacities, onto the
+  lowest selected one, which keeps its name and properties; unselected layers between them are first left above the
+  result (selected layers are moved next to each other, then merged down topmost first). All must be visible and the
+  lowest unlocked (`canMergeLayers`); one selected layer merges down as before.
+  Dragging a selected row moves the whole selection as a block (order kept) next to the drop row; dropping on a
+  selected row does nothing.
   Layers are reordered by dragging a row onto another (`moveLayer`, one undo step, the dragged layer stays active;
-  there are no up / down buttons). With the layer list focused (`LayersPanel::focused`, set from the window's
+  there are no up / down buttons). While dragging, a 2 px off-white line across the hovered row marks where the layer
+  will land (above the row for a layer coming from below, under it for one coming from above; none over its own row). With the layer list focused (`LayersPanel::focused`, set from the window's
   focus in the frame it is drawn) the Delete key and the trash button ask "Delete layer?" first (Enter confirms,
   Escape cancels, undo brings it back); elsewhere Delete still clears the selected pixels. While that dialog is
   open the app's shortcuts are off.
   Double-clicking a layer row renames it in place (live, one undo step on release; Esc cancels).
-  None of this is persisted yet. Items whose purpose is not obvious from the label have a tooltip (`theme::tip`, shown
+  A disabled button shows no tooltip but the "not allowed" mouse cursor (`theme::hint`). None of this is persisted yet. Items whose purpose is not obvious from the label have a tooltip (`theme::tip`, shown
   after the style's hover delay, also on disabled widgets).
 - `Panels::end` only calls `ImGui::End` if `begin` started a window: a hidden panel (closed with its X button or
   hidden from the Window menu) used to trip "Calling End() too many times!". `tests/ui/ui_panels.cpp` covers it.

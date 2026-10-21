@@ -32,6 +32,13 @@ inline constexpr int TOOL_COUNT = static_cast<int>(ToolKind::Count);
 
 class Drag;
 
+/* How a click on a layer changes the layer selection (see Editor::pickLayer). */
+enum class LayerPick {
+    Only,   /* select just this layer (a plain click) */
+    Toggle, /* add it to the selection, or remove it (Ctrl+click); the last one stays */
+    Range,  /* select from the last plain / Ctrl pick to this one (Shift+click) */
+};
+
 /* Everything the UI edits: the document, its undo history, the tool state and the CPU-composited
  * texture the canvas displays. Created once and passed to each panel. The tool and view state is
  * plain public data the panels and shortcuts edit directly; operations that touch the document go
@@ -178,8 +185,16 @@ class Editor
     {
         return activeLayer_;
     }
-    /* Ignores an index with no layer. */
+    /* Makes `index` the only selected layer. Ignores an index with no layer. */
     void setActiveLayer(int index);
+
+    /* The layer selection: the active layer (what the tools draw on) plus any layers picked with
+     * Ctrl or Shift. Only picks the list gets; drawing always uses the active layer. */
+    void pickLayer(int index, LayerPick mode);
+    bool layerSelected(int index) const;
+
+    /* Indexes of the selected layers, ascending; never empty. */
+    std::vector<int> selectedLayers() const;
     int frame() const
     {
         return frame_;
@@ -240,6 +255,9 @@ class Editor
     int paletteAdd();
     void palettePick(int index);
     void paletteRemove(int index);
+
+    /* Makes the brush `delta` pixels bigger (smaller if negative), within 1..PENCIL_BRUSH_MAX. */
+    void changeBrushSize(int delta);
 
     /* Exchanges the foreground and background colors. */
     void swapColors();
@@ -335,6 +353,28 @@ class Editor
     void setLayerVisible(int index, bool visible);
     void setLayerLocked(int index, bool locked);
 
+    /* The same for every selected layer, each as one undo step however many layers there are:
+     * remove (refused if it would leave no layer; the layer under the removed ones becomes the
+     * selection), duplicate (the copies become the selection), show / hide and lock / unlock. */
+    void removeSelectedLayers();
+    void duplicateSelectedLayers();
+
+    /* Merge draws the selected layers (bottom to top, with their opacities) onto the lowest of
+     * them, which keeps its name and properties and becomes the only selection; a lone selected
+     * layer is merged down. Unselected layers between them end up above the result. canMerge is
+     * true when it would work: every selected layer is visible, the lowest is not locked, and a
+     * lone layer has one below it. */
+    bool canMergeLayers() const;
+    void mergeSelectedLayers();
+    void setSelectedLayersVisible(bool visible);
+    void setSelectedLayersLocked(bool locked);
+
+    /* Moves the layer at `from`, which was dragged onto the layer at `to`. If `from` is part of a
+     * multi-layer selection the whole selection moves as a block, keeping its order, to just above
+     * `to` (when dragged up the stack) or just below it (when dragged down); dropping onto a
+     * selected layer does nothing. Otherwise it is moveLayer(from, to). */
+    void moveSelectedLayers(int from, int to);
+
     /* Duplicate puts a copy above the layer and makes it active; merge draws the layer onto the
      * one below it (both must be visible). If the merged layer was active the one below becomes
      * active, otherwise the active layer keeps pointing at the same layer. */
@@ -399,6 +439,8 @@ class Editor
     bool showGrid_ = true;
     Overlays overlays_;
     int activeLayer_ = 0;
+    std::vector<const Layer *> picked_; /* selected layers besides the active one, by identity */
+    const Layer *anchor_ = nullptr;     /* where a Shift pick starts */
     int frame_ = 0;
     ToolOptions options_;
     ViewState view_;

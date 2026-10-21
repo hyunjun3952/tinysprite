@@ -10,7 +10,9 @@
 
 /* Layer list (top layer first): each row shows what is painted on the layer, with visibility and
  * lock toggles (double-click a row to rename it in place), plus the opacity of the active layer and
- * add / remove / reorder buttons. Draws into the current ImGui window. */
+ * add / duplicate / delete / merge buttons. Click selects a layer, Ctrl+click adds or removes one,
+ * Shift+click selects a range; duplicate, delete, drag and the toggles then act on all the selected
+ * layers. Draws into the current ImGui window. */
 class LayersPanel
 {
   public:
@@ -50,7 +52,8 @@ class LayersPanel
     int focusFrame_ = -1;     /* the ImGui frame in which the window had the focus */
     bool openDelete_ = false; /* the dialog still has to be opened */
     bool dialogOpen_ = false;
-    int deleteIndex_ = -1; /* the layer the dialog is about */
+    int deleteCount_ = 0; /* how many layers the dialog is about, and the active one's name */
+    std::string deleteName_;
 
     /* The opacity is edited live and one undo step is recorded on release; this holds the value
      * from before that edit began. */

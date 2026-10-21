@@ -37,6 +37,13 @@ if(TINYSPRITE_BUILD_UI)
   add_test(NAME ui_layer_thumbnails COMMAND test_ui_layer_thumbnails)
   set_tests_properties(ui_layer_thumbnails PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
 
+  # The canvas with synthetic mouse input (panning).
+  add_executable(test_ui_canvas ui/ui_canvas.cpp)
+  target_include_directories(test_ui_canvas PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/third_party/imgui)
+  target_link_libraries(test_ui_canvas PRIVATE tinysprite_ui tinysprite_test_support)
+  add_test(NAME ui_canvas COMMAND test_ui_canvas)
+  set_tests_properties(ui_canvas PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+
   # The icon bitmaps are data: check their shape.
   add_executable(test_ui_icons ui/ui_icons.cpp)
   target_link_libraries(test_ui_icons PRIVATE tinysprite_ui tinysprite_test_support)

@@ -232,7 +232,7 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
     ImGui::EndDisabled();
     draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
          enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f));
-    theme::tip(tooltip);
+    theme::hint(tooltip, enabled);
     return clicked && enabled;
 }
 

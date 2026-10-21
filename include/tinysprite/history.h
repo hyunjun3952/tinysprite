@@ -47,6 +47,18 @@ class History
         return active_.cel != nullptr;
     }
 
+    /* Everything recorded between beginGroup and endGroup (actions, such as layer operations) is
+     * one undo step, undone in reverse order and redone in order, so an operation on several
+     * layers takes one Ctrl+Z. Groups do not nest, and neither strokes nor undo / redo happen
+     * while one is open: beginGroup returns false during a stroke or another group, endGroup
+     * returns false without one. An empty group records nothing. */
+    bool beginGroup();
+    bool endGroup();
+    bool grouping() const
+    {
+        return grouping_;
+    }
+
     /* Limits setPixel to the cels inside `area` (nullopt lifts the limit); a pixel outside it is
      * rejected like one out of bounds. Undo and redo are not affected. */
     void setClip(std::optional<Rect> area)
@@ -108,6 +120,8 @@ class History
     std::vector<Step> steps_; /* steps_[0..cursor_) are applied, the rest can be redone */
     size_t cursor_ = 0;
     std::optional<Rect> clip_;
+    bool grouping_ = false;
+    std::vector<Step> group_;         /* the steps of the open group, in order */
     std::optional<size_t> saved_ = 0; /* cursor_ value of the saved state, if still reachable */
     Step active_; /* the open stroke; it is open exactly while active_.cel is set */
 };

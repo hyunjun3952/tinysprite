@@ -17,6 +17,7 @@ namespace
 
 constexpr int WINDOW_WIDTH = 1100;
 constexpr int WINDOW_HEIGHT = 720;
+constexpr int BRUSH_STEP_BIG = 5; /* the brush size step with Shift held */
 
 } // namespace
 
@@ -238,10 +239,10 @@ void App::menuBar()
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("View")) {
-        if (ImGui::MenuItem("Zoom in", "+")) {
+        if (ImGui::MenuItem("Zoom in", "Wheel up")) {
             editor_->zoomStep(1);
         }
-        if (ImGui::MenuItem("Zoom out", "-")) {
+        if (ImGui::MenuItem("Zoom out", "Wheel down")) {
             editor_->zoomStep(-1);
         }
         if (ImGui::MenuItem("Fit", "F")) {
@@ -268,8 +269,8 @@ void App::menuBar()
     ImGui::EndMainMenuBar();
 }
 
-/* Keys that act without a modifier: tool letters, X (swap colors), [ ] (brush size), F (fit) and
- * +/- (zoom). */
+/* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size, 5 at
+ * a time with Shift) and F (fit). */
 void App::plainShortcuts()
 {
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
@@ -280,21 +281,18 @@ void App::plainShortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
         editor_->swapColors();
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket) && editor_->options().brush_size > 1) {
-        editor_->options().brush_size--;
+    /* + / - (and [ / ]) change the brush size by 1, or by 5 with Shift held; the wheel zooms. */
+    int step = ImGui::GetIO().KeyShift ? BRUSH_STEP_BIG : 1;
+    if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd) ||
+        ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
+        editor_->changeBrushSize(step);
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_RightBracket) &&
-        editor_->options().brush_size < PENCIL_BRUSH_MAX) {
-        editor_->options().brush_size++;
+    if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract) ||
+        ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
+        editor_->changeBrushSize(-step);
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
         editor_->view().needs_fit = true;
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) {
-        editor_->zoomStep(1);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) {
-        editor_->zoomStep(-1);
     }
 }
 
@@ -369,15 +367,17 @@ void App::helpWindow()
         {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
         {"Alt (hold)", "Temporary eyedropper"},
         {"X", "Swap foreground / background colors"},
-        {"[  ]", "Smaller / larger brush"},
+        {"+  -  or  [  ]", "Larger / smaller brush: 1 px, or 5 px with Shift"},
         {"Shift + click", "Pencil / eraser: straight line from the last point"},
         {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
         {"Wheel", "Zoom at the cursor"},
-        {"Middle drag, Space + drag", "Pan"},
-        {"+  -  F", "Zoom in, zoom out, fit"},
+        {"Right / middle drag, Space + drag", "Pan"},
+        {"Mouse wheel, F", "Zoom at the cursor, fit the sprite"},
         {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
         {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
-        {"Delete (layer list focused)", "Delete the active layer, after asking"},
+        {"Click / Ctrl+click / Shift+click on layers",
+         "Select one layer, add or remove one, select a range"},
+        {"Delete (layer list focused)", "Delete the selected layers, after asking"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
         {"Ctrl+O, Ctrl+S", "Open, save"},
         {"F1", "This window"},

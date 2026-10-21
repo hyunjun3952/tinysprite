@@ -25,6 +25,8 @@ struct Harness {
     float mouseX = 0.0f;
     float mouseY = 0.0f;
     std::function<void()> layersBody; /* drawn inside the Layers panel, if set */
+    std::function<void()> body;       /* drawn after the panels (the canvas), if set */
+    int button = 0;                   /* which mouse button frame() presses: 0 left, 1 right */
 
     Harness()
     {
@@ -56,7 +58,7 @@ struct Harness {
         mouseY = y;
         ImGuiIO &io = ImGui::GetIO();
         io.AddMousePosEvent(x, y);
-        io.AddMouseButtonEvent(0, down);
+        io.AddMouseButtonEvent(button, down);
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         io.DisplaySize = ImVec2(1000.0f, 700.0f);
@@ -70,6 +72,9 @@ struct Harness {
             layersBody();
         }
         panels.end();
+        if (body) {
+            body();
+        }
         ImGui::Render();
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
     }
@@ -94,6 +99,15 @@ struct Harness {
         frame(mouseX, mouseY, false);
         ImGui::GetIO().AddKeyEvent(key, false);
         frame(mouseX, mouseY, false);
+    }
+
+    /* The color last rendered at (x, y), as 0xRRGGBB. */
+    unsigned pixel(int x, int y) const
+    {
+        SDL_Rect rect = {x, y, 1, 1};
+        Uint32 value = 0;
+        SDL_RenderReadPixels(renderer, &rect, SDL_PIXELFORMAT_ARGB8888, &value, sizeof(value));
+        return value & 0xffffffu;
     }
 
     ImVec2 windowPos(const char *name) const

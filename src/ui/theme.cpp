@@ -109,9 +109,18 @@ float columnWidth(int count)
 
 void tip(const char *text)
 {
-    if (text &&
-        ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled)) {
+    /* Without AllowWhenDisabled a disabled item is never hovered, so it gets no tooltip. */
+    if (text && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
         ImGui::SetTooltip("%s", text);
+    }
+}
+
+void hint(const char *tooltip, bool enabled)
+{
+    if (enabled) {
+        tip(tooltip);
+    } else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
     }
 }
 
@@ -147,7 +156,7 @@ bool actionButton(const char *label, const char *tooltip, float width, bool enab
     ImGui::BeginDisabled(!enabled);
     bool clicked = ImGui::Button(label, ImVec2(width, 0.0f));
     ImGui::EndDisabled();
-    tip(tooltip);
+    hint(tooltip, enabled);
     return clicked && enabled;
 }
 

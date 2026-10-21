@@ -23,8 +23,8 @@ const std::array<const char *, SIZE> &bitmap(Icon icon);
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
 
 /* A framed button with the icon centered, like the other buttons. `id` must be unique in the ID
- * scope and start with "##" (there is no label). The tooltip shows also while disabled. Returns
- * true when clicked. */
+ * scope and start with "##" (there is no label). While disabled it shows the "not allowed" cursor
+ * instead of the tooltip. Returns true when clicked. */
 bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled = true);
 
 /* A frameless square toggle for a list row: shows `on` in the text color or `off` muted, with a

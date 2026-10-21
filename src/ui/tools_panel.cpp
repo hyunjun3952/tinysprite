@@ -154,7 +154,7 @@ void ToolsPanel::toolOptions()
     bool closedShape = tool == ToolKind::Rect || tool == ToolKind::Ellipse;
     if (brush) {
         ImGui::SliderInt("Size", &options.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
-        theme::tip("Brush width in pixels. [ and ] make it smaller / larger.");
+        theme::tip("Brush width in pixels. + and - (or [ and ]) change it by 1, by 5 with Shift.");
         ImGui::Checkbox("Round brush", &options.brush_round);
         theme::tip("Stamp a round brush instead of a square one (matters above 1 px).");
         ImGui::Checkbox("Pixel-perfect", &options.pixel_perfect);

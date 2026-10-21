@@ -66,13 +66,15 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
         editor_.view().viewport.zoomAt(zoom, localX, localY);
         editor_.view().auto_fit = false;
     }
-    /* Space + left drag pans like the middle button, without drawing. */
+    /* The middle or the right button pans, and so does Space + left drag, without drawing. */
     bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_.stroking();
     if (active && (ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
+                   ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
                    (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)))) {
         editor_.view().viewport.pan_x += io.MouseDelta.x;
         editor_.view().viewport.pan_y += io.MouseDelta.y;
         editor_.view().auto_fit = false;
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         return;
     }
 
@@ -240,7 +242,8 @@ void Canvas::show(float x, float y, float w, float h)
     }
 
     ImGui::InvisibleButton("canvas", avail,
-                           ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
+                           ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle |
+                               ImGuiButtonFlags_MouseButtonRight);
     handleInput(origin, ImGui::IsItemHovered(), ImGui::IsItemActive());
     editor_.updateTexture();
 

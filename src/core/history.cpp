@@ -1,5 +1,6 @@
 #include "tinysprite/history.h"
 
+#include <memory>
 #include <utility>
 
 /* Restores old colors newest-first so a pixel written several times ends at its original value. */
@@ -33,7 +34,7 @@ void History::apply(const Step &step)
 
 bool History::beginStroke(Cel &cel)
 {
-    if (strokeActive()) {
+    if (strokeActive() || grouping_) {
         return false;
     }
     active_ = Step{};
@@ -63,8 +64,49 @@ void History::markSaved()
     saved_ = cursor_;
 }
 
+bool History::beginGroup()
+{
+    if (strokeActive() || grouping_) {
+        return false;
+    }
+    grouping_ = true;
+    return true;
+}
+
+bool History::endGroup()
+{
+    if (!grouping_) {
+        return false;
+    }
+    grouping_ = false;
+    std::vector<Step> steps = std::move(group_);
+    group_.clear();
+    if (steps.empty()) {
+        return true;
+    }
+    /* The group becomes one action step that owns the steps it covers. */
+    auto shared = std::make_shared<std::vector<Step>>(std::move(steps));
+    Step group;
+    group.action.undo = [shared] {
+        for (auto it = shared->rbegin(); it != shared->rend(); ++it) {
+            revert(*it);
+        }
+    };
+    group.action.redo = [shared] {
+        for (const Step &step : *shared) {
+            apply(step);
+        }
+    };
+    commit(std::move(group));
+    return true;
+}
+
 void History::commit(Step &&step)
 {
+    if (grouping_) {
+        group_.push_back(std::move(step));
+        return;
+    }
     if (saved_ && *saved_ > cursor_) {
         saved_.reset();
     }
@@ -107,7 +149,7 @@ bool History::pushAction(HistoryAction action)
 
 bool History::undo()
 {
-    if (!canUndo() || strokeActive()) {
+    if (!canUndo() || strokeActive() || grouping_) {
         return false;
     }
     revert(steps_[--cursor_]);
@@ -116,7 +158,7 @@ bool History::undo()
 
 bool History::redo()
 {
-    if (!canRedo() || strokeActive()) {
+    if (!canRedo() || strokeActive() || grouping_) {
         return false;
     }
     apply(steps_[cursor_++]);
