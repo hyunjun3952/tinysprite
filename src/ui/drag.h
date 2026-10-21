@@ -6,7 +6,7 @@
 class Editor;
 
 /* What the mouse is doing between a tool's press and its release. The editor owns at most one;
- * each tool's drag is in tools.cpp. Cel coordinates may lie outside the sprite. */
+ * each tool's drag is in drags.cpp. Cel coordinates may lie outside the sprite. */
 class Drag
 {
   public:

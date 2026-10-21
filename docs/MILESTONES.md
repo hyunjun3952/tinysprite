@@ -2,64 +2,29 @@
 
 Phase 1 = drawing-tool core (MVP). Animation is phase 2, game pipeline is phase 3.
 Every step is TDD: failing test first, then implementation, then refactor.
-Full design rationale: see the "Architecture" and "Conventions" sections of `CLAUDE.md`.
+Rules: `CLAUDE.md`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Phase 1
 
+Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas that came out of it are below.
+
 - [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.h`, smoke test.
-      SDL2/ImGui are only checked for availability here (SDL2 is not installed yet: `sudo apt install libsdl2-dev`).
-- [x] **1b. Format / lint automation** — K&R `.clang-format` (4-space indent), `.clang-tidy`,
-      `scripts/{format,lint,setup-hooks}.sh`, `.githooks/`, GitHub Actions CI.
-- [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, opaque types, public headers in `include/tinysprite/`.
-      Cel is RGBA only for now; palette is 256 colors max; sprite starts with 1 frame and 1 layer.
-- [x] **3. Rasterizer** — Bresenham line, rectangle, ellipse, flood fill, tested against golden pixel arrays.
-      `include/tinysprite/raster.h`: pure functions that report pixels through a plot callback and never touch a cel,
-      so tools can route edits through history. Ellipses may report a pixel twice; flood fill only reads the cel.
-- [x] **4. Pencil / eraser + History** — undo/redo unit is one stroke; storage is a pixel delta `(index, old, new)`.
-      All edits must go through history.
-      `history.h` (`beginStroke` / `setPixel` / `endStroke`, undo, redo) and `tools.h` (`pencil_stroke` takes a
-      point list and joins it with `raster_line`). Out-of-bounds pixels are clipped by history. Only the batch form
-      exists; the UI (milestone 5) will need a live begin/extend/end stroke while the mouse is dragging.
-- [x] **5. SDL2 + ImGui app + CPU-composited canvas** — zoom/pan, grid, checkerboard, coordinate transform
-      (pure function, unit-tested), minimal foreground color picker. Built whenever SDL2 is installed
-      (`libsdl2-dev`; `-DTINYSPRITE_BUILD_UI=OFF` skips it; the `tinysprite` binary lands in `<build>/src/ui/`).
-      Core additions: `viewport.h` (zoom/pan/fit + screen<->cel transform), `composite.h` (flatten visible layers
-      into an RGBA buffer, dirty-rect aware), `PencilStroke` (live stroke for dragging)
-      and `History::cancelStroke`. UI: `src/ui/{app,canvas,editor}.cpp` (the backends are called from `App` directly).
-      Controls: left drag draws, wheel zooms at the cursor, middle drag pans, Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo/redo.
-      `tinysprite [width [height]] [--frames N]` — `--frames` exits after N frames (smoke runs, e.g.
-      `SDL_VIDEODRIVER=dummy`).
-- [x] **6. Remaining tools + layer operations** — bucket, eyedropper, shapes, selection/move, pixel-perfect,
-      symmetry, layer panel.
-      Core (all TDD, public headers in `include/tinysprite/`): `tools.h` (`bucket_fill`, eyedropper
-      (`eyedropper_pick_cel` / `_sprite`, the latter via new `composite_pixel`), shape (line / rect / ellipse;
-      batch `shape_stroke` plus live `ShapeStroke`), `selection.h` (rectangular selection move,
-      batch `move_stroke` plus live `MoveStroke`), `PencilOptions` + `PencilStroke::begin` (pixel-perfect,
-      mirror X / Y), `Sprite::removeLayer` / `moveLayer`, `Layer::setName`, `History::forgetCel`.
-      UI: `src/ui/drags.cpp` (one `Drag` subclass per tool), `src/ui/layers_panel.cpp`; the tools panel
-      lists all eight tools plus Pixel-perfect / Mirror X / Mirror Y / Filled options.
-      Controls: Esc cancels a drag (or clears the selection), Delete clears the selection, Ctrl+A selects all.
-- [x] **7. File I/O** — `.pxa` (versioned, length-prefixed chunks, round-trip tests) and image export / import via stb.
-      `include/tinysprite/io.h`: `pxa_encode` / `pxa_decode` (in memory, used by the tests) and `pxa_save` /
-      `pxa_load`; `image_export` (flattened frame; .png / .bmp / .tga keep alpha, .jpg shows transparency as white; the format follows the extension) and `image_import` (becomes a one-layer sprite). The chunk layout
-      is documented in the header; a reader skips unknown chunks, rejects other versions and truncated data, and
-      refuses files with more than one frame until phase 2. UI: File menu Open / Save / Save as / Export image
-      (Ctrl+O / Ctrl+S) with a path dialog, since there is no native file chooser; `Editor::setSprite` swaps the
-      document and starts the history over. Opening an image imports it and leaves no save path.
-- [x] **8. Polish** — palette files (.gpl/.hex), settings, autosave recovery, shortcuts, Linux/Windows build check.
-      Palette files: `palette_encode_hex` / `_gpl`, `palette_decode` (autodetects by the "GIMP Palette" header),
-      `palette_save` / `palette_load` by extension (`io.h`; .gpl has no alpha, .hex keeps it); File > Import / Export
-      palette, import is not undoable and marks the document modified. `file_write_atomic` (temp file + rename) is shared by
-      every writer. Settings: `src/ui/settings.{h,cpp}` is a sorted key=value map in `<config dir>/settings.ini`
-      (`TINYSPRITE_CONFIG_DIR`, `--config-dir`, else XDG / `~/.config` / `%APPDATA%`); `Editor::store` / `load` (grid,
-      overlays, brush and shape options, colors, tool) and `Panels::store` / `load` (visibility, dock side, width, sections)
-      read only keys they know and ignore invalid values, the window size is kept too, symmetry never is. Autosave
-      recovery: `src/ui/recovery.{h,cpp}` writes `recovery.pxa` + `recovery.path` every 30 s while the document is
-      dirty, removes them once it is clean or on a clean exit, and the next start offers Recover / Discard
-      (`Editor::markModified` keeps a recovered document dirty). `--frames` runs touch neither unless `--config-dir` is given
-      (`ui_persist_*` tests). Shortcuts: Ctrl+N (New dialog: size), Ctrl+Shift+S, Ctrl+E, listed in F1 and the File menu.
-      Build check: Linux is built and linted with ASan/UBSan in CI; the Windows (MinGW) job builds the UI and runs the tests,
-      the new code only uses `std::filesystem` and `%APPDATA%`, but could not be built on Windows locally.
+- [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `scripts/{format,lint,setup-hooks}.sh`,
+      `.githooks/`, GitHub Actions CI.
+- [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, public headers in `include/tinysprite/`.
+      Cel is RGBA only; the palette holds at most 256 colors; a sprite starts with 1 frame and 1 layer.
+- [x] **3. Rasterizer** — line, rectangle, ellipse, polygon, flood fill, tested against golden pixel arrays.
+- [x] **4. Pencil / eraser + History** — one undo step per stroke, stored as pixel deltas.
+- [x] **5. SDL2 + ImGui app + CPU-composited canvas** — zoom / pan, grid, checkerboard, `Viewport` transform,
+      `composite_sprite`, live strokes. `tinysprite [width [height]] [--frames N]`: `--frames` exits after N frames
+      (smoke runs, e.g. `SDL_VIDEODRIVER=dummy`).
+- [x] **6. Remaining tools + layer operations** — bucket, eyedropper, shapes, selection / move, pixel-perfect,
+      symmetry, undoable layer operations (`layer_ops.h`), layer panel.
+- [x] **7. File I/O** — `.pxa` (versioned, chunked) and image export / import via stb; File menu with a path dialog,
+      since there is no native file chooser.
+- [x] **8. Polish** — palette files (`.gpl` / `.hex`), settings (`settings.ini`), autosave recovery, shortcuts,
+      Linux and Windows (MinGW) builds in CI. The Windows job could not be built locally; it only relies on
+      `std::filesystem` and `%APPDATA%`.
 
 ## Phase 2: animation
 Timeline, per-frame duration, onion skin, playback, tags, linked cels, GIF / spritesheet export.
@@ -100,10 +65,10 @@ headless CLI export, optional Aseprite import.
   (`shape_stroke` / `ShapeStroke::begin` with a `ShapeStyle`) and bucket (`bucket_fill`).
 - The selection is a single rectangle clipped to the sprite. Moving it loses pixels pushed off the sprite, and
   transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
-  it, unless the click only dismisses an existing selection. There is no selection copy / paste yet.
+  it, unless the click only dismisses an existing selection.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
-- `tests/ui/ui_editor.cpp` (ctest `ui_editor`, only when the UI is built, runs under
-  `SDL_VIDEODRIVER=dummy`) covers `editor.cpp` and `tools.cpp`; `layers_panel.cpp` (ImGui widgets) is still not covered.
+- `tests/ui/ui_editor_*.cpp` (ctest `ui_editor_{selection,layers,colors,drawing,document}`, shared helpers in
+  `ui_editor_support.h`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
   CI builds the UI, so the `ui_*` tests run there too.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
@@ -123,7 +88,7 @@ headless CLI export, optional Aseprite import.
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
 - UI layout (`src/ui/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
   floating windows; dragging a docked panel's title bar pulls it out (it follows the mouse until release), and
-  dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
+  dragging a floating title bar to an edge docks it. The layout is persisted (`Panels::store` / `load`). The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`).
 - Look (`src/ui/theme.cpp`): a warm near-charcoal dark theme after the Warp design language (canvas `#2b2622`, cards /
   inputs `#383330`, 1 px hairlines `#3f3a36`, 3-4 px corner radii, no shadows). The off-white `#f7f5f0` is the only accent:
