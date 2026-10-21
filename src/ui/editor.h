@@ -5,13 +5,22 @@
 
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
+#include "tinysprite/move.h"
 #include "tinysprite/pencil.h"
+#include "tinysprite/shape.h"
 #include "tinysprite/sprite.h"
 #include "tinysprite/viewport.h"
 
 typedef enum ToolKind {
     TOOL_PENCIL,
     TOOL_ERASER,
+    TOOL_BUCKET,
+    TOOL_EYEDROPPER,
+    TOOL_LINE,
+    TOOL_RECT,
+    TOOL_ELLIPSE,
+    TOOL_SELECT,
+    TOOL_COUNT,
 } ToolKind;
 
 /* Everything the UI edits: the document, its undo history, the tool state and the CPU-composited
@@ -25,12 +34,31 @@ typedef struct Editor {
     int active_layer;
     int frame;
 
+    /* Tool options: pixel_perfect / mirror_* apply to pencil and eraser, shape_filled to the
+     * rectangle and ellipse. */
+    int pixel_perfect;
+    int mirror_x, mirror_y;
+    int shape_filled;
+
     Viewport view;
     int needs_fit;            /* fit the sprite to the canvas on the next canvas frame */
     float canvas_w, canvas_h; /* canvas size as of the last canvas frame */
 
-    PencilStroke *stroke; /* non-NULL while the left mouse button draws */
-    int stroke_x, stroke_y;
+    /* Drag state: dragging is non-zero from a tool's press until its release or cancel. At most
+     * one of the stroke pointers is set (the eyedropper and a new selection use none). */
+    int dragging;
+    PencilStroke *stroke;
+    ShapeStroke *shape;
+    MoveStroke *move;
+    int drag_x, drag_y;     /* cel under the mouse at the last drag step */
+    int anchor_x, anchor_y; /* cel under the mouse at the press */
+
+    /* Rectangular selection in cel coordinates, always inside the sprite. While a selection is
+     * being moved (move != NULL) it stays at its origin and move_dx/dy hold the drag offset. */
+    int has_selection;
+    CompositeRect selection;
+    int selecting; /* dragging out a new selection */
+    int move_dx, move_dy;
 
     int hover_x, hover_y; /* cel under the mouse, valid when hovering is non-zero */
     int hovering;
@@ -57,8 +85,25 @@ void editor_update_texture(Editor *editor);
 /* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
 void editor_zoom_step(Editor *editor, int direction);
 
+/* Non-zero while a tool is being dragged (undo / redo / layer changes are held off meanwhile). */
+int editor_stroking(const Editor *editor);
+
+/* The cel of the active layer and frame; NULL if there is none. */
+Cel *editor_active_cel(Editor *editor);
+
 /* Undo / redo; they do nothing while a stroke is being drawn. */
 void editor_undo(Editor *editor);
 void editor_redo(Editor *editor);
+
+/* Layer operations (all do nothing while a tool is being dragged). Removing a layer also drops its
+ * undo steps, since they refer to the layer's cels. */
+void editor_add_layer(Editor *editor);
+void editor_remove_layer(Editor *editor, int index);
+void editor_move_layer(Editor *editor, int from, int to);
+
+/* Selection helpers. Delete clears the selected pixels (one undo step). */
+void editor_select_all(Editor *editor);
+void editor_clear_selection(Editor *editor);
+void editor_delete_selection(Editor *editor);
 
 #endif

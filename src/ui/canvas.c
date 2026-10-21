@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include "tools.h"
+
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
 
@@ -29,35 +31,6 @@ typedef struct ScreenRect {
     float x0, y0, x1, y1;
 } ScreenRect;
 
-static void begin_stroke(Editor *editor, int cx, int cy)
-{
-    Cel *cel = layer_cel(sprite_layer(editor->sprite, editor->active_layer), editor->frame);
-    editor->stroke = pencil_stroke_begin(editor->history, cel, editor_color(editor),
-                                         editor->tool == TOOL_ERASER, cx, cy);
-    if (editor->stroke) {
-        editor->stroke_x = cx;
-        editor->stroke_y = cy;
-        editor_mark_dirty(editor, cx, cy, cx, cy);
-    }
-}
-
-static void extend_stroke(Editor *editor, int cx, int cy)
-{
-    if (cx == editor->stroke_x && cy == editor->stroke_y) {
-        return;
-    }
-    pencil_stroke_extend(editor->stroke, cx, cy);
-    editor_mark_dirty(editor, editor->stroke_x, editor->stroke_y, cx, cy);
-    editor->stroke_x = cx;
-    editor->stroke_y = cy;
-}
-
-static void end_stroke(Editor *editor)
-{
-    pencil_stroke_end(editor->stroke);
-    editor->stroke = NULL;
-}
-
 static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
 {
     ImGuiIO *io = igGetIO_Nil();
@@ -80,13 +53,13 @@ static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
         editor->view.pan_y += io->MouseDelta.y;
     }
 
-    if (!editor->stroke && hovered && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
-        begin_stroke(editor, cx, cy);
-    } else if (editor->stroke) {
+    if (!editor->dragging && hovered && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
+        tools_press(editor, cx, cy);
+    } else if (editor->dragging) {
         if (igIsMouseDown_Nil(ImGuiMouseButton_Left)) {
-            extend_stroke(editor, cx, cy);
+            tools_drag(editor, cx, cy);
         } else {
-            end_stroke(editor);
+            tools_release(editor);
         }
     }
 }
@@ -171,6 +144,42 @@ static void draw_hover_outline(ImDrawList *draw, const Editor *editor, ImVec2 or
     ImDrawList_AddLine(draw, (ImVec2){x0, y1}, (ImVec2){x0, y0}, color, 1.0f, 0);
 }
 
+static void draw_rect_outline(ImDrawList *draw, ImVec2 p0, ImVec2 p1, ImU32 color)
+{
+    ImDrawList_AddRect(draw, p0, p1, color, 0.0f, 1.0f, 0);
+}
+
+/* Selection outline: a dark rectangle under a light one so it shows on any background. */
+static void draw_selection(ImDrawList *draw, const Editor *editor, ImVec2 origin)
+{
+    if (!editor->has_selection) {
+        return;
+    }
+    const CompositeRect *r = &editor->selection;
+    int dx = editor->move ? editor->move_dx : 0;
+    int dy = editor->move ? editor->move_dy : 0;
+    ImVec2 p0 = {origin.x + viewport_cel_to_screen_x(&editor->view, r->x + dx),
+                 origin.y + viewport_cel_to_screen_y(&editor->view, r->y + dy)};
+    ImVec2 p1 = {p0.x + (float)r->w * editor->view.zoom, p0.y + (float)r->h * editor->view.zoom};
+    draw_rect_outline(draw, (ImVec2){p0.x - 1.0f, p0.y - 1.0f}, (ImVec2){p1.x + 1.0f, p1.y + 1.0f},
+                      COL32(0, 0, 0, 220));
+    draw_rect_outline(draw, p0, p1, COL32(255, 255, 255, 255));
+}
+
+/* Center line(s) the symmetry option mirrors across. */
+static void draw_mirror_axes(ImDrawList *draw, const Editor *editor, ScreenRect sprite)
+{
+    ImU32 color = COL32(0, 200, 255, 200);
+    if (editor->mirror_x) {
+        float x = (sprite.x0 + sprite.x1) / 2.0f;
+        ImDrawList_AddLine(draw, (ImVec2){x, sprite.y0}, (ImVec2){x, sprite.y1}, color, 1.0f, 0);
+    }
+    if (editor->mirror_y) {
+        float y = (sprite.y0 + sprite.y1) / 2.0f;
+        ImDrawList_AddLine(draw, (ImVec2){sprite.x0, y}, (ImVec2){sprite.x1, y}, color, 1.0f, 0);
+    }
+}
+
 void canvas_show(Editor *editor, float x, float y, float w, float h)
 {
     igSetNextWindowPos((ImVec2){x, y}, ImGuiCond_Always, (ImVec2){0.0f, 0.0f});
@@ -219,6 +228,8 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
             draw_grid(draw, editor, origin, visible);
         }
     }
+    draw_mirror_axes(draw, editor, sprite);
+    draw_selection(draw, editor, origin);
     draw_hover_outline(draw, editor, origin);
     ImDrawList_PopClipRect(draw);
 

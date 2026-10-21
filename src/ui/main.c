@@ -8,6 +8,8 @@
 #include "cimgui.h"
 #include "editor.h"
 #include "imgui_backend.h"
+#include "layers_panel.h"
+#include "tools.h"
 
 enum {
     DEFAULT_SPRITE_SIZE = 64,
@@ -54,12 +56,32 @@ static void tools_panel(Editor *editor, float height)
     igBegin("Tools", NULL,
             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
-    if (igRadioButton_Bool("Pencil", editor->tool == TOOL_PENCIL)) {
-        editor->tool = TOOL_PENCIL;
+    for (int tool = 0; tool < TOOL_COUNT; tool++) {
+        if (tool % 2 != 0) {
+            igSameLine(110.0f, -1.0f);
+        }
+        if (igRadioButton_Bool(tools_name((ToolKind)tool), editor->tool == (ToolKind)tool)) {
+            editor->tool = (ToolKind)tool;
+        }
     }
-    igSameLine(0.0f, -1.0f);
-    if (igRadioButton_Bool("Eraser", editor->tool == TOOL_ERASER)) {
-        editor->tool = TOOL_ERASER;
+
+    igSeparatorText("Options");
+    bool option = editor->pixel_perfect != 0;
+    if (igCheckbox("Pixel-perfect", &option)) {
+        editor->pixel_perfect = option;
+    }
+    option = editor->mirror_x != 0;
+    if (igCheckbox("Mirror X", &option)) {
+        editor->mirror_x = option;
+    }
+    igSameLine(110.0f, -1.0f);
+    option = editor->mirror_y != 0;
+    if (igCheckbox("Mirror Y", &option)) {
+        editor->mirror_y = option;
+    }
+    option = editor->shape_filled != 0;
+    if (igCheckbox("Filled shapes", &option)) {
+        editor->shape_filled = option;
     }
 
     igSeparatorText("Color");
@@ -92,17 +114,19 @@ static void tools_panel(Editor *editor, float height)
     }
 
     igSeparatorText("History");
-    igBeginDisabled(!history_can_undo(editor->history) || editor->stroke != NULL);
+    igBeginDisabled(!history_can_undo(editor->history) || editor_stroking(editor));
     if (igButton("Undo", (ImVec2){0.0f, 0.0f})) {
         editor_undo(editor);
     }
     igEndDisabled();
     igSameLine(0.0f, -1.0f);
-    igBeginDisabled(!history_can_redo(editor->history) || editor->stroke != NULL);
+    igBeginDisabled(!history_can_redo(editor->history) || editor_stroking(editor));
     if (igButton("Redo", (ImVec2){0.0f, 0.0f})) {
         editor_redo(editor);
     }
     igEndDisabled();
+
+    layers_panel_show(editor);
 
     igEnd();
 }
@@ -110,7 +134,23 @@ static void tools_panel(Editor *editor, float height)
 static void handle_shortcuts(Editor *editor)
 {
     ImGuiIO *io = igGetIO_Nil();
-    if (io->WantTextInput || !io->KeyCtrl || editor->stroke) {
+    if (io->WantTextInput) {
+        return;
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_Escape, false)) {
+        if (editor_stroking(editor)) {
+            tools_cancel(editor);
+        } else {
+            editor_clear_selection(editor);
+        }
+    }
+    if (editor_stroking(editor)) {
+        return;
+    }
+    if (igIsKeyPressed_Bool(ImGuiKey_Delete, false)) {
+        editor_delete_selection(editor);
+    }
+    if (!io->KeyCtrl) {
         return;
     }
     if (igIsKeyPressed_Bool(ImGuiKey_Z, true)) {
@@ -121,6 +161,8 @@ static void handle_shortcuts(Editor *editor)
         }
     } else if (igIsKeyPressed_Bool(ImGuiKey_Y, true)) {
         editor_redo(editor);
+    } else if (igIsKeyPressed_Bool(ImGuiKey_A, false)) {
+        editor_select_all(editor);
     }
 }
 

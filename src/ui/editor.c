@@ -1,6 +1,7 @@
 #include "editor.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static uint8_t to_byte(float value)
@@ -50,9 +51,9 @@ void editor_destroy(Editor *editor)
     if (!editor) {
         return;
     }
-    if (editor->stroke) {
-        pencil_stroke_cancel(editor->stroke);
-    }
+    pencil_stroke_cancel(editor->stroke);
+    shape_stroke_cancel(editor->shape);
+    move_stroke_cancel(editor->move);
     if (editor->texture) {
         SDL_DestroyTexture(editor->texture);
     }
@@ -142,5 +143,98 @@ void editor_redo(Editor *editor)
 {
     if (history_redo(editor->history) == 0) {
         editor_mark_all_dirty(editor);
+    }
+}
+
+int editor_stroking(const Editor *editor)
+{
+    return editor->dragging;
+}
+
+Cel *editor_active_cel(Editor *editor)
+{
+    Layer *layer = sprite_layer(editor->sprite, editor->active_layer);
+    return layer ? layer_cel(layer, editor->frame) : NULL;
+}
+
+void editor_add_layer(Editor *editor)
+{
+    if (editor->dragging) {
+        return;
+    }
+    char name[LAYER_NAME_MAX + 1];
+    snprintf(name, sizeof(name), "Layer %d", sprite_layer_count(editor->sprite) + 1);
+    if (sprite_add_layer(editor->sprite, name)) {
+        editor->active_layer = sprite_layer_count(editor->sprite) - 1;
+    }
+}
+
+void editor_remove_layer(Editor *editor, int index)
+{
+    Layer *layer = sprite_layer(editor->sprite, index);
+    if (editor->dragging || !layer || sprite_layer_count(editor->sprite) == 1) {
+        return;
+    }
+    for (int frame = 0; frame < layer_frame_count(layer); frame++) {
+        history_forget_cel(editor->history, layer_cel(layer, frame));
+    }
+    if (sprite_remove_layer(editor->sprite, index) != 0) {
+        return;
+    }
+    if (editor->active_layer > index) {
+        editor->active_layer--;
+    }
+    int last = sprite_layer_count(editor->sprite) - 1;
+    if (editor->active_layer > last) {
+        editor->active_layer = last;
+    }
+    editor_mark_all_dirty(editor);
+}
+
+void editor_move_layer(Editor *editor, int from, int to)
+{
+    if (editor->dragging || sprite_move_layer(editor->sprite, from, to) != 0) {
+        return;
+    }
+    /* The active layer keeps pointing at the same layer. */
+    int active = editor->active_layer;
+    if (active == from) {
+        editor->active_layer = to;
+    } else if (from < active && active <= to) {
+        editor->active_layer = active - 1;
+    } else if (to <= active && active < from) {
+        editor->active_layer = active + 1;
+    }
+    editor_mark_all_dirty(editor);
+}
+
+void editor_select_all(Editor *editor)
+{
+    if (editor->dragging) {
+        return;
+    }
+    editor->has_selection = 1;
+    editor->selection =
+        (CompositeRect){0, 0, sprite_width(editor->sprite), sprite_height(editor->sprite)};
+}
+
+void editor_clear_selection(Editor *editor)
+{
+    if (!editor->dragging) {
+        editor->has_selection = 0;
+    }
+}
+
+void editor_delete_selection(Editor *editor)
+{
+    Cel *cel = editor_active_cel(editor);
+    Layer *layer = sprite_layer(editor->sprite, editor->active_layer);
+    if (editor->dragging || !editor->has_selection || !cel || !layer_visible(layer)) {
+        return;
+    }
+    CompositeRect r = editor->selection;
+    if (shape_stroke(editor->history, cel, SHAPE_RECT, 1, (Rgba){0, 0, 0, 0}, r.x, r.y,
+                     r.x + r.w - 1, r.y + r.h - 1) == 0) {
+        editor_mark_dirty(editor, r.x, r.y, r.x + r.w - 1, r.y + r.h - 1);
     }
 }
