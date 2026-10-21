@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #include <memory>
+#include <string>
 
 #include "canvas.h"
 #include "editor.h"
@@ -38,11 +39,25 @@ class App
     void handleShortcuts();
     void layersWindow(float height);
 
+    /* File menu: each action asks for a path in a small dialog (there is no native file chooser).
+     */
+    enum class FileAction { None, Open, SaveAs, ExportImage };
+    void askForPath(FileAction action);
+    void save();
+    void fileDialog();
+    bool runFileAction(const std::string &path);
+
     SDL_Window *window_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;
     bool imguiContext_ = false;
     bool backends_ = false;
     bool running_ = true;
+
+    FileAction fileAction_ = FileAction::None;
+    bool openFileDialog_ = false;
+    std::string filePath_;     /* the .pxa the document was opened from / saved to, "" if none */
+    char pathInput_[512] = ""; /* the dialog's text field */
+    std::string fileError_;
 
     Panels panels_;
     std::unique_ptr<Editor> editor_;

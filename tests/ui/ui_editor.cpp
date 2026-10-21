@@ -2,6 +2,7 @@
  * Built only with -DTINYSPRITE_BUILD_UI=ON. */
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 
 #include "editor.h"
 #include "minitest.h"
@@ -614,6 +615,40 @@ TEST(duplicate_and_merge_are_held_off_while_dragging_or_invalid)
     delete e;
 }
 
+TEST(set_sprite_replaces_the_document_and_starts_over)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Pencil);
+    click(e, 1, 1);
+    e->selectAll();
+    ASSERT_TRUE(e->history().canUndo());
+
+    Sprite loaded(20, 10);
+    loaded.addLayer("Second");
+    ASSERT_TRUE(e->setSprite(std::move(loaded)));
+    ASSERT_EQ_INT(20, e->sprite().width());
+    ASSERT_EQ_INT(2, e->sprite().layerCount());
+    ASSERT_EQ_INT(0, e->activeLayer());
+    ASSERT_TRUE(!e->history().canUndo());
+    ASSERT_TRUE(!e->hasSelection());
+    ASSERT_TRUE(e->view().needs_fit);
+    e->updateTexture(); /* the texture matches the new size */
+    click(e, 19, 9);
+    ASSERT_EQ_INT(255, alpha(e, 19, 9));
+    delete e;
+}
+
+TEST(set_sprite_is_refused_while_dragging)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Pencil);
+    e->press(0, 0);
+    ASSERT_TRUE(!e->setSprite(Sprite(4, 4)));
+    ASSERT_EQ_INT(8, e->sprite().width());
+    e->release();
+    delete e;
+}
+
 int main(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -663,6 +698,8 @@ int main(void)
     RUN(merge_layer_down_selects_the_lower_layer);
     RUN(merge_down_follows_a_higher_active_layer);
     RUN(duplicate_and_merge_are_held_off_while_dragging_or_invalid);
+    RUN(set_sprite_replaces_the_document_and_starts_over);
+    RUN(set_sprite_is_refused_while_dragging);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

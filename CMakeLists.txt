@@ -24,13 +24,11 @@ if(NOT MSVC)
 endif()
 
 file(GLOB_RECURSE IO_SOURCES CONFIGURE_DEPENDS src/io/*.cpp)
-if(IO_SOURCES)
-  add_library(tinysprite_io STATIC ${IO_SOURCES})
-  target_link_libraries(tinysprite_io PUBLIC tinysprite_core)
-else()
-  add_library(tinysprite_io INTERFACE)
-  target_link_libraries(tinysprite_io INTERFACE tinysprite_core)
-endif()
+add_library(tinysprite_io STATIC ${IO_SOURCES})
+target_include_directories(tinysprite_io PRIVATE third_party/stb)
+target_link_libraries(tinysprite_io PUBLIC tinysprite_core)
+# stb is third-party code: compile its implementation without our warnings.
+set_source_files_properties(src/io/stb_impl.cpp PROPERTIES COMPILE_OPTIONS -w)
 
 if(TINYSPRITE_BUILD_UI)
   add_subdirectory(src/ui)

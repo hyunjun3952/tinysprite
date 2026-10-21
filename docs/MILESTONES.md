@@ -39,7 +39,13 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       UI: `src/ui/drags.cpp` (one `Drag` subclass per tool), `src/ui/layers_panel.cpp`; the tools panel
       lists all eight tools plus Pixel-perfect / Mirror X / Mirror Y / Filled options.
       Controls: Esc cancels a drag (or clears the selection), Delete clears the selection, Ctrl+A selects all.
-- [ ] **7. File I/O** — `.pxa` (versioned, length-prefixed chunks, round-trip tests) and PNG via stb.
+- [x] **7. File I/O** — `.pxa` (versioned, length-prefixed chunks, round-trip tests) and image export / import via stb.
+      `include/tinysprite/io.h`: `pxa_encode` / `pxa_decode` (in memory, used by the tests) and `pxa_save` /
+      `pxa_load`; `image_export` (flattened frame; .png / .bmp / .tga keep alpha, .jpg shows transparency as white; the format follows the extension) and `image_import` (becomes a one-layer sprite). The chunk layout
+      is documented in the header; a reader skips unknown chunks, rejects other versions and truncated data, and
+      refuses files with more than one frame until phase 2. UI: File menu Open / Save / Save as / Export image
+      (Ctrl+O / Ctrl+S) with a path dialog, since there is no native file chooser; `Editor::setSprite` swaps the
+      document and starts the history over. Opening an image imports it and leaves no save path.
 - [ ] **8. Polish** — palette files (.gpl/.hex), settings, autosave recovery, shortcuts, Linux/Windows build check.
 
 ## Phase 2: animation
@@ -57,8 +63,7 @@ headless CLI export, optional Aseprite import.
 - `scripts/lint.sh` and `scripts/format.sh` use `git ls-files -co`, so untracked files are checked too.
 - clang-tidy runs with warnings-as-errors; explicit casts are required for multi-level pointer
   conversions such as `calloc`/`realloc`/`free` of `T **`.
-- `tinysprite_io` has no sources yet (INTERFACE library); it becomes STATIC once `src/io/*.cpp` exists
-  (core was already converted — see `CMakeLists.txt`).
+- stb is compiled only in `src/io/stb_impl.cpp`, without warnings; the rest of `src/io` includes the headers.
 - UI build: `cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON`; lint it with `scripts/lint.sh build-ui`
   (the default `build/` compile database has no `src/ui`). CI still builds core only.
 - Zoom ranges 1/16x..64x (`VIEWPORT_ZOOM_MIN/MAX`); Fit picks a whole-number zoom, or a power of two below 1x for
@@ -102,8 +107,7 @@ headless CLI export, optional Aseprite import.
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
 - UI layout (`src/ui/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
   floating windows; dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
-  on resize until the user zooms or pans (`Editor.auto_fit`). Open / Save / Export in the File menu are disabled
-  until `src/io` has the `.pxa` reader / writer.
+  on resize until the user zooms or pans (`Editor.auto_fit`).
 - Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icon_font.inc`, regenerate with
   `scripts/gen-icon-font.py`; needs `pip install fonttools`). ImGui sizes a font by its line height, so the script
   makes the line box exactly one em (descent 1 unit, not 0: ImGui `ImCeil`s the scaled ascent and an exact fit can

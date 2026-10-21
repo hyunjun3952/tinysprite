@@ -6,6 +6,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "drag.h"
 
@@ -37,33 +38,67 @@ const Rgba DEFAULT_PALETTE[] = {
 
 } // namespace
 
-Editor::Editor(int width, int height) : sprite_(width, height)
+Editor::Editor(SDL_Renderer *renderer, Sprite sprite)
+    : renderer_(renderer), sprite_(std::move(sprite))
 {
+}
+
+std::unique_ptr<SDL_Texture, Editor::TextureDeleter> Editor::newTexture(int width, int height) const
+{
+    std::unique_ptr<SDL_Texture, TextureDeleter> texture(SDL_CreateTexture(
+        renderer_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height));
+    if (texture) {
+        SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(texture.get(), SDL_ScaleModeNearest);
+    }
+    return texture;
 }
 
 std::unique_ptr<Editor> Editor::create(SDL_Renderer *renderer, int width, int height)
 {
-    std::unique_ptr<Editor> editor;
+    std::optional<Sprite> sprite;
     try {
-        editor.reset(new Editor(width, height));
+        sprite.emplace(width, height);
     } catch (const std::invalid_argument &) {
         return nullptr;
     }
-    editor->texture_.reset(SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
-                                             SDL_TEXTUREACCESS_STREAMING, width, height));
-    if (!editor->texture_) {
+    for (const Rgba &color : DEFAULT_PALETTE) {
+        sprite->palette().add(color);
+    }
+    std::unique_ptr<Editor> editor(new Editor(renderer, std::move(*sprite)));
+    auto texture = editor->newTexture(width, height);
+    if (!texture) {
         return nullptr;
     }
-    editor->pixels_.assign(static_cast<size_t>(width) * static_cast<size_t>(height), Rgba{});
-    SDL_SetTextureBlendMode(editor->texture(), SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(editor->texture(), SDL_ScaleModeNearest);
-
-    for (const Rgba &color : DEFAULT_PALETTE) {
-        editor->sprite().palette().add(color);
-    }
-    editor->view_.viewport = Viewport{};
-    editor->markAllDirty();
+    editor->resetDocument(std::move(texture));
     return editor;
+}
+
+bool Editor::setSprite(Sprite sprite)
+{
+    if (stroking()) {
+        return false;
+    }
+    auto texture = newTexture(sprite.width(), sprite.height());
+    if (!texture) {
+        return false;
+    }
+    sprite_ = std::move(sprite);
+    resetDocument(std::move(texture));
+    return true;
+}
+
+void Editor::resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture)
+{
+    texture_ = std::move(texture);
+    pixels_.assign(static_cast<size_t>(sprite_.width()) * static_cast<size_t>(sprite_.height()),
+                   Rgba{});
+    history_ = History{};
+    activeLayer_ = 0;
+    hasSelection_ = false;
+    paletteSelected_ = -1;
+    view_ = ViewState{};
+    markAllDirty();
 }
 
 Editor::~Editor()

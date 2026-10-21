@@ -1,11 +1,16 @@
 #include "app.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <optional>
+#include <utility>
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
 #include "icons.h"
 #include "imgui.h"
+#include "tinysprite/io.h"
 
 namespace
 {
@@ -98,10 +103,19 @@ void App::menuBar()
         return;
     }
     if (ImGui::BeginMenu("File")) {
-        /* Disabled until the .pxa reader / writer exists (milestone 7, src/io is still empty). */
-        ImGui::MenuItem("Open...", "Ctrl+O", false, false);
-        ImGui::MenuItem("Save", "Ctrl+S", false, false);
-        ImGui::MenuItem("Export...", nullptr, false, false);
+        bool idle = !editor_->stroking();
+        if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
+            askForPath(FileAction::Open);
+        }
+        if (ImGui::MenuItem("Save", "Ctrl+S")) {
+            save();
+        }
+        if (ImGui::MenuItem("Save as...")) {
+            askForPath(FileAction::SaveAs);
+        }
+        if (ImGui::MenuItem("Export image...")) {
+            askForPath(FileAction::ExportImage);
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Quit")) {
             running_ = false;
@@ -209,7 +223,11 @@ void App::handleShortcuts()
         }
         return;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_O, false)) {
+        askForPath(FileAction::Open);
+    } else if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+        save();
+    } else if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
         if (io.KeyShift) {
             editor_->redo();
         } else {
@@ -226,6 +244,100 @@ void App::handleShortcuts()
     } else if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
         editor_->paste();
     }
+}
+
+void App::askForPath(FileAction action)
+{
+    fileAction_ = action;
+    openFileDialog_ = true;
+    fileError_.clear();
+    std::snprintf(pathInput_, sizeof(pathInput_), "%s",
+                  action == FileAction::SaveAs ? filePath_.c_str() : "");
+}
+
+void App::save()
+{
+    if (filePath_.empty()) {
+        askForPath(FileAction::SaveAs);
+    } else if (!pxa_save(editor_->sprite(), filePath_)) {
+        fileError_ = "Cannot write " + filePath_;
+        askForPath(FileAction::SaveAs);
+    }
+}
+
+/* Runs the action the dialog asked for; on failure sets fileError_ and returns false. */
+bool App::runFileAction(const std::string &path)
+{
+    switch (fileAction_) {
+    case FileAction::Open: {
+        /* A .pxa file starts with its magic number; anything else may be an image. */
+        std::optional<Sprite> sprite = pxa_load(path);
+        bool isPxa = sprite.has_value();
+        if (!isPxa) {
+            sprite = image_import(path);
+        }
+        if (!sprite) {
+            fileError_ = "Cannot read " + path;
+        } else if (!editor_->setSprite(std::move(*sprite))) {
+            fileError_ = "Cannot open " + path + " right now";
+        } else {
+            filePath_ = isPxa ? path : "";
+            return true;
+        }
+        return false;
+    }
+    case FileAction::SaveAs:
+        if (!pxa_save(editor_->sprite(), path)) {
+            fileError_ = "Cannot write " + path;
+            return false;
+        }
+        filePath_ = path;
+        return true;
+    case FileAction::ExportImage:
+        if (!image_export(editor_->sprite(), editor_->frame(), path)) {
+            fileError_ = "Cannot write " + path;
+            return false;
+        }
+        return true;
+    case FileAction::None:
+        break;
+    }
+    return true;
+}
+
+void App::fileDialog()
+{
+    static const char *const TITLES[] = {"", "Open", "Save as", "Export image"};
+    const char *title = TITLES[static_cast<int>(fileAction_)];
+    if (openFileDialog_) {
+        ImGui::OpenPopup(title);
+        openFileDialog_ = false;
+    }
+    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        return;
+    }
+    if (ImGui::IsWindowAppearing()) {
+        ImGui::SetKeyboardFocusHere();
+    }
+    bool enter = ImGui::InputText("Path", pathInput_, sizeof(pathInput_),
+                                  ImGuiInputTextFlags_EnterReturnsTrue);
+    const std::string path = pathInput_;
+    if (!fileError_.empty()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());
+    }
+    bool done = false;
+    if ((ImGui::Button("OK") || enter) && !path.empty()) {
+        done = runFileAction(path);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        done = true;
+    }
+    if (done) {
+        fileAction_ = FileAction::None;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
 }
 
 void App::run(const AppOptions &options)
@@ -252,6 +364,7 @@ void App::run(const AppOptions &options)
         layersWindow(viewport->WorkSize.y);
         canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
                       viewport->WorkSize.x - left - right, viewport->WorkSize.y);
+        fileDialog();
         handleShortcuts();
 
         SDL_SetRenderDrawColor(renderer_, 30, 30, 32, 255);

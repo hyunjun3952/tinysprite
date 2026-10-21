@@ -2,7 +2,7 @@
 
 A small pixel art / 2D sprite animation editor written in C++17, with a UI built on SDL2 and Dear ImGui.
 
-> **Status:** early development. Phase 1 (drawing tools) is mostly done; file I/O (`.pxa`, PNG) is next.
+> **Status:** early development. Phase 1 (drawing tools) is mostly done; file I/O (`.pxa`, image export) is in place.
 > Animation and game-pipeline features are planned. See [docs/MILESTONES.md](docs/MILESTONES.md).
 
 ## Features
@@ -13,7 +13,7 @@ A small pixel art / 2D sprite animation editor written in C++17, with a UI built
 - Undo / redo (one step per stroke, including layer operations)
 - Zoomable, pannable canvas with grid and checkerboard background
 
-Planned: `.pxa` / PNG I/O, timeline and onion skin, GIF / spritesheet export, tilemaps, JSON export, headless CLI.
+Planned: timeline and onion skin, GIF / spritesheet export, tilemaps, JSON export, headless CLI.
 
 ## Building
 

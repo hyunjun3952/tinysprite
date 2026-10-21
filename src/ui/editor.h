@@ -42,6 +42,11 @@ class Editor
     /* Returns null if the size is invalid or the texture cannot be created. */
     static std::unique_ptr<Editor> create(SDL_Renderer *renderer, int width, int height);
     ~Editor();
+
+    /* Makes `sprite` the document: the undo history, selection and palette selection start over
+     * and the view is fitted. Returns false (nothing changes) while a tool is being dragged or if
+     * the texture for the new size cannot be created. */
+    bool setSprite(Sprite sprite);
     Editor(const Editor &) = delete;
     Editor &operator=(const Editor &) = delete;
 
@@ -331,7 +336,12 @@ class Editor
         }
     };
 
-    Editor(int width, int height);
+    Editor(SDL_Renderer *renderer, Sprite sprite);
+
+    std::unique_ptr<SDL_Texture, TextureDeleter> newTexture(int width, int height) const;
+
+    /* Starts over on the current sprite_ with `texture`: history, selection and view are reset. */
+    void resetDocument(std::unique_ptr<SDL_Texture, TextureDeleter> texture);
 
     Rect spriteBounds() const;
     void afterHistoryStep();
@@ -354,6 +364,7 @@ class Editor
     int moveDx_ = 0;
     int moveDy_ = 0;
 
+    SDL_Renderer *renderer_;
     Sprite sprite_;
     History history_;
     std::unique_ptr<SDL_Texture, TextureDeleter> texture_;
