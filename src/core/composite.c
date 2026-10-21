@@ -26,6 +26,25 @@ static Rgba blend_over(Rgba dst, Rgba src, int src_alpha)
     };
 }
 
+Rgba composite_pixel(Sprite *sprite, int frame, int x, int y)
+{
+    Rgba out = {0, 0, 0, 0};
+    if (!sprite || frame < 0 || frame >= sprite_frame_count(sprite) || x < 0 || y < 0 ||
+        x >= sprite_width(sprite) || y >= sprite_height(sprite)) {
+        return out;
+    }
+    for (int i = 0; i < sprite_layer_count(sprite); i++) {
+        Layer *layer = sprite_layer(sprite, i);
+        Cel *cel = layer_cel(layer, frame);
+        if (!layer_visible(layer) || !cel) {
+            continue;
+        }
+        Rgba src = cel_get(cel, x, y);
+        out = blend_over(out, src, div255(src.a * layer_opacity(layer)));
+    }
+    return out;
+}
+
 void composite_sprite(Sprite *sprite, int frame, CompositeRect region, Rgba *out)
 {
     if (!sprite || !out || frame < 0 || frame >= sprite_frame_count(sprite)) {

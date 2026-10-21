@@ -13,4 +13,8 @@ typedef struct CompositeRect {
  * nothing if sprite or out is NULL or the frame is out of range. */
 void composite_sprite(Sprite *sprite, int frame, CompositeRect region, Rgba *out);
 
+/* The flattened color at (x, y) of `frame`, computed like composite_sprite. Returns transparent
+ * black if sprite is NULL, the frame is out of range, or (x, y) is out of bounds. */
+Rgba composite_pixel(Sprite *sprite, int frame, int x, int y);
+
 #endif

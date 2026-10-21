@@ -170,6 +170,24 @@ TEST(invalid_frame_leaves_output_untouched)
     sprite_destroy(s);
 }
 
+TEST(composite_pixel_matches_full_composite)
+{
+    Sprite *s = sprite_create(3, 3);
+    Layer *top = sprite_add_layer(s, "top");
+    cel_set(layer_cel(sprite_layer(s, 0), 0), 1, 1, BLUE);
+    cel_set(layer_cel(top, 0), 1, 1, RED);
+    layer_set_opacity(top, 128);
+    Rgba *out = make_out(s, CLEAR);
+    composite_sprite(s, 0, (CompositeRect){0, 0, 3, 3}, out);
+    ASSERT_TRUE(same(composite_pixel(s, 0, 1, 1), at(s, out, 1, 1)));
+    ASSERT_TRUE(same(composite_pixel(s, 0, 0, 0), CLEAR));
+    ASSERT_TRUE(same(composite_pixel(s, 0, -1, 0), CLEAR));
+    ASSERT_TRUE(same(composite_pixel(s, 0, 3, 0), CLEAR));
+    ASSERT_TRUE(same(composite_pixel(s, 4, 1, 1), CLEAR));
+    free(out);
+    sprite_destroy(s);
+}
+
 int main(void)
 {
     RUN(blank_sprite_composites_to_transparent);
@@ -182,5 +200,6 @@ int main(void)
     RUN(region_only_touches_requested_rect);
     RUN(region_is_clipped_to_the_sprite);
     RUN(invalid_frame_leaves_output_untouched);
+    RUN(composite_pixel_matches_full_composite);
     return TEST_SUMMARY();
 }
