@@ -13,7 +13,7 @@ endforeach()
 
 # UI tests need SDL (dummy video driver, no display): ctest name "ui_editor".
 if(TINYSPRITE_BUILD_UI)
-  add_executable(test_ui_editor ui/ui_editor.c)
+  add_executable(test_ui_editor ui/ui_editor.cpp)
   target_link_libraries(test_ui_editor PRIVATE tinysprite_ui tinysprite_test_support)
   add_test(NAME ui_editor COMMAND test_ui_editor)
   set_tests_properties(ui_editor PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")

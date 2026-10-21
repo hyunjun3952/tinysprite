@@ -45,7 +45,7 @@ class App
     bool running_ = true;
 
     Panels panels_;
-    Editor *editor_ = nullptr;
+    std::unique_ptr<Editor> editor_;
     std::unique_ptr<Canvas> canvas_;
     std::unique_ptr<ToolsPanel> toolsPanel_;
     std::unique_ptr<LayersPanel> layersPanel_;

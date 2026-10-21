@@ -77,7 +77,7 @@ void ToolsPanel::colorWidget()
     ImGui::SetCursorPos(
         ImVec2(start.x + COLOR_SWATCH + COLOR_SWATCH_OFFSET + SWAP_BUTTON_GAP, start.y));
     if (icons::button(icons::Icon::Swap, "##swap", "Swap colors (X)", false, SMALL_BUTTON_SIZE)) {
-        editor_swap_colors(&editor_);
+        editor_.swapColors();
     }
     ImGui::SetCursorPos(
         ImVec2(start.x, start.y + COLOR_SWATCH + COLOR_SWATCH_OFFSET + COLOR_SECTION_GAP));
@@ -97,22 +97,22 @@ void ToolsPanel::colorWidget()
 void ToolsPanel::selectionButtons()
 {
     using icons::Icon;
-    ImGui::BeginDisabled(!editor_.has_selection || editor_stroking(&editor_));
+    ImGui::BeginDisabled(!editor_.has_selection || editor_.stroking());
     const float size = SMALL_BUTTON_SIZE;
     if (icons::button(Icon::FlipH, "##flip_h", "Flip horizontally", false, size)) {
-        editor_flip_selection(&editor_, true);
+        editor_.flipSelection(true);
     }
     ImGui::SameLine();
     if (icons::button(Icon::FlipV, "##flip_v", "Flip vertically", false, size)) {
-        editor_flip_selection(&editor_, false);
+        editor_.flipSelection(false);
     }
     ImGui::SameLine();
     if (icons::button(Icon::RotateCw, "##rot_cw", "Rotate clockwise", false, size)) {
-        editor_rotate_selection(&editor_, true);
+        editor_.rotateSelection(true);
     }
     ImGui::SameLine();
     if (icons::button(Icon::RotateCcw, "##rot_ccw", "Rotate counterclockwise", false, size)) {
-        editor_rotate_selection(&editor_, false);
+        editor_.rotateSelection(false);
     }
     ImGui::EndDisabled();
 }
@@ -130,9 +130,9 @@ void ToolsPanel::show(Panels &panels, float height)
         }
         ImGui::PushID(tool);
         const ToolInfo &info = TOOLS[static_cast<size_t>(tool)];
-        if (icons::button(info.icon, "##tool", info.label, editor_.tool == tool,
-                          TOOL_BUTTON_SIZE)) {
-            editor_select_tool(&editor_, static_cast<ToolKind>(tool));
+        if (icons::button(info.icon, "##tool", info.label,
+                          editor_.tool == static_cast<ToolKind>(tool), TOOL_BUTTON_SIZE)) {
+            editor_.selectTool(static_cast<ToolKind>(tool));
         }
         ImGui::PopID();
     }

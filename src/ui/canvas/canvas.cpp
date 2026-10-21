@@ -5,8 +5,6 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "editor/tools.h"
-
 namespace
 {
 
@@ -68,7 +66,7 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
         editor_.auto_fit = false;
     }
     /* Space + left drag pans like the middle button, without drawing. */
-    bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_stroking(&editor_);
+    bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_.stroking();
     if (active && (ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
                    (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)))) {
         editor_.view.pan_x += io.MouseDelta.x;
@@ -77,14 +75,13 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
         return;
     }
 
-    if (!editor_stroking(&editor_) && hovered &&
-        ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
-        tools_press(&editor_, cx, cy);
-    } else if (editor_stroking(&editor_)) {
+    if (!editor_.stroking() && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
+        editor_.press(cx, cy);
+    } else if (editor_.stroking()) {
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-            tools_drag(&editor_, cx, cy);
+            editor_.drag(cx, cy);
         } else {
-            tools_release(&editor_);
+            editor_.release();
         }
     }
 }
@@ -137,10 +134,11 @@ void Canvas::drawBrushPreview(ImDrawList *draw, ImVec2 origin) const
 
 void Canvas::drawHoverOutline(ImDrawList *draw, ImVec2 origin) const
 {
-    if (!editor_hover_in_sprite(&editor_)) {
+    if (!editor_.hoverInSprite()) {
         return;
     }
-    if ((editor_.tool == TOOL_PENCIL || editor_.tool == TOOL_ERASER) && editor_.brush_size > 1) {
+    if ((editor_.tool == ToolKind::Pencil || editor_.tool == ToolKind::Eraser) &&
+        editor_.brush_size > 1) {
         drawBrushPreview(draw, origin);
     }
     float x0 = origin.x + viewport_cel_to_screen_x(&editor_.view, editor_.hover_x);
@@ -156,8 +154,8 @@ void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
         return;
     }
     const Rect &r = editor_.selection;
-    int dx = editor_.drag == DRAG_MOVE ? editor_.move_dx : 0;
-    int dy = editor_.drag == DRAG_MOVE ? editor_.move_dy : 0;
+    int dx = editor_.move_dx;
+    int dy = editor_.move_dy;
     ImVec2 p0(origin.x + viewport_cel_to_screen_x(&editor_.view, r.x + dx),
               origin.y + viewport_cel_to_screen_y(&editor_.view, r.y + dy));
     ImVec2 p1(p0.x + static_cast<float>(r.w) * editor_.view.zoom,
@@ -186,12 +184,12 @@ void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
 void Canvas::drawStatus(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
 {
     char text[128];
-    const Layer *layer = sprite_layer(editor_.sprite, editor_.active_layer);
+    const Layer *layer = sprite_layer(editor_.sprite(), editor_.active_layer);
     int len = std::snprintf(text, sizeof(text), "%dx%d   Zoom: %g%%   Layer: %s",
-                            sprite_width(editor_.sprite), sprite_height(editor_.sprite),
+                            sprite_width(editor_.sprite()), sprite_height(editor_.sprite()),
                             static_cast<double>(editor_.view.zoom) * 100.0,
                             layer ? layer_name(layer) : "-");
-    if (editor_hover_in_sprite(&editor_)) {
+    if (editor_.hoverInSprite()) {
         std::snprintf(text + len, sizeof(text) - static_cast<size_t>(len), "   Cel: %d, %d",
                       editor_.hover_x, editor_.hover_y);
     }
@@ -220,8 +218,8 @@ void Canvas::show(float x, float y, float w, float h)
     }
     editor_.canvas_w = avail.x;
     editor_.canvas_h = avail.y;
-    int spriteW = sprite_width(editor_.sprite);
-    int spriteH = sprite_height(editor_.sprite);
+    int spriteW = sprite_width(editor_.sprite());
+    int spriteH = sprite_height(editor_.sprite());
     if (editor_.needs_fit && avail.x > 0.0f && avail.y > 0.0f) {
         viewport_fit(&editor_.view, spriteW, spriteH, std::max(avail.x - FIT_MARGIN, 1.0f),
                      std::max(avail.y - FIT_MARGIN, 1.0f));
@@ -234,7 +232,7 @@ void Canvas::show(float x, float y, float w, float h)
     ImGui::InvisibleButton("canvas", avail,
                            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
     handleInput(origin, ImGui::IsItemHovered(), ImGui::IsItemActive());
-    editor_update_texture(&editor_);
+    editor_.updateTexture();
 
     ImDrawList *draw = ImGui::GetWindowDrawList();
     ImVec2 clipMax(origin.x + avail.x, origin.y + avail.y);
@@ -252,7 +250,7 @@ void Canvas::show(float x, float y, float w, float h)
                          sprite.y0);
         float width = sprite.x1 - sprite.x0;
         float height = sprite.y1 - sprite.y0;
-        draw->AddImage(ImTextureRef(reinterpret_cast<ImTextureID>(editor_.texture)),
+        draw->AddImage(ImTextureRef(reinterpret_cast<ImTextureID>(editor_.texture())),
                        ImVec2(visible.x0, visible.y0), ImVec2(visible.x1, visible.y1),
                        ImVec2((visible.x0 - sprite.x0) / width, (visible.y0 - sprite.y0) / height),
                        ImVec2((visible.x1 - sprite.x0) / width, (visible.y1 - sprite.y0) / height));

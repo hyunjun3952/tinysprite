@@ -19,12 +19,12 @@ LayersPanel::LayersPanel(Editor &editor) : editor_(editor)
 
 void LayersPanel::rows()
 {
-    for (int i = sprite_layer_count(editor_.sprite) - 1; i >= 0; i--) {
-        Layer *layer = sprite_layer(editor_.sprite, i);
+    for (int i = sprite_layer_count(editor_.sprite()) - 1; i >= 0; i--) {
+        Layer *layer = sprite_layer(editor_.sprite(), i);
         ImGui::PushID(i);
         bool visible = layer_visible(layer);
         if (ImGui::Checkbox("##visible", &visible)) {
-            editor_set_layer_visible(&editor_, i, visible);
+            editor_.setLayerVisible(i, visible);
         }
         ImGui::SameLine();
         const char *name = layer_name(layer);
@@ -40,7 +40,7 @@ void LayersPanel::rows()
 void LayersPanel::activeLayerDetails()
 {
     int index = editor_.active_layer;
-    Layer *layer = sprite_layer(editor_.sprite, index);
+    Layer *layer = sprite_layer(editor_.sprite(), index);
     if (!layer) {
         return;
     }
@@ -57,20 +57,20 @@ void LayersPanel::activeLayerDetails()
         std::memcpy(nameBefore_, nameNow, sizeof(nameNow));
     }
     if (ImGui::IsItemDeactivatedAfterEdit()) {
-        editor_commit_layer_name(&editor_, index, nameBefore_);
+        editor_.commitLayerName(index, nameBefore_);
     }
 
     int opacity = layer_opacity(layer);
     int opacityNow = opacity;
     if (ImGui::SliderInt("Opacity", &opacity, 0, 255)) {
         layer_set_opacity(layer, static_cast<uint8_t>(opacity));
-        editor_mark_all_dirty(&editor_);
+        editor_.markAllDirty();
     }
     if (ImGui::IsItemActivated()) {
         opacityBefore_ = static_cast<uint8_t>(opacityNow);
     }
     if (ImGui::IsItemDeactivatedAfterEdit()) {
-        editor_commit_layer_opacity(&editor_, index, opacityBefore_);
+        editor_.commitLayerOpacity(index, opacityBefore_);
     }
     if (!layer_visible(layer)) {
         ImGui::TextDisabled("Layer is hidden: tools cannot draw on it");
@@ -81,40 +81,40 @@ void LayersPanel::buttons()
 {
     using icons::Icon;
     const float size = LAYER_BUTTON_SIZE;
-    int count = sprite_layer_count(editor_.sprite);
+    int count = sprite_layer_count(editor_.sprite());
     int active = editor_.active_layer;
     if (icons::button(Icon::Add, "##add", "Add layer", false, size)) {
-        editor_add_layer(&editor_);
+        editor_.addLayer();
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(count < 2);
     if (icons::button(Icon::Remove, "##remove", "Remove layer", false, size)) {
-        editor_remove_layer(&editor_, active);
+        editor_.removeLayer(active);
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
     if (icons::button(Icon::Duplicate, "##dup", "Duplicate layer", false, size)) {
-        editor_duplicate_layer(&editor_, active);
+        editor_.duplicateLayer(active);
     }
     ImGui::SameLine();
-    Layer *layer = sprite_layer(editor_.sprite, active);
-    Layer *below = sprite_layer(editor_.sprite, active - 1);
+    Layer *layer = sprite_layer(editor_.sprite(), active);
+    Layer *below = sprite_layer(editor_.sprite(), active - 1);
     ImGui::BeginDisabled(!layer || !below || !layer_visible(layer) || !layer_visible(below));
     if (icons::button(Icon::MergeDown, "##merge",
                       "Merge into the layer below (both must be visible)", false, size)) {
-        editor_merge_layer_down(&editor_, active);
+        editor_.mergeLayerDown(active);
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(active >= count - 1);
     if (icons::button(Icon::MoveUp, "##up", "Move layer up", false, size)) {
-        editor_move_layer(&editor_, active, active + 1);
+        editor_.moveLayer(active, active + 1);
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(active <= 0);
     if (icons::button(Icon::MoveDown, "##down", "Move layer down", false, size)) {
-        editor_move_layer(&editor_, active, active - 1);
+        editor_.moveLayer(active, active - 1);
     }
     ImGui::EndDisabled();
 }
@@ -122,7 +122,7 @@ void LayersPanel::buttons()
 void LayersPanel::show()
 {
     /* Layers cannot change under a tool that is mid-drag. */
-    ImGui::BeginDisabled(editor_stroking(&editor_));
+    ImGui::BeginDisabled(editor_.stroking());
     rows();
     activeLayerDetails();
     buttons();

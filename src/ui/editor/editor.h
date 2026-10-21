@@ -2,13 +2,12 @@
 #define TINYSPRITE_UI_EDITOR_H
 
 #include <SDL.h>
-#include <stdbool.h>
 
-/* The editor state stays a plain C struct for now; C++ code sees the C core through extern "C". */
-#ifdef __cplusplus
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 extern "C" {
-#endif
-
 #include "tinysprite/clip.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/history.h"
@@ -18,184 +17,227 @@ extern "C" {
 #include "tinysprite/shape.h"
 #include "tinysprite/sprite.h"
 #include "tinysprite/viewport.h"
+}
 
-typedef enum ToolKind {
-    TOOL_PENCIL,
-    TOOL_ERASER,
-    TOOL_BUCKET,
-    TOOL_EYEDROPPER,
-    TOOL_LINE,
-    TOOL_RECT,
-    TOOL_ELLIPSE,
-    TOOL_SELECT,
-    TOOL_COUNT,
-} ToolKind;
+enum class ToolKind {
+    Pencil,
+    Eraser,
+    Bucket,
+    Eyedropper,
+    Line,
+    Rect,
+    Ellipse,
+    Select,
+    Count,
+};
 
-/* What the mouse is doing between a tool's press and its release. */
-typedef enum DragKind {
-    DRAG_NONE,
-    DRAG_PICK,   /* eyedropper: samples a color while held */
-    DRAG_PENCIL, /* pencil and eraser stroke */
-    DRAG_SHAPE,  /* line, rectangle or ellipse */
-    DRAG_MOVE,   /* moving the selected pixels */
-    DRAG_SELECT, /* dragging out a new selection */
-} DragKind;
+inline constexpr int TOOL_COUNT = static_cast<int>(ToolKind::Count);
+
+class Drag;
 
 /* Everything the UI edits: the document, its undo history, the tool state and the CPU-composited
- * texture the canvas displays. Created once in main and passed to each panel. */
-typedef struct Editor {
-    Sprite *sprite;
-    History *history;
-    ToolKind tool;
-    float color[4];       /* foreground color, straight alpha, 0..1 */
-    float bg_color[4];    /* background color, swapped with the foreground by editor_swap_colors */
-    RecentColors recent;  /* colors drawn with lately, newest first */
-    int palette_selected; /* swatch of the sprite palette last picked or added, -1 for none */
-    bool temp_pick;       /* the eyedropper is active only while a modifier is held */
-    ToolKind pick_return; /* the tool to go back to when the temporary pick ends */
-    bool show_grid;
-    int active_layer;
-    int frame;
+ * texture the canvas displays. Created once and passed to each panel. The tool and view state is
+ * plain public data the panels and shortcuts edit directly; operations that touch the document go
+ * through the methods, which hold off while a tool is being dragged where noted. */
+class Editor
+{
+  public:
+    /* Returns null on failure. */
+    static std::unique_ptr<Editor> create(SDL_Renderer *renderer, int width, int height);
+    ~Editor();
+    Editor(const Editor &) = delete;
+    Editor &operator=(const Editor &) = delete;
+
+    Sprite *sprite() const
+    {
+        return sprite_.get();
+    }
+    History *history() const
+    {
+        return history_.get();
+    }
+    SDL_Texture *texture() const
+    {
+        return texture_.get();
+    }
+
+    ToolKind tool = ToolKind::Pencil;
+    float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};    /* foreground color, straight alpha, 0..1 */
+    float bg_color[4] = {1.0f, 1.0f, 1.0f, 1.0f}; /* background, swapped with the foreground */
+    RecentColors recent = {};                     /* colors drawn with lately, newest first */
+    int palette_selected = -1; /* swatch of the sprite palette last picked or added, -1 for none */
+    bool show_grid = true;
+    int active_layer = 0;
+    int frame = 0;
 
     /* Tool options: pixel_perfect / brush_* apply to pencil and eraser, shape_filled to the
      * rectangle and ellipse (symmetry also reaches shapes and the bucket). */
-    int brush_size; /* 1..PENCIL_BRUSH_MAX */
-    bool brush_round;
-    bool pixel_perfect;
-    Symmetry symmetry;
-    bool shape_filled;
+    int brush_size = 1; /* 1..PENCIL_BRUSH_MAX */
+    bool brush_round = false;
+    bool pixel_perfect = false;
+    Symmetry symmetry = {};
+    bool shape_filled = false;
 
-    Viewport view;
-    bool needs_fit;           /* fit the sprite to the canvas on the next canvas frame */
-    bool auto_fit;            /* the view is still the fitted one: refit when the canvas resizes */
-    float canvas_w, canvas_h; /* canvas size as of the last canvas frame */
-
-    /* Drag state. `stroke` holds the live stroke of the drag kind that owns one (the eyedropper
-     * and a new selection own none), so at most one exists. */
-    DragKind drag;
-    union {
-        PencilStroke *pencil;
-        ShapeStroke *shape;
-        MoveStroke *move;
-    } stroke;
-    int drag_x, drag_y;     /* cel under the mouse at the last drag step */
-    int anchor_x, anchor_y; /* cel under the mouse at the press */
+    Viewport view = {};
+    bool needs_fit = true; /* fit the sprite to the canvas on the next canvas frame */
+    bool auto_fit = false; /* the view is still the fitted one: refit when the canvas resizes */
+    float canvas_w = 0.0f; /* canvas size as of the last canvas frame */
+    float canvas_h = 0.0f;
 
     /* Rectangular selection in cel coordinates, always inside the sprite. While a selection is
-     * being moved (DRAG_MOVE) it stays at its origin and move_dx/dy hold the drag offset. */
-    bool has_selection;
-    Rect selection;
-    bool had_selection; /* a selection existed when the current DRAG_SELECT began */
-    int move_dx, move_dy;
+     * being moved it stays at its origin and move_dx/dy hold the drag offset (zero otherwise). */
+    bool has_selection = false;
+    Rect selection = {};
+    int move_dx = 0;
+    int move_dy = 0;
 
-    Clip *clipboard; /* last copied / cut selection, NULL until there is one */
+    int hover_x = 0; /* cel under the mouse, valid when hovering is true */
+    int hover_y = 0;
+    bool hovering = false;
 
-    int hover_x, hover_y; /* cel under the mouse, valid when hovering is true */
-    bool hovering;
+    Rgba foreground() const;
+    void setForeground(Rgba color);
 
-    SDL_Texture *texture;
-    Rgba *pixels; /* composited frame, sprite_width x sprite_height */
-    bool dirty;
-    Rect dirty_rect;
-} Editor;
+    /* Sprite palette helpers (the palette is not part of undo). Add puts the foreground color in
+     * the palette unless it is already there and returns its index, or -1 if the palette is full.
+     * Pick makes a swatch the foreground color. Remove deletes a swatch; the selection stays on
+     * the same color, or is cleared when that color was removed. Out-of-range indexes are
+     * ignored. */
+    int paletteAdd();
+    void palettePick(int index);
+    void paletteRemove(int index);
 
-/* Returns NULL on failure. */
-Editor *editor_create(SDL_Renderer *renderer, int width, int height);
-void editor_destroy(Editor *editor);
+    /* Exchanges the foreground and background colors. */
+    void swapColors();
 
-Rgba editor_color(const Editor *editor);
+    /* Switches tools (does nothing while a tool is being dragged) and ends any temporary pick. */
+    void selectTool(ToolKind kind);
 
-void editor_set_color(Editor *editor, Rgba color);
+    /* While `on` is true the eyedropper is the active tool, and the previous tool comes back once
+     * it turns false. Meant to be called every frame with the state of the modifier key; does
+     * nothing while a tool is being dragged, so a pick that ends mid-drag is undone on a later
+     * call. */
+    void tempPick(bool on);
 
-/* Sprite palette helpers (the palette is not part of undo). Add puts the foreground color in the
- * palette unless it is already there and returns its index, or -1 if the palette is full. Pick
- * makes a swatch the foreground color. Remove deletes a swatch; the selection stays on the same
- * color, or is cleared when that color was removed. Out-of-range indexes are ignored. */
-int editor_palette_add(Editor *editor);
-void editor_palette_pick(Editor *editor, int index);
-void editor_palette_remove(Editor *editor, int index);
+    /* Mouse handling for the active tool, in cel coordinates (which may lie outside the sprite).
+     * press starts a drag when the tool accepts it, drag is called every frame while the button
+     * is held, release commits. Each one marks the cels it changes dirty. */
+    void press(int cx, int cy);
+    void drag(int cx, int cy);
+    void release();
 
-/* Exchanges the foreground and background colors. */
-void editor_swap_colors(Editor *editor);
+    /* Aborts the current drag, reverting its pixels. Does nothing when no drag is active. */
+    void cancelDrag();
 
-/* Switches tools (does nothing while a tool is being dragged) and ends any temporary pick. */
-void editor_select_tool(Editor *editor, ToolKind tool);
+    /* True while a tool is being dragged (undo / redo / layer changes are held off meanwhile). */
+    bool stroking() const
+    {
+        return drag_ != nullptr;
+    }
 
-/* While `on` is true the eyedropper is the active tool, and the previous tool comes back once it
- * turns false. Meant to be called every frame with the state of the modifier key; does nothing
- * while a tool is being dragged, so a pick that ends mid-drag is undone on a later call. */
-void editor_temp_pick(Editor *editor, bool on);
+    /* Marks cels for re-compositing; `area` must not be empty. */
+    void markDirty(Rect area);
+    void markAllDirty();
+    bool dirty() const
+    {
+        return dirty_;
+    }
+    Rect dirtyRect() const
+    {
+        return dirtyRect_;
+    }
 
-/* Marks cels for re-compositing; `area` must not be empty. */
-void editor_mark_dirty(Editor *editor, Rect area);
-void editor_mark_all_dirty(Editor *editor);
+    /* Re-composites the dirty region and uploads it to the texture. */
+    void updateTexture();
 
-/* Re-composites the dirty region and uploads it to the texture. */
-void editor_update_texture(Editor *editor);
+    /* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
+    void zoomStep(int direction);
 
-/* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
-void editor_zoom_step(Editor *editor, int direction);
+    /* True when the mouse is over a cel of the sprite. */
+    bool hoverInSprite() const;
 
-/* True while a tool is being dragged (undo / redo / layer changes are held off meanwhile). */
-bool editor_stroking(const Editor *editor);
+    /* The cel of the active layer and frame; null if there is none. */
+    Cel *activeCel();
 
-/* True when the mouse is over a cel of the sprite. */
-bool editor_hover_in_sprite(const Editor *editor);
+    /* The active cel when a tool may change it; null while a tool is being dragged or when the
+     * layer is hidden. */
+    Cel *editableCel();
 
-/* The cel of the active layer and frame; NULL if there is none. */
-Cel *editor_active_cel(Editor *editor);
+    /* Undo / redo; they do nothing while a stroke is being drawn. */
+    void undo();
+    void redo();
 
-/* The active cel when a tool may change it; NULL while a tool is being dragged or when the
- * layer is hidden. */
-Cel *editor_editable_cel(Editor *editor);
+    /* Layer operations (all do nothing while a tool is being dragged). Each is one undo step. */
+    void addLayer();
+    void removeLayer(int index);
+    void moveLayer(int from, int to);
+    void setLayerVisible(int index, bool visible);
 
-/* Undo / redo; they do nothing while a stroke is being drawn. */
-void editor_undo(Editor *editor);
-void editor_redo(Editor *editor);
+    /* Duplicate puts a copy above the layer and makes it active; merge draws the layer onto the
+     * one below it (both must be visible). If the merged layer was active the one below becomes
+     * active, otherwise the active layer keeps pointing at the same layer. */
+    void duplicateLayer(int index);
+    void mergeLayerDown(int index);
 
-/* Layer operations (all do nothing while a tool is being dragged). Each is one undo step. */
-void editor_add_layer(Editor *editor);
-void editor_remove_layer(Editor *editor, int index);
-void editor_move_layer(Editor *editor, int from, int to);
-void editor_set_layer_visible(Editor *editor, int index, bool visible);
+    /* Records a name / opacity edit made live with layer_set_*: the layer currently holds the
+     * edited value, `before*` is what it held when the edit began. One undo step; nothing if
+     * unchanged. */
+    void commitLayerName(int index, const char *beforeName);
+    void commitLayerOpacity(int index, uint8_t beforeOpacity);
 
-/* Duplicate puts a copy above the layer and makes it active; merge draws the layer onto the one
- * below it (both must be visible). If the merged layer was active the one below becomes active,
- * otherwise the active layer keeps pointing at the same layer. */
-void editor_duplicate_layer(Editor *editor, int index);
-void editor_merge_layer_down(Editor *editor, int index);
+    /* Selection helpers. Delete clears the selected pixels (one undo step). */
+    void selectAll();
+    void clearSelection();
+    void deleteSelection();
 
-/* Records a name / opacity edit made live with layer_set_*: the layer currently holds the edited
- * value, `before_*` is what it held when the edit began. One undo step; nothing if unchanged. */
-void editor_commit_layer_name(Editor *editor, int index, const char *before_name);
-void editor_commit_layer_opacity(Editor *editor, int index, uint8_t before_opacity);
+    /* Makes `r`, clipped to the sprite, the selection; drops the selection if nothing is left. */
+    void setSelectionClipped(Rect r);
 
-/* Selection helpers. Delete clears the selected pixels (one undo step). */
-void editor_select_all(Editor *editor);
-void editor_clear_selection(Editor *editor);
-void editor_delete_selection(Editor *editor);
+    /* Copy / cut put the selected pixels of the active layer on the clipboard (cut also clears
+     * them, one undo step). They return true if something was copied; cut needs a visible
+     * layer. */
+    bool copySelection();
+    bool cutSelection();
 
-/* Makes `r`, clipped to the sprite, the selection; drops the selection if nothing is left. */
-void editor_set_selection_clipped(Editor *editor, Rect r);
+    /* Pastes the clipboard as one undo step with its corner on the hovered cel, else on the
+     * selection corner, else at (0, 0); the pasted area becomes the selection and the select tool
+     * is chosen so it can be dragged into place. Does nothing without a clipboard or a visible
+     * layer. */
+    void paste();
 
-/* Copy / cut put the selected pixels of the active layer on the clipboard (cut also clears them,
- * one undo step). They return true if something was copied; cut needs a visible layer. */
-bool editor_copy_selection(Editor *editor);
-bool editor_cut_selection(Editor *editor);
+    /* Flips (horizontally or else vertically) or turns (clockwise or else counter-clockwise) the
+     * selected pixels in place, one undo step. A rotated selection keeps its center; whatever
+     * lands outside the sprite is lost. */
+    void flipSelection(bool horizontal);
+    void rotateSelection(bool clockwise);
 
-/* Pastes the clipboard as one undo step with its corner on the hovered cel, else on the selection
- * corner, else at (0, 0); the pasted area becomes the selection and the select tool is chosen so
- * it can be dragged into place. Does nothing without a clipboard or a visible layer. */
-void editor_paste(Editor *editor);
+  private:
+    template <auto Destroy> struct Deleter {
+        template <class T> void operator()(T *object) const
+        {
+            Destroy(object);
+        }
+    };
 
-/* Flips (horizontally or else vertically) or turns (clockwise or else counter-clockwise) the
- * selected pixels in place, one undo step. A rotated selection keeps its center; whatever lands
- * outside the sprite is lost. */
-void editor_flip_selection(Editor *editor, bool horizontal);
-void editor_rotate_selection(Editor *editor, bool clockwise);
+    Editor() = default;
 
-#ifdef __cplusplus
-}
-#endif
+    Rect spriteBounds() const;
+    void afterHistoryStep();
+
+    std::unique_ptr<Sprite, Deleter<sprite_destroy>> sprite_;
+    std::unique_ptr<History, Deleter<history_destroy>> history_;
+    std::unique_ptr<SDL_Texture, Deleter<SDL_DestroyTexture>> texture_;
+    std::unique_ptr<Clip, Deleter<clip_destroy>> clipboard_; /* last copied / cut selection */
+    std::vector<Rgba> pixels_;                               /* composited frame */
+    bool dirty_ = false;
+    Rect dirtyRect_ = {};
+
+    bool tempPick_ = false; /* the eyedropper is active only while a modifier is held */
+    ToolKind pickReturn_ = ToolKind::Pencil; /* the tool to go back to when the pick ends */
+
+    /* The live drag between a press and its release, null when idle. Declared after the history
+     * it works on, so it is gone first. */
+    std::unique_ptr<Drag> drag_;
+};
 
 #endif

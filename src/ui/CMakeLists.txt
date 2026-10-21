@@ -14,9 +14,9 @@ target_include_directories(tinysprite_imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/bac
 target_link_libraries(tinysprite_imgui PUBLIC SDL2::SDL2)
 target_compile_options(tinysprite_imgui PRIVATE -w)
 
-# The editor state and tool handlers are still C; the rest of the UI is C++.
+# The UI is C++ on top of the C core.
 add_library(tinysprite_ui STATIC
-  editor/editor.c editor/tools.c
+  editor/editor.cpp editor/tools.cpp
   canvas/canvas.cpp
   panels/panels.cpp panels/tools_panel.cpp panels/layers_panel.cpp panels/palette_panel.cpp
   icons/icons.cpp icons/icon_font.cpp

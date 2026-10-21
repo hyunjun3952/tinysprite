@@ -49,7 +49,7 @@ void PalettePanel::recentRow()
             ImGui::SameLine(0.0f, SWATCH_GAP);
         }
         if (swatch(editor_.recent.colors[i], false)) {
-            editor_set_color(&editor_, editor_.recent.colors[i]);
+            editor_.setForeground(editor_.recent.colors[i]);
         }
         ImGui::PopID();
     }
@@ -58,7 +58,7 @@ void PalettePanel::recentRow()
 
 void PalettePanel::paletteSwatches()
 {
-    Palette *palette = sprite_palette(editor_.sprite);
+    Palette *palette = sprite_palette(editor_.sprite());
     int count = palette_count(palette);
     ImGui::SeparatorText("Palette");
     ImGui::PushID("palette");
@@ -68,18 +68,18 @@ void PalettePanel::paletteSwatches()
             ImGui::SameLine(0.0f, SWATCH_GAP);
         }
         if (swatch(palette_get(palette, i), i == editor_.palette_selected)) {
-            editor_palette_pick(&editor_, i);
+            editor_.palettePick(i);
         }
         ImGui::PopID();
     }
     ImGui::PopID();
     if (ImGui::Button("Add")) {
-        editor_palette_add(&editor_);
+        editor_.paletteAdd();
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(editor_.palette_selected < 0);
     if (ImGui::Button("Remove")) {
-        editor_palette_remove(&editor_, editor_.palette_selected);
+        editor_.paletteRemove(editor_.palette_selected);
     }
     ImGui::EndDisabled();
 }

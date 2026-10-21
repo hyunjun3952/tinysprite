@@ -4,7 +4,6 @@
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
-#include "editor/tools.h"
 #include "icons/icons.h"
 #include "imgui.h"
 
@@ -18,7 +17,6 @@ constexpr int WINDOW_HEIGHT = 720;
 
 App::~App()
 {
-    editor_destroy(editor_);
     if (backends_) {
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
@@ -74,7 +72,7 @@ bool App::init(const AppOptions &options)
         std::fprintf(stderr, "icon font failed to load; buttons will have no icons\n");
     }
     if (backends_) {
-        editor_ = editor_create(renderer_, options.width, options.height);
+        editor_ = Editor::create(renderer_, options.width, options.height);
     }
     if (!editor_) {
         std::fprintf(stderr, "failed to initialise the editor\n");
@@ -111,34 +109,36 @@ void App::menuBar()
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
-        bool idle = !editor_stroking(editor_);
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, idle && history_can_undo(editor_->history))) {
-            editor_undo(editor_);
+        bool idle = !editor_->stroking();
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false,
+                            idle && history_can_undo(editor_->history()))) {
+            editor_->undo();
         }
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, idle && history_can_redo(editor_->history))) {
-            editor_redo(editor_);
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false,
+                            idle && history_can_redo(editor_->history()))) {
+            editor_->redo();
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->has_selection)) {
-            editor_cut_selection(editor_);
+            editor_->cutSelection();
         }
         if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->has_selection)) {
-            editor_copy_selection(editor_);
+            editor_->copySelection();
         }
         if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
-            editor_paste(editor_);
+            editor_->paste();
         }
         if (ImGui::MenuItem("Select all", "Ctrl+A", false, idle)) {
-            editor_select_all(editor_);
+            editor_->selectAll();
         }
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("View")) {
         if (ImGui::MenuItem("Zoom in", "+")) {
-            editor_zoom_step(editor_, 1);
+            editor_->zoomStep(1);
         }
         if (ImGui::MenuItem("Zoom out", "-")) {
-            editor_zoom_step(editor_, -1);
+            editor_->zoomStep(-1);
         }
         if (ImGui::MenuItem("Fit", "F")) {
             editor_->needs_fit = true;
@@ -156,11 +156,11 @@ void App::plainShortcuts()
 {
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
         if (ImGui::IsKeyPressed(ToolsPanel::shortcutKey(static_cast<ToolKind>(tool)), false)) {
-            editor_select_tool(editor_, static_cast<ToolKind>(tool));
+            editor_->selectTool(static_cast<ToolKind>(tool));
         }
     }
     if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
-        editor_swap_colors(editor_);
+        editor_->swapColors();
     }
     if (ImGui::IsKeyPressed(ImGuiKey_LeftBracket) && editor_->brush_size > 1) {
         editor_->brush_size--;
@@ -172,10 +172,10 @@ void App::plainShortcuts()
         editor_->needs_fit = true;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd)) {
-        editor_zoom_step(editor_, 1);
+        editor_->zoomStep(1);
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract)) {
-        editor_zoom_step(editor_, -1);
+        editor_->zoomStep(-1);
     }
 }
 
@@ -183,23 +183,23 @@ void App::handleShortcuts()
 {
     const ImGuiIO &io = ImGui::GetIO();
     if (io.WantTextInput) {
-        editor_temp_pick(editor_, false);
+        editor_->tempPick(false);
         return;
     }
     /* Holding Alt turns the active tool into the eyedropper until it is released. */
-    editor_temp_pick(editor_, io.KeyAlt);
+    editor_->tempPick(io.KeyAlt);
     if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-        if (editor_stroking(editor_)) {
-            tools_cancel(editor_);
+        if (editor_->stroking()) {
+            editor_->cancelDrag();
         } else {
-            editor_clear_selection(editor_);
+            editor_->clearSelection();
         }
     }
-    if (editor_stroking(editor_)) {
+    if (editor_->stroking()) {
         return;
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-        editor_delete_selection(editor_);
+        editor_->deleteSelection();
     }
     if (!io.KeyCtrl) {
         if (!io.KeyAlt) {
@@ -209,20 +209,20 @@ void App::handleShortcuts()
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Z)) {
         if (io.KeyShift) {
-            editor_redo(editor_);
+            editor_->redo();
         } else {
-            editor_undo(editor_);
+            editor_->undo();
         }
     } else if (ImGui::IsKeyPressed(ImGuiKey_Y)) {
-        editor_redo(editor_);
+        editor_->redo();
     } else if (ImGui::IsKeyPressed(ImGuiKey_A, false)) {
-        editor_select_all(editor_);
+        editor_->selectAll();
     } else if (ImGui::IsKeyPressed(ImGuiKey_C, false)) {
-        editor_copy_selection(editor_);
+        editor_->copySelection();
     } else if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
-        editor_cut_selection(editor_);
+        editor_->cutSelection();
     } else if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
-        editor_paste(editor_);
+        editor_->paste();
     }
 }
 
