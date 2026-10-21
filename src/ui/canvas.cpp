@@ -46,10 +46,100 @@ void drawRectOutline(ImDrawList *draw, ImVec2 p0, ImVec2 p1, ImU32 color)
     draw->AddRect(p0, p1, color);
 }
 
+constexpr int LOUPE_RADIUS = 4;
+constexpr int LOUPE_CELLS = 2 * LOUPE_RADIUS + 1;
+constexpr float LOUPE_CELL = 14.0f;
+constexpr float LOUPE_SIZE = static_cast<float>(LOUPE_CELLS) * LOUPE_CELL;
+constexpr float LOUPE_LABEL = 20.0f;
+constexpr float LOUPE_GAP = 22.0f; /* from the cursor */
+constexpr float LOUPE_PAD = 4.0f;
+
+/* Top-left of the loupe: above and right of the cursor, flipped or clamped to stay inside the
+ * canvas. */
+ImVec2 loupePosition(ImVec2 mouse, ImVec2 origin, ImVec2 avail)
+{
+    float x = mouse.x + LOUPE_GAP;
+    float y = mouse.y - LOUPE_GAP - LOUPE_SIZE - LOUPE_LABEL;
+    if (x + LOUPE_SIZE + LOUPE_PAD > origin.x + avail.x) {
+        x = mouse.x - LOUPE_GAP - LOUPE_SIZE;
+    }
+    if (y - LOUPE_PAD < origin.y) {
+        y = mouse.y + LOUPE_GAP;
+    }
+    x = std::clamp(x, origin.x + LOUPE_PAD,
+                   std::max(origin.x + avail.x - LOUPE_SIZE - LOUPE_PAD, origin.x + LOUPE_PAD));
+    y = std::clamp(
+        y, origin.y + LOUPE_PAD,
+        std::max(origin.y + avail.y - LOUPE_SIZE - LOUPE_LABEL - LOUPE_PAD, origin.y + LOUPE_PAD));
+    return ImVec2(x, y);
+}
+
 } // namespace
 
 Canvas::Canvas(Editor &editor) : editor_(editor)
 {
+}
+
+/* Advances the middle button state and returns how far to pan this frame. */
+ImVec2 Canvas::updateMiddle(ImVec2 mouse, bool hovered)
+{
+    if (hovered && !editor_.stroking() && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
+        middle_ = Middle::Pending;
+        middlePress_ = mouse;
+        middleTime_ = ImGui::GetTime();
+    }
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+        middle_ = Middle::Idle;
+    }
+    ImVec2 pan(0.0f, 0.0f);
+    if (middle_ == Middle::Pending) {
+        float dx = mouse.x - middlePress_.x;
+        float dy = mouse.y - middlePress_.y;
+        if (dx * dx + dy * dy > MIDDLE_DRAG_PIXELS * MIDDLE_DRAG_PIXELS) {
+            middle_ = Middle::Panning;
+            pan = ImVec2(dx, dy); /* catch up with what moved before the threshold */
+        } else if (ImGui::GetTime() - middleTime_ >= MIDDLE_HOLD_SECONDS) {
+            middle_ = Middle::Picking;
+        }
+    } else if (middle_ == Middle::Panning) {
+        pan = ImGui::GetIO().MouseDelta;
+    }
+    return pan;
+}
+
+/* Pans by `pan` (from the middle button) or, with the right button or Space + left drag, by the
+ * mouse movement. True when the canvas panned, which also means nothing is drawn this frame. */
+bool Canvas::applyPan(ImVec2 pan, bool active)
+{
+    bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_.stroking();
+    bool otherPan = active && (ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
+                               (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)));
+    if (otherPan) {
+        pan = ImGui::GetIO().MouseDelta;
+    }
+    if (middle_ != Middle::Panning && !otherPan) {
+        return false;
+    }
+    editor_.view().viewport.pan_x += pan.x;
+    editor_.view().viewport.pan_y += pan.y;
+    editor_.view().auto_fit = false;
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    return true;
+}
+
+/* The left button: press starts a stroke, holding drags it, letting go ends it. */
+void Canvas::strokeInput(int cx, int cy, bool hovered)
+{
+    bool shift = ImGui::GetIO().KeyShift;
+    if (!editor_.stroking() && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
+        editor_.press(cx, cy, shift);
+    } else if (editor_.stroking()) {
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            editor_.drag(cx, cy, shift);
+        } else {
+            editor_.release();
+        }
+    }
 }
 
 void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
@@ -71,27 +161,7 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
     }
     /* Middle button: a long press without moving is the eyedropper (as long as it is held), a
      * drag pans. */
-    if (hovered && !editor_.stroking() && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
-        middle_ = Middle::Pending;
-        middlePress_ = mouse;
-        middleTime_ = ImGui::GetTime();
-    }
-    if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
-        middle_ = Middle::Idle;
-    }
-    ImVec2 pan(0.0f, 0.0f);
-    if (middle_ == Middle::Pending) {
-        float dx = mouse.x - middlePress_.x;
-        float dy = mouse.y - middlePress_.y;
-        if (dx * dx + dy * dy > MIDDLE_DRAG_PIXELS * MIDDLE_DRAG_PIXELS) {
-            middle_ = Middle::Panning;
-            pan = ImVec2(dx, dy); /* catch up with what moved before the threshold */
-        } else if (ImGui::GetTime() - middleTime_ >= MIDDLE_HOLD_SECONDS) {
-            middle_ = Middle::Picking;
-        }
-    } else if (middle_ == Middle::Panning) {
-        pan = io.MouseDelta;
-    }
+    ImVec2 pan = updateMiddle(mouse, hovered);
     editor_.tempPick(middle_ == Middle::Picking);
     if (middle_ == Middle::Picking) {
         if (std::optional<Rgba> color =
@@ -103,30 +173,8 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
     if (middle_ == Middle::Pending) {
         return; /* not decided yet: neither draw nor pan */
     }
-
-    /* The right button pans too, and so does Space + left drag, without drawing. */
-    bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_.stroking();
-    bool otherPan = active && (ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
-                               (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)));
-    if (otherPan) {
-        pan = io.MouseDelta;
-    }
-    if (middle_ == Middle::Panning || otherPan) {
-        editor_.view().viewport.pan_x += pan.x;
-        editor_.view().viewport.pan_y += pan.y;
-        editor_.view().auto_fit = false;
-        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-        return;
-    }
-
-    if (!editor_.stroking() && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
-        editor_.press(cx, cy, io.KeyShift);
-    } else if (editor_.stroking()) {
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-            editor_.drag(cx, cy, io.KeyShift);
-        } else {
-            editor_.release();
-        }
+    if (!applyPan(pan, active)) {
+        strokeInput(cx, cy, hovered);
     }
 }
 
@@ -256,37 +304,21 @@ void Canvas::drawStatus(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
  * cel being picked outlined in the middle, and its color underneath. */
 void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
 {
-    constexpr int RADIUS = 4;
-    constexpr int N = 2 * RADIUS + 1;
-    constexpr float CELL = 14.0f;
-    constexpr float SIZE = static_cast<float>(N) * CELL;
-    constexpr float LABEL = 20.0f;
-    constexpr float GAP = 22.0f; /* from the cursor */
-    constexpr float PAD = 4.0f;
     ImDrawList *draw = ImGui::GetForegroundDrawList();
-    ImVec2 mouse = ImGui::GetMousePos();
-    float x = mouse.x + GAP;
-    float y = mouse.y - GAP - SIZE - LABEL;
-    if (x + SIZE + PAD > origin.x + avail.x) {
-        x = mouse.x - GAP - SIZE;
-    }
-    if (y - PAD < origin.y) {
-        y = mouse.y + GAP;
-    }
-    x = std::clamp(x, origin.x + PAD, std::max(origin.x + avail.x - SIZE - PAD, origin.x + PAD));
-    y = std::clamp(y, origin.y + PAD,
-                   std::max(origin.y + avail.y - SIZE - LABEL - PAD, origin.y + PAD));
-
-    draw->AddRectFilled(ImVec2(x - PAD, y - PAD), ImVec2(x + SIZE + PAD, y + SIZE + LABEL + PAD),
-                        IM_COL32(24, 24, 28, 240), 3.0f);
+    ImVec2 at = loupePosition(ImGui::GetMousePos(), origin, avail);
+    draw->AddRectFilled(
+        ImVec2(at.x - LOUPE_PAD, at.y - LOUPE_PAD),
+        ImVec2(at.x + LOUPE_SIZE + LOUPE_PAD, at.y + LOUPE_SIZE + LOUPE_LABEL + LOUPE_PAD),
+        IM_COL32(24, 24, 28, 240), 3.0f);
     const int cx = editor_.hoverX();
     const int cy = editor_.hoverY();
-    for (int j = 0; j < N; j++) {
-        for (int i = 0; i < N; i++) {
-            ImVec2 p0(x + static_cast<float>(i) * CELL, y + static_cast<float>(j) * CELL);
-            ImVec2 p1(p0.x + CELL, p0.y + CELL);
-            std::optional<Rgba> color = eyedropper_pick_sprite(editor_.sprite(), editor_.frame(),
-                                                               cx - RADIUS + i, cy - RADIUS + j);
+    for (int j = 0; j < LOUPE_CELLS; j++) {
+        for (int i = 0; i < LOUPE_CELLS; i++) {
+            ImVec2 p0(at.x + static_cast<float>(i) * LOUPE_CELL,
+                      at.y + static_cast<float>(j) * LOUPE_CELL);
+            ImVec2 p1(p0.x + LOUPE_CELL, p0.y + LOUPE_CELL);
+            std::optional<Rgba> color = eyedropper_pick_sprite(
+                editor_.sprite(), editor_.frame(), cx - LOUPE_RADIUS + i, cy - LOUPE_RADIUS + j);
             if (!color) {
                 draw->AddRectFilled(p0, p1, IM_COL32(48, 48, 54, 255)); /* beside the sprite */
                 continue;
@@ -297,8 +329,9 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
             draw->AddRectFilled(p0, p1, IM_COL32(color->r, color->g, color->b, color->a));
         }
     }
-    ImVec2 c0(x + static_cast<float>(RADIUS) * CELL, y + static_cast<float>(RADIUS) * CELL);
-    ImVec2 c1(c0.x + CELL, c0.y + CELL);
+    ImVec2 c0(at.x + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL,
+              at.y + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL);
+    ImVec2 c1(c0.x + LOUPE_CELL, c0.y + LOUPE_CELL);
     draw->AddRect(ImVec2(c0.x - 1.0f, c0.y - 1.0f), ImVec2(c1.x + 1.0f, c1.y + 1.0f),
                   IM_COL32(0, 0, 0, 255));
     draw->AddRect(c0, c1, IM_COL32(255, 255, 255, 255));
@@ -310,45 +343,33 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
     } else {
         std::snprintf(text, sizeof(text), "-");
     }
-    draw->AddText(ImVec2(x, y + SIZE + 3.0f), IM_COL32(255, 255, 255, 255), text);
+    draw->AddText(ImVec2(at.x, at.y + LOUPE_SIZE + 3.0f), IM_COL32(255, 255, 255, 255), text);
 }
 
-void Canvas::show(float x, float y, float w, float h)
+/* Re-fits the sprite when asked to, or when the canvas was resized while it follows the window. */
+void Canvas::updateFit(ImVec2 avail)
 {
-    ImGui::SetNextWindowPos(ImVec2(x, y));
-    ImGui::SetNextWindowSize(ImVec2(w, h));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                             ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground |
-                             ImGuiWindowFlags_NoBringToFrontOnFocus;
-    ImGui::Begin("Canvas", nullptr, flags);
-    ImGui::PopStyleVar();
-
-    ImVec2 origin = ImGui::GetCursorScreenPos();
-    ImVec2 avail = ImGui::GetContentRegionAvail();
     if (editor_.view().auto_fit &&
         (avail.x != editor_.view().canvas_w || avail.y != editor_.view().canvas_h)) {
         editor_.view().needs_fit = true; /* the canvas was resized (window, panel dock / resize) */
     }
     editor_.view().canvas_w = avail.x;
     editor_.view().canvas_h = avail.y;
-    int spriteW = editor_.sprite().width();
-    int spriteH = editor_.sprite().height();
     if (editor_.view().needs_fit && avail.x > 0.0f && avail.y > 0.0f) {
-        editor_.view().viewport.fit(spriteW, spriteH, std::max(avail.x - FIT_MARGIN, 1.0f),
+        editor_.view().viewport.fit(editor_.sprite().width(), editor_.sprite().height(),
+                                    std::max(avail.x - FIT_MARGIN, 1.0f),
                                     std::max(avail.y - FIT_MARGIN, 1.0f));
         editor_.view().viewport.pan_x += FIT_MARGIN / 2.0f;
         editor_.view().viewport.pan_y += FIT_MARGIN / 2.0f;
         editor_.view().needs_fit = false;
         editor_.view().auto_fit = true;
     }
+}
 
-    ImGui::InvisibleButton("canvas", avail,
-                           ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle |
-                               ImGuiButtonFlags_MouseButtonRight);
-    handleInput(origin, ImGui::IsItemHovered(), ImGui::IsItemActive());
-    editor_.updateTexture();
-
+/* The workspace, the sprite over its checkerboard, the grid and the overlays, clipped to the canvas
+ * window. */
+void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
+{
     ImDrawList *draw = ImGui::GetWindowDrawList();
     ImVec2 clipMax(origin.x + avail.x, origin.y + avail.y);
     draw->PushClipRect(origin, clipMax, true);
@@ -356,8 +377,10 @@ void Canvas::show(float x, float y, float w, float h)
 
     ScreenRect sprite = {origin.x + editor_.view().viewport.celToScreenX(0),
                          origin.y + editor_.view().viewport.celToScreenY(0), 0.0f, 0.0f};
-    sprite.x1 = sprite.x0 + static_cast<float>(spriteW) * editor_.view().viewport.zoom;
-    sprite.y1 = sprite.y0 + static_cast<float>(spriteH) * editor_.view().viewport.zoom;
+    sprite.x1 =
+        sprite.x0 + static_cast<float>(editor_.sprite().width()) * editor_.view().viewport.zoom;
+    sprite.y1 =
+        sprite.y0 + static_cast<float>(editor_.sprite().height()) * editor_.view().viewport.zoom;
     ScreenRect visible = {std::max(sprite.x0, origin.x), std::max(sprite.y0, origin.y),
                           std::min(sprite.x1, clipMax.x), std::min(sprite.y1, clipMax.y)};
     if (visible.x0 < visible.x1 && visible.y0 < visible.y1) {
@@ -386,6 +409,28 @@ void Canvas::show(float x, float y, float w, float h)
         drawStatus(draw, origin, avail);
     }
     draw->PopClipRect();
+}
+
+void Canvas::show(float x, float y, float w, float h)
+{
+    ImGui::SetNextWindowPos(ImVec2(x, y));
+    ImGui::SetNextWindowSize(ImVec2(w, h));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                             ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground |
+                             ImGuiWindowFlags_NoBringToFrontOnFocus;
+    ImGui::Begin("Canvas", nullptr, flags);
+    ImGui::PopStyleVar();
+
+    ImVec2 origin = ImGui::GetCursorScreenPos();
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    updateFit(avail);
+    ImGui::InvisibleButton("canvas", avail,
+                           ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle |
+                               ImGuiButtonFlags_MouseButtonRight);
+    handleInput(origin, ImGui::IsItemHovered(), ImGui::IsItemActive());
+    editor_.updateTexture();
+    drawContent(origin, avail);
     bool picking = middle_ == Middle::Picking ||
                    (editor_.tool() == ToolKind::Eyedropper && editor_.stroking());
     if (picking) {

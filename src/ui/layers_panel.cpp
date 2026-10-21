@@ -108,9 +108,167 @@ void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
                   ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::HAIRLINE)));
 }
 
-/* One row per layer, top layer first: a visibility checkbox, the name (dimmed while hidden), the
- * opacity when it is not full, and the lock toggle. The whole row selects the layer; the checkbox
- * and the toggle sit on top of it. */
+/* Selects on click (Shift: a range, Ctrl: add or remove one layer, neither: only this one), and
+ * with several rows selected marks the one the tools draw on with a bar. The row is a Selectable
+ * that spans all columns; the other cells sit on top of it. */
+void LayersPanel::rowSelectable(int index, const RowContext &ctx)
+{
+    if (ImGui::Selectable("##row", editor_.layerSelected(index),
+                          ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap,
+                          ImVec2(0.0f, ctx.rowHeight))) {
+        const ImGuiIO &io = ImGui::GetIO();
+        editor_.pickLayer(index, io.KeyShift  ? LayerPick::Range
+                                 : io.KeyCtrl ? LayerPick::Toggle
+                                              : LayerPick::Only);
+    }
+    if (ctx.multiple && index == editor_.activeLayer()) {
+        ImGui::GetForegroundDrawList()->AddRectFilled(
+            ImGui::GetItemRectMin(),
+            ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
+            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)));
+    }
+}
+
+/* Drag a row onto another to move the layer there. The drop is only recorded in `drop`: the list
+ * must not change while it is being drawn. */
+void LayersPanel::rowDragDrop(int index, const Layer &layer, const RowContext &ctx, Drop &drop)
+{
+    if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+        ImGui::SetDragDropPayload("LAYER_ROW", &index, sizeof(index));
+        if (ctx.multiple && editor_.layerSelected(index)) {
+            ImGui::Text("%d layers", static_cast<int>(editor_.selectedLayers().size()));
+        } else {
+            ImGui::TextUnformatted(layer.name().c_str());
+        }
+        ImGui::EndDragDropSource();
+    }
+    if (!ImGui::BeginDragDropTarget()) {
+        return;
+    }
+    /* Looked at while hovering (before the drop), to draw where the layer would land. */
+    constexpr ImGuiDragDropFlags FLAGS =
+        ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
+    if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("LAYER_ROW", FLAGS)) {
+        int from = *static_cast<const int *>(payload->Data);
+        /* Dropping a selection onto one of its own layers moves nothing. */
+        bool onItself =
+            from == index || (editor_.layerSelected(from) && editor_.layerSelected(index));
+        if (!onItself) {
+            drawDropLine(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), from < index);
+            if (payload->IsDelivery()) {
+                drop = {from, index};
+            }
+        }
+    }
+    ImGui::EndDragDropTarget();
+}
+
+/* The row's tooltip, and the double click that starts renaming. */
+void LayersPanel::rowHintAndRename(int index, const Layer &layer)
+{
+    char hint[LAYER_NAME_MAX + 128];
+    std::snprintf(hint, sizeof(hint),
+                  "%s\nClick to make this the active layer (the one the tools draw on).\n"
+                  "Double-click to rename it.",
+                  layer.name().c_str());
+    theme::tip(hint);
+    /* A double click renames, unless Ctrl / Shift are held: those clicks change the selection,
+     * and two quick ones on the same row must not collapse it. */
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) &&
+        !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift) {
+        editor_.setActiveLayer(index);
+        renaming_ = index;
+        renameBefore_ = layer.name();
+        renameFocus_ = true;
+    }
+}
+
+/* The eye toggle. With the row inside a multi-selection it applies to the whole selection. */
+void LayersPanel::visibilityToggle(int index, const Layer &layer, const RowContext &ctx)
+{
+    centerInRow(ctx.rowHeight, ctx.frameHeight);
+    if (!icons::toggle(icons::Icon::Eye, icons::Icon::EyeOff, "##visible",
+                       layer.visible() ? "Visible. Click to hide the layer."
+                                       : "Hidden. Click to show the layer (tools cannot draw "
+                                         "on a hidden layer).",
+                       layer.visible(), ctx.frameHeight)) {
+        return;
+    }
+    bool visible = !layer.visible();
+    if (ctx.multiple && editor_.layerSelected(index)) {
+        editor_.setSelectedLayersVisible(visible);
+    } else {
+        editor_.setLayerVisible(index, visible);
+    }
+}
+
+/* The lock toggle, applied to the whole selection like the eye. */
+void LayersPanel::lockToggle(int index, const Layer &layer, const RowContext &ctx)
+{
+    centerInRow(ctx.rowHeight, ctx.frameHeight);
+    if (!icons::toggle(icons::Icon::Lock, icons::Icon::Unlock, "##lock",
+                       layer.locked() ? "Locked: tools cannot change it. Click to unlock."
+                                      : "Unlocked. Click to lock the layer (it stays visible, "
+                                        "tools cannot change it).",
+                       layer.locked(), ctx.frameHeight)) {
+        return;
+    }
+    bool locked = !layer.locked();
+    if (ctx.multiple && editor_.layerSelected(index)) {
+        editor_.setSelectedLayersLocked(locked);
+    } else {
+        editor_.setLayerLocked(index, locked);
+    }
+}
+
+/* The name (dimmed while hidden), or its text field while it is being renamed. */
+void LayersPanel::nameCell(int index, Layer &layer, const RowContext &ctx)
+{
+    centerInRow(ctx.rowHeight, ctx.frameHeight);
+    if (renaming_ == index) {
+        renameField(index, layer);
+        return;
+    }
+    ImGui::AlignTextToFramePadding();
+    const char *name = layer.name().c_str();
+    ImGui::PushStyleColor(ImGuiCol_Text, theme::rgb(layer.visible() ? theme::INK : theme::MUTE));
+    ImGui::TextUnformatted(name[0] ? name : "(unnamed)");
+    ImGui::PopStyleColor();
+}
+
+void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
+{
+    Layer &layer = *editor_.sprite().layer(index);
+    ImGui::PushID(index);
+    ImGui::TableNextRow(ImGuiTableRowFlags_None, ctx.rowHeight);
+    ImGui::TableSetColumnIndex(0);
+    rowSelectable(index, ctx);
+    rowDragDrop(index, layer, ctx, drop);
+    rowHintAndRename(index, layer);
+    ImGui::SameLine(0.0f, EDGE_MARGIN);
+    visibilityToggle(index, layer, ctx);
+
+    ImGui::TableSetColumnIndex(1);
+    thumbnail(layer, ctx.rowHeight);
+
+    ImGui::TableSetColumnIndex(2);
+    nameCell(index, layer, ctx);
+
+    ImGui::TableSetColumnIndex(3);
+    if (layer.opacity() != 255) {
+        centerInRow(ctx.rowHeight, ctx.frameHeight);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%d%%", (layer.opacity() * 100 + 127) / 255);
+    }
+
+    ImGui::TableSetColumnIndex(4);
+    lockToggle(index, layer, ctx);
+    ImGui::PopID();
+}
+
+/* One row per layer, top layer first: a visibility checkbox, the thumbnail, the name (dimmed while
+ * hidden), the opacity when it is not full, and the lock toggle. The whole row selects the layer;
+ * the checkbox and the toggle sit on top of it. */
 void LayersPanel::rows()
 {
     constexpr ImGuiTableFlags FLAGS = ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
@@ -121,144 +279,28 @@ void LayersPanel::rows()
         renaming_ = -1; /* the layer is gone (undo, delete) */
     }
     thumbs_.prune(editor_.sprite());
-    const float frameHeight = ImGui::GetFrameHeight();
-    const float rowHeight = static_cast<float>(THUMB_HEIGHT) + 8.0f;
+    RowContext ctx;
+    ctx.frameHeight = ImGui::GetFrameHeight();
+    ctx.rowHeight = static_cast<float>(THUMB_HEIGHT) + 8.0f;
+    ctx.multiple = editor_.selectedLayers().size() > 1;
     ImGui::TableSetupColumn("##visible", ImGuiTableColumnFlags_WidthFixed,
-                            frameHeight + EDGE_MARGIN);
+                            ctx.frameHeight + EDGE_MARGIN);
     ImGui::TableSetupColumn("##thumbnail", ImGuiTableColumnFlags_WidthFixed, THUMB_COLUMN);
     ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("##opacity", ImGuiTableColumnFlags_WidthFixed, OPACITY_COLUMN);
-    ImGui::TableSetupColumn("##lock", ImGuiTableColumnFlags_WidthFixed, frameHeight + EDGE_MARGIN);
-    const bool multiple = editor_.selectedLayers().size() > 1;
-    int moveFrom = -1; /* a drop is applied after the loop: the list must not change under it */
-    int moveTo = -1;
+    ImGui::TableSetupColumn("##lock", ImGuiTableColumnFlags_WidthFixed,
+                            ctx.frameHeight + EDGE_MARGIN);
+    Drop drop; /* applied after the loop: the list must not change under it */
     for (int i = editor_.sprite().layerCount() - 1; i >= 0; i--) {
-        Layer *layer = editor_.sprite().layer(i);
-        ImGui::PushID(i);
-        ImGui::TableNextRow(ImGuiTableRowFlags_None, rowHeight);
-        ImGui::TableSetColumnIndex(0);
-        if (ImGui::Selectable("##row", editor_.layerSelected(i),
-                              ImGuiSelectableFlags_SpanAllColumns |
-                                  ImGuiSelectableFlags_AllowOverlap,
-                              ImVec2(0.0f, rowHeight))) {
-            /* Shift selects a range, Ctrl adds or removes one layer, neither selects only this. */
-            const ImGuiIO &io = ImGui::GetIO();
-            editor_.pickLayer(i, io.KeyShift  ? LayerPick::Range
-                                 : io.KeyCtrl ? LayerPick::Toggle
-                                              : LayerPick::Only);
-        }
-        if (multiple && i == editor_.activeLayer()) {
-            /* With several rows selected, a bar marks the one the tools draw on. */
-            ImGui::GetForegroundDrawList()->AddRectFilled(
-                ImGui::GetItemRectMin(),
-                ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
-                ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)));
-        }
-        /* Drag a row onto another to move the layer there. */
-        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-            ImGui::SetDragDropPayload("LAYER_ROW", &i, sizeof(i));
-            if (multiple && editor_.layerSelected(i)) {
-                ImGui::Text("%d layers", static_cast<int>(editor_.selectedLayers().size()));
-            } else {
-                ImGui::TextUnformatted(layer->name().c_str());
-            }
-            ImGui::EndDragDropSource();
-        }
-        if (ImGui::BeginDragDropTarget()) {
-            /* Looked at while hovering (before the drop), to draw where the layer would land. */
-            constexpr ImGuiDragDropFlags FLAGS = ImGuiDragDropFlags_AcceptBeforeDelivery |
-                                                 ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
-            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("LAYER_ROW", FLAGS)) {
-                int from = *static_cast<const int *>(payload->Data);
-                /* Dropping a selection onto one of its own layers moves nothing. */
-                bool onItself =
-                    from == i || (editor_.layerSelected(from) && editor_.layerSelected(i));
-                if (!onItself) {
-                    drawDropLine(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), from < i);
-                    if (payload->IsDelivery()) {
-                        moveFrom = from;
-                        moveTo = i;
-                    }
-                }
-            }
-            ImGui::EndDragDropTarget();
-        }
-        char hint[LAYER_NAME_MAX + 128];
-        std::snprintf(hint, sizeof(hint),
-                      "%s\nClick to make this the active layer (the one the tools draw on).\n"
-                      "Double-click to rename it.",
-                      layer->name().c_str());
-        theme::tip(hint);
-        /* A double click renames, unless Ctrl / Shift are held: those clicks change the selection,
-         * and two quick ones on the same row must not collapse it. */
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) &&
-            !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift) {
-            editor_.setActiveLayer(i);
-            renaming_ = i;
-            renameBefore_ = layer->name();
-            renameFocus_ = true;
-        }
-        ImGui::SameLine(0.0f, EDGE_MARGIN);
-        centerInRow(rowHeight, frameHeight);
-        if (icons::toggle(icons::Icon::Eye, icons::Icon::EyeOff, "##visible",
-                          layer->visible() ? "Visible. Click to hide the layer."
-                                           : "Hidden. Click to show the layer (tools cannot draw "
-                                             "on a hidden layer).",
-                          layer->visible(), frameHeight)) {
-            bool visible = !layer->visible();
-            if (multiple && editor_.layerSelected(i)) {
-                editor_.setSelectedLayersVisible(visible);
-            } else {
-                editor_.setLayerVisible(i, visible);
-            }
-        }
-
-        ImGui::TableSetColumnIndex(1);
-        thumbnail(*layer, rowHeight);
-
-        ImGui::TableSetColumnIndex(2);
-        centerInRow(rowHeight, frameHeight);
-        if (renaming_ == i) {
-            renameField(i, *layer);
-        } else {
-            ImGui::AlignTextToFramePadding();
-            const char *name = layer->name().c_str();
-            ImGui::PushStyleColor(ImGuiCol_Text,
-                                  theme::rgb(layer->visible() ? theme::INK : theme::MUTE));
-            ImGui::TextUnformatted(name[0] ? name : "(unnamed)");
-            ImGui::PopStyleColor();
-        }
-
-        ImGui::TableSetColumnIndex(3);
-        if (layer->opacity() != 255) {
-            centerInRow(rowHeight, frameHeight);
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("%d%%", (layer->opacity() * 100 + 127) / 255);
-        }
-
-        ImGui::TableSetColumnIndex(4);
-        centerInRow(rowHeight, frameHeight);
-        if (icons::toggle(icons::Icon::Lock, icons::Icon::Unlock, "##lock",
-                          layer->locked() ? "Locked: tools cannot change it. Click to unlock."
-                                          : "Unlocked. Click to lock the layer (it stays visible, "
-                                            "tools cannot change it).",
-                          layer->locked(), frameHeight)) {
-            bool locked = !layer->locked();
-            if (multiple && editor_.layerSelected(i)) {
-                editor_.setSelectedLayersLocked(locked);
-            } else {
-                editor_.setLayerLocked(i, locked);
-            }
-        }
-        ImGui::PopID();
+        row(i, ctx, drop);
     }
     ImGui::EndTable();
-    if (moveFrom >= 0) {
-        bool wasSelected = editor_.layerSelected(moveFrom);
-        editor_.moveSelectedLayers(moveFrom, moveTo);
+    if (drop.from >= 0) {
+        bool wasSelected = editor_.layerSelected(drop.from);
+        editor_.moveSelectedLayers(drop.from, drop.to);
         if (!wasSelected) {
-            editor_.pickLayer(moveTo,
-                              LayerPick::Only); /* the dragged layer becomes the selection */
+            /* the dragged layer becomes the selection */
+            editor_.pickLayer(drop.to, LayerPick::Only);
         }
     }
 }

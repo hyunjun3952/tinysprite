@@ -96,6 +96,7 @@ class Panels
     };
 
     static void dock(Panel &panel, DockSide side);
+    void panelMenu(Panel &panel);
     static void dragToDock(Panel &panel);
     static void resizeEdge(Panel &panel);
     static bool titleHovered();

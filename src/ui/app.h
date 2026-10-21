@@ -43,8 +43,19 @@ class App
     void run(const AppOptions &options);
 
   private:
+    bool createWindow(int width, int height);
+    bool initImGui();
+    void loadSettings(const SettingsMap &settings);
+
     void menuBar();
+    void fileMenu();
+    void openRecentMenu(bool idle);
+    void editMenu();
+    void viewMenu();
     void plainShortcuts();
+    void ctrlShortcuts();
+    void escapeShortcut();
+    bool modalOpen() const;
     void handleShortcuts();
     void layersWindow(float height);
 

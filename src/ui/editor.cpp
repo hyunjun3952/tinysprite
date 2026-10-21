@@ -249,6 +249,51 @@ std::vector<int> Editor::selectedLayers() const
     return out;
 }
 
+/* Ctrl+click: adds the layer to the selection, or removes it (never the last selected one). */
+void Editor::toggleLayerPick(int index)
+{
+    const Layer *layer = sprite().layer(index);
+    if (!layerSelected(index)) {
+        /* The active layer stays selected, now as one of the picked ones. */
+        picked_.push_back(sprite().layer(activeLayer_));
+        activeLayer_ = index;
+        anchor_ = layer;
+        return;
+    }
+    if (selectedLayers().size() <= 1) {
+        return;
+    }
+    picked_.erase(std::remove(picked_.begin(), picked_.end(), layer), picked_.end());
+    if (index != activeLayer_) {
+        return;
+    }
+    /* Another selected layer takes over as the active one: the topmost. */
+    for (int i = sprite().layerCount() - 1; i >= 0; i--) {
+        if (i != index && layerSelected(i)) {
+            activeLayer_ = i;
+            break;
+        }
+    }
+    picked_.erase(std::remove(picked_.begin(), picked_.end(), sprite().layer(activeLayer_)),
+                  picked_.end());
+}
+
+/* Shift+click: selects everything between the anchor and the layer. */
+void Editor::rangeLayerPick(int index)
+{
+    int from = indexOfLayer(sprite(), anchor_);
+    if (from < 0) {
+        from = activeLayer_;
+    }
+    picked_.clear();
+    for (int i = std::min(from, index); i <= std::max(from, index); i++) {
+        if (i != index) {
+            picked_.push_back(sprite().layer(i));
+        }
+    }
+    activeLayer_ = index;
+}
+
 void Editor::pickLayer(int index, LayerPick mode)
 {
     const Layer *layer = sprite().layer(index);
@@ -262,41 +307,11 @@ void Editor::pickLayer(int index, LayerPick mode)
         anchor_ = layer;
         break;
     case LayerPick::Toggle:
-        if (!layerSelected(index)) {
-            /* The active layer stays selected, now as one of the picked ones. */
-            picked_.push_back(sprite().layer(activeLayer_));
-            activeLayer_ = index;
-            anchor_ = layer;
-        } else if (selectedLayers().size() > 1) {
-            picked_.erase(std::remove(picked_.begin(), picked_.end(), layer), picked_.end());
-            if (index == activeLayer_) {
-                /* Another selected layer takes over as the active one: the topmost. */
-                for (int i = sprite().layerCount() - 1; i >= 0; i--) {
-                    if (i != index && layerSelected(i)) {
-                        activeLayer_ = i;
-                        break;
-                    }
-                }
-                picked_.erase(
-                    std::remove(picked_.begin(), picked_.end(), sprite().layer(activeLayer_)),
-                    picked_.end());
-            }
-        }
+        toggleLayerPick(index);
         break;
-    case LayerPick::Range: {
-        int from = indexOfLayer(sprite(), anchor_);
-        if (from < 0) {
-            from = activeLayer_;
-        }
-        picked_.clear();
-        for (int i = std::min(from, index); i <= std::max(from, index); i++) {
-            if (i != index) {
-                picked_.push_back(sprite().layer(i));
-            }
-        }
-        activeLayer_ = index;
+    case LayerPick::Range:
+        rangeLayerPick(index);
         break;
-    }
     }
 }
 

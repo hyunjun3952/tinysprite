@@ -294,45 +294,68 @@ std::unique_ptr<Drag> beginSelect(Editor &editor, int cx, int cy)
     return std::make_unique<SelectDrag>(editor, cx, cy);
 }
 
+std::unique_ptr<Drag> beginPencil(Editor &editor, Cel &cel, int cx, int cy)
+{
+    bool erasing = editor.tool() == ToolKind::Eraser;
+    Rgba color = editor.foreground();
+    PencilOptions options = {editor.options().pixel_perfect, editor.options().symmetry,
+                             editor.options().brush_size, editor.options().brush_round};
+    std::optional<ToolPoint> from = editor.lineFrom();
+    std::unique_ptr<PencilStroke> stroke =
+        PencilStroke::begin(editor.history(), cel, erasing ? Rgba{} : color, options,
+                            from ? from->x : cx, from ? from->y : cy);
+    if (!stroke) {
+        return nullptr;
+    }
+    /* A color counts as used only when the press lands on the sprite. */
+    if (!erasing && (cel.inBounds(cx, cy) || from)) {
+        editor.recordRecent(color);
+    }
+    if (from) {
+        stroke->extend(cx, cy);
+        editor.markAllDirty();
+    }
+    return std::make_unique<PencilDrag>(editor, cx, cy, std::move(stroke));
+}
+
+/* A single click: no drag. */
+void fillBucket(Editor &editor, Cel &cel, int cx, int cy)
+{
+    Rgba color = editor.foreground();
+    if (cel.inBounds(cx, cy)) {
+        editor.recordRecent(color);
+    }
+    if (bucket_fill(editor.history(), cel, cx, cy, color, editor.options().symmetry)) {
+        editor.markAllDirty();
+    }
+}
+
+std::unique_ptr<Drag> beginShape(Editor &editor, Cel &cel, int cx, int cy)
+{
+    Rgba color = editor.foreground();
+    ShapeStyle style = {shapeKind(editor.tool()), editor.options().shape_filled, color,
+                        editor.options().symmetry};
+    std::unique_ptr<ShapeStroke> stroke =
+        ShapeStroke::begin(editor.history(), cel, style, ToolPoint{cx, cy});
+    if (!stroke) {
+        return nullptr;
+    }
+    editor.recordRecent(color);
+    return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke), style.kind);
+}
+
 std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
 {
     Cel *cel = editor.editableCel();
     if (!cel) {
         return nullptr;
     }
-    bool erasing = editor.tool() == ToolKind::Eraser;
-    Rgba color = editor.foreground();
-    /* A color counts as used only when the press lands on the sprite. */
-    bool inside = cel->inBounds(cx, cy);
     switch (editor.tool()) {
     case ToolKind::Pencil:
-    case ToolKind::Eraser: {
-        PencilOptions options = {editor.options().pixel_perfect, editor.options().symmetry,
-                                 editor.options().brush_size, editor.options().brush_round};
-        std::optional<ToolPoint> from = editor.lineFrom();
-        std::unique_ptr<PencilStroke> stroke =
-            PencilStroke::begin(editor.history(), *cel, erasing ? Rgba{} : color, options,
-                                from ? from->x : cx, from ? from->y : cy);
-        if (!stroke) {
-            return nullptr;
-        }
-        if (!erasing && (inside || from)) {
-            editor.recordRecent(color);
-        }
-        if (from) {
-            stroke->extend(cx, cy);
-            editor.markAllDirty();
-        }
-        return std::make_unique<PencilDrag>(editor, cx, cy, std::move(stroke));
-    }
+    case ToolKind::Eraser:
+        return beginPencil(editor, *cel, cx, cy);
     case ToolKind::Bucket:
-        /* A single click: no drag. */
-        if (inside) {
-            editor.recordRecent(color);
-        }
-        if (bucket_fill(editor.history(), *cel, cx, cy, color, editor.options().symmetry)) {
-            editor.markAllDirty();
-        }
+        fillBucket(editor, *cel, cx, cy);
         return nullptr;
     case ToolKind::Line:
     case ToolKind::Rect:
@@ -341,17 +364,8 @@ std::unique_ptr<Drag> beginDraw(Editor &editor, int cx, int cy)
     case ToolKind::Diamond:
     case ToolKind::Hexagon:
     case ToolKind::Star:
-    case ToolKind::Cross: {
-        ShapeStyle style = {shapeKind(editor.tool()), editor.options().shape_filled, color,
-                            editor.options().symmetry};
-        std::unique_ptr<ShapeStroke> stroke =
-            ShapeStroke::begin(editor.history(), *cel, style, ToolPoint{cx, cy});
-        if (!stroke) {
-            return nullptr;
-        }
-        editor.recordRecent(color);
-        return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke), style.kind);
-    }
+    case ToolKind::Cross:
+        return beginShape(editor, *cel, cx, cy);
     case ToolKind::Eyedropper:
     case ToolKind::Select:
     case ToolKind::Count:

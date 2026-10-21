@@ -33,7 +33,25 @@ class LayersPanel
     }
 
   private:
+    /* What every row of the list shares, and the drop (if any) recorded while drawing it. */
+    struct RowContext {
+        float frameHeight;
+        float rowHeight;
+        bool multiple; /* more than one layer is selected */
+    };
+    struct Drop {
+        int from = -1;
+        int to = -1;
+    };
+
     void rows();
+    void row(int index, const RowContext &ctx, Drop &drop);
+    void rowSelectable(int index, const RowContext &ctx);
+    void rowDragDrop(int index, const Layer &layer, const RowContext &ctx, Drop &drop);
+    void rowHintAndRename(int index, const Layer &layer);
+    void nameCell(int index, Layer &layer, const RowContext &ctx);
+    void visibilityToggle(int index, const Layer &layer, const RowContext &ctx);
+    void lockToggle(int index, const Layer &layer, const RowContext &ctx);
     void renameField(int index, Layer &layer);
     void thumbnail(const Layer &layer, float rowHeight);
     void deleteDialog();

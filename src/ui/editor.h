@@ -450,6 +450,8 @@ class Editor
     void rotateSelection(bool clockwise);
 
   private:
+    void toggleLayerPick(int index);
+    void rangeLayerPick(int index);
     struct TextureDeleter {
         void operator()(SDL_Texture *texture) const
         {

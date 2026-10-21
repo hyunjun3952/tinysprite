@@ -318,40 +318,47 @@ void Panels::end()
     }
 }
 
+/* One panel's submenu: visibility, where it docks, and which of its sections show. */
+void Panels::panelMenu(Panel &panel)
+{
+    if (!ImGui::BeginMenu(panel.title)) {
+        return;
+    }
+    ImGui::MenuItem("Show", nullptr, &panel.visible);
+    ImGui::Separator();
+    if (ImGui::MenuItem("Dock left", nullptr, panel.side == DockSide::Left)) {
+        dock(panel, DockSide::Left);
+    }
+    if (ImGui::MenuItem("Dock right", nullptr, panel.side == DockSide::Right)) {
+        dock(panel, DockSide::Right);
+    }
+    if (ImGui::MenuItem("Float", nullptr, panel.side == DockSide::Float)) {
+        dock(panel, DockSide::Float);
+    }
+    ImGui::Separator();
+    ImGui::TextDisabled("Sections");
+    theme::tip("Choose which sections of this panel are shown.");
+    /* Stay open while the sections are toggled one after another. */
+    ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+    for (Section &section : panel.sections) {
+        ImGui::MenuItem(section.name, nullptr, &section.visible);
+    }
+    if (ImGui::MenuItem("Show all")) {
+        for (Section &section : panel.sections) {
+            section.visible = true;
+        }
+    }
+    ImGui::PopItemFlag();
+    ImGui::EndMenu();
+}
+
 void Panels::windowMenu()
 {
     if (!ImGui::BeginMenu("Window")) {
         return;
     }
     for (Panel &panel : panels_) {
-        if (ImGui::BeginMenu(panel.title)) {
-            ImGui::MenuItem("Show", nullptr, &panel.visible);
-            ImGui::Separator();
-            if (ImGui::MenuItem("Dock left", nullptr, panel.side == DockSide::Left)) {
-                dock(panel, DockSide::Left);
-            }
-            if (ImGui::MenuItem("Dock right", nullptr, panel.side == DockSide::Right)) {
-                dock(panel, DockSide::Right);
-            }
-            if (ImGui::MenuItem("Float", nullptr, panel.side == DockSide::Float)) {
-                dock(panel, DockSide::Float);
-            }
-            ImGui::Separator();
-            ImGui::TextDisabled("Sections");
-            theme::tip("Choose which sections of this panel are shown.");
-            /* Stay open while the sections are toggled one after another. */
-            ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
-            for (Section &section : panel.sections) {
-                ImGui::MenuItem(section.name, nullptr, &section.visible);
-            }
-            if (ImGui::MenuItem("Show all")) {
-                for (Section &section : panel.sections) {
-                    section.visible = true;
-                }
-            }
-            ImGui::PopItemFlag();
-            ImGui::EndMenu();
-        }
+        panelMenu(panel);
     }
     ImGui::Separator();
     if (ImGui::MenuItem("Reset layout and sections")) {

@@ -45,6 +45,51 @@ App::~App()
     SDL_Quit();
 }
 
+bool App::createWindow(int width, int height)
+{
+    window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width,
+                               height, SDL_WINDOW_RESIZABLE);
+    if (window_) {
+        renderer_ =
+            SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        if (!renderer_) {
+            renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_SOFTWARE);
+        }
+    }
+    if (!renderer_) {
+        std::fprintf(stderr, "SDL window/renderer: %s\n", SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
+bool App::initImGui()
+{
+    ImGui::CreateContext();
+    imguiContext_ = true;
+    ImGui::GetIO().IniFilename = nullptr;
+    theme::apply();
+    if (!ImGui_ImplSDL2_InitForSDLRenderer(window_, renderer_)) {
+        return false;
+    }
+    if (!ImGui_ImplSDLRenderer2_Init(renderer_)) {
+        ImGui_ImplSDL2_Shutdown();
+        return false;
+    }
+    backends_ = true;
+    return true;
+}
+
+void App::loadSettings(const SettingsMap &settings)
+{
+    editor_->load(settings);
+    panels_.load(settings);
+    recent_ = settings_get_recent(settings, RECENT_MAX);
+    settings_get_int(settings, "export.scale", 1, IMAGE_EXPORT_MAX_SCALE, exportScale_);
+    settings_get_int(settings, "new.width", 1, CEL_MAX_DIMENSION, newWidth_);
+    settings_get_int(settings, "new.height", 1, CEL_MAX_DIMENSION, newHeight_);
+}
+
 bool App::init(const AppOptions &options)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -59,44 +104,17 @@ bool App::init(const AppOptions &options)
     int windowHeight = WINDOW_HEIGHT;
     settings_get_int(settings, "window.width", 320, 16384, windowWidth);
     settings_get_int(settings, "window.height", 240, 16384, windowHeight);
-    window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                               windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
-    if (window_) {
-        renderer_ =
-            SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-        if (!renderer_) {
-            renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_SOFTWARE);
-        }
-    }
-    if (!renderer_) {
-        std::fprintf(stderr, "SDL window/renderer: %s\n", SDL_GetError());
+    if (!createWindow(windowWidth, windowHeight)) {
         return false;
     }
-
-    ImGui::CreateContext();
-    imguiContext_ = true;
-    ImGui::GetIO().IniFilename = nullptr;
-    theme::apply();
-    if (ImGui_ImplSDL2_InitForSDLRenderer(window_, renderer_)) {
-        if (ImGui_ImplSDLRenderer2_Init(renderer_)) {
-            backends_ = true;
-        } else {
-            ImGui_ImplSDL2_Shutdown();
-        }
-    }
-    if (backends_) {
+    if (initImGui()) {
         editor_ = Editor::create(renderer_, options.width, options.height);
     }
     if (!editor_) {
         std::fprintf(stderr, "failed to initialise the editor\n");
         return false;
     }
-    editor_->load(settings);
-    panels_.load(settings);
-    recent_ = settings_get_recent(settings, RECENT_MAX);
-    settings_get_int(settings, "export.scale", 1, IMAGE_EXPORT_MAX_SCALE, exportScale_);
-    settings_get_int(settings, "new.width", 1, CEL_MAX_DIMENSION, newWidth_);
-    settings_get_int(settings, "new.height", 1, CEL_MAX_DIMENSION, newHeight_);
+    loadSettings(settings);
     canvas_ = std::make_unique<Canvas>(*editor_);
     toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
     layersPanel_ = std::make_unique<LayersPanel>(*editor_);
@@ -346,107 +364,132 @@ void App::layersWindow(float height)
     panels_.end();
 }
 
+/* The recent files; picking one asks about unsaved changes first. */
+void App::openRecentMenu(bool idle)
+{
+    if (!ImGui::BeginMenu("Open recent", idle && !recent_.empty())) {
+        return;
+    }
+    std::string chosen;
+    for (size_t i = 0; i < recent_.size(); i++) {
+        ImGui::PushID(static_cast<int>(i));
+        std::string name = recent_[i].substr(recent_[i].find_last_of("/\\") + 1);
+        if (ImGui::MenuItem(name.c_str())) {
+            chosen = recent_[i];
+        }
+        theme::tip(recent_[i].c_str());
+        ImGui::PopID();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Clear list")) {
+        recent_.clear();
+    }
+    ImGui::EndMenu();
+    if (!chosen.empty()) {
+        guardUnsaved([this, chosen] { openOrAsk(chosen); });
+    }
+}
+
+void App::fileMenu()
+{
+    if (!ImGui::BeginMenu("File")) {
+        return;
+    }
+    bool idle = !editor_->stroking();
+    if (ImGui::MenuItem("New...", "Ctrl+N", false, idle)) {
+        guardUnsaved([this] { openNew_ = true; });
+    }
+    if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
+        guardUnsaved([this] { askForPath(FileAction::Open); });
+    }
+    openRecentMenu(idle);
+    if (ImGui::MenuItem("Save", "Ctrl+S")) {
+        save();
+    }
+    if (ImGui::MenuItem("Save as...", "Ctrl+Shift+S")) {
+        askForPath(FileAction::SaveAs);
+    }
+    if (ImGui::MenuItem("Export image...", "Ctrl+E")) {
+        askForPath(FileAction::ExportImage);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
+        askForPath(FileAction::ImportPalette);
+    }
+    if (ImGui::MenuItem("Export palette...")) {
+        askForPath(FileAction::ExportPalette);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Quit")) {
+        guardUnsaved([this] { running_ = false; });
+    }
+    ImGui::EndMenu();
+}
+
+void App::editMenu()
+{
+    if (!ImGui::BeginMenu("Edit")) {
+        return;
+    }
+    bool idle = !editor_->stroking();
+    if (ImGui::MenuItem("Undo", "Ctrl+Z", false, idle && editor_->history().canUndo())) {
+        editor_->undo();
+    }
+    if (ImGui::MenuItem("Redo", "Ctrl+Y", false, idle && editor_->history().canRedo())) {
+        editor_->redo();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->hasSelection())) {
+        editor_->cutSelection();
+    }
+    if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->hasSelection())) {
+        editor_->copySelection();
+    }
+    if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
+        editor_->paste();
+    }
+    if (ImGui::MenuItem("Select all", "Ctrl+A", false, idle)) {
+        editor_->selectAll();
+    }
+    ImGui::EndMenu();
+}
+
+void App::viewMenu()
+{
+    if (!ImGui::BeginMenu("View")) {
+        return;
+    }
+    if (ImGui::MenuItem("Zoom in", "Ctrl++")) {
+        editor_->zoomStep(1);
+    }
+    if (ImGui::MenuItem("Zoom out", "Ctrl+-")) {
+        editor_->zoomStep(-1);
+    }
+    if (ImGui::MenuItem("Fit", "F, Ctrl+0")) {
+        editor_->view().needs_fit = true;
+    }
+    ImGui::Separator();
+    bool grid = editor_->showGrid();
+    if (ImGui::MenuItem("Pixel grid", nullptr, &grid)) {
+        editor_->setShowGrid(grid);
+    }
+    ImGui::MenuItem("Cursor outline", nullptr, &editor_->overlays().cursor);
+    theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
+    ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
+    theme::tip("Draw the center lines that Mirror X / Y reflect across.");
+    ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);
+    theme::tip("Show the size, zoom, active layer and hovered cel in the canvas corner.");
+    ImGui::EndMenu();
+}
+
 void App::menuBar()
 {
     if (!ImGui::BeginMainMenuBar()) {
         return;
     }
-    if (ImGui::BeginMenu("File")) {
-        bool idle = !editor_->stroking();
-        if (ImGui::MenuItem("New...", "Ctrl+N", false, idle)) {
-            guardUnsaved([this] { openNew_ = true; });
-        }
-        if (ImGui::MenuItem("Open...", "Ctrl+O", false, idle)) {
-            guardUnsaved([this] { askForPath(FileAction::Open); });
-        }
-        if (ImGui::BeginMenu("Open recent", idle && !recent_.empty())) {
-            std::string chosen;
-            for (size_t i = 0; i < recent_.size(); i++) {
-                ImGui::PushID(static_cast<int>(i));
-                std::string name = recent_[i].substr(recent_[i].find_last_of("/\\") + 1);
-                if (ImGui::MenuItem(name.c_str())) {
-                    chosen = recent_[i];
-                }
-                theme::tip(recent_[i].c_str());
-                ImGui::PopID();
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Clear list")) {
-                recent_.clear();
-            }
-            ImGui::EndMenu();
-            if (!chosen.empty()) {
-                guardUnsaved([this, chosen] { openOrAsk(chosen); });
-            }
-        }
-        if (ImGui::MenuItem("Save", "Ctrl+S")) {
-            save();
-        }
-        if (ImGui::MenuItem("Save as...", "Ctrl+Shift+S")) {
-            askForPath(FileAction::SaveAs);
-        }
-        if (ImGui::MenuItem("Export image...", "Ctrl+E")) {
-            askForPath(FileAction::ExportImage);
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
-            askForPath(FileAction::ImportPalette);
-        }
-        if (ImGui::MenuItem("Export palette...")) {
-            askForPath(FileAction::ExportPalette);
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Quit")) {
-            guardUnsaved([this] { running_ = false; });
-        }
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("Edit")) {
-        bool idle = !editor_->stroking();
-        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, idle && editor_->history().canUndo())) {
-            editor_->undo();
-        }
-        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, idle && editor_->history().canRedo())) {
-            editor_->redo();
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Cut", "Ctrl+X", false, idle && editor_->hasSelection())) {
-            editor_->cutSelection();
-        }
-        if (ImGui::MenuItem("Copy", "Ctrl+C", false, idle && editor_->hasSelection())) {
-            editor_->copySelection();
-        }
-        if (ImGui::MenuItem("Paste", "Ctrl+V", false, idle)) {
-            editor_->paste();
-        }
-        if (ImGui::MenuItem("Select all", "Ctrl+A", false, idle)) {
-            editor_->selectAll();
-        }
-        ImGui::EndMenu();
-    }
-    if (ImGui::BeginMenu("View")) {
-        if (ImGui::MenuItem("Zoom in", "Ctrl++")) {
-            editor_->zoomStep(1);
-        }
-        if (ImGui::MenuItem("Zoom out", "Ctrl+-")) {
-            editor_->zoomStep(-1);
-        }
-        if (ImGui::MenuItem("Fit", "F, Ctrl+0")) {
-            editor_->view().needs_fit = true;
-        }
-        ImGui::Separator();
-        bool grid = editor_->showGrid();
-        if (ImGui::MenuItem("Pixel grid", nullptr, &grid)) {
-            editor_->setShowGrid(grid);
-        }
-        ImGui::MenuItem("Cursor outline", nullptr, &editor_->overlays().cursor);
-        theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
-        ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
-        theme::tip("Draw the center lines that Mirror X / Y reflect across.");
-        ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);
-        theme::tip("Show the size, zoom, active layer and hovered cel in the canvas corner.");
-        ImGui::EndMenu();
-    }
+    fileMenu();
+    editMenu();
+    viewMenu();
     panels_.windowMenu();
     if (ImGui::BeginMenu("Help")) {
         ImGui::MenuItem("Keyboard shortcuts", "F1", &showHelp_);
@@ -482,45 +525,17 @@ void App::plainShortcuts()
     }
 }
 
-void App::handleShortcuts()
+/* The file / unsaved-changes dialogs are modal: nothing behind them may react. */
+bool App::modalOpen() const
+{
+    return fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") ||
+           openConfirm_ || openNew_ || openRecover_ || newShown_ || recoverShown_;
+}
+
+/* Ctrl+key shortcuts: file, zoom, undo / redo and the clipboard. */
+void App::ctrlShortcuts()
 {
     const ImGuiIO &io = ImGui::GetIO();
-    /* The file / unsaved-changes dialogs are modal: nothing behind them may react. */
-    bool modal = fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") ||
-                 openConfirm_ || openNew_ || openRecover_ || newShown_ || recoverShown_;
-    if (io.WantTextInput || layersPanel_->dialogOpen() || toolsPanel_->dialogOpen() || modal) {
-        editor_->tempPick(false);
-        return;
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_F1, false) ||
-        (io.KeyShift && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Slash, false))) {
-        showHelp_ = !showHelp_;
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-        if (editor_->stroking()) {
-            editor_->cancelDrag();
-        } else {
-            editor_->clearSelection();
-        }
-    }
-    if (editor_->stroking()) {
-        return;
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-        /* With the layer list focused Delete means "delete the layer" (after asking); anywhere
-         * else it clears the selected pixels. */
-        if (layersPanel_->focused()) {
-            layersPanel_->askToDelete();
-        } else {
-            editor_->deleteSelection();
-        }
-    }
-    if (!io.KeyCtrl) {
-        if (!io.KeyAlt) {
-            plainShortcuts();
-        }
-        return;
-    }
     if (ImGui::IsKeyPressed(ImGuiKey_N, false)) {
         guardUnsaved([this] { openNew_ = true; });
     } else if (ImGui::IsKeyPressed(ImGuiKey_0, false) ||
@@ -557,6 +572,51 @@ void App::handleShortcuts()
         editor_->cutSelection();
     } else if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
         editor_->paste();
+    }
+}
+
+/* Esc cancels the drag in progress, or else clears the selection. */
+void App::escapeShortcut()
+{
+    if (!ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+        return;
+    }
+    if (editor_->stroking()) {
+        editor_->cancelDrag();
+    } else {
+        editor_->clearSelection();
+    }
+}
+
+void App::handleShortcuts()
+{
+    const ImGuiIO &io = ImGui::GetIO();
+    if (io.WantTextInput || layersPanel_->dialogOpen() || toolsPanel_->dialogOpen() ||
+        modalOpen()) {
+        editor_->tempPick(false);
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_F1, false) ||
+        (io.KeyShift && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Slash, false))) {
+        showHelp_ = !showHelp_;
+    }
+    escapeShortcut();
+    if (editor_->stroking()) {
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+        /* With the layer list focused Delete means "delete the layer" (after asking); anywhere
+         * else it clears the selected pixels. */
+        if (layersPanel_->focused()) {
+            layersPanel_->askToDelete();
+        } else {
+            editor_->deleteSelection();
+        }
+    }
+    if (io.KeyCtrl) {
+        ctrlShortcuts();
+    } else if (!io.KeyAlt) {
+        plainShortcuts();
     }
 }
 

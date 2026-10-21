@@ -22,6 +22,11 @@ class Canvas
     };
 
     void handleInput(ImVec2 origin, bool hovered, bool active);
+    ImVec2 updateMiddle(ImVec2 mouse, bool hovered);
+    bool applyPan(ImVec2 pan, bool active);
+    void strokeInput(int cx, int cy, bool hovered);
+    void updateFit(ImVec2 avail);
+    void drawContent(ImVec2 origin, ImVec2 avail) const;
     void drawGrid(ImDrawList *draw, ImVec2 origin, const ScreenRect &visible) const;
     void drawBrushPreview(ImDrawList *draw, ImVec2 origin) const;
     void drawHoverOutline(ImDrawList *draw, ImVec2 origin) const;
