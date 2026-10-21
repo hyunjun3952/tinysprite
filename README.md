@@ -80,7 +80,7 @@ src/core/             document model, rasterizer, tools, history (no SDL/ImGui)
 src/io/               file formats
 src/ui/               SDL2 + ImGui frontend
 tests/                one test file per feature, using third_party/minitest.h
-third_party/          vendored dependencies (see THIRD_PARTY.md)
+third_party/          vendored dependencies (see third_party/THIRD_PARTY.md)
 ```
 
 The layering is enforced by CMake targets: `tinysprite_core` → `tinysprite_io` → `tinysprite_ui`.
@@ -99,4 +99,4 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/), e.g
 
 ## License
 
-[MIT](LICENSE). Third-party components and their licenses are listed in [THIRD_PARTY.md](THIRD_PARTY.md).
+[MIT](LICENSE). Third-party components and their licenses are listed in [third_party/THIRD_PARTY.md](third_party/THIRD_PARTY.md).
