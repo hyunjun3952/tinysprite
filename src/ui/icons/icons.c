@@ -30,10 +30,11 @@ static const char *const GLYPHS[] = {
 };
 
 /* Material Symbols are drawn on a 24-unit grid with 2-unit strokes, so every stroke is a whole
- * number of pixels only when the em is a multiple of 12 px; at any other size the strokes straddle
- * pixel boundaries and the edges come out smeared and uneven. These are the em sizes the buttons
- * draw at, regardless of how big the button around the glyph is. */
-#define BUTTON_GLYPH_EM 24.0f
+ * number of pixels only when the em is a multiple of 12 px (24 px is crisp, 20 px is a little
+ * softer; a 16 px glyph smears most edges). 24 px glyphs looked too big in these buttons, so a
+ * button's glyph fills BUTTON_GLYPH_FILL of it, but never more than BUTTON_GLYPH_MAX_EM. */
+#define BUTTON_GLYPH_FILL 0.72f
+#define BUTTON_GLYPH_MAX_EM 20.0f
 #define TITLE_GLYPH_EM 12.0f
 
 /* The size the font is first baked at; ImGui bakes other sizes on demand. */
@@ -55,6 +56,13 @@ bool icons_init(void)
                                                  ICON_FONT_SIZE, ICON_FONT_PIXELS, config, NULL);
     ImFontConfig_destroy(config);
     return icon_font != NULL;
+}
+
+/* The em of a glyph in a button of side `size`: even, so it leaves the same whole margin on both
+ * sides in the even-sized buttons the UI uses. */
+static float button_glyph_em(float size)
+{
+    return fminf(BUTTON_GLYPH_MAX_EM, 2.0f * floorf(size * BUTTON_GLYPH_FILL / 2.0f));
 }
 
 /* Draws the icon's glyph at `em` pixels, centered in the square at `pos` of side `size`. */
@@ -121,7 +129,7 @@ bool icon_button(IconKind icon, const char *id, const char *tooltip, bool select
     ImDrawList_AddRect(draw, pos, end, COL32(75, 75, 82, (int)(255.0f * alpha)), 3.0f, 1.0f, 0);
 
     int shade = selected || hovered ? 240 : 170;
-    draw_glyph(draw, icon, pos, size, BUTTON_GLYPH_EM,
+    draw_glyph(draw, icon, pos, size, button_glyph_em(size),
                COL32(shade, shade, shade + 4, (int)(255.0f * alpha)));
 
     if (hovered && tooltip) {
