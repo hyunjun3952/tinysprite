@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "minitest.h"
 #include "tinysprite/viewport.h"
 
@@ -108,6 +110,46 @@ TEST(fit_never_goes_below_minimum_zoom)
     ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MIN);
 }
 
+TEST(extreme_screen_positions_are_clamped)
+{
+    Viewport v = viewport_default();
+    v.zoom = 4.0f;
+    ASSERT_EQ_INT(-VIEWPORT_CEL_LIMIT, viewport_screen_to_cel_x(&v, -3.4e38f));
+    ASSERT_EQ_INT(VIEWPORT_CEL_LIMIT, viewport_screen_to_cel_y(&v, 3.4e38f));
+    ASSERT_EQ_INT(-VIEWPORT_CEL_LIMIT, viewport_screen_to_cel_x(&v, -INFINITY));
+    ASSERT_EQ_INT(VIEWPORT_CEL_LIMIT, viewport_screen_to_cel_x(&v, INFINITY));
+    ASSERT_EQ_INT(0, viewport_screen_to_cel_x(&v, NAN));
+}
+
+TEST(huge_pan_is_clamped)
+{
+    Viewport v = viewport_default();
+    v.pan_x = 1e30f;
+    v.pan_y = -1e30f;
+    ASSERT_EQ_INT(-VIEWPORT_CEL_LIMIT, viewport_screen_to_cel_x(&v, 0.0f));
+    ASSERT_EQ_INT(VIEWPORT_CEL_LIMIT, viewport_screen_to_cel_y(&v, 0.0f));
+}
+
+TEST(nan_zoom_falls_back_to_minimum)
+{
+    Viewport v = viewport_default();
+    viewport_zoom_at(&v, NAN, 10.0f, 10.0f);
+    ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MIN);
+    ASSERT_TRUE(viewport_next_zoom(NAN, 1) == VIEWPORT_ZOOM_MIN);
+}
+
+TEST(fit_ignores_empty_sprite_or_area)
+{
+    Viewport v = viewport_default();
+    v.zoom = 3.0f;
+    v.pan_x = 7.0f;
+    viewport_fit(&v, 0, 16, 100.0f, 100.0f);
+    viewport_fit(&v, 16, -1, 100.0f, 100.0f);
+    ASSERT_TRUE(v.zoom == 3.0f && v.pan_x == 7.0f);
+    viewport_fit(&v, 16, 16, 0.0f, -5.0f);
+    ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MIN);
+}
+
 int main(void)
 {
     RUN(default_view_maps_origin_to_screen_origin);
@@ -121,5 +163,9 @@ int main(void)
     RUN(step_zoom_doubles_and_halves);
     RUN(fit_centers_sprite_in_area);
     RUN(fit_never_goes_below_minimum_zoom);
+    RUN(extreme_screen_positions_are_clamped);
+    RUN(huge_pan_is_clamped);
+    RUN(nan_zoom_falls_back_to_minimum);
+    RUN(fit_ignores_empty_sprite_or_area);
     return TEST_SUMMARY();
 }

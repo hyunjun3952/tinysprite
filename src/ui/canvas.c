@@ -184,6 +184,8 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
 
     ImVec2 origin = igGetCursorScreenPos();
     ImVec2 avail = igGetContentRegionAvail();
+    editor->canvas_w = avail.x;
+    editor->canvas_h = avail.y;
     int sprite_w = sprite_width(editor->sprite);
     int sprite_h = sprite_height(editor->sprite);
     if (editor->needs_fit && avail.x > 0.0f && avail.y > 0.0f) {

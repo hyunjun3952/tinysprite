@@ -4,13 +4,30 @@
 
 static float clamp_zoom(float zoom)
 {
-    if (zoom < VIEWPORT_ZOOM_MIN) {
+    /* Written so that NaN falls through to the minimum. */
+    if (!(zoom >= VIEWPORT_ZOOM_MIN)) {
         return VIEWPORT_ZOOM_MIN;
     }
     if (zoom > VIEWPORT_ZOOM_MAX) {
         return VIEWPORT_ZOOM_MAX;
     }
     return zoom;
+}
+
+/* Floors to a cel coordinate, saturating at +-VIEWPORT_CEL_LIMIT; NaN becomes 0. */
+static int to_cel(float screen, float pan, float zoom)
+{
+    float cel = floorf((screen - pan) / zoom);
+    if (isnan(cel)) {
+        return 0;
+    }
+    if (cel <= -(float)VIEWPORT_CEL_LIMIT) {
+        return -VIEWPORT_CEL_LIMIT;
+    }
+    if (cel >= (float)VIEWPORT_CEL_LIMIT) {
+        return VIEWPORT_CEL_LIMIT;
+    }
+    return (int)cel;
 }
 
 Viewport viewport_default(void)
@@ -20,12 +37,12 @@ Viewport viewport_default(void)
 
 int viewport_screen_to_cel_x(const Viewport *view, float screen_x)
 {
-    return (int)floorf((screen_x - view->pan_x) / view->zoom);
+    return to_cel(screen_x, view->pan_x, view->zoom);
 }
 
 int viewport_screen_to_cel_y(const Viewport *view, float screen_y)
 {
-    return (int)floorf((screen_y - view->pan_y) / view->zoom);
+    return to_cel(screen_y, view->pan_y, view->zoom);
 }
 
 float viewport_cel_to_screen_x(const Viewport *view, int cel_x)
@@ -61,6 +78,9 @@ float viewport_next_zoom(float zoom, int direction)
 
 void viewport_fit(Viewport *view, int sprite_w, int sprite_h, float area_w, float area_h)
 {
+    if (sprite_w < 1 || sprite_h < 1) {
+        return;
+    }
     float fit_x = area_w / (float)sprite_w;
     float fit_y = area_h / (float)sprite_h;
     float zoom = clamp_zoom(floorf(fit_x < fit_y ? fit_x : fit_y));

@@ -4,6 +4,10 @@
 #define VIEWPORT_ZOOM_MIN 1.0f
 #define VIEWPORT_ZOOM_MAX 64.0f
 
+/* viewport_screen_to_cel_* saturates at +-VIEWPORT_CEL_LIMIT (2^24, exact in a float) so that
+ * extreme positions, such as the off-window mouse position, never overflow an int. */
+#define VIEWPORT_CEL_LIMIT 16777216
+
 /* Maps between screen space and cel space. Cel (0, 0)'s top-left corner sits at (pan_x, pan_y) in
  * screen space and each cel pixel covers `zoom` screen pixels. Pure math: no SDL, no sprite. */
 typedef struct Viewport {
@@ -15,7 +19,7 @@ typedef struct Viewport {
 Viewport viewport_default(void);
 
 /* Cel pixel under a screen position; floors, so positions left of / above the sprite give
- * negative coordinates. */
+ * negative coordinates. Saturates at +-VIEWPORT_CEL_LIMIT; NaN maps to 0. */
 int viewport_screen_to_cel_x(const Viewport *view, float screen_x);
 int viewport_screen_to_cel_y(const Viewport *view, float screen_y);
 
@@ -31,7 +35,8 @@ void viewport_zoom_at(Viewport *view, float zoom, float anchor_x, float anchor_y
 float viewport_next_zoom(float zoom, int direction);
 
 /* Largest whole-number zoom that fits the sprite into an area_w x area_h screen area (at least
- * VIEWPORT_ZOOM_MIN), with the sprite centered in that area. */
+ * VIEWPORT_ZOOM_MIN), with the sprite centered in that area. Does nothing if the sprite has no
+ * pixels. */
 void viewport_fit(Viewport *view, int sprite_w, int sprite_h, float area_w, float area_h);
 
 #endif

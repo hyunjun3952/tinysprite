@@ -69,11 +69,11 @@ static void tools_panel(Editor *editor, float height)
     igSeparatorText("View");
     igText("Zoom: %gx", (double)editor->view.zoom);
     if (igButton("-", (ImVec2){0.0f, 0.0f})) {
-        editor->view.zoom = viewport_next_zoom(editor->view.zoom, -1);
+        editor_zoom_step(editor, -1);
     }
     igSameLine(0.0f, -1.0f);
     if (igButton("+", (ImVec2){0.0f, 0.0f})) {
-        editor->view.zoom = viewport_next_zoom(editor->view.zoom, 1);
+        editor_zoom_step(editor, 1);
     }
     igSameLine(0.0f, -1.0f);
     if (igButton("Fit", (ImVec2){0.0f, 0.0f})) {
@@ -153,11 +153,13 @@ int main(int argc, char **argv)
     igCreateContext(NULL);
     igGetIO_Nil()->IniFilename = NULL;
     igStyleColorsDark(NULL);
-    Editor *editor = imgui_backend_init(window, renderer)
-                         ? editor_create(renderer, options.width, options.height)
-                         : NULL;
+    int backend_ready = imgui_backend_init(window, renderer);
+    Editor *editor = backend_ready ? editor_create(renderer, options.width, options.height) : NULL;
     if (!editor) {
         fprintf(stderr, "failed to initialise the editor\n");
+        if (backend_ready) {
+            imgui_backend_shutdown();
+        }
         igDestroyContext(NULL);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);

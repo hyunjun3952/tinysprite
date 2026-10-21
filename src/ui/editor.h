@@ -26,7 +26,8 @@ typedef struct Editor {
     int frame;
 
     Viewport view;
-    int needs_fit; /* fit the sprite to the canvas on the next canvas frame */
+    int needs_fit;            /* fit the sprite to the canvas on the next canvas frame */
+    float canvas_w, canvas_h; /* canvas size as of the last canvas frame */
 
     PencilStroke *stroke; /* non-NULL while the left mouse button draws */
     int stroke_x, stroke_y;
@@ -52,6 +53,9 @@ void editor_mark_all_dirty(Editor *editor);
 
 /* Re-composites the dirty region and uploads it to the texture. */
 void editor_update_texture(Editor *editor);
+
+/* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
+void editor_zoom_step(Editor *editor, int direction);
 
 /* Undo / redo; they do nothing while a stroke is being drawn. */
 void editor_undo(Editor *editor);

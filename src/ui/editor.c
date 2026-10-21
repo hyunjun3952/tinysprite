@@ -125,6 +125,12 @@ void editor_update_texture(Editor *editor)
     SDL_UpdateTexture(editor->texture, &rect, origin, width * (int)sizeof(Rgba));
 }
 
+void editor_zoom_step(Editor *editor, int direction)
+{
+    float zoom = viewport_next_zoom(editor->view.zoom, direction);
+    viewport_zoom_at(&editor->view, zoom, editor->canvas_w / 2.0f, editor->canvas_h / 2.0f);
+}
+
 void editor_undo(Editor *editor)
 {
     if (history_undo(editor->history) == 0) {
