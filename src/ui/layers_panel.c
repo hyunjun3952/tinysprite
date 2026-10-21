@@ -4,6 +4,7 @@
 
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
+#include "icons.h"
 
 static const ImVec2 AUTO_SIZE = {0.0f, 0.0f};
 
@@ -69,42 +70,44 @@ static void active_layer_details(Editor *editor)
     }
 }
 
+enum { LAYER_BUTTON_SIZE = 28 };
+
 static void layer_buttons(Editor *editor)
 {
+    const float size = LAYER_BUTTON_SIZE;
     int count = sprite_layer_count(editor->sprite);
     int active = editor->active_layer;
-    if (igButton("Add", AUTO_SIZE)) {
+    if (icon_button(ICON_ADD, "##add", "Add layer", 0, size)) {
         editor_add_layer(editor);
     }
     igSameLine(0.0f, -1.0f);
     igBeginDisabled(count < 2);
-    if (igButton("Remove", AUTO_SIZE)) {
+    if (icon_button(ICON_REMOVE, "##remove", "Remove layer", 0, size)) {
         editor_remove_layer(editor, active);
     }
     igEndDisabled();
     igSameLine(0.0f, -1.0f);
-    if (igButton("Dup", AUTO_SIZE)) {
+    if (icon_button(ICON_DUPLICATE, "##dup", "Duplicate layer", 0, size)) {
         editor_duplicate_layer(editor, active);
     }
     igSameLine(0.0f, -1.0f);
     Layer *layer = sprite_layer(editor->sprite, active);
     Layer *below = sprite_layer(editor->sprite, active - 1);
     igBeginDisabled(!layer || !below || !layer_visible(layer) || !layer_visible(below));
-    if (igButton("Merge", AUTO_SIZE)) {
+    if (icon_button(ICON_MERGE_DOWN, "##merge", "Merge into the layer below (both must be visible)",
+                    0, size)) {
         editor_merge_layer_down(editor, active);
     }
     igEndDisabled();
-    if (igIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        igSetTooltip("Merge into the layer below (both layers must be visible)");
-    }
+    igSameLine(0.0f, -1.0f);
     igBeginDisabled(active >= count - 1);
-    if (igButton("Up", AUTO_SIZE)) {
+    if (icon_button(ICON_MOVE_UP, "##up", "Move layer up", 0, size)) {
         editor_move_layer(editor, active, active + 1);
     }
     igEndDisabled();
     igSameLine(0.0f, -1.0f);
     igBeginDisabled(active <= 0);
-    if (igButton("Down", AUTO_SIZE)) {
+    if (icon_button(ICON_MOVE_DOWN, "##down", "Move layer down", 0, size)) {
         editor_move_layer(editor, active, active - 1);
     }
     igEndDisabled();
@@ -112,7 +115,6 @@ static void layer_buttons(Editor *editor)
 
 void layers_panel_show(Editor *editor)
 {
-    igSeparatorText("Layers");
     /* Layers cannot change under a tool that is mid-drag. */
     igBeginDisabled(editor_stroking(editor));
     layer_rows(editor);

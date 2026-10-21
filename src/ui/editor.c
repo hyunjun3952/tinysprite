@@ -227,6 +227,7 @@ void editor_zoom_step(Editor *editor, int direction)
 {
     float zoom = viewport_next_zoom(editor->view.zoom, direction);
     viewport_zoom_at(&editor->view, zoom, editor->canvas_w / 2.0f, editor->canvas_h / 2.0f);
+    editor->auto_fit = 0;
 }
 
 /* Undoing / redoing a layer operation can change the layer count under the active index. */

@@ -34,7 +34,9 @@ static void recent_row(Editor *editor)
 {
     igSeparatorText("Recent");
     if (editor->recent.count == 0) {
-        igTextDisabled("Colors you draw with appear here");
+        igPushTextWrapPos(0.0f);
+        igTextDisabled("Recently used colors appear here");
+        igPopTextWrapPos();
         return;
     }
     for (int i = 0; i < editor->recent.count; i++) {

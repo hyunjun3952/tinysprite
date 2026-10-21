@@ -7,14 +7,18 @@
 #include "canvas.h"
 #include "cimgui.h"
 #include "editor.h"
+#include "icons.h"
 #include "imgui_backend.h"
 #include "layers_panel.h"
 #include "palette_panel.h"
+#include "panels.h"
 #include "tools.h"
 
 enum {
     DEFAULT_SPRITE_SIZE = 64,
-    TOOLS_PANEL_WIDTH = 220,
+    TOOLS_PER_ROW = 4,
+    TOOL_BUTTON_SIZE = 40,
+    SMALL_BUTTON_SIZE = 28,
     WINDOW_WIDTH = 1100,
     WINDOW_HEIGHT = 720,
 };
@@ -49,21 +53,89 @@ static int parse_options(int argc, char **argv, Options *options)
     return 0;
 }
 
+enum {
+    COLOR_SWATCH = 36,
+    COLOR_SWATCH_OFFSET = 18,
+};
+
+static ImVec4 color_vec(const float color[4])
+{
+    return (ImVec4){color[0], color[1], color[2], color[3]};
+}
+
+/* Foreground swatch drawn over the background one (click either to open its picker), with a swap
+ * button beside them. */
+static void color_widget(Editor *editor)
+{
+    ImGuiColorEditFlags button_flags =
+        ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip;
+    ImGuiColorEditFlags picker_flags = ImGuiColorEditFlags_PickerHueWheel |
+                                       ImGuiColorEditFlags_AlphaBar |
+                                       ImGuiColorEditFlags_DisplayHex;
+    ImVec2 start = igGetCursorPos();
+    ImVec2 size = {COLOR_SWATCH, COLOR_SWATCH};
+
+    /* Background first so the foreground, drawn later, wins the overlap. */
+    igSetCursorPos((ImVec2){start.x + COLOR_SWATCH_OFFSET, start.y + COLOR_SWATCH_OFFSET});
+    if (igColorButton("##bg_swatch", color_vec(editor->bg_color), button_flags, size)) {
+        igOpenPopup_Str("bg_picker", 0);
+    }
+    if (igIsItemHovered(0)) {
+        igSetTooltip("Background color");
+    }
+    igSetCursorPos(start);
+    if (igColorButton("##fg_swatch", color_vec(editor->color), button_flags, size)) {
+        igOpenPopup_Str("fg_picker", 0);
+    }
+    if (igIsItemHovered(0)) {
+        igSetTooltip("Foreground color");
+    }
+
+    igSetCursorPos((ImVec2){start.x + COLOR_SWATCH + COLOR_SWATCH_OFFSET + 12.0f, start.y});
+    if (icon_button(ICON_SWAP, "##swap", "Swap colors (X)", 0, SMALL_BUTTON_SIZE)) {
+        editor_swap_colors(editor);
+    }
+    igSetCursorPos((ImVec2){start.x, start.y + COLOR_SWATCH + COLOR_SWATCH_OFFSET + 6.0f});
+
+    if (igBeginPopup("fg_picker", 0)) {
+        igText("Foreground");
+        igColorPicker4("##fg_picker", editor->color, picker_flags, NULL);
+        igEndPopup();
+    }
+    if (igBeginPopup("bg_picker", 0)) {
+        igText("Background");
+        igColorPicker4("##bg_picker", editor->bg_color, picker_flags, NULL);
+        igEndPopup();
+    }
+}
+
+static const char *const TOOL_LABELS[TOOL_COUNT] = {
+    "Pencil (B)", "Eraser (E)", "Bucket (G)",  "Eyedropper (I)",
+    "Line (L)",   "Rect (R)",   "Ellipse (O)", "Select (M)",
+};
+
+static const IconKind TOOL_ICONS[TOOL_COUNT] = {
+    ICON_PENCIL, ICON_ERASER, ICON_BUCKET,  ICON_EYEDROPPER,
+    ICON_LINE,   ICON_RECT,   ICON_ELLIPSE, ICON_SELECT,
+};
+
 static void tools_panel(Editor *editor, float height)
 {
-    ImGuiViewport *viewport = igGetMainViewport();
-    igSetNextWindowPos(viewport->WorkPos, ImGuiCond_Always, (ImVec2){0.0f, 0.0f});
-    igSetNextWindowSize((ImVec2){TOOLS_PANEL_WIDTH, height}, ImGuiCond_Always);
-    igBegin("Tools", NULL,
-            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+    if (!panel_begin(PANEL_TOOLS, height)) {
+        panel_end();
+        return;
+    }
 
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
-        if (tool % 2 != 0) {
-            igSameLine(110.0f, -1.0f);
+        if (tool % TOOLS_PER_ROW != 0) {
+            igSameLine(0.0f, -1.0f);
         }
-        if (igRadioButton_Bool(tools_name((ToolKind)tool), editor->tool == (ToolKind)tool)) {
+        igPushID_Int(tool);
+        if (icon_button(TOOL_ICONS[tool], "##tool", TOOL_LABELS[tool],
+                        editor->tool == (ToolKind)tool, TOOL_BUTTON_SIZE)) {
             editor_select_tool(editor, (ToolKind)tool);
         }
+        igPopID();
     }
 
     igSeparatorText("Options");
@@ -75,7 +147,7 @@ static void tools_panel(Editor *editor, float height)
     if (igCheckbox("Mirror X", &option)) {
         editor->mirror_x = option;
     }
-    igSameLine(110.0f, -1.0f);
+    igSameLine(125.0f, -1.0f);
     option = editor->mirror_y != 0;
     if (igCheckbox("Mirror Y", &option)) {
         editor->mirror_y = option;
@@ -92,68 +164,99 @@ static void tools_panel(Editor *editor, float height)
 
     igSeparatorText("Selection");
     igBeginDisabled(!editor->has_selection || editor_stroking(editor));
-    if (igButton("Flip H", (ImVec2){0.0f, 0.0f})) {
+    const float size = SMALL_BUTTON_SIZE;
+    if (icon_button(ICON_FLIP_H, "##flip_h", "Flip horizontally", 0, size)) {
         editor_flip_selection(editor, 1);
     }
     igSameLine(0.0f, -1.0f);
-    if (igButton("Flip V", (ImVec2){0.0f, 0.0f})) {
+    if (icon_button(ICON_FLIP_V, "##flip_v", "Flip vertically", 0, size)) {
         editor_flip_selection(editor, 0);
     }
     igSameLine(0.0f, -1.0f);
-    if (igButton("Rot CW", (ImVec2){0.0f, 0.0f})) {
+    if (icon_button(ICON_ROTATE_CW, "##rot_cw", "Rotate clockwise", 0, size)) {
         editor_rotate_selection(editor, 1);
     }
     igSameLine(0.0f, -1.0f);
-    if (igButton("CCW", (ImVec2){0.0f, 0.0f})) {
+    if (icon_button(ICON_ROTATE_CCW, "##rot_ccw", "Rotate counterclockwise", 0, size)) {
         editor_rotate_selection(editor, 0);
     }
     igEndDisabled();
 
     igSeparatorText("Color");
-    igColorEdit4("##color", editor->color,
-                 ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_AlphaBar);
-    igColorEdit4("##bg_color", editor->bg_color,
-                 ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
-    igSameLine(0.0f, -1.0f);
-    if (igButton("Swap (X)", (ImVec2){0.0f, 0.0f})) {
-        editor_swap_colors(editor);
-    }
+    color_widget(editor);
 
     palette_panel_show(editor);
 
-    igSeparatorText("View");
-    if (igButton("-", (ImVec2){0.0f, 0.0f})) {
-        editor_zoom_step(editor, -1);
-    }
-    igSameLine(0.0f, -1.0f);
-    if (igButton("+", (ImVec2){0.0f, 0.0f})) {
-        editor_zoom_step(editor, 1);
-    }
-    igSameLine(0.0f, -1.0f);
-    if (igButton("Fit", (ImVec2){0.0f, 0.0f})) {
-        editor->needs_fit = 1;
-    }
-    bool grid = editor->show_grid != 0;
-    if (igCheckbox("Grid", &grid)) {
-        editor->show_grid = grid;
-    }
+    panel_end();
+}
 
-    igSeparatorText("History");
-    igBeginDisabled(!history_can_undo(editor->history) || editor_stroking(editor));
-    if (igButton("Undo", (ImVec2){0.0f, 0.0f})) {
-        editor_undo(editor);
+static void layers_window(Editor *editor, float height)
+{
+    if (!panel_begin(PANEL_LAYERS, height)) {
+        panel_end();
+        return;
     }
-    igEndDisabled();
-    igSameLine(0.0f, -1.0f);
-    igBeginDisabled(!history_can_redo(editor->history) || editor_stroking(editor));
-    if (igButton("Redo", (ImVec2){0.0f, 0.0f})) {
-        editor_redo(editor);
-    }
-    igEndDisabled();
-
     layers_panel_show(editor);
+    panel_end();
+}
 
-    igEnd();
+static void menu_bar(Editor *editor, int *running)
+{
+    if (!igBeginMainMenuBar()) {
+        return;
+    }
+    if (igBeginMenu("File", true)) {
+        /* Disabled until the .pxa reader / writer exists (src/io is still empty). */
+        igMenuItem_Bool("Open...", "Ctrl+O", false, false);
+        igMenuItem_Bool("Save", "Ctrl+S", false, false);
+        igMenuItem_Bool("Export...", NULL, false, false);
+        igSeparator();
+        if (igMenuItem_Bool("Quit", NULL, false, true)) {
+            *running = 0;
+        }
+        igEndMenu();
+    }
+    if (igBeginMenu("Edit", true)) {
+        bool idle = !editor_stroking(editor);
+        if (igMenuItem_Bool("Undo", "Ctrl+Z", false, idle && history_can_undo(editor->history))) {
+            editor_undo(editor);
+        }
+        if (igMenuItem_Bool("Redo", "Ctrl+Y", false, idle && history_can_redo(editor->history))) {
+            editor_redo(editor);
+        }
+        igSeparator();
+        if (igMenuItem_Bool("Cut", "Ctrl+X", false, idle && editor->has_selection)) {
+            editor_cut_selection(editor);
+        }
+        if (igMenuItem_Bool("Copy", "Ctrl+C", false, idle && editor->has_selection)) {
+            editor_copy_selection(editor);
+        }
+        if (igMenuItem_Bool("Paste", "Ctrl+V", false, idle)) {
+            editor_paste(editor);
+        }
+        if (igMenuItem_Bool("Select all", "Ctrl+A", false, idle)) {
+            editor_select_all(editor);
+        }
+        igEndMenu();
+    }
+    if (igBeginMenu("View", true)) {
+        if (igMenuItem_Bool("Zoom in", "+", false, true)) {
+            editor_zoom_step(editor, 1);
+        }
+        if (igMenuItem_Bool("Zoom out", "-", false, true)) {
+            editor_zoom_step(editor, -1);
+        }
+        if (igMenuItem_Bool("Fit", "F", false, true)) {
+            editor->needs_fit = 1;
+        }
+        bool grid = editor->show_grid != 0;
+        if (igMenuItem_Bool("Grid", NULL, grid, true)) {
+            editor->show_grid = !grid;
+        }
+        igEndMenu();
+    }
+    panels_window_menu();
+    igEndMainMenuBar();
 }
 
 typedef struct ToolKey {
@@ -248,6 +351,7 @@ static void handle_shortcuts(Editor *editor)
 int main(int argc, char **argv)
 {
     Options options;
+    panels_reset();
     if (parse_options(argc, argv, &options) != 0) {
         fprintf(stderr, "usage: %s [width [height]] [--frames N]\n", argv[0]);
         return 2;
@@ -274,7 +378,15 @@ int main(int argc, char **argv)
     igCreateContext(NULL);
     igGetIO_Nil()->IniFilename = NULL;
     igStyleColorsDark(NULL);
+    /* Unchecked boxes and sliders must stand out from the dark panel background. */
+    ImGuiStyle *style = igGetStyle();
+    style->FrameBorderSize = 1.0f;
+    style->Colors[ImGuiCol_FrameBg] = (ImVec4){0.20f, 0.21f, 0.24f, 1.0f};
+    style->Colors[ImGuiCol_Border] = (ImVec4){0.42f, 0.43f, 0.48f, 0.8f};
     int backend_ready = imgui_backend_init(window, renderer);
+    if (backend_ready && !icons_init()) {
+        fprintf(stderr, "icon font failed to load; buttons will have no icons\n");
+    }
     Editor *editor = backend_ready ? editor_create(renderer, options.width, options.height) : NULL;
     if (!editor) {
         fprintf(stderr, "failed to initialise the editor\n");
@@ -300,11 +412,15 @@ int main(int argc, char **argv)
         }
 
         imgui_backend_new_frame();
-        ImGuiViewport *viewport = igGetMainViewport();
-        float panel_width = TOOLS_PANEL_WIDTH;
+        ImGuiViewport *viewport;
+        menu_bar(editor, &running);
+        viewport = igGetMainViewport();
+        float left, right;
+        panels_layout(&left, &right);
         tools_panel(editor, viewport->WorkSize.y);
-        canvas_show(editor, viewport->WorkPos.x + panel_width, viewport->WorkPos.y,
-                    viewport->WorkSize.x - panel_width, viewport->WorkSize.y);
+        layers_window(editor, viewport->WorkSize.y);
+        canvas_show(editor, viewport->WorkPos.x + left, viewport->WorkPos.y,
+                    viewport->WorkSize.x - left - right, viewport->WorkSize.y);
         handle_shortcuts(editor);
 
         SDL_SetRenderDrawColor(renderer, 30, 30, 32, 255);

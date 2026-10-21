@@ -103,3 +103,10 @@ headless CLI export, optional Aseprite import.
   separately. Pixel-perfect is ignored above size 1. Shapes and the bucket do not use the brush.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
+- UI layout (`src/ui/panels.c`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
+  floating windows; dragging a floating title bar to an edge docks it. Layout is not persisted. The canvas refits
+  on resize until the user zooms or pans (`Editor.auto_fit`). Open / Save / Export in the File menu are disabled
+  until `src/io` has the `.pxa` reader / writer.
+- Buttons use Material Symbols Outlined glyphs from an embedded font subset (`icon_font.c`, regenerate with
+  `scripts/gen-icon-font.py`; needs `pip install fonttools`). Glyph centering offsets in `icons.c` were measured
+  from rendered output, so re-measure if the font size or ImGui version changes.

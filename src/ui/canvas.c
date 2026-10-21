@@ -48,6 +48,7 @@ static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
     if (hovered && io->MouseWheel != 0.0f) {
         float zoom = viewport_next_zoom(editor->view.zoom, io->MouseWheel > 0.0f ? 1 : -1);
         viewport_zoom_at(&editor->view, zoom, local_x, local_y);
+        editor->auto_fit = 0;
     }
     /* Space + left drag pans like the middle button, without drawing. */
     int space_pan = igIsKeyDown_Nil(ImGuiKey_Space) && !editor->dragging;
@@ -55,6 +56,7 @@ static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
                    (space_pan && igIsMouseDown_Nil(ImGuiMouseButton_Left)))) {
         editor->view.pan_x += io->MouseDelta.x;
         editor->view.pan_y += io->MouseDelta.y;
+        editor->auto_fit = 0;
         return;
     }
 
@@ -72,7 +74,7 @@ static void handle_input(Editor *editor, ImVec2 origin, int hovered, int active)
 static void draw_checkerboard(ImDrawList *draw, ScreenRect visible, ScreenRect sprite)
 {
     ImDrawList_AddRectFilled(draw, (ImVec2){visible.x0, visible.y0},
-                             (ImVec2){visible.x1, visible.y1}, COL32(204, 204, 204, 255), 0.0f, 0);
+                             (ImVec2){visible.x1, visible.y1}, COL32(170, 170, 170, 255), 0.0f, 0);
     int tx0 = (int)((visible.x0 - sprite.x0) / CHECKER_TILE);
     int tx1 = (int)((visible.x1 - sprite.x0) / CHECKER_TILE);
     int ty0 = (int)((visible.y0 - sprite.y0) / CHECKER_TILE);
@@ -88,7 +90,7 @@ static void draw_checkerboard(ImDrawList *draw, ScreenRect visible, ScreenRect s
             float y1 = minf(sprite.y0 + (float)((ty + 1) * CHECKER_TILE), visible.y1);
             if (x0 < x1 && y0 < y1) {
                 ImDrawList_AddRectFilled(draw, (ImVec2){x0, y0}, (ImVec2){x1, y1},
-                                         COL32(153, 153, 153, 255), 0.0f, 0);
+                                         COL32(150, 150, 150, 255), 0.0f, 0);
             }
         }
     }
@@ -113,7 +115,7 @@ static void draw_grid(ImDrawList *draw, const Editor *editor, ImVec2 origin, Scr
     int last_x = viewport_screen_to_cel_x(view, visible.x1 - origin.x);
     int first_y = viewport_screen_to_cel_y(view, visible.y0 - origin.y);
     int last_y = viewport_screen_to_cel_y(view, visible.y1 - origin.y);
-    ImU32 color = COL32(0, 0, 0, 60);
+    ImU32 color = COL32(0, 0, 0, 80);
     for (int x = first_x; x <= last_x; x++) {
         float sx = origin.x + viewport_cel_to_screen_x(view, x);
         if (sx >= visible.x0 && sx <= visible.x1) {
@@ -214,8 +216,11 @@ static void draw_mirror_axes(ImDrawList *draw, const Editor *editor, ScreenRect 
  * zoom / pan / hover, so the numbers never lag the image. */
 static void draw_status(ImDrawList *draw, const Editor *editor, ImVec2 origin, ImVec2 avail)
 {
-    char text[64];
-    int len = snprintf(text, sizeof(text), "Zoom: %gx", (double)editor->view.zoom);
+    char text[128];
+    const Layer *layer = sprite_layer(editor->sprite, editor->active_layer);
+    int len = snprintf(text, sizeof(text), "%dx%d   Zoom: %g%%   Layer: %s",
+                       sprite_width(editor->sprite), sprite_height(editor->sprite),
+                       (double)editor->view.zoom * 100.0, layer ? layer_name(layer) : "-");
     if (editor->hovering && editor->hover_x >= 0 && editor->hover_y >= 0 &&
         editor->hover_x < sprite_width(editor->sprite) &&
         editor->hover_y < sprite_height(editor->sprite)) {
@@ -244,6 +249,9 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
 
     ImVec2 origin = igGetCursorScreenPos();
     ImVec2 avail = igGetContentRegionAvail();
+    if (editor->auto_fit && (avail.x != editor->canvas_w || avail.y != editor->canvas_h)) {
+        editor->needs_fit = 1; /* the canvas was resized (window, panel dock / resize) */
+    }
     editor->canvas_w = avail.x;
     editor->canvas_h = avail.y;
     int sprite_w = sprite_width(editor->sprite);
@@ -254,6 +262,7 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
         editor->view.pan_x += FIT_MARGIN / 2.0f;
         editor->view.pan_y += FIT_MARGIN / 2.0f;
         editor->needs_fit = 0;
+        editor->auto_fit = 1;
     }
 
     igInvisibleButton("canvas", avail,
@@ -279,6 +288,8 @@ void canvas_show(Editor *editor, float x, float y, float w, float h)
             draw_grid(draw, editor, origin, visible);
         }
     }
+    draw_rect_outline(draw, (ImVec2){sprite.x0 - 1.0f, sprite.y0 - 1.0f},
+                      (ImVec2){sprite.x1 + 1.0f, sprite.y1 + 1.0f}, COL32(200, 200, 205, 255));
     draw_mirror_axes(draw, editor, sprite);
     draw_selection(draw, editor, origin);
     draw_hover_outline(draw, editor, origin);

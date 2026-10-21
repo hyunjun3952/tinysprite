@@ -51,6 +51,7 @@ typedef struct Editor {
 
     Viewport view;
     int needs_fit;            /* fit the sprite to the canvas on the next canvas frame */
+    int auto_fit;             /* the view is still the fitted one: refit when the canvas resizes */
     float canvas_w, canvas_h; /* canvas size as of the last canvas frame */
 
     /* Drag state: dragging is non-zero from a tool's press until its release or cancel. At most
