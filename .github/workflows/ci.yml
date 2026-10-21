@@ -7,6 +7,7 @@ on:
 
 jobs:
   check:
+    # Linux: format, lint, ASan/UBSan build and tests (UI included).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,3 +25,33 @@ jobs:
         run: cmake --build build
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-SDL2
+      # MinGW has no ASan/UBSan, so sanitizers are off here (the Linux job runs them).
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYSPRITE_SANITIZE=OFF -DTINYSPRITE_BUILD_UI=ON
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tinysprite-windows
+          path: |
+            build/src/ui/tinysprite.exe
+            build/src/ui/SDL2.dll
