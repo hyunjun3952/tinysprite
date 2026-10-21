@@ -118,7 +118,8 @@ std::optional<SpriteSheet> spritesheet_render(const Sprite &sprite, const SheetO
 bool spritesheet_export(const Sprite &sprite, const std::string &path, const SheetOptions &options);
 
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
- * image as its single layer and an empty palette. Returns nothing if the file is not a readable
+ * image as its single layer and an empty palette. An animated GIF becomes one frame per GIF frame
+ * (each with its delay as the duration). Returns nothing if the file is not a readable
  * image or exceeds CEL_MAX_DIMENSION. */
 std::optional<Sprite> image_import(const std::string &path);
 

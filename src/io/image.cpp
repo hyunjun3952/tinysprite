@@ -1,4 +1,7 @@
+#include <algorithm>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -77,8 +80,55 @@ bool image_write_rgba(const std::string &path, int width, int height, std::vecto
     return false;
 }
 
+namespace
+{
+
+/* The frames of an animated GIF as a sprite (one layer, a cel and duration per frame); nothing if
+ * the file is not a GIF with more than one frame, so the caller falls back to the plain loader. */
+std::optional<Sprite> importAnimatedGif(const std::string &path)
+{
+    std::ifstream file(path, std::ios::binary);
+    std::vector<unsigned char> data((std::istreambuf_iterator<char>(file)),
+                                    std::istreambuf_iterator<char>());
+    if (data.size() < 6 || std::memcmp(data.data(), "GIF8", 4) != 0) {
+        return std::nullopt;
+    }
+    int *delays = nullptr;
+    int width = 0;
+    int height = 0;
+    int frames = 0;
+    int channels = 0;
+    std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(
+        stbi_load_gif_from_memory(data.data(), static_cast<int>(data.size()), &delays, &width,
+                                  &height, &frames, &channels, 4),
+        &stbi_image_free);
+    std::unique_ptr<int, decltype(&stbi_image_free)> delayHolder(delays, &stbi_image_free);
+    if (!pixels || frames < 2 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
+        return std::nullopt;
+    }
+    Sprite sprite(width, height);
+    const size_t frameBytes =
+        static_cast<size_t>(width) * static_cast<size_t>(height) * sizeof(Rgba);
+    for (int f = 1; f < frames; f++) {
+        sprite.insertFrame(f, sprite.makeFrame());
+    }
+    for (int f = 0; f < frames; f++) {
+        std::memcpy(sprite.layer(0)->cel(f)->pixels(),
+                    pixels.get() + static_cast<size_t>(f) * frameBytes, frameBytes);
+        /* a delay of 0 means "as fast as possible", which viewers show as 100 ms */
+        int ms = delays[f] > 0 ? delays[f] : FRAME_DURATION_DEFAULT;
+        sprite.setFrameDuration(f, std::min(ms, FRAME_DURATION_MAX));
+    }
+    return sprite;
+}
+
+} // namespace
+
 std::optional<Sprite> image_import(const std::string &path)
 {
+    if (std::optional<Sprite> animation = importAnimatedGif(path)) {
+        return animation;
+    }
     int width = 0;
     int height = 0;
     int channels = 0;

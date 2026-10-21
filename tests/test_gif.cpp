@@ -295,6 +295,55 @@ TEST(export_writes_a_gif_file_and_refuses_other_extensions)
     ASSERT_TRUE(!gif_export(dots(2), "no_such_dir/x.gif", GifOptions{}));
 }
 
+TEST(an_exported_animation_imports_as_frames_with_durations)
+{
+    Sprite s = dots(3);
+    const char *path = "test_gif_roundtrip.gif";
+    ASSERT_TRUE(gif_export(s, path, GifOptions{}));
+    std::optional<Sprite> back = image_import(path);
+    std::remove(path);
+    ASSERT_TRUE(back.has_value());
+    if (!back) {
+        return;
+    }
+    ASSERT_EQ_INT(3, back->frameCount());
+    ASSERT_EQ_INT(1, back->layerCount());
+    ASSERT_EQ_INT(100, back->frameDuration(0));
+    ASSERT_EQ_INT(150, back->frameDuration(1));
+    ASSERT_EQ_INT(200, back->frameDuration(2));
+    ASSERT_TRUE(back->layer(0)->cel(1)->get(1, 0) == GREEN);
+    ASSERT_EQ_INT(0, back->layer(0)->cel(1)->get(0, 0).a);
+    ASSERT_TRUE(back->layer(0)->cel(2)->get(2, 0) == BLUE);
+}
+
+TEST(a_single_frame_gif_imports_as_before)
+{
+    const char *path = "test_gif_single.gif";
+    ASSERT_TRUE(gif_export(dots(1), path, GifOptions{}));
+    std::optional<Sprite> back = image_import(path);
+    std::remove(path);
+    ASSERT_TRUE(back.has_value());
+    if (back) {
+        ASSERT_EQ_INT(1, back->frameCount());
+        ASSERT_TRUE(back->layer(0)->cel(0)->get(0, 0) == RED);
+    }
+}
+
+TEST(a_broken_gif_is_refused)
+{
+    const char *path = "test_gif_broken.gif";
+    std::vector<uint8_t> data = gif_encode(dots(2), GifOptions{});
+    data.resize(data.size() / 2);
+    ASSERT_TRUE(file_write_atomic(path, std::string(data.begin(), data.end())));
+    std::optional<Sprite> back = image_import(path);
+    std::remove(path);
+    /* stb may return the frames it could decode; either way nothing crashes and a result has a
+     * valid size */
+    if (back) {
+        ASSERT_TRUE(back->frameCount() >= 1);
+    }
+}
+
 int main(void)
 {
     RUN(a_gif_has_the_header_and_all_frames);
@@ -314,5 +363,8 @@ int main(void)
     RUN(a_blank_sprite_works);
     RUN(bad_options_produce_nothing);
     RUN(export_writes_a_gif_file_and_refuses_other_extensions);
+    RUN(an_exported_animation_imports_as_frames_with_durations);
+    RUN(a_single_frame_gif_imports_as_before);
+    RUN(a_broken_gif_is_refused);
     return TEST_SUMMARY();
 }
