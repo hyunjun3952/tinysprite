@@ -25,13 +25,13 @@ jobs:
       - name: Install tools
         run: scripts/install-deps.sh
       - name: Shellcheck
-        run: shellcheck scripts/*.sh .githooks/pre-commit .githooks/pre-push
+        run: shellcheck scripts/*.sh .githooks/*
       - name: Format check
         run: scripts/format.sh --check
       - name: Configure
         run: cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON
       - name: Lint
-        run: scripts/lint.sh build
+        run: scripts/lint.sh
       - name: Build
         run: cmake --build build
       - name: Test

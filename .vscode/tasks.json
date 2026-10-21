@@ -2,33 +2,26 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "configure (ui)",
+            "label": "configure",
             "type": "shell",
-            "command": "cmake -S . -B build-ui -DTINYSPRITE_BUILD_UI=ON",
+            "command": "cmake -S . -B build",
             "problemMatcher": []
         },
         {
-            "label": "build (ui)",
+            "label": "build",
             "type": "shell",
-            "command": "cmake --build build-ui -j",
-            "dependsOn": "configure (ui)",
+            "command": "cmake --build build -j",
+            "dependsOn": "configure",
             "group": { "kind": "build", "isDefault": true },
             "problemMatcher": "$gcc"
         },
         {
-            "label": "test (ui)",
+            "label": "test",
             "type": "shell",
-            "command": "ctest --test-dir build-ui --output-on-failure",
-            "dependsOn": "build (ui)",
+            "command": "ctest --test-dir build --output-on-failure",
+            "dependsOn": "build",
             "group": { "kind": "test", "isDefault": true },
             "problemMatcher": []
-        },
-        {
-            "label": "build + test (core only)",
-            "type": "shell",
-            "command": "cmake -S . -B build && cmake --build build -j && ctest --test-dir build --output-on-failure",
-            "group": "test",
-            "problemMatcher": "$gcc"
         },
         {
             "label": "format",
@@ -43,10 +36,10 @@
             "problemMatcher": []
         },
         {
-            "label": "lint (ui)",
+            "label": "lint",
             "type": "shell",
-            "command": "scripts/lint.sh build-ui",
-            "dependsOn": "configure (ui)",
+            "command": "scripts/lint.sh",
+            "dependsOn": "configure",
             "problemMatcher": "$gcc"
         }
     ]

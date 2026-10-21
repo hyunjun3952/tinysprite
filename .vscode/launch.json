@@ -5,10 +5,10 @@
             "name": "tinysprite",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-ui/src/ui/tinysprite",
+            "program": "${workspaceFolder}/build/src/ui/tinysprite",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "build (ui)",
+            "preLaunchTask": "build",
             "MIMode": "gdb",
             "setupCommands": [
                 { "text": "-enable-pretty-printing", "ignoreFailures": true }
@@ -18,11 +18,11 @@
             "name": "test (pick a binary)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build-ui/tests/${input:testBinary}",
+            "program": "${workspaceFolder}/build/tests/${input:testBinary}",
             "args": [],
             "cwd": "${workspaceFolder}",
             "environment": [{ "name": "SDL_VIDEODRIVER", "value": "dummy" }],
-            "preLaunchTask": "build (ui)",
+            "preLaunchTask": "build",
             "MIMode": "gdb",
             "setupCommands": [
                 { "text": "-enable-pretty-printing", "ignoreFailures": true }
@@ -33,7 +33,7 @@
         {
             "id": "testBinary",
             "type": "promptString",
-            "description": "Test binary under build-ui/tests (e.g. test_history, test_ui_editor)",
+            "description": "Test binary under build/tests (e.g. test_history, test_ui_editor)",
             "default": "test_history"
         }
     ]
