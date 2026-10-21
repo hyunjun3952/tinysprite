@@ -72,7 +72,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
       # Only main's build is worth keeping; PR runs would just fill the storage.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.ref == 'refs/heads/main'
         with:
           name: tinysprite-windows
