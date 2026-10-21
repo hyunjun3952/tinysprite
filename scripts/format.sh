@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-files=$(git ls-files '*.c' '*.h' ':!:third_party/*')
+files=$(git ls-files -co --exclude-standard '*.c' '*.h' ':!:third_party/*')
 [ -n "$files" ] || exit 0
 
 if [ "${1:-}" = "--check" ]; then
