@@ -131,6 +131,7 @@ GifPalette buildPalette(const std::vector<const std::vector<Rgba> *> &frames)
     }
     size_t room = MAX_COLORS - (palette.transparent ? 1 : 0);
     std::vector<Counted> colors;
+    colors.reserve(histogram.size());
     for (const auto &entry : histogram) {
         colors.push_back(Counted{entry.first, entry.second});
     }
