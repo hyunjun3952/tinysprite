@@ -64,6 +64,12 @@ App            window, ImGui context, main loop, menus, shortcuts, file and conf
  |- ToolsPanel, LayersPanel, Panels   side panels and their docking
 ```
 
+`App` and `Editor` are big classes whose code is split over several files by what it is about, so the implementation files
+stay a few hundred lines each (the class declarations remain in `editor.h` and `app.h`): `app.cpp` (startup, main loop, autosave), `app_menus.cpp`, `app_shortcuts.cpp`, `app_dialogs.cpp`,
+`app_files.cpp`; `editor.cpp` (document, strokes, texture), `editor_layers.cpp`, `editor_palette.cpp`,
+`editor_selection.cpp`, `editor_settings.cpp`. Helpers shared between the `editor_*.cpp` files are declared in
+`editor_internal.h` and defined in `editor_internal.cpp`.
+
 `Editor::press` asks `beginDrag` (`drags.cpp`) for a `Drag` matching the active tool: pencil, shape, move, select,
 eyedropper. The editor holds at most one. `Canvas` calls `update` every frame while the button is down, then `finish`
 on release or `cancel` on Esc, which is how one drag becomes exactly one undo step.

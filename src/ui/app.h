@@ -43,6 +43,8 @@ class App
     void run(const AppOptions &options);
 
   private:
+    static constexpr size_t RECENT_MAX = 10; /* entries kept in the recent files list */
+
     bool createWindow(int width, int height);
     bool initImGui();
     void loadSettings(const SettingsMap &settings);
