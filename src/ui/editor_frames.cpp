@@ -3,8 +3,10 @@
 #include "editor.h"
 
 #include <algorithm>
+#include <string>
 
 #include "tinysprite/frame_ops.h"
+#include "tinysprite/tag_ops.h"
 
 bool Editor::setFrame(int frame)
 {
@@ -78,8 +80,65 @@ void Editor::togglePlayback()
     if (playing()) {
         stopPlayback();
     } else if (!stroking()) {
-        playback_.start(frame_, 0, sprite().frameCount() - 1, playMode_);
+        startPlayback();
         markAllDirty(); /* the onion skin is hidden while playing */
+    }
+}
+
+/* Runs over the selected tag, or all the frames. */
+void Editor::startPlayback()
+{
+    if (selectedTag_ >= 0 && selectedTag_ < static_cast<int>(sprite().tags().size())) {
+        const Sprite::Tag &tag = sprite().tags()[static_cast<size_t>(selectedTag_)];
+        playback_.start(frame_, tag.from, tag.to, tag.direction);
+    } else {
+        playback_.start(frame_, 0, sprite().frameCount() - 1, playMode_);
+    }
+    frame_ = playback_.frame(); /* a start frame outside the range is pulled into it */
+}
+
+void Editor::selectTag(int index)
+{
+    selectedTag_ = index >= 0 && index < static_cast<int>(sprite().tags().size()) ? index : -1;
+    if (playing()) {
+        startPlayback();
+    }
+}
+
+void Editor::addTag()
+{
+    stopPlayback();
+    if (stroking()) {
+        return;
+    }
+    Sprite::Tag tag;
+    tag.name = "Tag " + std::to_string(sprite().tags().size() + 1);
+    tag.from = frame_;
+    tag.to = frame_;
+    if (tag_op_add(history(), sprite(), tag)) {
+        selectedTag_ = static_cast<int>(sprite().tags().size()) - 1;
+    }
+}
+
+void Editor::editTag(int index, const Sprite::Tag &tag)
+{
+    if (!stroking()) {
+        tag_op_set(history(), sprite(), index, tag);
+        if (playing()) {
+            startPlayback();
+        }
+    }
+}
+
+void Editor::removeTag(int index)
+{
+    if (stroking() || !tag_op_remove(history(), sprite(), index)) {
+        return;
+    }
+    if (selectedTag_ == index) {
+        selectedTag_ = -1;
+    } else if (selectedTag_ > index) {
+        selectedTag_--;
     }
 }
 
@@ -104,7 +163,7 @@ void Editor::setPlayMode(PlayMode mode)
 {
     playMode_ = mode;
     if (playing()) {
-        playback_.start(frame_, 0, sprite().frameCount() - 1, playMode_);
+        startPlayback();
     }
 }
 

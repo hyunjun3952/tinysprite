@@ -13,6 +13,9 @@
  *   HEAD  width, height, frame count (u32 each); must come first
  *   FRAM  the duration of every frame in milliseconds (u16 each); optional, written only when a
  *         frame has other than FRAME_DURATION_DEFAULT, and before the first LAYR
+ *   TAGS  tag count (u16), then per tag: name length (u8) and name, first and last frame (u32
+ *         each, both included) and direction (u8: 0 forward, 1 reverse, 2 ping-pong); optional,
+ *         written after the layers only when the sprite has tags
  *   PALT  color count (u16), then r, g, b, a per color
  *   LAYR  name length (u8) and name, visible (u8), opacity (u8), then the pixels of every frame
  *         (r, g, b, a, row-major); one chunk per layer, bottom to top */

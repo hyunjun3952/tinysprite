@@ -3,8 +3,6 @@
 
 #include "tinysprite/sprite.h"
 
-enum class PlayMode { Forward, Reverse, PingPong };
-
 /* Which frame an animation shows as time passes. It owns no clock: the caller reports how many
  * milliseconds went by. Playback runs inside a frame range and loops; a ping-pong turns at the
  * ends without showing them twice. */

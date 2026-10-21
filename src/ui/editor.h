@@ -206,6 +206,18 @@ class Editor
     void moveFrame(int from, int to);
     void setFrameDuration(int index, int ms);
 
+    /* Tags: addTag makes one over the current frame and selects it; edit / remove are undoable. The
+     * selected tag (-1 for none) is what playback runs over, in the tag's own direction, instead
+     * of all the frames. */
+    int selectedTag() const
+    {
+        return selectedTag_;
+    }
+    void selectTag(int index);
+    void addTag();
+    void editTag(int index, const Sprite::Tag &tag);
+    void removeTag(int index);
+
     /* Playback runs over all the frames and loops; tick(elapsedMs) is called every UI frame with
      * the time that passed and moves the shown frame on while playing. Pressing a tool, editing
      * frames, undo and redo all stop it. */
@@ -503,6 +515,7 @@ class Editor
     void resetDocument(std::unique_ptr<CompositeSurface> surface);
 
     Rect spriteBounds() const;
+    void startPlayback();
     void afterHistoryStep(const Layer *active = nullptr);
 
     ToolKind tool_ = ToolKind::Pencil;
@@ -517,6 +530,7 @@ class Editor
     int frame_ = 0;
     Playback playback_;
     PlayMode playMode_ = PlayMode::Forward;
+    int selectedTag_ = -1;
     bool onionOn_ = false;
     OnionSkin onion_;
     ToolOptions options_;

@@ -283,6 +283,117 @@ TEST(onion_skin_settings_are_limited)
     delete e;
 }
 
+TEST(adding_a_tag_covers_the_current_frame_and_selects_it)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    e->setFrame(1);
+    e->addTag();
+    ASSERT_EQ_INT(1, static_cast<int>(e->sprite().tags().size()));
+    ASSERT_EQ_INT(1, e->sprite().tags()[0].from);
+    ASSERT_EQ_INT(1, e->sprite().tags()[0].to);
+    ASSERT_EQ_INT(0, e->selectedTag());
+    e->undo();
+    ASSERT_EQ_INT(0, static_cast<int>(e->sprite().tags().size()));
+    ASSERT_EQ_INT(-1, e->selectedTag());
+    delete e;
+}
+
+TEST(tags_can_be_edited_removed_and_undone)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addTag();
+    Sprite::Tag t = e->sprite().tags()[0];
+    t.name = "run";
+    t.from = 0;
+    t.direction = PlayMode::Reverse;
+    e->editTag(0, t);
+    ASSERT_TRUE(e->sprite().tags()[0].name == "run");
+    ASSERT_EQ_INT(0, e->sprite().tags()[0].from);
+    e->removeTag(0);
+    ASSERT_EQ_INT(-1, e->selectedTag());
+    e->undo();
+    ASSERT_TRUE(e->sprite().tags()[0].name == "run");
+    delete e;
+}
+
+TEST(a_selected_tag_limits_playback_to_its_range)
+{
+    Editor *e = make_editor();
+    for (int i = 0; i < 3; i++) {
+        e->addFrame();
+    }
+    for (int f = 0; f < 4; f++) {
+        e->setFrameDuration(f, 100);
+    }
+    e->setFrame(1);
+    e->addTag();
+    Sprite::Tag t = e->sprite().tags()[0];
+    t.to = 2;
+    e->editTag(0, t); /* frames 1..2 */
+    e->setFrame(0);
+    e->togglePlayback();
+    ASSERT_EQ_INT(1, e->frame()); /* playback starts inside the tag */
+    e->tick(100);
+    ASSERT_EQ_INT(2, e->frame());
+    e->tick(100);
+    ASSERT_EQ_INT(1, e->frame());
+    delete e;
+}
+
+TEST(without_a_selected_tag_the_whole_animation_plays)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addTag();
+    e->selectTag(-1);
+    e->setFrame(0);
+    e->setFrameDuration(0, 100);
+    e->setFrameDuration(1, 100);
+    e->togglePlayback();
+    e->tick(100);
+    ASSERT_EQ_INT(1, e->frame());
+    e->tick(100);
+    ASSERT_EQ_INT(0, e->frame());
+    delete e;
+}
+
+TEST(the_tag_direction_sets_the_playback_order)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    for (int f = 0; f < 3; f++) {
+        e->setFrameDuration(f, 100);
+    }
+    e->setFrame(0);
+    e->addTag();
+    Sprite::Tag t = e->sprite().tags()[0];
+    t.to = 2;
+    t.direction = PlayMode::Reverse;
+    e->editTag(0, t);
+    e->setFrame(2);
+    e->togglePlayback();
+    e->tick(100);
+    ASSERT_EQ_INT(1, e->frame());
+    delete e;
+}
+
+TEST(selecting_a_tag_out_of_range_selects_nothing)
+{
+    Editor *e = make_editor();
+    e->addTag();
+    e->selectTag(5);
+    ASSERT_EQ_INT(-1, e->selectedTag());
+    e->selectTag(0);
+    ASSERT_EQ_INT(0, e->selectedTag());
+    e->newDocument(4, 4);
+    ASSERT_EQ_INT(-1, e->selectedTag());
+    delete e;
+}
+
 int main(void)
 {
     if (!ui_init()) {
@@ -309,6 +420,12 @@ int main(void)
     RUN(onion_skin_is_hidden_while_playing);
     RUN(onion_skin_settings_survive_a_settings_round_trip);
     RUN(onion_skin_settings_are_limited);
+    RUN(adding_a_tag_covers_the_current_frame_and_selects_it);
+    RUN(tags_can_be_edited_removed_and_undone);
+    RUN(a_selected_tag_limits_playback_to_its_range);
+    RUN(without_a_selected_tag_the_whole_animation_plays);
+    RUN(the_tag_direction_sets_the_playback_order);
+    RUN(selecting_a_tag_out_of_range_selects_nothing);
     ui_quit();
     return TEST_SUMMARY();
 }

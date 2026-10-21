@@ -113,6 +113,43 @@ TEST(a_dot_marks_a_cel_with_pixels)
                 f.h.pixel(static_cast<int>(e.x), static_cast<int>(e.y)));
 }
 
+TEST(clicking_a_tag_band_selects_the_tag_and_again_deselects_it)
+{
+    Fixture f;
+    f.editor->addFrame();
+    f.editor->addFrame();
+    f.editor->setFrame(1);
+    f.editor->addTag(); /* frame 2 */
+    f.editor->selectTag(-1);
+    f.h.frame(0.0f, 0.0f, false);
+    f.click(Fixture::center(f.timeline->tagCellRect(1)));
+    ASSERT_EQ_INT(0, f.editor->selectedTag());
+    f.click(Fixture::center(f.timeline->tagCellRect(1)));
+    ASSERT_EQ_INT(-1, f.editor->selectedTag());
+}
+
+TEST(clicking_a_band_with_no_tag_selects_nothing)
+{
+    Fixture f;
+    f.editor->addFrame();
+    f.editor->addTag();
+    f.editor->selectTag(-1);
+    f.h.frame(0.0f, 0.0f, false);
+    f.click(Fixture::center(f.timeline->tagCellRect(0)));
+    ASSERT_EQ_INT(-1, f.editor->selectedTag());
+}
+
+TEST(the_edit_row_draws_for_a_selected_tag)
+{
+    Fixture f;
+    f.h.frame(0.0f, 0.0f, false);
+    ASSERT_EQ_INT(0, static_cast<int>(f.editor->sprite().tags().size()));
+    f.editor->addTag();
+    f.h.frame(0.0f, 0.0f, false);
+    ASSERT_EQ_INT(0, f.editor->selectedTag());
+    f.h.frame(0.0f, 0.0f, false); /* the edit row is drawn for the selected tag without asserting */
+}
+
 int main(void)
 {
     RUN(the_grid_has_a_cel_per_layer_and_frame);
@@ -120,5 +157,8 @@ int main(void)
     RUN(clicking_a_frame_number_selects_the_frame);
     RUN(dragging_a_frame_number_moves_the_frame);
     RUN(a_dot_marks_a_cel_with_pixels);
+    RUN(clicking_a_tag_band_selects_the_tag_and_again_deselects_it);
+    RUN(clicking_a_band_with_no_tag_selects_nothing);
+    RUN(the_edit_row_draws_for_a_selected_tag);
     return TEST_SUMMARY();
 }

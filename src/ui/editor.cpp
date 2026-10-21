@@ -49,6 +49,7 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
     lastDrawPoint_.reset();
     layers_.reset();
     frame_ = 0;
+    selectedTag_ = -1;
     playback_.stop();
     selection_.reset();
     paletteSelected_ = -1;
@@ -211,6 +212,9 @@ void Editor::afterHistoryStep(const Layer *active)
 {
     layers_.refresh(sprite(), active);
     frame_ = std::clamp(frame_, 0, sprite().frameCount() - 1);
+    if (selectedTag_ >= static_cast<int>(sprite().tags().size())) {
+        selectedTag_ = -1;
+    }
     markAllDirty();
 }
 

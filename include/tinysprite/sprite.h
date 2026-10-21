@@ -3,10 +3,16 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "tinysprite/layer.h"
 #include "tinysprite/palette.h"
+
+/* The order a range of frames plays in; a ping-pong turns at the ends without repeating them. */
+enum class PlayMode { Forward, Reverse, PingPong };
+
+inline constexpr int TAG_NAME_MAX = 63; /* bytes */
 
 inline constexpr int FRAME_DURATION_DEFAULT = 100; /* milliseconds */
 inline constexpr int FRAME_DURATION_MAX = 65535;
@@ -14,6 +20,15 @@ inline constexpr int FRAME_DURATION_MAX = 65535;
 class Sprite
 {
   public:
+    /* A named range of frames (both ends included) that plays in its own direction, such as "walk"
+     * or "attack". Tags may overlap. */
+    struct Tag {
+        std::string name;
+        int from = 0;
+        int to = 0;
+        PlayMode direction = PlayMode::Forward;
+    };
+
     /* One frame taken out of (or ready to go into) a sprite: a cel for every layer, bottom to top,
      * and the frame's duration. */
     struct Frame {
@@ -44,6 +59,27 @@ class Sprite
 
     /* Returns false if frame is out of range or ms is outside 1..FRAME_DURATION_MAX. */
     bool setFrameDuration(int frame, int ms);
+
+    /* The tags, in the order they were added. Frames that are inserted or removed keep them in
+     * step: a tag shifts with the frames before it, grows when a frame goes inside it, shrinks when
+     * one is removed from it, and disappears with its last frame. */
+    const std::vector<Tag> &tags() const
+    {
+        return tags_;
+    }
+
+    /* Whether `tag` is a range inside the sprite's frames (from <= to). */
+    bool tagValid(const Tag &tag) const;
+
+    /* Return false (changing nothing) for a range outside 0..frameCount-1, from > to, or an index
+     * out of range. Names longer than TAG_NAME_MAX bytes are cut. */
+    bool addTag(Tag tag);
+    bool setTag(int index, Tag tag);
+    bool removeTag(int index);
+
+    /* Replaces all the tags (an undo step restoring them); returns false and changes nothing if one
+     * of them is invalid. */
+    bool setTags(std::vector<Tag> tags);
 
     /* A blank frame with the default duration, and a deep copy of `frame` (null cels if it is out
      * of range), both shaped for this sprite's layers. */
@@ -108,6 +144,7 @@ class Sprite
     int frameCount_ = 1;
     std::vector<int> durations_ = {FRAME_DURATION_DEFAULT}; /* one per frame */
     Palette palette_;
+    std::vector<Tag> tags_;
     std::vector<std::unique_ptr<Layer>> layers_;
 };
 

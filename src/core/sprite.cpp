@@ -128,6 +128,14 @@ bool Sprite::insertFrame(int index, Frame &&frame)
     }
     durations_.insert(durations_.begin() + index, frame.duration);
     frameCount_++;
+    for (Tag &tag : tags_) {
+        if (index <= tag.from) {
+            tag.from++;
+            tag.to++;
+        } else if (index <= tag.to) {
+            tag.to++;
+        }
+    }
     return true;
 }
 
@@ -143,6 +151,18 @@ std::optional<Sprite::Frame> Sprite::detachFrame(int index)
     frame.duration = durations_[static_cast<size_t>(index)];
     durations_.erase(durations_.begin() + index);
     frameCount_--;
+    for (Tag &tag : tags_) {
+        if (index < tag.from) {
+            tag.from--;
+            tag.to--;
+        } else if (index <= tag.to) {
+            tag.to--;
+        }
+    }
+    /* A tag whose only frame went away is now empty (to < from). */
+    tags_.erase(std::remove_if(tags_.begin(), tags_.end(),
+                               [](const Tag &tag) { return tag.to < tag.from; }),
+                tags_.end());
     return frame;
 }
 
@@ -157,5 +177,50 @@ bool Sprite::moveFrame(int from, int to)
     int duration = durations_[static_cast<size_t>(from)];
     durations_.erase(durations_.begin() + from);
     durations_.insert(durations_.begin() + to, duration);
+    return true;
+}
+
+bool Sprite::tagValid(const Tag &tag) const
+{
+    return tag.from >= 0 && tag.from <= tag.to && tag.to < frameCount_;
+}
+
+bool Sprite::addTag(Tag tag)
+{
+    if (!tagValid(tag)) {
+        return false;
+    }
+    tag.name = layer_name_truncate(tag.name, TAG_NAME_MAX);
+    tags_.push_back(std::move(tag));
+    return true;
+}
+
+bool Sprite::setTag(int index, Tag tag)
+{
+    if (index < 0 || index >= static_cast<int>(tags_.size()) || !tagValid(tag)) {
+        return false;
+    }
+    tag.name = layer_name_truncate(tag.name, TAG_NAME_MAX);
+    tags_[static_cast<size_t>(index)] = std::move(tag);
+    return true;
+}
+
+bool Sprite::removeTag(int index)
+{
+    if (index < 0 || index >= static_cast<int>(tags_.size())) {
+        return false;
+    }
+    tags_.erase(tags_.begin() + index);
+    return true;
+}
+
+bool Sprite::setTags(std::vector<Tag> tags)
+{
+    for (const Tag &tag : tags) {
+        if (!tagValid(tag)) {
+            return false;
+        }
+    }
+    tags_ = std::move(tags);
     return true;
 }

@@ -1,6 +1,8 @@
 #include "timeline_panel.h"
 
 #include <algorithm>
+#include <cstdio>
+#include <iterator>
 #include <string>
 
 #include "icons.h"
@@ -15,6 +17,10 @@ constexpr float NAME_COLUMN = 120.0f;
 constexpr float DOT_RADIUS = 4.0f;
 
 const char *const MODE_NAMES[] = {"Forward", "Reverse", "Ping-pong"};
+
+/* Muted band colors for the tags, cycled by index (ABGR). */
+constexpr ImU32 TAG_COLORS[] = {0xff5a78c8U, 0xff6aa860U, 0xffc08a50U,
+                                0xff5aaac0U, 0xffa069b8U, 0xff6e8ec0U};
 
 } // namespace
 
@@ -69,6 +75,13 @@ TimelinePanel::Rect TimelinePanel::headerRect(int frame) const
 {
     return frame >= 0 && static_cast<size_t>(frame) < headers_.size()
                ? headers_[static_cast<size_t>(frame)]
+               : Rect{};
+}
+
+TimelinePanel::Rect TimelinePanel::tagCellRect(int frame) const
+{
+    return frame >= 0 && static_cast<size_t>(frame) < tagCells_.size()
+               ? tagCells_[static_cast<size_t>(frame)]
                : Rect{};
 }
 
@@ -164,6 +177,144 @@ void TimelinePanel::onionControls()
     }
 }
 
+/* The third toolbar row: a button that tags the current frame and, for the selected tag, its
+ * name, range and direction. */
+void TimelinePanel::tagControls()
+{
+    const Sprite &sprite = editor_.sprite();
+    int frames = sprite.frameCount();
+    if (theme::actionButton("+ Tag", "Tag the current frame; then widen it with From / To.",
+                            54.0f)) {
+        editor_.addTag();
+    }
+    int selected = editor_.selectedTag();
+    if (selected < 0 || selected >= static_cast<int>(sprite.tags().size())) {
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Click a tag band to edit it or to play just its frames.");
+        tagNameActive_ = false;
+        return;
+    }
+    Sprite::Tag tag = sprite.tags()[static_cast<size_t>(selected)];
+    bool changed = false;
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120.0f);
+    if (!tagNameActive_) {
+        std::snprintf(tagName_, sizeof(tagName_), "%s", tag.name.c_str());
+    }
+    if (ImGui::InputText("##tagname", tagName_, sizeof(tagName_),
+                         ImGuiInputTextFlags_EnterReturnsTrue)) {
+        changed = true;
+    }
+    tagNameActive_ = ImGui::IsItemActive();
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        changed = true;
+    }
+    if (changed) {
+        tag.name = tagName_;
+    }
+    theme::tip("The tag's name.");
+
+    auto frameField = [&](const char *id, int &value) {
+        int shown = value + 1;
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(60.0f);
+        bool edited = ImGui::InputInt(id, &shown, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue) ||
+                      ImGui::IsItemDeactivatedAfterEdit();
+        if (edited) {
+            value = std::clamp(shown, 1, frames) - 1;
+        }
+        return edited;
+    };
+    if (frameField("From##tag", tag.from)) {
+        tag.to = std::max(tag.to, tag.from);
+        changed = true;
+    }
+    if (frameField("To##tag", tag.to)) {
+        tag.from = std::min(tag.from, tag.to);
+        changed = true;
+    }
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(100.0f);
+    int mode = static_cast<int>(tag.direction);
+    if (ImGui::BeginCombo("##tagdir", MODE_NAMES[mode])) {
+        for (int i = 0; i < 3; i++) {
+            if (ImGui::Selectable(MODE_NAMES[i], i == mode)) {
+                tag.direction = static_cast<PlayMode>(i);
+                changed = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    theme::tip("The direction this tag plays in.");
+
+    ImGui::SameLine();
+    if (theme::actionButton("Delete tag", "Remove the tag (the frames stay).", 80.0f)) {
+        editor_.removeTag(selected);
+        return;
+    }
+    if (changed) {
+        editor_.editTag(selected, tag);
+    }
+}
+
+/* The tag row of the grid: a band over the frames of each tag, its name on the first frame. */
+void TimelinePanel::tagRow(int frames)
+{
+    const Sprite &sprite = editor_.sprite();
+    const std::vector<Sprite::Tag> &tags = sprite.tags();
+    tagCells_.assign(static_cast<size_t>(frames), Rect{});
+    ImGui::TableNextRow(0, CELL_HEIGHT - 4.0f);
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Tags");
+    for (int f = 0; f < frames; f++) {
+        ImGui::TableSetColumnIndex(f + 1);
+        /* the selected tag wins where tags overlap, else the first one */
+        int shown = -1;
+        for (int t = 0; t < static_cast<int>(tags.size()); t++) {
+            const Sprite::Tag &tag = tags[static_cast<size_t>(t)];
+            if (f >= tag.from && f <= tag.to && (shown < 0 || t == editor_.selectedTag())) {
+                shown = t;
+            }
+        }
+        ImGui::PushID(f);
+        float gap = 2.0f * ImGui::GetStyle().CellPadding.x; /* between two columns */
+        ImVec2 size(CELL_WIDTH, CELL_HEIGHT - 4.0f);
+        ImVec2 min = ImGui::GetCursorScreenPos();
+        if (ImGui::InvisibleButton("##tag", size) && shown >= 0) {
+            editor_.selectTag(shown == editor_.selectedTag() ? -1 : shown);
+        }
+        ImVec2 max = ImGui::GetItemRectMax();
+        tagCells_[static_cast<size_t>(f)] = Rect{min, max};
+        if (shown >= 0) {
+            const Sprite::Tag &tag = tags[static_cast<size_t>(shown)];
+            ImU32 color = TAG_COLORS[static_cast<size_t>(shown) % std::size(TAG_COLORS)];
+            bool selected = shown == editor_.selectedTag();
+            ImDrawList *draw = ImGui::GetWindowDrawList();
+            /* extend the band over the column gap so it reads as one piece */
+            float right = max.x + (f < tag.to ? gap : 0.0f);
+            draw->AddRectFilled(min, ImVec2(right, max.y), color);
+            if (selected) {
+                draw->AddRect(min, ImVec2(right, max.y),
+                              ImGui::GetColorU32(theme::rgb(theme::INK)));
+            }
+            if (f == tag.from) {
+                float width = static_cast<float>(tag.to - tag.from) * (CELL_WIDTH + gap);
+                draw->PushClipRect(min, ImVec2(max.x + width, max.y), true);
+                draw->AddText(ImVec2(min.x + 3.0f, min.y + 1.0f), 0xff1f1b19U, tag.name.c_str());
+                draw->PopClipRect();
+            }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
+                ImGui::SetTooltip("%s: frames %d-%d", tag.name.c_str(), tag.from + 1, tag.to + 1);
+            }
+        }
+        ImGui::PopID();
+    }
+}
+
 void TimelinePanel::grid()
 {
     const Sprite &sprite = editor_.sprite();
@@ -179,7 +330,7 @@ void TimelinePanel::grid()
     if (!ImGui::BeginTable("cels", frames + 1, FLAGS)) {
         return;
     }
-    ImGui::TableSetupScrollFreeze(1, 1);
+    ImGui::TableSetupScrollFreeze(1, 2);
     ImGui::TableSetupColumn("##layer", ImGuiTableColumnFlags_WidthFixed, NAME_COLUMN);
     for (int f = 0; f < frames; f++) {
         ImGui::TableSetupColumn(("##f" + std::to_string(f)).c_str(),
@@ -187,6 +338,7 @@ void TimelinePanel::grid()
     }
 
     int current = editor_.frame();
+    tagRow(frames);
     int moveFrom = -1;
     int moveTo = -1;
 
@@ -272,6 +424,7 @@ void TimelinePanel::show(float x, float y, float width)
         ImGui::BeginDisabled(editor_.stroking());
         toolbar();
         onionControls();
+        tagControls();
         grid();
         ImGui::EndDisabled();
     }

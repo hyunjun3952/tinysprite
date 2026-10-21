@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -135,6 +136,29 @@ uint64_t minLayerBytes(const Sprite &sprite, uint32_t frames)
     return 1 + 2 + static_cast<uint64_t>(frames) * sprite.width() * sprite.height() * sizeof(Rgba);
 }
 
+/* A TAGS payload: the count, then per tag its name, first and last frame and direction. */
+void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
+{
+    uint32_t count = chunk.u16();
+    for (uint32_t i = 0; i < count; i++) {
+        Sprite::Tag tag;
+        uint32_t nameLength = chunk.u8();
+        const uint8_t *name = chunk.take(nameLength);
+        tag.name.assign(name, name + nameLength);
+        uint32_t from = chunk.u32();
+        uint32_t to = chunk.u32();
+        uint32_t direction = chunk.u8();
+        if (from > INT32_MAX || to > INT32_MAX ||
+            direction > static_cast<uint32_t>(PlayMode::PingPong) || nameLength > TAG_NAME_MAX) {
+            throw std::out_of_range("pxa: bad tag");
+        }
+        tag.from = static_cast<int>(from);
+        tag.to = static_cast<int>(to);
+        tag.direction = static_cast<PlayMode>(direction);
+        tags.push_back(std::move(tag));
+    }
+}
+
 std::optional<Sprite> decode(const std::vector<uint8_t> &data)
 {
     Reader file(data.data(), data.data() + data.size());
@@ -146,6 +170,7 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     int layers = 0;
     uint32_t frames = 1;
     std::vector<uint32_t> durations; /* from FRAM, applied once the frames exist */
+    std::vector<Sprite::Tag> tags;   /* from TAGS, checked against the frames at the end */
     while (!file.atEnd()) {
         const uint8_t *tag = file.take(4);
         uint32_t length = file.u32();
@@ -174,6 +199,8 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
                 }
                 durations.push_back(ms);
             }
+        } else if (isTag(tag, "TAGS")) {
+            readTags(chunk, tags);
         } else if (isTag(tag, "PALT") || isTag(tag, "LAYR")) {
             if (!sprite) {
                 return std::nullopt;
@@ -196,6 +223,9 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     }
     for (size_t i = 0; i < durations.size(); i++) {
         sprite->setFrameDuration(static_cast<int>(i), static_cast<int>(durations[i]));
+    }
+    if (!sprite->setTags(std::move(tags))) {
+        return std::nullopt;
     }
     return sprite;
 }
@@ -240,6 +270,18 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
                 const Cel &cel = *layer.cel(frame);
                 auto bytes = reinterpret_cast<const uint8_t *>(cel.pixels());
                 o.insert(o.end(), bytes, bytes + pixelBytes(cel));
+            }
+        });
+    }
+    if (!sprite.tags().empty()) {
+        putChunk(out, "TAGS", [&](std::vector<uint8_t> &o) {
+            putU16(o, static_cast<uint32_t>(sprite.tags().size()));
+            for (const Sprite::Tag &tag : sprite.tags()) {
+                o.push_back(static_cast<uint8_t>(tag.name.size()));
+                o.insert(o.end(), tag.name.begin(), tag.name.end());
+                putU32(o, static_cast<uint32_t>(tag.from));
+                putU32(o, static_cast<uint32_t>(tag.to));
+                o.push_back(static_cast<uint8_t>(tag.direction));
             }
         });
     }

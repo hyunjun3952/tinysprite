@@ -6,15 +6,17 @@
 
 #include "editor.h"
 #include "imgui.h"
+#include "tinysprite/sprite.h"
 
 /* The timeline: a strip along the bottom of the window with the playback and frame buttons, the
  * duration of the current frame and a grid of cels (a column per frame, a row per layer, top layer
  * first). Clicking a cel selects its frame and layer; a dot marks a cel with something painted on
- * it, and dragging a frame number onto another one moves the frame there. */
+ * it, and dragging a frame number onto another one moves the frame there. A row above the frame
+ * numbers shows the tags as colored bands; clicking one selects it for editing and for playback. */
 class TimelinePanel
 {
   public:
-    static constexpr float HEIGHT = 196.0f;
+    static constexpr float HEIGHT = 246.0f;
 
     explicit TimelinePanel(Editor &editor);
 
@@ -30,10 +32,13 @@ class TimelinePanel
     };
     Rect cellRect(int layer, int frame) const;
     Rect headerRect(int frame) const;
+    Rect tagCellRect(int frame) const;
 
   private:
     void toolbar();
     void onionControls();
+    void tagControls();
+    void tagRow(int frames);
     void grid();
     void refreshFilled();
     bool filled(int layer, int frame) const;
@@ -45,8 +50,11 @@ class TimelinePanel
     uint64_t filledRevision_ = 0;
     bool filledValid_ = false;
 
-    std::vector<Rect> cells_;   /* as drawn, [layer * frames + frame] */
-    std::vector<Rect> headers_; /* as drawn, per frame */
+    std::vector<Rect> cells_;    /* as drawn, [layer * frames + frame] */
+    std::vector<Rect> headers_;  /* as drawn, per frame */
+    std::vector<Rect> tagCells_; /* the tag row, per frame */
+    char tagName_[TAG_NAME_MAX + 1] = "";
+    bool tagNameActive_ = false; /* the name field is being edited: keep its text */
     int drawnFrames_ = 0;
 };
 

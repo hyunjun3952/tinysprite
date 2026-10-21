@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -28,16 +29,51 @@ struct Slot {
     }
 };
 
+/* The tags before and after a frame step. Sprite keeps tags in step when frames come and go, but a
+ * tag that vanished with its last frame only comes back by restoring the list. */
+struct TagSnapshots {
+    std::vector<Sprite::Tag> before;
+    std::vector<Sprite::Tag> after;
+};
+
+/* Records `slot` joining (inserting) or leaving its sprite as one step and performs it. */
+bool recordSlot(History &history, Sprite &sprite, const std::shared_ptr<Slot> &slot, bool inserting)
+{
+    auto tags = std::make_shared<TagSnapshots>();
+    tags->before = sprite.tags();
+    auto attach = [slot, &sprite, tags](bool undoing) {
+        slot->attach();
+        sprite.setTags(undoing ? tags->before : tags->after);
+    };
+    auto detach = [slot, &sprite, tags](bool undoing) {
+        slot->detach();
+        sprite.setTags(undoing ? tags->before : tags->after);
+    };
+    HistoryAction action;
+    if (inserting) {
+        action.undo = [detach] { detach(true); };
+        action.redo = [attach] { attach(false); };
+    } else {
+        action.undo = [attach] { attach(true); };
+        action.redo = [detach] { detach(false); };
+    }
+    if (!history.pushAction(std::move(action))) {
+        return false;
+    }
+    if (inserting) {
+        slot->attach();
+    } else {
+        slot->detach();
+    }
+    tags->after = sprite.tags(); /* what redo restores */
+    return true;
+}
+
 /* Records an insertion of `frame` at `index` as one step and performs it. */
 bool recordInsert(History &history, Sprite &sprite, int index, Sprite::Frame &&frame)
 {
-    auto slot = std::make_shared<Slot>(Slot{sprite, index, std::move(frame)});
-    if (!history.pushAction(
-            HistoryAction{[slot] { slot->detach(); }, [slot] { slot->attach(); }})) {
-        return false;
-    }
-    slot->attach();
-    return true;
+    return recordSlot(history, sprite,
+                      std::make_shared<Slot>(Slot{sprite, index, std::move(frame)}), true);
 }
 
 } // namespace
@@ -64,13 +100,8 @@ bool frame_op_remove(History &history, Sprite &sprite, int index)
         sprite.frameCount() < 2) {
         return false;
     }
-    auto slot = std::make_shared<Slot>(Slot{sprite, index, std::nullopt});
-    if (!history.pushAction(
-            HistoryAction{[slot] { slot->attach(); }, [slot] { slot->detach(); }})) {
-        return false;
-    }
-    slot->detach();
-    return true;
+    return recordSlot(history, sprite, std::make_shared<Slot>(Slot{sprite, index, std::nullopt}),
+                      false);
 }
 
 bool frame_op_move(History &history, Sprite &sprite, int from, int to)

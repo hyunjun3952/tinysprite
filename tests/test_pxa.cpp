@@ -251,6 +251,64 @@ TEST(a_zero_duration_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
+TEST(tags_round_trip)
+{
+    Sprite s = animated();
+    s.addTag(Sprite::Tag{"walk", 0, 1, PlayMode::PingPong});
+    s.addTag(Sprite::Tag{"\xe6\xad\xa9\xe3\x81\x8f", 1, 2, PlayMode::Reverse});
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
+    if (!back) {
+        return;
+    }
+    ASSERT_EQ_INT(2, static_cast<int>(back->tags().size()));
+    ASSERT_TRUE(back->tags()[0].name == "walk");
+    ASSERT_EQ_INT(0, back->tags()[0].from);
+    ASSERT_EQ_INT(1, back->tags()[0].to);
+    ASSERT_TRUE(back->tags()[0].direction == PlayMode::PingPong);
+    ASSERT_TRUE(back->tags()[1].name == s.tags()[1].name);
+    ASSERT_TRUE(back->tags()[1].direction == PlayMode::Reverse);
+}
+
+TEST(a_sprite_without_tags_writes_no_tag_chunk)
+{
+    std::vector<uint8_t> data = pxa_encode(animated());
+    for (size_t i = 0; i + 4 <= data.size(); i++) {
+        ASSERT_TRUE(
+            !(data[i] == 'T' && data[i + 1] == 'A' && data[i + 2] == 'G' && data[i + 3] == 'S'));
+    }
+}
+
+TEST(a_tag_outside_the_frames_is_rejected)
+{
+    Sprite s = animated();
+    s.addTag(Sprite::Tag{"x", 0, 2, PlayMode::Forward});
+    std::vector<uint8_t> data = pxa_encode(s);
+    /* the TAGS chunk is last: count 2, name len 1, "x", from 4, to 4, direction 1 */
+    size_t to = data.size() - 1 - 4;
+    ASSERT_EQ_INT(2, data[to]);
+    data[to] = 3; /* one frame past the end */
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
+TEST(a_tag_with_an_unknown_direction_is_rejected)
+{
+    Sprite s = animated();
+    s.addTag(Sprite::Tag{"x", 0, 1, PlayMode::Forward});
+    std::vector<uint8_t> data = pxa_encode(s);
+    data[data.size() - 1] = 9;
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
+TEST(a_truncated_tag_chunk_is_rejected)
+{
+    Sprite s = animated();
+    s.addTag(Sprite::Tag{"walk", 0, 1, PlayMode::Forward});
+    std::vector<uint8_t> data = pxa_encode(s);
+    data.resize(data.size() - 3);
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
 int main(void)
 {
     RUN(round_trip_keeps_everything);
@@ -269,5 +327,10 @@ int main(void)
     RUN(a_header_that_claims_more_frames_than_the_data_holds_is_rejected);
     RUN(a_frame_chunk_with_the_wrong_length_is_rejected);
     RUN(a_zero_duration_is_rejected);
+    RUN(tags_round_trip);
+    RUN(a_sprite_without_tags_writes_no_tag_chunk);
+    RUN(a_tag_outside_the_frames_is_rejected);
+    RUN(a_tag_with_an_unknown_direction_is_rejected);
+    RUN(a_truncated_tag_chunk_is_rejected);
     return TEST_SUMMARY();
 }
