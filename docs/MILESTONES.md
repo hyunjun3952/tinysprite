@@ -12,7 +12,9 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       `scripts/{format,lint,setup-hooks}.sh`, `.githooks/`, GitHub Actions CI.
 - [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, opaque types, public headers in `include/tinysprite/`.
       Cel is RGBA only for now; palette is 256 colors max; sprite starts with 1 frame and 1 layer.
-- [ ] **3. Rasterizer** — Bresenham line, rectangle, ellipse, flood fill, tested against golden pixel arrays.
+- [x] **3. Rasterizer** — Bresenham line, rectangle, ellipse, flood fill, tested against golden pixel arrays.
+      `include/tinysprite/raster.h`: pure functions that report pixels through a plot callback and never touch a cel,
+      so tools can route edits through history. Ellipses may report a pixel twice; flood fill only reads the cel.
 - [ ] **4. Pencil / eraser + History** — undo/redo unit is one stroke; storage is a pixel delta `(index, old, new)`.
       All edits must go through history.
 - [ ] **5. SDL2 + ImGui app + CPU-composited canvas** — zoom/pan, grid, checkerboard, coordinate transform
@@ -31,6 +33,7 @@ Spritesheet packing + JSON metadata, slices/pivots/hitboxes, tilemap editor, fil
 headless CLI export, optional Aseprite import.
 
 ## Decisions and gotchas
+- Rasterizers clip nothing; the caller (tool/history layer) must bounds-check plotted points.
 - UI stack is SDL2 + Dear ImGui via cimgui; the app code stays pure C.
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
 - Cel is RGBA now; the indexed-color mode from the original design is deferred.
