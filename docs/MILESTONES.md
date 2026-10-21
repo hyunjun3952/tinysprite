@@ -30,8 +30,16 @@ Full design rationale: see the "Architecture" and "Conventions" sections of `CLA
       Controls: left drag draws, wheel zooms at the cursor, middle drag pans, Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) undo/redo.
       `tinysprite [width [height]] [--frames N]` — `--frames` exits after N frames (smoke runs, e.g.
       `SDL_VIDEODRIVER=dummy`).
-- [ ] **6. Remaining tools + layer operations** — bucket, eyedropper, shapes, selection/move, pixel-perfect, symmetry,
-      layer panel (remove / reorder are not implemented yet).
+- [x] **6. Remaining tools + layer operations** — bucket, eyedropper, shapes, selection/move, pixel-perfect,
+      symmetry, layer panel.
+      Core (all TDD, public headers in `include/tinysprite/`): `bucket.h` (`bucket_fill`), `eyedropper.h`
+      (`eyedropper_pick_cel` / `_sprite`, the latter via new `composite_pixel`), `shape.h` (line / rect / ellipse;
+      batch `shape_stroke` plus live `shape_stroke_begin/update/end/cancel`), `move.h` (rectangular selection move,
+      batch `move_stroke` plus live `move_stroke_*`), `PencilOptions` + `pencil_stroke_begin_ex` (pixel-perfect,
+      mirror X / Y), `sprite_remove_layer` / `sprite_move_layer`, `layer_set_name`, `history_forget_cel`.
+      UI: `src/ui/tools.c` (press / drag / release / cancel per tool), `src/ui/layers_panel.c`; the tools panel
+      lists all eight tools plus Pixel-perfect / Mirror X / Mirror Y / Filled options.
+      Controls: Esc cancels a drag (or clears the selection), Delete clears the selection, Ctrl+A selects all.
 - [ ] **7. File I/O** — `.pxa` (versioned, length-prefixed chunks, round-trip tests) and PNG via stb.
 - [ ] **8. Polish** — palette files (.gpl/.hex), settings, autosave recovery, shortcuts, Linux/Windows build check.
 
@@ -60,3 +68,18 @@ headless CLI export, optional Aseprite import.
 - `tinysprite_core` links `libm` (viewport uses `floorf`).
 - The canvas draws only layer 0 / frame 0 edits for now (`Editor.active_layer`, `Editor.frame`); the layer
   panel arrives in milestone 6. The tools panel is drawn before the canvas, so its zoom readout lags one frame.
+- Live shape / move strokes redraw from scratch on every update (`history_cancel_stroke` + a new stroke), so
+  previews never accumulate and the whole drag is one undo step.
+- Removing a layer calls `history_forget_cel`, which drops that layer's undo/redo steps (history holds raw cel
+  pointers). Layer add / remove / reorder / rename / visibility / opacity are not undoable yet.
+- Pixel-perfect also cuts the corner of a 90-degree turn (the L-shaped corner pixel is removed), like Aseprite.
+  A removed pixel is restored to the color it had before the stroke touched it.
+- Symmetry mirrors across the cel's center and applies to pencil / eraser only (not shapes or bucket).
+- The selection is a single rectangle clipped to the sprite. Moving it loses pixels pushed off the sprite, and
+  transparent selected pixels do not erase the destination. A click without dragging deselects, so a 1x1
+  selection cannot be made by dragging. There is no selection copy / paste yet.
+- Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
+- `third_party/cimgui` declares `ImDrawList_AddRect(..., rounding, thickness, flags)`; the order differs from
+  upstream ImGui's `(rounding, flags, thickness)`, and clang-tidy's narrowing check is what caught the swap.
+- `tools.c` / `layers_panel.c` have no ctest coverage (the UI is not built in CI); they were exercised with a
+  throw-away headless harness under `SDL_VIDEODRIVER=dummy` + ASan/UBSan.
