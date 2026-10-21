@@ -26,4 +26,11 @@ Rgba palette_get(const Palette *palette, int index);
 /* Returns 0 on success, -1 if index is out of range. */
 int palette_set(Palette *palette, int index, Rgba color);
 
+/* Removes the color at `index`; the colors after it shift down. Returns 0 on success, -1 if index
+ * is out of range. */
+int palette_remove(Palette *palette, int index);
+
+/* Returns the index of the first color equal to `color` (all four channels), or -1. */
+int palette_find(const Palette *palette, Rgba color);
+
 #endif

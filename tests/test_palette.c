@@ -63,6 +63,44 @@ TEST(add_fails_when_full)
     palette_destroy(p);
 }
 
+TEST(remove_shifts_later_colors_down)
+{
+    Palette *p = palette_create();
+    palette_add(p, (Rgba){1, 0, 0, 255});
+    palette_add(p, (Rgba){2, 0, 0, 255});
+    palette_add(p, (Rgba){3, 0, 0, 255});
+    ASSERT_EQ_INT(0, palette_remove(p, 1));
+    ASSERT_EQ_INT(2, palette_count(p));
+    ASSERT_EQ_INT(1, palette_get(p, 0).r);
+    ASSERT_EQ_INT(3, palette_get(p, 1).r);
+    ASSERT_EQ_INT(0, palette_get(p, 2).a);
+    ASSERT_EQ_INT(0, palette_remove(p, 1));
+    ASSERT_EQ_INT(0, palette_remove(p, 0));
+    ASSERT_EQ_INT(0, palette_count(p));
+    palette_destroy(p);
+}
+
+TEST(remove_out_of_range_fails)
+{
+    Palette *p = palette_create();
+    palette_add(p, (Rgba){1, 0, 0, 255});
+    ASSERT_EQ_INT(-1, palette_remove(p, 1));
+    ASSERT_EQ_INT(-1, palette_remove(p, -1));
+    ASSERT_EQ_INT(1, palette_count(p));
+    palette_destroy(p);
+}
+
+TEST(find_matches_exact_colors)
+{
+    Palette *p = palette_create();
+    palette_add(p, (Rgba){1, 2, 3, 255});
+    palette_add(p, (Rgba){1, 2, 3, 128});
+    ASSERT_EQ_INT(0, palette_find(p, (Rgba){1, 2, 3, 255}));
+    ASSERT_EQ_INT(1, palette_find(p, (Rgba){1, 2, 3, 128}));
+    ASSERT_EQ_INT(-1, palette_find(p, (Rgba){1, 2, 4, 255}));
+    palette_destroy(p);
+}
+
 int main(void)
 {
     RUN(create_is_empty);
@@ -71,5 +109,8 @@ int main(void)
     RUN(get_out_of_range_is_transparent);
     RUN(set_replaces_color);
     RUN(add_fails_when_full);
+    RUN(remove_shifts_later_colors_down);
+    RUN(remove_out_of_range_fails);
+    RUN(find_matches_exact_colors);
     return TEST_SUMMARY();
 }
