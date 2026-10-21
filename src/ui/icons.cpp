@@ -167,6 +167,63 @@ const std::array<std::array<const char *, SIZE>, ICON_COUNT> BITMAPS = {{
         "................",
         "................",
     }},
+    /* Line */
+    {{
+        "................",
+        "................",
+        "............XX..",
+        "...........XX...",
+        "..........XX....",
+        ".........XX.....",
+        "........XX......",
+        ".......XX.......",
+        "......XX........",
+        ".....XX.........",
+        "....XX..........",
+        "...XX...........",
+        "..XX............",
+        ".XX.............",
+        "................",
+        "................",
+    }},
+    /* Rect */
+    {{
+        "................",
+        "................",
+        "..XXXXXXXXXXXX..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..X..........X..",
+        "..XXXXXXXXXXXX..",
+        "................",
+        "................",
+    }},
+    /* Ellipse */
+    {{
+        "................",
+        "................",
+        "................",
+        "....XXXXXXXX....",
+        "..XXX......XXX..",
+        ".XX..........XX.",
+        ".X............X.",
+        ".X............X.",
+        ".X............X.",
+        ".XX..........XX.",
+        "..XXX......XXX..",
+        "....XXXXXXXX....",
+        "................",
+        "................",
+        "................",
+        "................",
+    }},
 }};
 
 constexpr float ROUND = 3.0f;
@@ -234,6 +291,23 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
          enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f));
     theme::hint(tooltip, enabled);
     return clicked && enabled;
+}
+
+bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec2 size)
+{
+    if (selected) {
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::rgb(theme::INK));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::rgb(theme::INK));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::rgb(theme::BODY_STRONG));
+    }
+    bool clicked = ImGui::Button(id, size);
+    if (selected) {
+        ImGui::PopStyleColor(3);
+    }
+    draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+         withAlpha(selected ? theme::CANVAS : theme::INK, 1.0f));
+    theme::tip(tooltip);
+    return clicked;
 }
 
 bool toggle(Icon on, Icon off, const char *id, const char *tooltip, bool state, float size)

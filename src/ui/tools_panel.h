@@ -19,6 +19,7 @@ class ToolsPanel
 
   private:
     void toolGrid();
+    void shapeButtons();
     void toolOptions();
     void symmetryOptions();
     void colorWidget();

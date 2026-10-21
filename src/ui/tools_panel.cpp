@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdio>
 
+#include "icons.h"
 #include "theme.h"
 
 namespace
@@ -126,12 +127,21 @@ void ToolsPanel::colorWidget()
     }
 }
 
+static bool isShapeTool(ToolKind tool)
+{
+    return tool == ToolKind::Line || tool == ToolKind::Rect || tool == ToolKind::Ellipse;
+}
+
 void ToolsPanel::toolGrid()
 {
     constexpr int COLUMNS = 2;
     float width = theme::columnWidth(COLUMNS);
+    int shown = 0;
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
-        if (tool % COLUMNS != 0) {
+        if (isShapeTool(static_cast<ToolKind>(tool))) {
+            continue; /* these live in the Shapes group */
+        }
+        if (shown++ % COLUMNS != 0) {
             ImGui::SameLine();
         }
         ImGui::PushID(tool);
@@ -141,6 +151,32 @@ void ToolsPanel::toolGrid()
             editor_.selectTool(static_cast<ToolKind>(tool));
         }
         ImGui::PopID();
+    }
+}
+
+/* The shape tools as a row of small icon buttons. */
+void ToolsPanel::shapeButtons()
+{
+    struct Shape {
+        ToolKind tool;
+        icons::Icon icon;
+        const char *id;
+    };
+    static const Shape SHAPES[] = {{ToolKind::Line, icons::Icon::Line, "##shape_line"},
+                                   {ToolKind::Rect, icons::Icon::Rect, "##shape_rect"},
+                                   {ToolKind::Ellipse, icons::Icon::Ellipse, "##shape_ellipse"}};
+    float side = ImGui::GetFrameHeight() + 8.0f;
+    for (const Shape &shape : SHAPES) {
+        if (&shape != SHAPES) {
+            ImGui::SameLine();
+        }
+        const ToolInfo &info = TOOLS[static_cast<size_t>(shape.tool)];
+        char tooltip[160];
+        std::snprintf(tooltip, sizeof(tooltip), "%s (%s)\n%s", info.label, info.hint, info.tooltip);
+        if (icons::choice(shape.icon, shape.id, tooltip, editor_.tool() == shape.tool,
+                          ImVec2(side, side))) {
+            editor_.selectTool(shape.tool);
+        }
     }
 }
 
@@ -216,6 +252,9 @@ void ToolsPanel::show(Panels &panels, float height)
     };
     if (open(sections::TOOLS)) {
         toolGrid();
+    }
+    if (open(sections::SHAPES)) {
+        shapeButtons();
     }
     if (open(sections::TOOL_OPTIONS)) {
         toolOptions();

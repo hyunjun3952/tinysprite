@@ -1140,6 +1140,14 @@ TEST(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection)
     delete e;
 }
 
+TEST(symmetry_is_off_by_default)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(!e->options().symmetry.mirror_x);
+    ASSERT_TRUE(!e->options().symmetry.mirror_y);
+    delete e;
+}
+
 int main(void)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -1223,6 +1231,7 @@ int main(void)
     RUN(palette_edits_make_the_document_modified_until_saved);
     RUN(pressing_beside_the_sprite_records_no_color_and_selects_nothing);
     RUN(select_inside_a_selection_on_a_locked_layer_starts_a_new_selection);
+    RUN(symmetry_is_off_by_default);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

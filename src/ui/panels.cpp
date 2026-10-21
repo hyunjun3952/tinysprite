@@ -46,8 +46,8 @@ void Panels::reset()
     };
     panels_[static_cast<size_t>(PanelId::Tools)] =
         make("Tools", TOOLS_PANEL_WIDTH, DockSide::Left,
-             {sections::TOOLS, sections::TOOL_OPTIONS, sections::SYMMETRY, sections::SELECTION,
-              sections::COLOR, sections::RECENT, sections::PALETTE});
+             {sections::TOOLS, sections::SHAPES, sections::TOOL_OPTIONS, sections::SYMMETRY,
+              sections::SELECTION, sections::COLOR, sections::RECENT, sections::PALETTE});
     panels_[static_cast<size_t>(PanelId::Layers)] = make(
         "Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS, sections::PROPERTIES});
 }

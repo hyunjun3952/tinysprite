@@ -16,6 +16,7 @@ enum class PanelId { Tools, Layers, Count };
 namespace sections
 {
 inline constexpr const char *TOOLS = "Tools";
+inline constexpr const char *SHAPES = "Shapes";
 inline constexpr const char *TOOL_OPTIONS = "Tool options";
 inline constexpr const char *SYMMETRY = "Symmetry";
 inline constexpr const char *SELECTION = "Selection";
