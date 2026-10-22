@@ -60,24 +60,71 @@ bool image_export(const Sprite &sprite, int frame, const std::string &path, int 
     return image_write_rgba(path, width, height, flat);
 }
 
+namespace
+{
+
+/* One raster format the exporters write: the extension that selects it and the encoder. The first
+ * extension of each format is the one listed in messages; an alias follows its format. */
+struct RasterFormat {
+    const char *extension;
+    bool listed; /* shown by image_write_formats() */
+    bool (*write)(const char *file, int width, int height, std::vector<Rgba> &pixels);
+};
+
+bool writePng(const char *file, int width, int height, std::vector<Rgba> &pixels)
+{
+    return stbi_write_png(file, width, height, 4, pixels.data(),
+                          width * static_cast<int>(sizeof(Rgba))) != 0;
+}
+
+bool writeBmp(const char *file, int width, int height, std::vector<Rgba> &pixels)
+{
+    return stbi_write_bmp(file, width, height, 4, pixels.data()) != 0;
+}
+
+bool writeTga(const char *file, int width, int height, std::vector<Rgba> &pixels)
+{
+    return stbi_write_tga(file, width, height, 4, pixels.data()) != 0;
+}
+
+/* JPEG has no alpha: the transparent parts show as white. */
+bool writeJpg(const char *file, int width, int height, std::vector<Rgba> &pixels)
+{
+    flattenOnWhite(pixels);
+    return stbi_write_jpg(file, width, height, 4, pixels.data(), JPEG_QUALITY) != 0;
+}
+
+const RasterFormat RASTER_FORMATS[] = {
+    {".png", true, writePng}, {".bmp", true, writeBmp},   {".tga", true, writeTga},
+    {".jpg", true, writeJpg}, {".jpeg", false, writeJpg},
+};
+
+} // namespace
+
 bool image_write_rgba(const std::string &path, int width, int height, std::vector<Rgba> &pixels)
 {
-    const char *file = path.c_str();
-    const int stride = width * static_cast<int>(sizeof(Rgba));
-    if (path_has_extension(path, ".png")) {
-        return stbi_write_png(file, width, height, 4, pixels.data(), stride) != 0;
-    }
-    if (path_has_extension(path, ".bmp")) {
-        return stbi_write_bmp(file, width, height, 4, pixels.data()) != 0;
-    }
-    if (path_has_extension(path, ".tga")) {
-        return stbi_write_tga(file, width, height, 4, pixels.data()) != 0;
-    }
-    if (path_has_extension(path, ".jpg") || path_has_extension(path, ".jpeg")) {
-        flattenOnWhite(pixels);
-        return stbi_write_jpg(file, width, height, 4, pixels.data(), JPEG_QUALITY) != 0;
+    for (const RasterFormat &format : RASTER_FORMATS) {
+        if (path_has_extension(path, format.extension)) {
+            return format.write(path.c_str(), width, height, pixels);
+        }
     }
     return false;
+}
+
+std::string image_write_formats()
+{
+    std::string out;
+    std::string last;
+    for (const RasterFormat &format : RASTER_FORMATS) {
+        if (!format.listed) {
+            continue;
+        }
+        if (!last.empty()) {
+            out += out.empty() ? last : ", " + last;
+        }
+        last = format.extension;
+    }
+    return out + " or " + last;
 }
 
 namespace

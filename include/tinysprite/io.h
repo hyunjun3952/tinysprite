@@ -53,6 +53,9 @@ std::optional<Palette> palette_decode(const std::string &text);
 bool palette_save(const Palette &palette, const std::string &path);
 std::optional<Palette> palette_load(const std::string &path);
 
+/* The extensions above for a message, e.g. ".gpl or .hex". */
+std::string palette_formats();
+
 inline constexpr int IMAGE_EXPORT_MAX_SCALE = 32;
 inline constexpr int IMAGE_EXPORT_MAX_SIZE = 16384;
 
@@ -63,6 +66,10 @@ inline constexpr int IMAGE_EXPORT_MAX_SIZE = 16384;
  * neighbor, every cel becomes a scale x scale block); a scale outside that range, or one that makes
  * the image wider or taller than IMAGE_EXPORT_MAX_SIZE, fails. */
 bool image_export(const Sprite &sprite, int frame, const std::string &path, int scale = 1);
+
+/* The extensions image_export writes for a message, ".png, .bmp, .tga or .jpg" (.jpeg is the same
+ * as .jpg and not listed). */
+std::string image_write_formats();
 
 /* Animated GIF export. The frames first..last (last = -1 for the final frame) are written in the
  * order `direction` plays them (a ping-pong goes out and back, its ends shown once), each for its

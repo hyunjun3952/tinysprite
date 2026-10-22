@@ -142,6 +142,19 @@ TEST(export_rejects_a_bad_scale)
     ASSERT_TRUE(!image_export(wide, 0, "unused.png", 17)); /* 17000 px is over the size limit */
 }
 
+TEST(write_formats_list_what_export_accepts)
+{
+    std::string formats = image_write_formats();
+    ASSERT_TRUE(formats == ".png, .bmp, .tga or .jpg");
+    /* every listed extension really is written */
+    Sprite s(2, 2);
+    for (const char *ext : {".png", ".bmp", ".tga", ".jpg", ".jpeg"}) {
+        std::string path = std::string("test_image_formats") + ext;
+        ASSERT_TRUE(image_export(s, 0, path));
+        std::remove(path.c_str());
+    }
+}
+
 int main(void)
 {
     RUN(export_then_import_round_trips_the_flattened_image);
@@ -153,5 +166,6 @@ int main(void)
     RUN(non_image_file_is_rejected);
     RUN(export_can_enlarge_by_whole_pixels);
     RUN(export_rejects_a_bad_scale);
+    RUN(write_formats_list_what_export_accepts);
     return TEST_SUMMARY();
 }

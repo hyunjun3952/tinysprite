@@ -7,6 +7,7 @@
 #include <iterator>
 #include <sstream>
 
+#include "path_util.h"
 #include "tinysprite/io.h"
 
 bool file_write_atomic(const std::string &path, const std::string &data)
@@ -89,16 +90,6 @@ bool parseGplColor(const std::string &line, Rgba &out)
     return true;
 }
 
-bool hasExtension(const std::string &path, const char *extension)
-{
-    std::string lower = path;
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    std::string ext = extension;
-    return lower.size() >= ext.size() &&
-           lower.compare(lower.size() - ext.size(), ext.size(), ext) == 0;
-}
-
 } // namespace
 
 std::string palette_encode_hex(const Palette &palette)
@@ -162,22 +153,53 @@ std::optional<Palette> palette_decode(const std::string &text)
     return palette;
 }
 
+namespace
+{
+
+/* The palette formats: the extension that selects each and how it is written. Loading looks at the
+ * content, so it only needs to know the extension is one of these. */
+struct PaletteFormat {
+    const char *extension;
+    std::string (*encode)(const Palette &palette, const std::string &name);
+};
+
+std::string encodeHex(const Palette &palette, const std::string &)
+{
+    return palette_encode_hex(palette);
+}
+
+std::string encodeGpl(const Palette &palette, const std::string &name)
+{
+    return palette_encode_gpl(palette, name.empty() ? "palette" : name);
+}
+
+const PaletteFormat PALETTE_FORMATS[] = {{".gpl", encodeGpl}, {".hex", encodeHex}};
+
+const PaletteFormat *paletteFormat(const std::string &path)
+{
+    for (const PaletteFormat &format : PALETTE_FORMATS) {
+        if (path_has_extension(path, format.extension)) {
+            return &format;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
 bool palette_save(const Palette &palette, const std::string &path)
 {
-    if (hasExtension(path, ".hex")) {
-        return file_write_atomic(path, palette_encode_hex(palette));
+    const PaletteFormat *format = paletteFormat(path);
+    if (!format) {
+        return false;
     }
-    if (hasExtension(path, ".gpl")) {
-        std::string name = std::filesystem::path(path).stem().string();
-        return file_write_atomic(path,
-                                 palette_encode_gpl(palette, name.empty() ? "palette" : name));
-    }
-    return false;
+    return file_write_atomic(path,
+                             format->encode(palette, std::filesystem::path(path).stem().string()));
 }
 
 std::optional<Palette> palette_load(const std::string &path)
 {
-    if (!hasExtension(path, ".hex") && !hasExtension(path, ".gpl")) {
+    if (!paletteFormat(path)) {
         return std::nullopt;
     }
     std::ifstream file(path, std::ios::binary);
@@ -186,4 +208,9 @@ std::optional<Palette> palette_load(const std::string &path)
     }
     return palette_decode(
         std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()));
+}
+
+std::string palette_formats()
+{
+    return std::string(PALETTE_FORMATS[0].extension) + " or " + PALETTE_FORMATS[1].extension;
 }

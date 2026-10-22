@@ -139,6 +139,20 @@ TEST(atomic_write_replaces_a_file_and_leaves_no_temp)
     std::remove(path);
 }
 
+TEST(formats_list_the_extensions_that_save_and_load_accept)
+{
+    ASSERT_TRUE(palette_formats() == ".gpl or .hex");
+    Palette p;
+    p.add(Rgba{1, 2, 3, 255});
+    for (const char *ext : {".gpl", ".hex", ".GPL"}) {
+        std::string path = std::string("test_palette_formats") + ext;
+        ASSERT_TRUE(palette_save(p, path));
+        ASSERT_TRUE(palette_load(path).has_value());
+        std::remove(path.c_str());
+    }
+    ASSERT_TRUE(!palette_save(p, "test_palette_formats.txt"));
+}
+
 int main(void)
 {
     RUN(hex_round_trips_with_alpha);
@@ -149,6 +163,7 @@ int main(void)
     RUN(invalid_or_empty_text_is_rejected);
     RUN(only_the_first_256_colors_are_kept);
     RUN(save_and_load_follow_the_extension);
+    RUN(formats_list_the_extensions_that_save_and_load_accept);
     RUN(atomic_write_replaces_a_file_and_leaves_no_temp);
     return TEST_SUMMARY();
 }
