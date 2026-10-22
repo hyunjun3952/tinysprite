@@ -225,7 +225,13 @@ branch and PR.
       scaled by the export scale), and in the UI the Slice tool (K: drag to mark one, drag a slice to move it, a click on
       empty canvas deselects), outlines with names and pivots on the canvas (View > Slices), and a Slices section in
       the Inspector (list, New / Delete, name, X / Y / Width / Height, pivot; every change one undo step).
-- [ ] **21. Sheet packing** — trim transparent borders and pack frames (skyline), with the trim offsets in the JSON.
+- [x] **21. Sheet packing** — `SheetLayout::Packed`: every frame is trimmed to its drawn pixels (an empty frame keeps a
+      1 x 1 transparent cell) and the pieces are packed by `pack_rects` (skyline bottom-left, tall first, the sheet
+      width tried from about the square root of the area upward for the smallest result; `spacing` is the gap between
+      pieces). `SpriteSheet::trims` / `trimmed` and, in the JSON, `"trimmed": true`, `spriteSourceSize` and `sourceSize`
+      per frame (scaled with the sheet; slices stay in whole-frame coordinates). `tinysprite export --layout packed`, a
+      "Packed (trimmed)" entry in the sprite sheet dialog, and a checkbox there that also writes the `.json` beside the
+      image (`with_replaced_extension`).
 - [ ] **22. Filters** — outline, palette swap, hue / brightness, as undoable layer operations.
 - [ ] **23. Tilemap editor** — tileset from a cel grid, tile layer, `.tmj`-like export.
 - [ ] **24. Aseprite import** (optional).

@@ -65,6 +65,18 @@ TEST(options_change_the_layout)
     std::remove("cli_o2.png");
 }
 
+TEST(the_packed_layout_trims_and_lists_the_trims_in_the_json)
+{
+    make_input("cli_in5.pxa");
+    ASSERT_EQ_INT(0, run({"export", "cli_in5.pxa", "--sheet", "cli_o5.png", "--json", "cli_o5.json",
+                          "--layout", "packed"}));
+    ASSERT_TRUE(slurp("cli_o5.json").find("\"spriteSourceSize\"") != std::string::npos);
+    ASSERT_EQ_INT(2, run({"export", "cli_in5.pxa", "--sheet", "cli_o5.png", "--layout", "pack"}));
+    std::remove("cli_in5.pxa");
+    std::remove("cli_o5.png");
+    std::remove("cli_o5.json");
+}
+
 TEST(a_single_frame_png_export_works_too)
 {
     make_input("cli_in3.pxa");
@@ -91,6 +103,7 @@ int main()
 {
     RUN(exports_a_sheet_and_its_json);
     RUN(options_change_the_layout);
+    RUN(the_packed_layout_trims_and_lists_the_trims_in_the_json);
     RUN(a_single_frame_png_export_works_too);
     RUN(bad_input_fails_with_a_status);
     return TEST_SUMMARY();

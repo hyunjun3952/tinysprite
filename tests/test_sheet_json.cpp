@@ -77,6 +77,7 @@ TEST(no_tags_gives_an_empty_list)
     ASSERT_TRUE(has(j, "\"tags\": []"));
 }
 
+<<<<<<< HEAD
 TEST(lists_the_slices_with_bounds_and_an_optional_pivot)
 {
     Sprite s = walker();
@@ -119,13 +120,41 @@ TEST(slices_follow_the_export_scale)
     std::string j = json_of(s, o, "a.png");
     ASSERT_TRUE(has(j, "\"bounds\": {\"x\": 3, \"y\": 0, \"w\": 6, \"h\": 6}"));
     ASSERT_TRUE(has(j, "\"pivot\": {\"x\": 3, \"y\": 0}"));
+=======
+TEST(a_packed_sheet_lists_the_trim_of_every_frame)
+{
+    Sprite s(8, 8);
+    s.insertFrame(1, s.makeFrame());
+    s.layer(0)->cel(0)->set(2, 3, Rgba{255, 0, 0, 255});
+    s.layer(0)->cel(1)->set(5, 6, Rgba{0, 255, 0, 255});
+    SheetOptions o;
+    o.layout = SheetLayout::Packed;
+    std::string j = json_of(s, o, "a.png");
+    ASSERT_TRUE(has(j, "\"trimmed\": true"));
+    ASSERT_TRUE(has(j, "\"spriteSourceSize\": {\"x\": 2, \"y\": 3, \"w\": 1, \"h\": 1}"));
+    ASSERT_TRUE(has(j, "\"spriteSourceSize\": {\"x\": 5, \"y\": 6, \"w\": 1, \"h\": 1}"));
+    ASSERT_TRUE(has(j, "\"sourceSize\": {\"w\": 8, \"h\": 8}"));
+    ASSERT_TRUE(has(j, "\"duration\": 100"));
+}
+
+TEST(the_other_layouts_do_not_mention_a_trim)
+{
+    std::string j = json_of(walker(), SheetOptions{}, "a.png");
+    ASSERT_TRUE(!has(j, "trimmed"));
+    ASSERT_TRUE(!has(j, "spriteSourceSize"));
+>>>>>>> 9d11f7b (feat(io): packed sprite sheets with trimmed frames (milestone 21))
 }
 
 int main()
 {
+<<<<<<< HEAD
     RUN(lists_the_slices_with_bounds_and_an_optional_pivot);
     RUN(a_sprite_without_slices_has_an_empty_list);
     RUN(slices_follow_the_export_scale);
+=======
+    RUN(a_packed_sheet_lists_the_trim_of_every_frame);
+    RUN(the_other_layouts_do_not_mention_a_trim);
+>>>>>>> 9d11f7b (feat(io): packed sprite sheets with trimmed frames (milestone 21))
     RUN(lists_the_frames_with_rects_and_durations);
     RUN(lists_the_tags_with_their_direction);
     RUN(a_range_renumbers_the_tags_and_drops_the_ones_outside);
