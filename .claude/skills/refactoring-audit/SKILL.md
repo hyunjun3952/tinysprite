@@ -1,5 +1,5 @@
 ---
-name: code-refactoring
+name: refactoring-audit
 description: Finds and plans behavior-preserving refactorings in this C++ repo - code smells (refactoring.guru catalog), C++ anti-patterns, magic numbers, SOLID/OOP violations, functions at or near the cognitive complexity limit of 15, and measured performance hot spots - then applies the approved ones in small verified steps. Use when the user says "refactor", "리팩토링", "code smell", "clean up this code", "코드 냄새", "복잡도 줄여줘", "책임이 너무 많아", "too complex", "느려", "버벅여", or asks to improve structure without changing behavior. Do NOT use to fix a bug (use bug-hunting) or to review a pull request (use pr-review).
 argument-hint: "[target] [soft|hard]"
 metadata:
@@ -11,7 +11,7 @@ metadata:
 
 ## Arguments: `[target] [soft|hard]`
 
-`/code-refactoring src/ui/editor.cpp hard`, `/code-refactoring src/core`, `/code-refactoring hard`, `/code-refactoring` all work. Parse the arguments as:
+`/refactoring-audit src/ui/editor.cpp hard`, `/refactoring-audit src/core`, `/refactoring-audit hard`, `/refactoring-audit` all work. Parse the arguments as:
 
 - **target** (optional): the scope of Step 0 (function, file, module, files changed in the last N commits). Missing: rank candidates and propose a few, as Step 0 says.
 - **mode** (optional): the word `soft` or `hard`, anywhere in the arguments. **Missing means `soft`.** Any other word is part of the target.
