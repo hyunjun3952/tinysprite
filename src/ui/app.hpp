@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,6 +13,7 @@
 #include "canvas.hpp"
 #include "commands.hpp"
 #include "editor.hpp"
+#include "file_browser.hpp"
 #include "layers_panel.hpp"
 #include "panels.hpp"
 #include "recovery.hpp"
@@ -70,13 +72,15 @@ class App
         const char *done;      /* the start of the toast once it worked */
         bool (App::*run)(const std::string &path);
         void (App::*options)(); /* the dialog fields beyond the path, or null */
+        const char *filter;     /* the extensions the file list shows, e.g. ".png .gif"; "" = all */
         bool writes() const;
     };
     static const FileActionInfo &fileInfo(FileAction action);
 
   private:
-    friend struct AppTestAccess;             /* tests/ui drive whole frames */
-    static constexpr size_t RECENT_MAX = 10; /* entries kept in the recent files list */
+    friend struct AppTestAccess;                    /* tests/ui drive whole frames */
+    static constexpr float TREE_ROW_PADDING = 5.0f; /* above and below a row of the file tree */
+    static constexpr size_t RECENT_MAX = 10;        /* entries kept in the recent files list */
 
     bool createWindow(int width, int height);
     bool initImGui();
@@ -140,6 +144,27 @@ class App
     bool runFileAction(const FileActionInfo &info, const std::string &path);
     void closeFileDialog();
     bool pathField();
+
+    /* The folder tree and search under the path field (app/file_browser_ui.cpp): a folder's name
+     * picks it as the place to save to and its arrow opens it, a file goes into the path field.
+     * Returns true when a file was double clicked in a dialog that reads (it counts as OK). */
+    bool fileBrowser(const FileActionInfo &info);
+    bool treeRows(const FileActionInfo &info, const std::string &directory, int depth);
+    bool folderNode(const FileActionInfo &info, const std::string &path, const std::string &name,
+                    bool selected, int depth);
+    bool fileRow(const FileActionInfo &info, const std::string &path, const std::string &name,
+                 bool selected);
+    bool searchRows(const FileActionInfo &info);
+    void browseToolbar();
+    void requestOpenAll(int direction);
+    bool pickFile(const FileActionInfo &info, const std::string &path);
+    const std::vector<DirEntry> &listing(const std::string &directory, const FileActionInfo &info);
+    void browseTo(const std::string &directory);
+    /* Where the dialog starts and the list falls back to: the last folder, else the current one. */
+    std::string startDirectory() const;
+    /* The path the dialog would use: the typed text with "~" expanded and the action's extension.
+     */
+    std::string dialogPath(const FileActionInfo &info, const std::string &typed) const;
     bool runOpen(const std::string &path);
     bool runSaveAs(const std::string &path);
     bool runExportImage(const std::string &path);
@@ -207,6 +232,14 @@ class App
     FileAction fileAction_ = FileAction::None;
     std::string filePath_;     /* the .pxa the document was opened from / saved to, "" if none */
     char pathInput_[512] = ""; /* the dialog's text field */
+    std::string browseRoot_;   /* the folder the tree starts at; "" = not chosen yet */
+    std::map<std::string, std::vector<DirEntry>> browseCache_; /* folder -> its entries */
+    std::vector<DirEntry> browseFound_;                        /* the search results ... */
+    std::string browseFoundKey_;                               /* ... and what they are for */
+    int browseOpenAll_ = 0; /* +1: open every folder of the tree this frame, -1: close them all */
+    int browseOpenBudget_ = 0;   /* how many more folders an "open all" may open */
+    bool browserOpen_ = false;   /* the folder button of the dialog is on */
+    char browseSearch_[64] = ""; /* the list shows the names containing this */
     std::string fileError_;
     std::string lastDir_; /* where the last file was opened / saved, for the next dialog */
     std::string

@@ -1,10 +1,18 @@
 /* Whole frames of the app with synthetic key events: a key that closes a dialog must not also act
  * as a shortcut in the same frame. */
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
 #include "app.hpp"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
 #include "imgui_internal.h"
 #include "minitest.hpp"
+#include "theme.hpp"
 #include "timeline_panel.hpp"
 
 struct AppTestAccess {
@@ -124,6 +132,78 @@ struct AppTestAccess {
         frame();
         frame();
     }
+    /* The path field of the file dialog. */
+    std::string path() const
+    {
+        return app.pathInput_;
+    }
+    /* Opens "Save as" showing the folder list with `typed` in the path field. */
+    void openSaveDialog(const std::string &typed)
+    {
+        app.askForPath(App::FileAction::SaveAs);
+        std::snprintf(app.pathInput_, sizeof(app.pathInput_), "%s", typed.c_str());
+        app.browserOpen_ = true;
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    /* The middle of row `row` of the dialog's folder tree ("../" is row 0), `x` pixels from its
+     * left edge: a name is clicked well right of the arrows (a nested node's arrow is further in),
+     * an arrow at 20. */
+    ImVec2 listRow(int row, float x = 120.0f) const
+    {
+        for (const ImGuiWindow *w : ImGui::GetCurrentContext()->Windows) {
+            if (std::strstr(w->Name, "##files") != nullptr) {
+                /* a tree row: the text and its padding above and below, and the gap after it */
+                float pitch = ImGui::GetFontSize() + 2.0f * theme::px(App::TREE_ROW_PADDING) +
+                              ImGui::GetStyle().ItemSpacing.y;
+                return {w->InnerRect.Min.x + x, w->InnerRect.Min.y + w->WindowPadding.y +
+                                                    (static_cast<float>(row) + 0.5f) * pitch};
+            }
+        }
+        return {-1.0f, -1.0f};
+    }
+    /* How many rows of the tree are shown (not counting "../"): its content height over a row. */
+    int treeRows() const
+    {
+        for (const ImGuiWindow *w : ImGui::GetCurrentContext()->Windows) {
+            if (std::strstr(w->Name, "##files") != nullptr) {
+                float pitch = ImGui::GetFontSize() + 2.0f * theme::px(App::TREE_ROW_PADDING) +
+                              ImGui::GetStyle().ItemSpacing.y;
+                /* n rows are n heights and n - 1 gaps tall */
+                float rows = (w->ContentSize.y + ImGui::GetStyle().ItemSpacing.y) / pitch;
+                return static_cast<int>(std::lround(rows)) - 1;
+            }
+        }
+        return -1;
+    }
+    void expandAll()
+    {
+        app.requestOpenAll(1);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    void collapseAll()
+    {
+        app.requestOpenAll(-1);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    /* One click (press and release) at `at`; frames in between. */
+    void click(ImVec2 at)
+    {
+        ImGuiIO &io = ImGui::GetIO();
+        io.AddMousePosEvent(at.x, at.y);
+        frame();
+        frame();
+        io.AddMouseButtonEvent(0, true);
+        frame();
+        io.AddMouseButtonEvent(0, false);
+        frame();
+        frame();
+    }
     void pressEscape()
     {
         ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
@@ -239,8 +319,65 @@ TEST(hovering_a_menu_title_opens_the_menu)
     }
 }
 
+/* A folder's name in the file dialog's tree picks it as the place to save to: its path goes in
+ * front of the file name, the tree keeps its root, and the arrow opens the folder to show what is
+ * in it. */
+TEST(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_dialog_test";
+    fs::remove_all(root);
+    fs::create_directories(root / "alpha" / "inner");
+    fs::create_directories(root / "beta");
+    std::ofstream(root / "alpha" / "note.pxa") << "x";
+    t.openSaveDialog((root / "sprite.pxa").string());
+    ASSERT_TRUE(t.listRow(0).x > 0.0f);
+    t.click(t.listRow(1)); /* alpha/ */
+    ASSERT_TRUE(t.path() == (root / "alpha" / "sprite.pxa").string());
+    t.click(t.listRow(1)); /* the same folder again: nothing is stacked onto the path */
+    ASSERT_TRUE(t.path() == (root / "alpha" / "sprite.pxa").string());
+    t.click(t.listRow(2)); /* beta/: the tree still starts at root, so the rows did not move */
+    ASSERT_TRUE(t.path() == (root / "beta" / "sprite.pxa").string());
+    t.click(t.listRow(1, 20.0f)); /* the arrow of alpha/ opens it: inner/ and note.pxa show */
+    t.click(t.listRow(2));        /* inner/ */
+    ASSERT_TRUE(t.path() == (root / "alpha" / "inner" / "sprite.pxa").string());
+    t.click(t.listRow(3)); /* note.pxa: a file replaces the name */
+    ASSERT_TRUE(t.path() == (root / "alpha" / "note.pxa").string());
+    t.click(t.listRow(0)); /* ../ : the tree starts one level up */
+    ASSERT_TRUE(t.path() == (root.parent_path() / "note.pxa").string() ||
+                t.path() == (root.parent_path() / "sprite.pxa").string());
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
+/* "Expand all" opens every folder (to a depth), "Collapse all" closes them again. */
+TEST(expand_all_and_collapse_all_open_and_close_the_whole_tree)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_dialog_open_all";
+    fs::remove_all(root);
+    fs::create_directories(root / "alpha" / "inner" / "deepest");
+    fs::create_directories(root / "beta");
+    std::ofstream(root / "alpha" / "inner" / "deepest" / "x.pxa") << "x";
+    std::ofstream(root / "beta" / "y.pxa") << "x"; /* no folder is empty: that has its own row */
+    t.openSaveDialog((root / "sprite.pxa").string());
+    ASSERT_EQ_INT(2, t.treeRows()); /* alpha/ and beta/ are closed: ../ is not counted */
+    t.expandAll();
+    ASSERT_EQ_INT(6, t.treeRows()); /* alpha/ inner/ deepest/ x.pxa beta/ y.pxa */
+    t.collapseAll();
+    ASSERT_EQ_INT(2, t.treeRows());
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
 int main()
 {
+    RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
+    RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
     RUN(hovering_a_menu_title_opens_the_menu);
     RUN(the_layer_chords_add_duplicate_and_move_layers);

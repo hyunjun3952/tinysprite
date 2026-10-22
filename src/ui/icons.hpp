@@ -38,12 +38,17 @@ enum class Icon {
     Eyedropper,
     Select,
     Swap,
+    Folder,
     Count
 };
 
-/* The Material Symbols codepoint of `icon` (in the Private Use Area); 0 for the Diamond, which is
- * drawn with lines because the set has no plain rhombus. */
+/* The Material Symbols codepoint of `icon` (in the Private Use Area); 0 for the icons that are
+ * drawn with lines instead (see is_drawn). */
 unsigned codepoint(Icon icon);
+
+/* Whether `icon` is drawn with lines and has no glyph: the Diamond (the set has no plain rhombus)
+ * and the Folder (its glyph is not in the font subset). */
+bool is_drawn(Icon icon);
 
 /* The pixel size an icon glyph is drawn at for a UI scale: 20 px at scale 1, whole pixels so the
  * strokes stay on the pixel grid. */

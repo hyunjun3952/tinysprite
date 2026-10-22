@@ -10,15 +10,27 @@
 #include "theme.hpp"
 #include "ui_harness.hpp"
 
-/* Material Symbols has no plain rhombus (its "diamond" is a gem), so that one icon is drawn with
- * lines and has no codepoint; every other icon is a glyph. */
-TEST(every_icon_has_its_own_private_use_codepoint_except_the_drawn_diamond)
+/* Material Symbols has no plain rhombus (its "diamond" is a gem), so that icon is drawn with lines
+ * and has no codepoint, and so is the folder (it would need a glyph added to the font subset);
+ * every other icon is a glyph. */
+TEST(the_diamond_and_the_folder_are_the_drawn_icons)
+{
+    int drawn = 0;
+    for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
+        drawn += icons::is_drawn(static_cast<icons::Icon>(i)) ? 1 : 0;
+    }
+    ASSERT_EQ_INT(2, drawn);
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Diamond));
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Folder));
+}
+
+TEST(every_icon_has_its_own_private_use_codepoint_except_the_drawn_ones)
 {
     std::set<unsigned> seen;
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
         auto icon = static_cast<icons::Icon>(i);
         unsigned cp = icons::codepoint(icon);
-        if (icon == icons::Icon::Diamond) {
+        if (icons::is_drawn(icon)) {
             ASSERT_EQ_INT(0, static_cast<int>(cp));
             continue;
         }
@@ -34,7 +46,7 @@ TEST(every_icon_glyph_is_in_the_embedded_font)
     ImFont *font = ImGui::GetIO().Fonts->Fonts[0];
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
         auto icon = static_cast<icons::Icon>(i);
-        if (icon != icons::Icon::Diamond) {
+        if (!icons::is_drawn(icon)) {
             ASSERT_TRUE(font->IsGlyphInFont(static_cast<ImWchar>(icons::codepoint(icon))));
         }
     }
@@ -107,7 +119,8 @@ TEST(a_disabled_icon_button_shows_a_blocked_cursor_and_no_tooltip)
 
 int main()
 {
-    RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_diamond);
+    RUN(the_diamond_and_the_folder_are_the_drawn_icons);
+    RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_ones);
     RUN(every_icon_glyph_is_in_the_embedded_font);
     RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);
     RUN(the_glyph_size_follows_the_ui_scale_in_whole_pixels);

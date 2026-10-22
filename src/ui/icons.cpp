@@ -42,6 +42,7 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0xe3b8, /* Eyedropper: colorize */
     0xef52, /* Select: highlight_alt */
     0xe8d4, /* Swap: swap_horiz */
+    0,      /* Folder: drawn with lines */
 };
 
 constexpr float ROUND = 6.0f;
@@ -66,6 +67,11 @@ std::array<char, 4> utf8(unsigned codepoint)
 unsigned codepoint(Icon icon)
 {
     return CODEPOINTS[static_cast<size_t>(icon)];
+}
+
+bool is_drawn(Icon icon)
+{
+    return icon == Icon::Diamond || icon == Icon::Folder;
 }
 
 float glyph_size(float uiScale)
@@ -96,6 +102,26 @@ void drawDiamond(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
     list->AddPolyline(points, 4, color, ImDrawFlags_Closed, size * 0.07f);
 }
 
+/* A folder outline (a body with a tab), as thick as a Material Symbols stroke at the same size. */
+void drawFolder(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    const float size = glyph_size(theme::scale());
+    const float w = std::round(size * 0.85f);
+    const float h = std::round(size * 0.65f);
+    const float left = std::floor((min.x + max.x - w) / 2.0f) + 0.5f;
+    const float top = std::floor((min.y + max.y - h) / 2.0f) + 0.5f;
+    const float tab = std::round(h * 0.22f);
+    const ImVec2 points[6] = {
+        ImVec2(left, top + h),
+        ImVec2(left, top),
+        ImVec2(left + std::round(w * 0.4f), top),
+        ImVec2(left + std::round(w * 0.5f), top + tab),
+        ImVec2(left + w, top + tab),
+        ImVec2(left + w, top + h),
+    };
+    list->AddPolyline(points, 6, color, ImDrawFlags_Closed, size * 0.07f);
+}
+
 namespace
 {
 
@@ -119,6 +145,10 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
 {
     if (icon == Icon::Diamond) {
         drawDiamond(list, min, max, color);
+        return;
+    }
+    if (icon == Icon::Folder) {
+        drawFolder(list, min, max, color);
         return;
     }
     drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));

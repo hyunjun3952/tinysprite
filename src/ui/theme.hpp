@@ -161,6 +161,16 @@ float ease_toward(float current, float target, float dt, float seconds);
 float animate(ImGuiID id, float target, float seconds = ANIM_SECONDS);
 ImU32 mix(unsigned from, unsigned to, float t);
 
+/* An unfilled chevron, drawn as two strokes: ">" when closed, "v" when open, in a box of `size`
+ * pixels around `center`. chevron_points gives its three points (for tests and for the drawing). */
+void chevron_points(ImVec2 center, float size, bool open, ImVec2 (&points)[3]);
+void chevron(ImDrawList *list, ImVec2 center, float size, bool open, ImU32 color);
+
+/* A tree node (or, with `header`, a collapsing header) with an unfilled chevron instead of ImGui's
+ * filled triangle. The label is drawn here in `textColor`; ImGui's own arrow and text are hidden.
+ * Takes and returns what ImGui::TreeNodeEx / CollapsingHeader do (a node still needs TreePop). */
+bool tree_node(const char *label, ImGuiTreeNodeFlags flags, ImU32 textColor, bool header = false);
+
 /* A modal dialog (BeginPopupModal, auto-resizing) that fades in over ANIM_SECONDS when it opens.
  * Open it with ImGui::OpenPopup as usual; call end_modal instead of EndPopup, and only when
  * begin_modal returned true. */

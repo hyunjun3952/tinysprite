@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include "geist_regular_subset.hpp"
 #include "imgui_internal.h"
@@ -197,7 +198,7 @@ bool section(const char *label, bool openByDefault)
     ImGui::PushStyleColor(ImGuiCol_Text, rgb(BODY_STRONG));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
     ImGuiTreeNodeFlags flags = openByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0;
-    bool open = ImGui::CollapsingHeader(label, flags);
+    bool open = tree_node(label, flags, toU32(BODY_STRONG), true);
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(4);
     return open;
@@ -218,13 +219,12 @@ constexpr float MENU_LEAVE_SECONDS =
     0.25f;                                /* how long the mouse may be away before a menu closes */
 constexpr float MENU_LEAVE_MARGIN = 6.0f; /* the slack around the bar and the open menus */
 
-/* Whether the mouse is over the menu bar of the current window or any open popup (a menu and its
+/* Whether the mouse is over `bar` (the menu bar's rectangle) or any open popup (a menu and its
  * submenus are popups), with a little slack for the gap between a title and its menu. */
-bool mouse_near_menus()
+bool mouse_near_menus(ImRect bar)
 {
     const ImVec2 mouse = ImGui::GetIO().MousePos;
     const float slack = px(MENU_LEAVE_MARGIN);
-    ImRect bar = ImGui::GetCurrentWindow()->MenuBarRect();
     bar.Expand(slack);
     if (bar.Contains(mouse)) {
         return true;
@@ -245,26 +245,41 @@ bool mouse_near_menus()
 
 bool begin_menu(const char *label)
 {
-    /* The bar's own state: how long the mouse has been away from the menus while this one is open.
-     */
+    /* The bar's own state (not the popup's, which is current once BeginMenu returns true): how long
+     * the mouse has been away from the menus while this one is open, whether it was open last
+     * frame, and whether a click closed it (so the hover below does not open it again at once). */
     ImGuiStorage *storage = ImGui::GetStateStorage();
     const ImGuiID key = ImGui::GetID(label);
+    const ImGuiID openKey = key + 1;
+    const ImGuiID closedKey = key + 2;
     float away = storage->GetFloat(key, 0.0f);
+    const bool wasOpen = storage->GetBool(openKey, false);
+    /* taken before BeginMenu: once it returns true the current window is the popup, not the bar */
+    const ImRect bar = ImGui::GetCurrentWindow()->MenuBarRect();
     const bool open = ImGui::BeginMenu(label);
     if (open) {
-        away = mouse_near_menus() ? 0.0f : away + ImGui::GetIO().DeltaTime;
+        away = mouse_near_menus(bar) ? 0.0f : away + ImGui::GetIO().DeltaTime;
         if (away > MENU_LEAVE_SECONDS) {
             ImGui::CloseCurrentPopup(); /* the menu and its submenus */
             away = 0.0f;
         }
     } else {
         away = 0.0f;
+        const bool hovered = ImGui::IsItemHovered();
+        if (wasOpen && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            storage->SetBool(closedKey, true); /* a click on the title closed it: leave it closed */
+        }
+        if (!hovered) {
+            storage->SetBool(closedKey, false);
+        }
+        if (hovered && !storage->GetBool(closedKey, false) &&
+            !ImGui::IsPopupOpen(nullptr,
+                                ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+            ImGui::OpenPopup(label);
+        }
     }
-    storage->SetFloat(key, away); /* the bar's storage, not the popup's */
-    if (!open && ImGui::IsItemHovered() &&
-        !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
-        ImGui::OpenPopup(label);
-    }
+    storage->SetFloat(key, away);
+    storage->SetBool(openKey, open);
     return open;
 }
 
@@ -609,6 +624,48 @@ ImU32 mix(unsigned from, unsigned to, float t)
     ImVec4 b = rgb(to);
     return ImGui::ColorConvertFloat4ToU32(
         ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, 1.0f));
+}
+
+void chevron_points(ImVec2 center, float size, bool open, ImVec2 (&points)[3])
+{
+    const float half = size * 0.5f;
+    const float tip = size * 0.25f;
+    if (open) {
+        points[0] = ImVec2(center.x - half, center.y - tip);
+        points[1] = ImVec2(center.x, center.y + tip);
+        points[2] = ImVec2(center.x + half, center.y - tip);
+    } else {
+        points[0] = ImVec2(center.x - tip, center.y - half);
+        points[1] = ImVec2(center.x + tip, center.y);
+        points[2] = ImVec2(center.x - tip, center.y + half);
+    }
+}
+
+void chevron(ImDrawList *list, ImVec2 center, float size, bool open, ImU32 color)
+{
+    ImVec2 points[3];
+    chevron_points(center, size, open, points);
+    list->AddPolyline(points, 3, color, ImDrawFlags_None, std::max(1.0f, std::round(size * 0.16f)));
+}
+
+bool tree_node(const char *label, ImGuiTreeNodeFlags flags, ImU32 textColor, bool header)
+{
+    /* ImGui draws its arrow and the label in the Text color, so both are made invisible and drawn
+     * again here: the chevron where its arrow would be, the label where its text would be. */
+    const ImVec2 pad = ImGui::GetStyle().FramePadding;
+    const std::string hidden = std::string("##") + label;
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    const bool open = header ? ImGui::CollapsingHeader(hidden.c_str(), flags)
+                             : ImGui::TreeNodeEx(hidden.c_str(), flags);
+    ImGui::PopStyleColor();
+    const float font = ImGui::GetFontSize();
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const float middle = (min.y + ImGui::GetItemRectMax().y) / 2.0f;
+    ImDrawList *list = ImGui::GetWindowDrawList();
+    chevron(list, ImVec2(min.x + pad.x + font * 0.4f, middle), font * 0.7f, open, textColor);
+    const float textX = min.x + font + (header ? pad.x * 3.0f : pad.x * 2.0f);
+    list->AddText(ImVec2(textX, std::floor(middle - font / 2.0f)), textColor, label);
+    return open;
 }
 
 bool begin_modal(const char *title)

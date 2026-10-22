@@ -147,8 +147,27 @@ TEST(mix_blends_two_colors_per_channel)
                 ImGui::ColorConvertFloat4ToU32(ImVec4(0.5f, 0.5f, 0.5f, 1.0f)));
 }
 
+TEST(a_closed_chevron_points_right_and_an_open_one_points_down)
+{
+    ImVec2 closed[3];
+    ImVec2 open[3];
+    theme::chevron_points(ImVec2(100.0f, 50.0f), 10.0f, false, closed);
+    theme::chevron_points(ImVec2(100.0f, 50.0f), 10.0f, true, open);
+    /* ">" : the tip is the middle point, to the right of both ends, level with the center */
+    ASSERT_TRUE(closed[1].x > closed[0].x && closed[1].x > closed[2].x);
+    ASSERT_TRUE(closed[1].y == 50.0f && closed[0].y < 50.0f && closed[2].y > 50.0f);
+    /* "v" : the tip is below both ends, in line with the center */
+    ASSERT_TRUE(open[1].y > open[0].y && open[1].y > open[2].y);
+    ASSERT_TRUE(open[1].x == 100.0f && open[0].x < 100.0f && open[2].x > 100.0f);
+    /* both fit in the box of the given size around the center */
+    for (const ImVec2 &p : closed) {
+        ASSERT_TRUE(p.x >= 95.0f && p.x <= 105.0f && p.y >= 45.0f && p.y <= 55.0f);
+    }
+}
+
 int main()
 {
+    RUN(a_closed_chevron_points_right_and_an_open_one_points_down);
     RUN(ease_toward_moves_at_a_steady_rate_and_never_overshoots);
     RUN(mix_blends_two_colors_per_channel);
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);

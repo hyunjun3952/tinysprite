@@ -47,7 +47,7 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 - Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
-- Not done: a file browser, HiDPI window flags, the OS reason for image exports (only `.pxa` saves show it, via `file_write_error`).
+- Not done: HiDPI window flags, the OS reason for image exports (only `.pxa` saves show it, via `file_write_error`).
 - Left from the pattern survey: an `Editor` change observer, a `theme::labeledRow` helper, merging the tool tables,
   declarative settings bindings; also a guard helper for `if (stroking()) return;` (about forty times in `Editor`), one holder
   for `Slot` and `Membership`, and a `Playback` State if a fourth mode is added.
@@ -122,6 +122,21 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   so no wake-up logic is needed. Modal dialogs fade in (`theme::begin_modal` / `end_modal` push the popup's alpha; every
   dialog asks each frame, so the stored value is 0 again before it opens). Not animated on purpose: menus, panel docking,
   the timeline fold.
+- File dialog: the path field holds the whole path (`~` is the home folder; it starts with the folder and the document's
+  name). A folder button after it shows or hides the browser (`app/file_browser_ui.cpp`): a search field and a folder
+  tree rooted at the path's folder (`file_browser.hpp`). A folder's name picks it as the place to save to (its path goes
+  in front of the file name, which stays as typed; the tree keeps its root), its arrow opens it to show what is inside
+  (listed once, cached while the dialog is open), `../` moves the root up, a file click puts it in the path field and a
+  double click on a file in a dialog that reads opens it. The search looks in the root and up to 6 levels below (300
+  hits, relative paths). Rows are taller (`App::TREE_ROW_PADDING`; a divider line between rows was tried and dropped); "Expand all" opens every
+  folder (4 levels, 400 folders at most, cached listings) and "Collapse all" closes them and forgets their open state.
+  The files shown are the action's kinds (`FileActionInfo::filter`); hidden names are left out.
+- Tree arrows and section carets are unfilled chevrons (`theme::tree_node` hides ImGui's filled triangle and draws
+  `theme::chevron` instead).
+- Menus: a menu bar title opens on hover and closes when the mouse has been away from the bar and the open popups for
+  0.25 s (`theme::begin_menu`; the bar rectangle is taken before `BeginMenu`, since after it the current window is the
+  popup); a click on an open title closes it and the hover does not reopen it until the mouse
+  leaves the title (it used to blink: ImGui toggled it closed, the hover opened it again).
 - Narrow windows: the window opens inside the display's usable area with a minimum size (`window_size.hpp`), docked panels
   are drawn narrower (`Panels::fitWidths`, the chosen width is kept) so the canvas keeps `PANELS_CANVAS_MIN`, and the
   timeline scrolls sideways. The options bar has no scrollbar (it is cut off; Shift + wheel scrolls it).
@@ -178,7 +193,7 @@ branch and PR.
 - [ ] **24. Aseprite import** (optional).
 
 Backlog, not scheduled (each is large or needs a design decision first): indexed color mode, several-rectangle
-selection, a TTF font and HiDPI, a file browser, the OS reason in failed-write messages, the refactoring
+selection, a TTF font and HiDPI, the OS reason in failed-write messages, the refactoring
 candidates listed under UI polish.
 
 ## Decisions and gotchas

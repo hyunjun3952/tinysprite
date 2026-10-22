@@ -102,15 +102,29 @@ TEST(a_modal_fades_in_when_it_opens)
 struct MenuRig {
     test_ui::Harness h;
     ImVec2 title;
+    ImVec2 submenu; /* the "Export" row of the menu, once drawn */
+    ImVec2 inner;   /* the item inside that submenu */
 
-    MenuRig()
+    explicit MenuRig(float barPadding = 3.0f)
     {
-        h.body = [this] {
+        h.body = [this, barPadding] {
             ImGui::GetIO().DeltaTime =
                 0.1f; /* the frames of a test are far shorter than real ones */
-            if (ImGui::BeginMainMenuBar()) {
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, barPadding));
+            const bool bar = ImGui::BeginMainMenuBar();
+            ImGui::PopStyleVar();
+            if (bar) {
                 if (theme::begin_menu("File")) {
                     ImGui::MenuItem("Open");
+                    if (ImGui::BeginMenu("Export")) {
+                        ImVec2 at = ImGui::GetCursorScreenPos();
+                        inner = ImVec2(at.x + 20.0f, at.y + 8.0f);
+                        ImGui::MenuItem("PNG");
+                        ImGui::EndMenu();
+                    }
+                    ImVec2 min = ImGui::GetItemRectMin();
+                    ImVec2 max = ImGui::GetItemRectMax();
+                    submenu = ImVec2((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f);
                     ImGui::EndMenu();
                 }
                 if (title.x == 0.0f) {
@@ -154,6 +168,57 @@ TEST(a_menu_stays_open_while_the_mouse_is_over_it)
     ASSERT_TRUE(rig.open());
 }
 
+TEST(clicking_the_open_menu_title_closes_it_and_it_stays_closed_while_hovered)
+{
+    MenuRig rig;
+    rig.frames(rig.title.x, rig.title.y, 3);
+    ASSERT_TRUE(rig.open());
+    /* ImGui toggles a menu on a click. The mouse is still on the title, but the hover that opens
+     * menus must not open it again at once (it used to blink closed and open) */
+    rig.h.frame(rig.title.x, rig.title.y, true);
+    int openFrames = 0;
+    for (int i = 0; i < 6; i++) {
+        rig.h.frame(rig.title.x, rig.title.y, false);
+        openFrames += rig.open() ? 1 : 0;
+    }
+    ASSERT_EQ_INT(0, openFrames);
+    /* leaving the title and coming back opens it again */
+    rig.frames(700.0f, 500.0f, 2);
+    rig.frames(rig.title.x, rig.title.y, 3);
+    ASSERT_TRUE(rig.open());
+}
+
+TEST(a_menu_stays_open_while_the_mouse_rests_on_its_title_in_a_tall_bar)
+{
+    /* in a tall bar the middle of the title is far from the menu under it; resting there used to
+     * count as "away", so the menu closed and the hover opened it again, over and over */
+    MenuRig rig(14.0f);
+    rig.frames(rig.title.x, rig.title.y, 3);
+    ASSERT_TRUE(rig.open());
+    int closedFrames = 0;
+    for (int i = 0; i < 12; i++) {
+        rig.frames(rig.title.x, rig.title.y, 1);
+        closedFrames += rig.open() ? 0 : 1;
+    }
+    ASSERT_EQ_INT(0, closedFrames);
+}
+
+TEST(a_submenu_stays_open_while_the_mouse_rests_on_it)
+{
+    MenuRig rig;
+    rig.frames(rig.title.x, rig.title.y, 3);
+    rig.frames(rig.submenu.x, rig.submenu.y, 4); /* hover the "Export" row: its submenu opens */
+    ASSERT_TRUE(rig.open());
+    ASSERT_TRUE(rig.inner.x > 0.0f);
+    int closedFrames = 0;
+    rig.frames(rig.inner.x, rig.inner.y, 1);
+    for (int i = 0; i < 12; i++) { /* well past the leave delay */
+        rig.frames(rig.inner.x, rig.inner.y, 1);
+        closedFrames += rig.open() ? 0 : 1;
+    }
+    ASSERT_EQ_INT(0, closedFrames);
+}
+
 int main()
 {
     RUN(dragging_a_slider_sets_the_value_by_the_mouse_position);
@@ -162,5 +227,8 @@ int main()
     RUN(a_modal_fades_in_when_it_opens);
     RUN(a_menu_opens_on_hover_and_closes_when_the_mouse_leaves);
     RUN(a_menu_stays_open_while_the_mouse_is_over_it);
+    RUN(clicking_the_open_menu_title_closes_it_and_it_stays_closed_while_hovered);
+    RUN(a_menu_stays_open_while_the_mouse_rests_on_its_title_in_a_tall_bar);
+    RUN(a_submenu_stays_open_while_the_mouse_rests_on_it);
     return TEST_SUMMARY();
 }

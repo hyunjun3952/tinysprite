@@ -3,6 +3,7 @@
 #include "app.hpp"
 
 #include <algorithm>
+#include <cfloat>
 #include <cstdio>
 #include <filesystem>
 #include <functional>
@@ -13,9 +14,17 @@
 #include <vector>
 
 #include "file_paths.hpp"
+#include "icons.hpp"
 #include "imgui.h"
 #include "theme.hpp"
 #include "tinysprite/io.hpp"
+
+namespace
+{
+
+constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the browse button after it */
+
+} // namespace
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
  * typed without one ("" for the actions that read), what the toast says once it worked, the step
@@ -24,14 +33,16 @@
 const App::FileActionInfo &App::fileInfo(FileAction action)
 {
     static const FileActionInfo TABLE[] = {
-        {"", "", "", nullptr, nullptr},
-        {"Open", "", "Opened ", &App::runOpen, nullptr},
-        {"Save as", ".pxa", "Saved ", &App::runSaveAs, nullptr},
-        {"Export image", ".png", "Exported ", &App::runExportImage, &App::imageOptions},
-        {"Import palette", "", "Imported palette ", &App::runImportPalette, nullptr},
-        {"Export palette", ".gpl", "Exported ", &App::runExportPalette, nullptr},
-        {"Export GIF", ".gif", "Exported ", &App::runExportGif, &App::gifOptions},
-        {"Export sprite sheet", ".png", "Exported ", &App::runExportSheet, &App::sheetOptions},
+        {"", "", "", nullptr, nullptr, ""},
+        {"Open", "", "Opened ", &App::runOpen, nullptr, ".pxa .png .jpg .jpeg .bmp .tga .gif"},
+        {"Save as", ".pxa", "Saved ", &App::runSaveAs, nullptr, ".pxa"},
+        {"Export image", ".png", "Exported ", &App::runExportImage, &App::imageOptions,
+         ".png .jpg .jpeg .bmp .tga"},
+        {"Import palette", "", "Imported palette ", &App::runImportPalette, nullptr, ".gpl .hex"},
+        {"Export palette", ".gpl", "Exported ", &App::runExportPalette, nullptr, ".gpl .hex"},
+        {"Export GIF", ".gif", "Exported ", &App::runExportGif, &App::gifOptions, ".gif"},
+        {"Export sprite sheet", ".png", "Exported ", &App::runExportSheet, &App::sheetOptions,
+         ".png .jpg .jpeg .bmp .tga"},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(FileAction::Count),
                   "one FileActionInfo row per FileAction");
@@ -49,6 +60,10 @@ void App::askForPath(FileAction action)
     openFileDialog_ = true;
     fileError_.clear();
     overwritePath_.clear();
+    browseRoot_.clear(); /* the tree starts again from the folder of the path */
+    browseCache_.clear();
+    browseFoundKey_.clear();
+    browseSearch_[0] = '\0';
     /* Start where the last file was, and offer the document's name for what is written. */
     std::string start;
     if (action == FileAction::SaveAs && !filePath_.empty()) {
@@ -56,10 +71,11 @@ void App::askForPath(FileAction action)
     } else if (fileInfo(action).writes()) {
         std::string name = filePath_.empty() ? "sprite" : file_name_of(filePath_);
         size_t dot = name.find_last_of('.');
-        start = join_path(lastDir_, (dot == std::string::npos ? name : name.substr(0, dot)) +
-                                        fileInfo(action).extension);
+        start =
+            join_path(startDirectory(), (dot == std::string::npos ? name : name.substr(0, dot)) +
+                                            fileInfo(action).extension);
     } else {
-        start = lastDir_.empty() ? "" : join_path(lastDir_, "");
+        start = join_path(startDirectory(), "");
     }
     std::snprintf(pathInput_, sizeof(pathInput_), "%s", start.c_str());
 }
@@ -355,9 +371,40 @@ bool App::pathField()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Path");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(360.0f);
-    return ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
-                            ImGuiInputTextFlags_EnterReturnsTrue);
+    const float button = ImGui::GetFrameHeight();
+    ImGui::SetNextItemWidth(PATH_FIELD_WIDTH - button - ImGui::GetStyle().ItemSpacing.x);
+    const bool enter = ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
+                                        ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::SameLine();
+    /* on = a slightly lighter fill, not the accent: the dialog's own OK is the loud thing here */
+    ImGui::PushStyleColor(ImGuiCol_Button,
+                          theme::rgb(browserOpen_ ? theme::PRESSED : theme::CANVAS_SOFT));
+    if (icons::button(icons::Icon::Folder, "##browse", "Browse folders and files",
+                      ImVec2(button, button))) {
+        browserOpen_ = !browserOpen_;
+    }
+    ImGui::PopStyleColor();
+    return enter;
+}
+
+std::string App::startDirectory() const
+{
+    if (!lastDir_.empty()) {
+        return lastDir_;
+    }
+    std::error_code ignored;
+    return std::filesystem::current_path(ignored).string();
+}
+
+/* What the dialog would write or read: "~" is the home folder, and a write gets its extension. */
+std::string App::dialogPath(const FileActionInfo &info, const std::string &typed) const
+{
+    std::string path = expand_home(typed);
+    if (!info.writes()) {
+        return path;
+    }
+    return fileAction_ == FileAction::SaveAs ? with_required_extension(path, info.extension)
+                                             : with_default_extension(path, info.extension);
 }
 
 void App::fileDialog()
@@ -372,13 +419,12 @@ void App::fileDialog()
         return;
     }
     bool enter = pathField();
-    /* A name typed without an extension gets the one the dialog writes. */
-    const std::string typed = pathInput_;
-    std::string path = typed;
-    if (info.writes()) {
-        path = fileAction_ == FileAction::SaveAs ? with_required_extension(typed, info.extension)
-                                                 : with_default_extension(typed, info.extension);
+    if (browserOpen_) {
+        enter = fileBrowser(info) || enter;
     }
+    /* A name typed without an extension gets the one the dialog writes. */
+    const std::string typed = expand_home(pathInput_);
+    const std::string path = dialogPath(info, pathInput_);
     if (path != overwritePath_) {
         overwritePath_.clear(); /* the warning was for another name */
     }
