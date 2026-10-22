@@ -78,6 +78,22 @@ static void applyOpenAll(int request, int depth, int &budget)
     }
 }
 
+float App::treeRowHeight()
+{
+    return ImGui::GetFontSize() + 2.0f * theme::px(TREE_ROW_PADDING);
+}
+
+/* True when a row of `height` is scrolled out of the list: it then only takes its place, so a
+ * folder with tens of thousands of files costs what the visible rows cost. */
+static bool skipRow(float height)
+{
+    if (ImGui::IsRectVisible(ImVec2(1.0f, height))) {
+        return false;
+    }
+    ImGui::Dummy(ImVec2(0.0f, height));
+    return true;
+}
+
 /* One folder row of the tree: its name selects it as the place to save to, its arrow opens it. */
 // NOLINTNEXTLINE(misc-no-recursion): the tree draws a folder's rows inside its node, so it recurses
 bool App::folderNode(const FileActionInfo &info, const std::string &path, const std::string &name,
@@ -87,6 +103,12 @@ bool App::folderNode(const FileActionInfo &info, const std::string &path, const 
                                ImGuiTreeNodeFlags_FramePadding;
     if (selected) {
         flags |= ImGuiTreeNodeFlags_Selected;
+    }
+    /* a folder that is shut and out of sight needs no row; an open one still draws its children */
+    const ImGuiID id = ImGui::GetID(("##" + name + "/").c_str());
+    if (browseOpenAll_ == 0 && ImGui::GetStateStorage()->GetInt(id, 0) == 0 &&
+        skipRow(treeRowHeight())) {
+        return false;
     }
     applyOpenAll(browseOpenAll_, depth, browseOpenBudget_);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
@@ -121,6 +143,35 @@ bool App::fileRow(const FileActionInfo &info, const std::string &path, const std
     return ImGui::IsItemClicked(ImGuiMouseButton_Left) && pickFile(info, path);
 }
 
+/* The end of the run of files that starts at `at` (the list has its folders first). */
+static size_t filesEnd(const std::vector<DirEntry> &entries, size_t at)
+{
+    while (at < entries.size() && !entries[at].directory) {
+        at++;
+    }
+    return at;
+}
+
+/* The file rows entries[from, to): only those in view are built, the others take their room. */
+bool App::fileRows(const FileActionInfo &info, const std::string &directory,
+                   const std::vector<DirEntry> &entries, size_t from, size_t to,
+                   const std::string &current)
+{
+    bool activated = false;
+    ImGuiListClipper clipper;
+    clipper.Begin(static_cast<int>(to - from), treeRowHeight() + ImGui::GetStyle().ItemSpacing.y);
+    while (clipper.Step()) {
+        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+            const DirEntry &entry = entries[from + static_cast<size_t>(i)];
+            const std::string path = join_path(directory, entry.name);
+            ImGui::PushID(entry.name.c_str());
+            activated = fileRow(info, path, entry.name, path == current) || activated;
+            ImGui::PopID();
+        }
+    }
+    return activated;
+}
+
 /* The rows below `directory`: its folders (each can be opened) and the files of the action's kinds.
  */
 // NOLINTNEXTLINE(misc-no-recursion): see folderNode
@@ -129,17 +180,22 @@ bool App::treeRows(const FileActionInfo &info, const std::string &directory, int
     const std::string target = browse_directory(expand_home(pathInput_), startDirectory());
     const std::string current = expand_home(pathInput_);
     bool activated = false;
-    /* a copy: opening a node may add to the cache */
-    const std::vector<DirEntry> entries = listing(directory, info);
-    for (const DirEntry &entry : entries) {
+    /* a reference is enough: the cache is a map, so opening a node (which adds a folder to it)
+     * leaves this list where it is */
+    const std::vector<DirEntry> &entries = listing(directory, info);
+    for (size_t at = 0; at < entries.size();) {
+        const DirEntry &entry = entries[at];
+        if (!entry.directory) {
+            const size_t end = filesEnd(entries, at);
+            activated = fileRows(info, directory, entries, at, end, current) || activated;
+            at = end;
+            continue;
+        }
         const std::string path = join_path(directory, entry.name);
         ImGui::PushID(entry.name.c_str());
-        if (entry.directory) {
-            activated = folderNode(info, path, entry.name, path == target, depth) || activated;
-        } else {
-            activated = fileRow(info, path, entry.name, path == current) || activated;
-        }
+        activated = folderNode(info, path, entry.name, path == target, depth) || activated;
         ImGui::PopID();
+        at++;
     }
     if (entries.empty()) {
         ImGui::TextDisabled("Nothing to show here");

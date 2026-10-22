@@ -1,6 +1,7 @@
 /* Whole frames of the app with synthetic key events: a key that closes a dialog must not also act
  * as a shortcut in the same frame. */
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -382,6 +383,37 @@ TEST(expand_all_and_collapse_all_open_and_close_the_whole_tree)
     fs::remove_all(root, ignored);
 }
 
+/* Only the rows in view are drawn: a folder with tens of thousands of files keeps the dialog
+ * responsive (it took 100 ms a frame with the sanitizers before, 20x the bound below). */
+TEST(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_dialog_many";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    const int files = 20000;
+    for (int i = 0; i < files; i++) {
+        std::ofstream(root / (std::to_string(i) + ".pxa"));
+    }
+    t.openSaveDialog((root / "sprite.pxa").string());
+    ASSERT_EQ_INT(files, t.treeRows()); /* the rows that are not drawn still take their room */
+    const auto start = std::chrono::steady_clock::now();
+    const int frames = 5;
+    for (int i = 0; i < frames; i++) {
+        t.frame();
+    }
+    const double ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
+            .count() /
+        frames;
+    std::printf("  %d files: %.1f ms per frame\n", files, ms);
+    ASSERT_TRUE(ms < 25.0);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
 int main()
 {
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
@@ -392,5 +424,6 @@ int main()
     RUN(double_clicking_the_timeline_edge_restores_its_default_height);
     RUN(dragging_the_timeline_edge_resizes_folds_and_unfolds_it);
     RUN(ctrl_t_hides_and_shows_the_timeline);
+    RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
     return TEST_SUMMARY();
 }

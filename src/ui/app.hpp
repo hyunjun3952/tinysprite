@@ -152,7 +152,12 @@ class App
      * picks it as the place to save to and its arrow opens it, a file goes into the path field.
      * Returns true when a file was double clicked in a dialog that reads (it counts as OK). */
     bool fileBrowser(const FileActionInfo &info);
+    /* The height of a row of the file tree. */
+    static float treeRowHeight();
     bool treeRows(const FileActionInfo &info, const std::string &directory, int depth);
+    bool fileRows(const FileActionInfo &info, const std::string &directory,
+                  const std::vector<DirEntry> &entries, size_t from, size_t to,
+                  const std::string &current);
     bool folderNode(const FileActionInfo &info, const std::string &path, const std::string &name,
                     bool selected, int depth);
     bool fileRow(const FileActionInfo &info, const std::string &path, const std::string &name,
