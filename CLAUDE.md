@@ -19,9 +19,9 @@ cmake -S . -B build -DTINYSPRITE_BUILD_UI=OFF    # core + io + tests only (no SD
 Format/lint (K&R style, 4-space indent, config in `.clang-format` / `.clang-tidy`). Both tools are pinned once, in `.pre-commit-config.yaml` (pip wheels, so local and CI run the same version); there are no helper scripts:
 
 ```sh
-pre-commit install                                # once per clone: clang-format on commit, clang-tidy on push
+pre-commit install                                # once per clone: clang-format on commit, a fast clang-tidy on push
 pre-commit run --all-files --hook-stage manual    # format + lint everything, exactly what CI runs
-pre-commit run clang-tidy --hook-stage manual --files src/core/sprite.cpp   # one file (needs build/compile_commands.json)
+pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp   # one file (needs build/compile_commands.json)
 ```
 
 CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json`. `thirdparty/` is excluded from both tools.

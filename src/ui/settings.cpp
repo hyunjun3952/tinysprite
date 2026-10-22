@@ -32,7 +32,6 @@ const std::string *find(const SettingsMap &settings, const std::string &key)
 
 std::string env(const char *name)
 {
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): read once at startup, before any thread exists
     const char *value = std::getenv(name);
     return value != nullptr ? value : "";
 }

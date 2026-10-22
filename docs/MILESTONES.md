@@ -9,7 +9,7 @@ Rules: `CLAUDE.md`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
 Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas that came out of it are below.
 
 - [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.hpp`, smoke test.
-- [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `.pre-commit-config.yaml` (clang-format on commit, clang-tidy on push), GitHub Actions CI.
+- [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `.pre-commit-config.yaml` (clang-format on commit, a fast clang-tidy tier on push, the full set in CI), GitHub Actions CI.
 - [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, public headers in `include/tinysprite/`.
       Cel is RGBA only; the palette holds at most 256 colors; a sprite starts with 1 frame and 1 layer.
 - [x] **3. Rasterizer** — line, rectangle, ellipse, polygon, flood fill, tested against golden pixel arrays.

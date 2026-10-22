@@ -13,14 +13,26 @@ repos:
         args: [--Werror]
         stages: [pre-commit, manual]
 
-  # Needs build/compile_commands.json: `cmake -S . -B build`. On push it checks the files being
-  # pushed; src/ui and tests/ui are in the database only when the UI is built (libsdl2-dev).
+  # Needs build/compile_commands.json: `cmake -S . -B build`. src/ui and tests/ui are in the database
+  # only when the UI is built (libsdl2-dev). clang-tidy is slow (~9 s per file, ~1.2 s of it parsing),
+  # so it runs in two tiers. --checks is appended to the Checks of .clang-tidy.
+  #   clang-tidy       on push: the files being pushed, without the groups that cost the most
+  #                    (bugprone, clang-analyzer, misc, modernize; ~3 s per file).
+  #                    It keeps the cognitive complexity limit, readability and performance checks.
+  #   clang-tidy-full  manual / CI: every check of .clang-tidy. Run it before opening or updating a PR.
   - repo: local
     hooks:
       - id: clang-tidy
-        name: clang-tidy
+        name: clang-tidy (fast)
+        entry: clang-tidy -p build --quiet --checks=-bugprone-*,-clang-analyzer-*,-misc-*,-modernize-*
+        language: python
+        additional_dependencies: [clang-tidy==18.1.8]
+        files: ^(src|tests)/.*\.cpp$
+        stages: [pre-push]
+      - id: clang-tidy-full
+        name: clang-tidy (full)
         entry: clang-tidy -p build --quiet
         language: python
         additional_dependencies: [clang-tidy==18.1.8]
         files: ^(src|tests)/.*\.cpp$
-        stages: [pre-push, manual]
+        stages: [manual]

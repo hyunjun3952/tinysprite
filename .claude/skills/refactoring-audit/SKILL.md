@@ -83,7 +83,7 @@ One finding at a time, in a loop:
    UI code: also prove the screen did not change. Render the same file before and after
    (`SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite FILE.pxa --frames 3 --screenshot OUT.png --config-dir TMPDIR`, see bug-hunting Step 4) and compare with `cmp`; a difference is a behavior change.
    Deleting code: show it is dead first (grep every use including `tests/` and `tests/ui/`, then build and run the tests without it); "looks unused" is not proof.
-4. `pre-commit run --all-files --hook-stage manual`, judged by its exit code (clang-tidy alone: `pre-commit run clang-tidy --hook-stage manual --files <changed .cpp>`). Run the full set before opening or updating a PR.
+4. `pre-commit run --all-files --hook-stage manual`, judged by its exit code (clang-tidy alone: `pre-commit run clang-tidy-full --hook-stage manual --files <changed .cpp>`). Run the full set before opening or updating a PR.
 5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
 6. Sweep the class: grep the repo for the same smell. List the other sites in the report; do not fix them in this commit.
 7. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.

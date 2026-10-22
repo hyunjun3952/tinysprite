@@ -3,7 +3,6 @@ Checks: >
   -*,
   bugprone-*,
   clang-analyzer-*,
-  concurrency-*,
   cppcoreguidelines-init-variables,
   cppcoreguidelines-prefer-member-initializer,
   cppcoreguidelines-rvalue-reference-param-not-moved,
@@ -12,11 +11,12 @@ Checks: >
   misc-*,
   modernize-*,
   performance-*,
-  portability-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
+  -bugprone-stringview-nullptr,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   -misc-include-cleaner,
+  -misc-confusable-identifiers,
   -misc-const-correctness,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
@@ -38,6 +38,8 @@ CheckOptions:
     value: true
   - key: readability-function-cognitive-complexity.Threshold
     value: '15'
+# Not enabled because the code has nothing for them to check: concurrency-* and portability-* (no threads,
+# no SIMD), bugprone-stringview-nullptr (no std::string_view), misc-confusable-identifiers (ASCII identifiers only).
 # DeprecatedOrUnsafeBufferHandling is disabled: it demands C11 Annex K (*_s) functions,
 # which glibc does not provide. The other disabled misc / performance checks are style noise for the
 # class-based UI code (public state structs, small enums).

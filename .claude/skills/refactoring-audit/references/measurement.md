@@ -19,7 +19,7 @@ grep 'cognitive complexity' LOG
 ```
 
 Each warning prints the exact score ("has cognitive complexity of 13 (threshold 12)"). Re-run after the change for the "after" number.
-src/ui files need the UI build in `build/`. If the pinned clang-tidy is missing, run `pre-commit run clang-tidy --hook-stage manual --files src/core/sprite.cpp` once to create it; if the config override is rejected, edit nothing in the repo, copy the file to the scratchpad and pass a temporary `--config-file`.
+src/ui files need the UI build in `build/`. If the pinned clang-tidy is missing, run `pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp` once to create it; if the config override is rejected, edit nothing in the repo, copy the file to the scratchpad and pass a temporary `--config-file`.
 Lines per function and parameter counts are a second signal; compare them with `wc -l` on the function range or by reading.
 
 Hot spots to prioritize: complexity 12 or more AND edited often (`git log` count, see SKILL.md Step 1).

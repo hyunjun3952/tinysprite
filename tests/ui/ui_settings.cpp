@@ -71,7 +71,6 @@ TEST(config_dir_honors_the_override)
 #ifdef _WIN32
     _putenv_s("TINYSPRITE_CONFIG_DIR", "somewhere");
 #else
-    // NOLINTNEXTLINE(concurrency-mt-unsafe): the test is single-threaded
     setenv("TINYSPRITE_CONFIG_DIR", "somewhere", 1);
 #endif
     ASSERT_TRUE(config_dir() == "somewhere");
