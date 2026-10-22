@@ -5,7 +5,7 @@ Keep it short; drop a section when it has nothing to say.
 ```markdown
 # PR #N: TITLE
 
-**Verdict: Approve | Request changes | Comment**  (one-sentence reason)   Mode: soft | hard
+**Verdict: Approve | Request changes | Comment**  (one-sentence reason)
 
 ## Overview
 - Author: NAME (bot / first-time / regular)
@@ -40,10 +40,10 @@ Removed or weakened assertions, tests that cannot fail, test-first or not, files
 ### [낮음] ...
 ### [주의] ...
 
-## Run results (hard only)
+## Run results
 | Step | Command | Exit code |
 |---|---|---|
-| build / ctest / hooks / test-gap mutation | | |
+| build / ctest / hooks / test-gap mutation (or "not checked": fork without a yes) | | |
 
 Changed functions: cognitive complexity measured, before -> after.
 

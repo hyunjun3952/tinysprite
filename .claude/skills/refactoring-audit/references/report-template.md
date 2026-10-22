@@ -5,7 +5,7 @@ Drop sections that are empty. Findings are sorted by priority (높음, 보통, �
 ```markdown
 # Refactoring: SCOPE
 
-Scope: files / functions. Mode: soft | hard. Baseline: tests pass (exit=0), N tests. Candidates were ranked by pain x change frequency.
+Scope: files / functions. Baseline: tests pass (exit=0), N tests. Candidates were ranked by pain x change frequency.
 
 ## Findings
 | # | Priority | Where | Lens | Problem and cost it causes | Refactoring | Complexity before -> after | Change cost | Cheaper alternative |

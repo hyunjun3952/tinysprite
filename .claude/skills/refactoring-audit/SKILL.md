@@ -1,33 +1,19 @@
 ---
 name: refactoring-audit
 description: Finds and plans behavior-preserving refactorings in this C++ repo - code smells (refactoring.guru catalog), C++ anti-patterns, magic numbers, SOLID/OOP violations, functions at or near the cognitive complexity limit of 15, and measured performance hot spots - then applies the approved ones in small verified steps. Use when the user says "refactor", "리팩토링", "code smell", "clean up this code", "코드 냄새", "복잡도 줄여줘", "책임이 너무 많아", "too complex", "느려", "버벅여", or asks to improve structure without changing behavior. Do NOT use to fix a bug (use bug-hunting) or to review a pull request (use pr-review).
-argument-hint: "[target] [soft|hard]"
+argument-hint: "[target]"
 metadata:
   author: tinysprite
-  version: 1.2.0
+  version: 1.3.0
 ---
 
 # Refactoring audit
 
-## Arguments: `[target] [soft|hard]`
+## Arguments: `[target]`
 
-`/refactoring-audit src/ui/editor.cpp hard`, `/refactoring-audit src/core`, `/refactoring-audit hard`, `/refactoring-audit` all work. Parse the arguments as:
-
-- **target** (optional): the scope of Step 0 (function, file, module, files changed in the last N commits). Missing: rank candidates and propose a few, as Step 0 says.
-- **mode** (optional): the word `soft` or `hard`, anywhere in the arguments. **Missing means `soft`.** Any other word is part of the target.
-
-| | soft (default) | hard |
-|---|---|---|
-| Goal | the few changes with a clear payoff | a thorough structural audit of the target; slow, say so before starting |
-| Lenses (Step 1) | all five, but only candidates with evidence; report the top 5 by rank | all five on every function of the target, no cap on the list |
-| Complexity | functions at 12 or more (`Threshold: 11`) | functions at 8 or more (`Threshold: 7`), plus functions over 40 lines, over 4 parameters, and files over 500 lines |
-| Extra signals | none | duplicated blocks across the target (3 or more similar copies), files that always change together (`git log`), include fan-in/fan-out of each header, public header exposure of internals, `cppcoreguidelines-*` and `readability-*` clang-tidy findings on the target |
-| Performance | only measured problems or plausible hot paths | every per-pixel, per-frame and file I/O path in the target is measured on a Release build, even without a complaint |
-| Evaluation (Step 2) | one row per finding | one row per finding with the measured before numbers and a second, cheaper alternative |
-| Safety net (Step 0, 3) | tests of the scope pass | also check that the net can fail: break a key line in a scratchpad copy (restore it) and see a test fail; if none does, write the characterization test before refactoring |
-| After applying | affected tests, then full `ctest`, then the hooks | the same, plus a Release build run of the tests and a re-measurement of every number in the report |
-
-Everything else (behavior must not change, report first, one finding per commit, the layering rules) is the same in both modes.
+`/refactoring-audit src/ui/editor/editor.cpp`, `/refactoring-audit src/core`, `/refactoring-audit` all work.
+The whole argument is the **target**: the scope of Step 0 (function, file, module, files changed in the last N commits).
+Missing: rank candidates and propose a few, as Step 0 says. There is one process; every step below always runs. It is slow on a big target, so say so before starting.
 
 Improve structure without changing behavior, and only where the gain is worth the change.
 Write the report in the user's language (Korean if they wrote Korean). Code and identifiers stay as they are.
@@ -38,6 +24,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
   Record it and hand it to the bug-hunting skill; do not fix it inside a refactoring commit.
 - **Safety net first.** Run the tests of the scope before touching anything and note the exit code. No test covers the code?
   Write a characterization test that pins today's behavior first (golden pixels, round trip), then refactor.
+- **The net must be able to fail.** Break a key line in a scratchpad copy (restore it) and see a test fail; if none does, write the characterization test before refactoring.
 - **No measurement, no performance claim.** A performance finding without numbers from a Release build is dropped. See `references/measurement.md`.
 - **Default is report first.** Do not edit source until the user picks which findings to apply. Then apply one finding per commit.
 - **Not every smell deserves a fix.** Each finding needs a cost/benefit line; if the gain is "no gain" or "taste", mark it 보류 and move on.
@@ -61,13 +48,16 @@ Never read a run through a pipe's status; redirect to a log, test `$?`, then rea
 
 ## Step 1: Find candidates
 
-Run these five lenses on the scope. The reference file of each lens has the detail.
+Run all five lenses on **every function** of the target, no cap on the list. The reference file of each lens has the detail.
 
 1. **Smells** from the refactoring.guru catalog (Bloaters, Object-Orientation Abusers, Change Preventers, Dispensables, Couplers): `references/smell-catalog.md`.
 2. **C++ anti-patterns**, magic numbers and unclear constants, god objects, spaghetti control flow: `references/cpp-antipatterns.md`.
-3. **Complexity**: functions over the limit of 15 (CI already blocks those) and **near the limit, 12 or more**, found with a lower clang-tidy threshold: `references/measurement.md`.
-4. **Performance**: only code with a measured problem or a plausible hot path (per-pixel loops, per-frame work, composite, flood fill, GIF encode, `.pxa` load). Measure before judging: `references/measurement.md`.
+3. **Complexity**: functions over the limit of 15 (CI already blocks those) and **8 or more** (clang-tidy `Threshold: 7`), plus functions over 40 lines, over 4 parameters, and files over 500 lines: `references/measurement.md`.
+4. **Performance**: every per-pixel, per-frame and file I/O path in the target (per-pixel loops, composite, flood fill, GIF encode, `.pxa` load), measured on a Release build even without a complaint: `references/measurement.md`.
 5. **OOP / SOLID / design principles** (SRP, OCP, LSP, ISP, DIP, DRY, KISS, YAGNI, Law of Demeter), applied pragmatically: `references/cpp-antipatterns.md`.
+
+Also collect these signals for the target: duplicated blocks (3 or more similar copies), files that always change together (`git log`),
+include fan-in and fan-out of each header, internals exposed in a public header, and the `cppcoreguidelines-*` and `readability-*` clang-tidy findings.
 
 Rank by **pain x change frequency**: complexity or smell score of the code, times how often it changes
 (`git log --format= --name-only -- PATH | sort | uniq -c | sort -rn | head`). A messy file nobody touches ranks below a mildly messy file edited every week.
@@ -82,7 +72,7 @@ For every candidate, fill one row (see `references/report-template.md`):
 - Proposed refactoring by name (Extract Function, Replace Conditional with table, Introduce Parameter Object, and so on) and how.
 - **Complexity before -> after** (cognitive complexity, lines, parameters, as measured numbers; estimates marked as estimates).
 - **Cost**: files and lines touched, tests to add, risk to callers, public header impact.
-- **Cheaper alternative** if there is one, and why the proposal is still better or not.
+- **Measured before numbers** (complexity, lines, benchmark) and a **cheaper alternative**, and why the proposal is still better or not. Always give a second option; "none" needs a reason.
 - **Priority**: 높음 (blocks change or measured problem), 보통, 낮음, 보류 (not worth doing, or waiting for a condition).
 
 A finding whose after-state is not clearly simpler, faster (measured) or safer is 보류.
@@ -93,12 +83,12 @@ One finding at a time, in a loop:
 
 1. Confirm the safety net covers the code (Step 0). Add a characterization test if it does not.
 2. Make the smallest structural change; keep the build green after every step, not only at the end.
-3. Run the affected tests, then the full `ctest`. Same results as the baseline, no test edited to fit.
+3. Run the affected tests, then the full `ctest`, then the tests on a Release build. Same results as the baseline, no test edited to fit.
    UI code: also prove the screen did not change. Render the same file before and after
    (`SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite FILE.pxa --frames 3 --screenshot OUT.png --config-dir TMPDIR`, see bug-hunting Step 4) and compare with `cmp`; a difference is a behavior change.
    Deleting code: show it is dead first (grep every use including `tests/` and `tests/ui/`, then build and run the tests without it); "looks unused" is not proof.
 4. `pre-commit run --all-files --hook-stage manual`, judged by its exit code (clang-tidy alone: `pre-commit run clang-tidy --hook-stage manual --files <changed .cpp>`). Run the full set before opening or updating a PR.
-5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
+5. Re-measure every number the report claims (complexity, benchmark) and record before/after.
 6. Sweep the class: grep the repo for the same smell. List the other sites in the report; do not fix them in this commit.
 7. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
 
