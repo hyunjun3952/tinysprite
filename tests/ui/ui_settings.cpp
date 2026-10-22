@@ -185,6 +185,22 @@ TEST(a_corrupt_recovery_copy_is_ignored)
     fs::remove_all("test_recovery_bad");
 }
 
+TEST(a_corrupt_recovery_copy_does_not_hide_the_good_ones_after_it)
+{
+    std::string dir = scratch("test_recovery_mixed");
+    std::ofstream(dir + "/recovery_1.pxa") << "not a sprite";
+    ASSERT_TRUE(pxa_save(Sprite(5, 5), dir + "/recovery_2.pxa"));
+    std::ofstream(dir + "/recovery_3.pxa") << "not a sprite either";
+    ASSERT_TRUE(pxa_save(Sprite(6, 6), dir + "/recovery_4.pxa"));
+    std::vector<Recovered> back = recovery_load(dir);
+    ASSERT_EQ_INT(2, static_cast<int>(back.size()));
+    if (back.size() == 2) {
+        ASSERT_EQ_INT(5, back[0].sprite.width());
+        ASSERT_EQ_INT(6, back[1].sprite.width());
+    }
+    fs::remove_all("test_recovery_mixed");
+}
+
 TEST(recent_list_puts_the_newest_first_without_repeats)
 {
     std::vector<std::string> r;
@@ -227,6 +243,7 @@ int main()
     RUN(recovery_keeps_one_copy_per_document_and_clears_them_one_by_one);
     RUN(a_copy_in_the_old_single_file_layout_is_still_offered);
     RUN(a_corrupt_recovery_copy_is_ignored);
+    RUN(a_corrupt_recovery_copy_does_not_hide_the_good_ones_after_it);
     RUN(recent_list_puts_the_newest_first_without_repeats);
     RUN(recent_list_round_trips_through_the_settings_in_order);
     return TEST_SUMMARY();

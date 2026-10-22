@@ -74,6 +74,33 @@ TEST(toggling_the_active_layer_off_hands_over_to_the_topmost_other)
     ASSERT_EQ_INT(1, sel.active());
 }
 
+TEST(toggling_the_only_selected_layer_changes_nothing)
+{
+    Sprite s = stack(3);
+    LayerSelection sel;
+    sel.pick(s, 2, LayerPick::Only);
+    sel.pick(s, 2, LayerPick::Toggle);
+    ASSERT_EQ_INT(2, sel.active());
+    ASSERT_TRUE(is(sel.indexes(s), {2}));
+    sel.pick(s, 0, LayerPick::Toggle);
+    sel.pick(s, 0, LayerPick::Toggle);
+    sel.pick(s, 0, LayerPick::Toggle); /* added, removed and added again: selected once */
+    ASSERT_TRUE(is(sel.indexes(s), {0, 2}));
+}
+
+TEST(a_range_includes_both_ends_and_the_clicked_layer_stays_active)
+{
+    Sprite s = stack(5);
+    LayerSelection sel;
+    sel.pick(s, 1, LayerPick::Only);
+    sel.pick(s, 3, LayerPick::Range);
+    ASSERT_TRUE(is(sel.indexes(s), {1, 2, 3}));
+    ASSERT_EQ_INT(3, sel.active());
+    sel.pick(s, 3, LayerPick::Toggle); /* the active one leaves; the topmost other takes over */
+    ASSERT_TRUE(is(sel.indexes(s), {1, 2}));
+    ASSERT_EQ_INT(2, sel.active());
+}
+
 TEST(range_selects_from_the_anchor_to_the_layer)
 {
     Sprite s = stack(5);
@@ -152,6 +179,8 @@ int main()
     RUN(toggle_adds_a_layer_and_removes_it_again);
     RUN(toggle_never_removes_the_last_selected_layer);
     RUN(toggling_the_active_layer_off_hands_over_to_the_topmost_other);
+    RUN(toggling_the_only_selected_layer_changes_nothing);
+    RUN(a_range_includes_both_ends_and_the_clicked_layer_stays_active);
     RUN(range_selects_from_the_anchor_to_the_layer);
     RUN(a_move_keeps_the_active_index_on_the_same_layer);
     RUN(refresh_forgets_layers_that_left_the_sprite);

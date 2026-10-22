@@ -162,6 +162,19 @@ TEST(adopting_preferences_copies_the_tool_colors_brush_overlays_and_clipboard)
     delete b;
 }
 
+TEST(adopting_preferences_takes_the_symmetry_along)
+{
+    Editor *a = make_editor();
+    Editor *b = make_editor();
+    a->options().symmetry.mirror_x = true;
+    a->options().symmetry.mirror_y = true;
+    b->adoptPreferences(*a);
+    ASSERT_TRUE(b->options().symmetry.mirror_x);
+    ASSERT_TRUE(b->options().symmetry.mirror_y);
+    delete a;
+    delete b;
+}
+
 TEST(adopting_preferences_leaves_the_document_alone)
 {
     Editor *a = make_editor();
@@ -202,6 +215,7 @@ int main()
     RUN(preferences_round_trip_through_the_settings);
     RUN(loading_bad_preferences_keeps_the_defaults);
     RUN(adopting_preferences_copies_the_tool_colors_brush_overlays_and_clipboard);
+    RUN(adopting_preferences_takes_the_symmetry_along);
     RUN(adopting_preferences_leaves_the_document_alone);
     RUN(the_slices_overlay_is_on_by_default_and_is_a_saved_preference);
     ui_quit();

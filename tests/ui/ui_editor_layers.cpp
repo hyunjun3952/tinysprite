@@ -493,6 +493,18 @@ TEST(merge_is_refused_when_a_blend_would_change_the_look)
     delete e;
 }
 
+TEST(removing_a_layer_below_the_active_one_keeps_that_layer_active)
+{
+    Editor *e = make_editor();
+    e->addLayer();
+    e->addLayer();
+    Layer *top = e->sprite().layer(2);
+    e->removeLayer(1);
+    ASSERT_EQ_INT(1, e->activeLayer());
+    ASSERT_TRUE(e->sprite().layer(e->activeLayer()) == top);
+    delete e;
+}
+
 TEST(undo_and_redo_keep_the_same_layer_active)
 {
     Editor *e = make_editor();
@@ -737,6 +749,7 @@ int main()
     RUN(duplicate_and_merge_are_held_off_while_dragging_or_invalid);
     RUN(merge_is_refused_when_a_lower_selected_layer_is_locked);
     RUN(merge_is_refused_when_a_blend_would_change_the_look);
+    RUN(removing_a_layer_below_the_active_one_keeps_that_layer_active);
     RUN(undo_and_redo_keep_the_same_layer_active);
     RUN(opacity_edits_apply_to_every_selected_layer_as_one_step);
     RUN(layers_keep_their_own_opacity_before_a_shared_edit);

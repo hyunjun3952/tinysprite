@@ -108,6 +108,30 @@ TEST(removing_an_earlier_frame_keeps_the_same_frame_selected)
     delete e;
 }
 
+TEST(removing_the_current_frame_moves_on_to_the_one_that_followed_it)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    dot(e, 3, 3); /* the marked frame is the last one */
+    e->setFrame(1);
+    e->removeFrame(1);
+    ASSERT_EQ_INT(1, e->frame()); /* the marked frame slid into the removed one's place */
+    ASSERT_EQ_INT(255, alpha(e, 3, 3));
+    delete e;
+}
+
+TEST(removing_a_later_frame_leaves_the_current_number_alone)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    e->setFrame(1);
+    e->removeFrame(2);
+    ASSERT_EQ_INT(1, e->frame());
+    delete e;
+}
+
 TEST(move_keeps_the_selection_on_the_same_frame)
 {
     Editor *e = make_editor();
@@ -120,6 +144,22 @@ TEST(move_keeps_the_selection_on_the_same_frame)
     e->setFrame(2);
     e->moveFrame(0, 2); /* the marked frame goes back; the selected one shifts down */
     ASSERT_EQ_INT(1, e->frame());
+    delete e;
+}
+
+TEST(moving_a_frame_up_onto_the_current_one_pushes_it_down)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    e->setFrame(0);
+    dot(e, 0, 0); /* the marked frame is the current one, at the top of the range */
+    e->moveFrame(2, 0);
+    ASSERT_EQ_INT(1, e->frame());
+    ASSERT_EQ_INT(255, alpha(e, 0, 0));
+    e->setFrame(1);
+    e->moveFrame(1, 0); /* up from the current frame itself */
+    ASSERT_EQ_INT(0, e->frame());
     delete e;
 }
 
@@ -319,6 +359,22 @@ TEST(tags_can_be_edited_removed_and_undone)
     delete e;
 }
 
+TEST(removing_an_earlier_tag_keeps_the_same_tag_selected)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    e->addFrame();
+    e->setFrame(0);
+    e->addTag();
+    e->setFrame(2);
+    e->addTag();
+    ASSERT_EQ_INT(1, e->selectedTag());
+    e->removeTag(0);
+    ASSERT_EQ_INT(0, e->selectedTag());
+    ASSERT_EQ_INT(2, e->sprite().tags()[e->selectedTag()].from);
+    delete e;
+}
+
 TEST(a_selected_tag_limits_playback_to_its_range)
 {
     Editor *e = make_editor();
@@ -481,7 +537,10 @@ int main()
     RUN(duplicate_selects_the_copy);
     RUN(remove_selects_a_neighbour_and_refuses_the_last_frame);
     RUN(removing_an_earlier_frame_keeps_the_same_frame_selected);
+    RUN(removing_the_current_frame_moves_on_to_the_one_that_followed_it);
+    RUN(removing_a_later_frame_leaves_the_current_number_alone);
     RUN(move_keeps_the_selection_on_the_same_frame);
+    RUN(moving_a_frame_up_onto_the_current_one_pushes_it_down);
     RUN(duration_edits_are_undoable);
     RUN(frame_edits_are_held_off_while_stroking);
     RUN(a_new_document_goes_back_to_frame_zero);
@@ -496,6 +555,7 @@ int main()
     RUN(onion_skin_settings_are_limited);
     RUN(adding_a_tag_covers_the_current_frame_and_selects_it);
     RUN(tags_can_be_edited_removed_and_undone);
+    RUN(removing_an_earlier_tag_keeps_the_same_tag_selected);
     RUN(a_selected_tag_limits_playback_to_its_range);
     RUN(without_a_selected_tag_the_whole_animation_plays);
     RUN(the_tag_direction_sets_the_playback_order);
