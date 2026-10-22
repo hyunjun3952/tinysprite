@@ -11,6 +11,7 @@ LayerThumbnails::LayerThumbnails(SDL_Renderer *renderer) : renderer_(renderer)
 LayerThumbnails::Thumb LayerThumbnails::get(const Layer &layer, int frame, int maxWidth,
                                             int maxHeight, uint64_t revision)
 {
+    graveyard_.clear();
     const Cel *cel = layer.cel(frame);
     if (!cel) {
         return {};

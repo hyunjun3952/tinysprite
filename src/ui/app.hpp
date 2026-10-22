@@ -314,6 +314,9 @@ class App
 
     Panels panels_;
     std::vector<Document> docs_;
+    /* Editors of closed tabs: the frame being built may have drawn their textures, so they are
+     * destroyed at the start of the next frame, after that one was rendered. */
+    std::vector<std::unique_ptr<Editor>> retired_;
     int active_ = 0;
     int nextSerial_ = 1;
     bool split_ = false;                   /* two panes show documents */

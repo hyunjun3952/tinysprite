@@ -608,6 +608,10 @@ class Editor
     Sprite sprite_;
     History history_;
     std::unique_ptr<CompositeSurface> surface_;
+    /* The surface a new document replaced: the canvas may already have drawn its texture in the
+     * frame being built, so it lives until the next updateTexture (the start of the next canvas).
+     */
+    std::unique_ptr<CompositeSurface> retiredSurface_;
     std::optional<Clip> clipboard_; /* last copied / cut selection */
     uint64_t revision_ = 0;
 

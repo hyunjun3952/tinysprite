@@ -115,6 +115,11 @@ struct AppTestAccess {
     {
         app.moveDocument(from, to);
     }
+    /* Editors of closed tabs that wait for the next frame to be destroyed. */
+    int retired() const
+    {
+        return static_cast<int>(app.retired_.size());
+    }
     /* The split view. */
     bool split() const
     {
@@ -449,8 +454,22 @@ TEST(closing_a_tab_that_is_not_shown_keeps_the_split)
     ASSERT_EQ_INT(1, t.paneDoc(1));
 }
 
+/* The frame being built already drew the closed tab's texture (and its layer thumbnails); they are
+ * rendered at the end of the frame, so the editor must outlive it. */
+TEST(a_closed_tabs_editor_is_kept_until_the_next_frame)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    ASSERT_TRUE(t.addBlank(8, 8));
+    t.close(1);
+    ASSERT_EQ_INT(1, t.retired());
+    t.frame();
+    ASSERT_EQ_INT(0, t.retired());
+}
+
 int main()
 {
+    RUN(a_closed_tabs_editor_is_kept_until_the_next_frame);
     RUN(a_split_needs_a_second_document_and_shows_it_beside_the_first);
     RUN(a_stacked_split_gives_both_panes_the_full_width);
     RUN(clicking_a_pane_makes_its_document_the_active_one);

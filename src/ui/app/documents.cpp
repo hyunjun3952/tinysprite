@@ -134,6 +134,7 @@ void App::removeDocument(int index)
     if (index == active_) {
         activateDocument(index + 1 < static_cast<int>(docs_.size()) ? index + 1 : index - 1);
     }
+    retired_.push_back(std::move(docs_[static_cast<size_t>(index)].editor));
     docs_.erase(docs_.begin() + index);
     if (index < active_) {
         active_--;

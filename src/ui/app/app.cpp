@@ -33,6 +33,7 @@ App::~App()
     toolsPanel_.reset();
     canvas2_.reset();
     canvas_.reset();
+    retired_.clear();
     docs_.clear();
     editor_ = nullptr;
     if (backends_) {
@@ -377,6 +378,7 @@ void App::timelineSash(float x, float width, float bottomY, float maxHeight)
 /* Lays out and builds every panel and dialog of one UI frame. */
 void App::buildUi()
 {
+    retired_.clear(); /* the previous frame, which drew them, is rendered */
     menuBar();
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     float left = 0.0f;

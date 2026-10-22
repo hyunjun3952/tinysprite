@@ -44,6 +44,7 @@ bool Editor::setSprite(Sprite sprite)
 
 void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
 {
+    retiredSurface_ = std::move(surface_);
     surface_ = std::move(surface);
     history_ = History{};
     lastDrawPoint_.reset();
@@ -196,6 +197,7 @@ void Editor::markAllDirty()
 
 void Editor::updateTexture()
 {
+    retiredSurface_.reset(); /* what the last frame drew has been rendered by now */
     OnionSkin ghosts = onion_;
     surface_->update(sprite(), frame_, onionOn_ && !playing() ? &ghosts : nullptr);
 }
