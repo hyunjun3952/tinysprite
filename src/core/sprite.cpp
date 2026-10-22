@@ -224,3 +224,53 @@ bool Sprite::setTags(std::vector<Tag> tags)
     tags_ = std::move(tags);
     return true;
 }
+
+bool Sprite::sliceValid(const Slice &slice) const
+{
+    const Rect &r = slice.rect;
+    bool inside =
+        r.x >= 0 && r.y >= 0 && r.w >= 1 && r.h >= 1 && r.w <= width_ - r.x && r.h <= height_ - r.y;
+    bool pivotInside = !slice.hasPivot || (slice.pivotX >= 0 && slice.pivotX < r.w &&
+                                           slice.pivotY >= 0 && slice.pivotY < r.h);
+    return !slice.name.empty() && inside && pivotInside;
+}
+
+bool Sprite::addSlice(Slice slice)
+{
+    if (!sliceValid(slice)) {
+        return false;
+    }
+    slice.name = layer_name_truncate(slice.name, SLICE_NAME_MAX);
+    slices_.push_back(std::move(slice));
+    return true;
+}
+
+bool Sprite::setSlice(int index, Slice slice)
+{
+    if (index < 0 || index >= static_cast<int>(slices_.size()) || !sliceValid(slice)) {
+        return false;
+    }
+    slice.name = layer_name_truncate(slice.name, SLICE_NAME_MAX);
+    slices_[static_cast<size_t>(index)] = std::move(slice);
+    return true;
+}
+
+bool Sprite::removeSlice(int index)
+{
+    if (index < 0 || index >= static_cast<int>(slices_.size())) {
+        return false;
+    }
+    slices_.erase(slices_.begin() + index);
+    return true;
+}
+
+bool Sprite::setSlices(std::vector<Slice> slices)
+{
+    for (const Slice &slice : slices) {
+        if (!sliceValid(slice)) {
+            return false;
+        }
+    }
+    slices_ = std::move(slices);
+    return true;
+}

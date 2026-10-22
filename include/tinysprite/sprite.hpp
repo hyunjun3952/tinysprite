@@ -8,11 +8,13 @@
 
 #include "tinysprite/layer.hpp"
 #include "tinysprite/palette.hpp"
+#include "tinysprite/rect.hpp"
 
 /* The order a range of frames plays in; a ping-pong turns at the ends without repeating them. */
 enum class PlayMode { Forward, Reverse, PingPong };
 
-inline constexpr int TAG_NAME_MAX = 63; /* bytes */
+inline constexpr int TAG_NAME_MAX = 63;   /* bytes */
+inline constexpr int SLICE_NAME_MAX = 63; /* bytes */
 
 inline constexpr int FRAME_DURATION_DEFAULT = 100; /* milliseconds */
 inline constexpr int FRAME_DURATION_MAX = 65535;
@@ -27,6 +29,17 @@ class Sprite
         int from = 0;
         int to = 0;
         PlayMode direction = PlayMode::Forward;
+    };
+
+    /* A named rectangle of the sprite (the same on every frame), such as a "hitbox" or a "head",
+     * with an optional pivot given relative to the rectangle's top-left cel. Games read slices from
+     * the JSON export. */
+    struct Slice {
+        std::string name;
+        Rect rect = {0, 0, 1, 1};
+        bool hasPivot = false;
+        int pivotX = 0;
+        int pivotY = 0;
     };
 
     /* One frame taken out of (or ready to go into) a sprite: a cel for every layer, bottom to top,
@@ -80,6 +93,26 @@ class Sprite
     /* Replaces all the tags (an undo step restoring them); returns false and changes nothing if one
      * of them is invalid. */
     bool setTags(std::vector<Tag> tags);
+
+    /* The slices, in the order they were added. Slices do not move with frames. */
+    const std::vector<Slice> &slices() const
+    {
+        return slices_;
+    }
+
+    /* Whether `slice` has a name, lies fully inside the sprite and has its pivot (if any) inside
+     * its own rectangle. */
+    bool sliceValid(const Slice &slice) const;
+
+    /* Return false (changing nothing) for an invalid slice or an index out of range. Names longer
+     * than SLICE_NAME_MAX bytes are cut. */
+    bool addSlice(Slice slice);
+    bool setSlice(int index, Slice slice);
+    bool removeSlice(int index);
+
+    /* Replaces all the slices (an undo step restoring them); returns false and changes nothing if
+     * one of them is invalid. */
+    bool setSlices(std::vector<Slice> slices);
 
     /* A blank frame with the default duration, and a deep copy of `frame` (null cels if it is out
      * of range), both shaped for this sprite's layers. */
@@ -145,6 +178,7 @@ class Sprite
     std::vector<int> durations_ = {FRAME_DURATION_DEFAULT}; /* one per frame */
     Palette palette_;
     std::vector<Tag> tags_;
+    std::vector<Slice> slices_;
     std::vector<std::unique_ptr<Layer>> layers_;
 };
 
