@@ -1,6 +1,7 @@
 #include "theme.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace theme
 {
@@ -11,6 +12,8 @@ namespace
 constexpr float ROUND_SMALL = 3.0f; /* buttons, inputs */
 constexpr float ROUND_CARD = 4.0f;  /* popups, child areas */
 
+float uiScale = 1.0f;
+
 ImU32 toU32(unsigned hex, float alpha = 1.0f)
 {
     return ImGui::ColorConvertFloat4ToU32(rgb(hex, alpha));
@@ -18,9 +21,37 @@ ImU32 toU32(unsigned hex, float alpha = 1.0f)
 
 } // namespace
 
+void setScale(float scale)
+{
+    uiScale = std::clamp(scale, SCALE_MIN, SCALE_MAX);
+}
+
+float scale()
+{
+    return uiScale;
+}
+
+float px(float pixels)
+{
+    return pixels * uiScale;
+}
+
+float scaleForDpi(float dpi)
+{
+    if (!(dpi > 0.0f)) {
+        return 1.0f;
+    }
+    return std::clamp(std::round(dpi / 96.0f * 4.0f) / 4.0f, SCALE_MIN, SCALE_MAX);
+}
+
 void apply()
 {
     ImGuiStyle &style = ImGui::GetStyle();
+    /* Start from the defaults each time: ScaleAllSizes multiplies, so a second apply() would
+     * otherwise compound. The base font size belongs to the context, not to the look. */
+    float fontSize = style.FontSizeBase;
+    style = ImGuiStyle();
+    style.FontSizeBase = fontSize;
     ImGui::StyleColorsDark(&style);
 
     style.WindowPadding = ImVec2(10.0f, 10.0f);
@@ -91,6 +122,9 @@ void apply()
     c[ImGuiCol_NavWindowingHighlight] = rgb(INK, 0.7f);
     c[ImGuiCol_NavWindowingDimBg] = rgb(0x000000, 0.4f);
     c[ImGuiCol_ModalWindowDimBg] = rgb(0x000000, 0.5f);
+
+    style.ScaleAllSizes(uiScale);
+    style.FontScaleMain = uiScale;
 }
 
 bool section(const char *label, bool openByDefault)

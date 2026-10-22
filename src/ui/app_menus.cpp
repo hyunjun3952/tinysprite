@@ -2,6 +2,8 @@
 
 #include "app.h"
 
+#include <cmath>
+#include <cstdio>
 #include <string>
 
 #include "imgui.h"
@@ -122,6 +124,24 @@ void App::frameMenu()
     ImGui::EndMenu();
 }
 
+/* The size of the whole UI, for high-resolution displays. */
+void App::uiScaleMenu()
+{
+    if (!ImGui::BeginMenu("UI scale")) {
+        return;
+    }
+    static constexpr int PERCENTS[] = {100, 125, 150, 175, 200, 250, 300};
+    int current = static_cast<int>(std::lround(theme::scale() * 100.0f));
+    for (int percent : PERCENTS) {
+        char label[16];
+        std::snprintf(label, sizeof(label), "%d%%", percent);
+        if (ImGui::MenuItem(label, nullptr, percent == current)) {
+            setUiScale(static_cast<float>(percent) / 100.0f);
+        }
+    }
+    ImGui::EndMenu();
+}
+
 void App::viewMenu()
 {
     if (!ImGui::BeginMenu("View")) {
@@ -146,8 +166,9 @@ void App::viewMenu()
     theme::tip("Show the neighbouring frames faintly under the current one.");
     ImGui::MenuItem("Timeline", nullptr, &editor_->overlays().timeline);
     theme::tip("The frames and playback strip along the bottom of the window.");
-    ImGui::MenuItem("Status line", nullptr, &editor_->overlays().status);
-    theme::tip("Show the size, zoom, active layer and hovered cel in the canvas corner.");
+    ImGui::MenuItem("Status bar", nullptr, &editor_->overlays().status);
+    theme::tip("The bar along the bottom with the size, tool, frame, zoom and hovered cel.");
+    uiScaleMenu();
     ImGui::EndMenu();
 }
 

@@ -77,10 +77,28 @@ bool App::initImGui()
     return true;
 }
 
+void App::setUiScale(float scale)
+{
+    float before = theme::scale();
+    theme::setScale(scale);
+    theme::apply();
+    panels_.rescale(theme::scale() / before);
+}
+
+void App::toast(const std::string &text, bool error)
+{
+    toasts_.push(text, error, ImGui::GetTime());
+}
+
 void App::loadSettings(const SettingsMap &settings)
 {
     editor_->load(settings);
+    panels_.rescale(theme::scale()); /* the default widths, at this scale */
     panels_.load(settings);
+    auto dir = settings.find("file.dir");
+    if (dir != settings.end()) {
+        lastDir_ = dir->second;
+    }
     recent_ = settings_get_recent(settings, RECENT_MAX);
     settings_get_int(settings, "export.scale", 1, IMAGE_EXPORT_MAX_SCALE, exportScale_);
     settings_get_int(settings, "new.width", 1, CEL_MAX_DIMENSION, newWidth_);
@@ -101,6 +119,20 @@ bool App::init(const AppOptions &options)
     int windowHeight = WINDOW_HEIGHT;
     settings_get_int(settings, "window.width", 320, 16384, windowWidth);
     settings_get_int(settings, "window.height", 240, 16384, windowHeight);
+    /* The scale comes from --scale, else the saved one, else what the display's DPI suggests. */
+    float dpi = 0.0f;
+    float scale = 1.0f;
+    if (options.uiScale > 0.0f) {
+        scale = options.uiScale;
+    } else if (!settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX,
+                                   scale)) {
+        scale = SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
+    }
+    theme::setScale(scale);
+    if (!settings.count("window.width")) {
+        windowWidth = static_cast<int>(theme::px(static_cast<float>(windowWidth)));
+        windowHeight = static_cast<int>(theme::px(static_cast<float>(windowHeight)));
+    }
     if (!createWindow(windowWidth, windowHeight)) {
         return false;
     }
@@ -178,6 +210,8 @@ void App::shutdown()
     panels_.store(settings);
     settings_set_recent(settings, recent_);
     settings_set_int(settings, "export.scale", exportScale_);
+    settings_set_float(settings, "ui.scale", theme::scale());
+    settings["file.dir"] = lastDir_;
     settings_set_int(settings, "new.width", newWidth_);
     settings_set_int(settings, "new.height", newHeight_);
     int width = 0;
@@ -245,19 +279,25 @@ void App::run(const AppOptions &options)
         float left = 0.0f;
         float right = 0.0f;
         panels_.layout(left, right);
-        toolsPanel_->show(panels_, viewport->WorkSize.y);
-        layersWindow(viewport->WorkSize.y);
+        float status = editor_->overlays().status ? status_bar_height() : 0.0f;
+        float body = viewport->WorkSize.y - status; /* above the status bar */
+        toolsPanel_->show(panels_, body);
+        layersWindow(body);
         Uint32 now = SDL_GetTicks();
         editor_->tick(static_cast<int>(now - lastTick_));
         lastTick_ = now;
-        float timeline = editor_->overlays().timeline ? TimelinePanel::HEIGHT : 0.0f;
+        float timeline = editor_->overlays().timeline ? TimelinePanel::height() : 0.0f;
         if (timeline > 0.0f) {
-            timelinePanel_->show(viewport->WorkPos.x + left,
-                                 viewport->WorkPos.y + viewport->WorkSize.y - timeline,
+            timelinePanel_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + body - timeline,
                                  viewport->WorkSize.x - left - right);
         }
         canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
-                      viewport->WorkSize.x - left - right, viewport->WorkSize.y - timeline);
+                      viewport->WorkSize.x - left - right, body - timeline);
+        if (status > 0.0f) {
+            status_bar_show(*editor_, viewport->WorkPos.x, viewport->WorkPos.y + body,
+                            viewport->WorkSize.x);
+        }
+        toasts_.draw(ImGui::GetTime(), status + theme::px(16.0f));
         fileDialog();
         confirmDialog();
         newDialog();

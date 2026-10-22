@@ -90,6 +90,15 @@ TEST(sections_are_visible_until_hidden)
     ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
 }
 
+TEST(layers_panel_has_a_properties_section_that_can_be_hidden)
+{
+    Panels panels;
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::PROPERTIES));
+    panels.setSectionVisible(PanelId::Layers, sections::PROPERTIES, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Layers, sections::PROPERTIES));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::LAYERS));
+}
+
 TEST(a_name_that_is_not_a_section_counts_as_visible)
 {
     Panels panels;
@@ -129,5 +138,6 @@ int main(void)
     RUN(reset_shows_every_section_again);
     RUN(closing_a_floating_panel_hides_it);
     RUN(symmetry_section_is_hidden_until_switched_on);
+    RUN(layers_panel_has_a_properties_section_that_can_be_hidden);
     return TEST_SUMMARY();
 }

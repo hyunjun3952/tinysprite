@@ -12,9 +12,10 @@ namespace
 {
 
 /* Where the name of the topmost layer row is (found by hovering): the first row of the Layers panel
- * docked at the right edge of a 1000 px wide window with no menu bar. */
+ * docked at the right edge of a 1000 px wide window with no menu bar (the panel has no section
+ * header above the list). */
 constexpr float ROW_X = 780.0f;
-constexpr float ROW_Y = 64.0f;
+constexpr float ROW_Y = 37.0f;
 
 struct Fixture {
     Harness h;
@@ -88,10 +89,10 @@ TEST(a_single_click_does_not_start_renaming)
     ASSERT_TRUE(std::string(f.name()) == "Layer 1");
 }
 
-/* Rows are 32 px tall and the first one starts about 54 px down; the list is top layer first. */
+/* Rows are 32 px tall and the first one starts about 27 px down; the list is top layer first. */
 static float row_y(int fromTop)
 {
-    return 70.0f + 32.0f * static_cast<float>(fromTop);
+    return 43.0f + 32.0f * static_cast<float>(fromTop);
 }
 
 static void add_layers(Fixture &f, int total)

@@ -32,7 +32,6 @@ class Canvas
     void drawHoverOutline(ImDrawList *draw, ImVec2 origin) const;
     void drawSelection(ImDrawList *draw, ImVec2 origin) const;
     void drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const;
-    void drawStatus(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const;
     void drawLoupe(ImVec2 origin, ImVec2 avail) const;
 
     /* The middle button does two things: held still it is the eyedropper, dragged it pans. The

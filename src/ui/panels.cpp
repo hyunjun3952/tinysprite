@@ -56,8 +56,8 @@ void Panels::reset()
             section.visible = false;
         }
     }
-    panels_[static_cast<size_t>(PanelId::Layers)] =
-        make("Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS});
+    panels_[static_cast<size_t>(PanelId::Layers)] = make(
+        "Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS, sections::PROPERTIES});
 }
 
 bool Panels::sectionVisible(PanelId id, const char *name) const
@@ -156,8 +156,8 @@ void Panels::dragToDock(Panel &panel)
     }
     float leftEdge = viewport->WorkPos.x;
     float rightEdge = leftEdge + viewport->WorkSize.x;
-    bool nearLeft = mouse.x < leftEdge + DOCK_ZONE;
-    bool atEdge = nearLeft || mouse.x > rightEdge - DOCK_ZONE;
+    bool nearLeft = mouse.x < leftEdge + theme::px(DOCK_ZONE);
+    bool atEdge = nearLeft || mouse.x > rightEdge - theme::px(DOCK_ZONE);
     DockSide side = nearLeft ? DockSide::Left : DockSide::Right;
     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
         panel.titlePress = false;
@@ -181,8 +181,8 @@ void Panels::resizeEdge(Panel &panel)
     bool inside =
         mouse.y >= viewport->WorkPos.y && mouse.y < viewport->WorkPos.y + viewport->WorkSize.y;
     /* The grab strip lies inside the panel: outside it the canvas would take the click. */
-    float grabX0 = panel.side == DockSide::Left ? edge - RESIZE_GRAB : edge;
-    bool hovered = inside && mouse.x >= grabX0 && mouse.x <= grabX0 + RESIZE_GRAB;
+    float grabX0 = panel.side == DockSide::Left ? edge - theme::px(RESIZE_GRAB) : edge;
+    bool hovered = inside && mouse.x >= grabX0 && mouse.x <= grabX0 + theme::px(RESIZE_GRAB);
     if (hovered && !ImGui::IsAnyItemActive()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
@@ -196,7 +196,7 @@ void Panels::resizeEdge(Panel &panel)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         float width = panel.side == DockSide::Left ? mouse.x - panel.dockX
                                                    : panel.dockX + panel.width - mouse.x;
-        panel.width = std::clamp(width, PANEL_MIN_WIDTH, PANEL_MAX_WIDTH);
+        panel.width = std::clamp(width, theme::px(PANEL_MIN_WIDTH), theme::px(PANEL_MAX_WIDTH));
     }
     if (hovered || panel.resizing) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
@@ -230,8 +230,8 @@ bool Panels::begin(PanelId id, float height)
         ImVec2 mouse = ImGui::GetMousePos();
         ImGui::SetNextWindowPos(ImVec2(mouse.x - panel.grabX, mouse.y - panel.grabY));
     } else if (panel.place) {
-        ImGui::SetNextWindowPos(
-            ImVec2(panel.dockX + FLOAT_OFFSET, viewport->WorkPos.y + FLOAT_OFFSET));
+        ImGui::SetNextWindowPos(ImVec2(panel.dockX + theme::px(FLOAT_OFFSET),
+                                       viewport->WorkPos.y + theme::px(FLOAT_OFFSET)));
         panel.place = false;
     }
     ImGui::SetNextWindowSize(ImVec2(panel.width, height * 0.8f), ImGuiCond_FirstUseEver);
@@ -287,11 +287,19 @@ void Panels::load(const SettingsMap &settings)
         if (settings_get_int(settings, prefix + "home", 0, 1, home)) {
             panel.home = static_cast<DockSide>(home);
         }
-        settings_get_float(settings, prefix + "width", PANEL_MIN_WIDTH, PANEL_MAX_WIDTH,
-                           panel.width);
+        settings_get_float(settings, prefix + "width", theme::px(PANEL_MIN_WIDTH),
+                           theme::px(PANEL_MAX_WIDTH), panel.width);
         for (Section &section : panel.sections) {
             settings_get_bool(settings, prefix + "section." + section.name, section.visible);
         }
+    }
+}
+
+void Panels::rescale(float ratio)
+{
+    for (Panel &panel : panels_) {
+        panel.width =
+            std::clamp(panel.width * ratio, theme::px(PANEL_MIN_WIDTH), theme::px(PANEL_MAX_WIDTH));
     }
 }
 

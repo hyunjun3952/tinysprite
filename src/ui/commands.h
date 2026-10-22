@@ -8,7 +8,7 @@
 
 /* The menu commands that have a Ctrl shortcut. Each one's label and keys are written once, in
  * COMMANDS; the menus show them and the shortcut handler matches them, so the two cannot drift.
- * What a command does lives in App::runCommand / commandEnabled. */
+ * What a command does and when it can run is the table in App::commandAction. */
 enum class CommandId {
     New,
     Open,

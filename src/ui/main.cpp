@@ -22,7 +22,7 @@ bool parseNumber(const char *text, int min, int max, int &out)
 }
 
 constexpr const char *USAGE = "usage: %s [file | width [height]] [--frames N [--screenshot "
-                              "out.bmp]] [--config-dir DIR] [--help]\n";
+                              "out.bmp]] [--config-dir DIR] [--scale S] [--help]\n";
 
 /* usage: [file | width [height]] [--frames N]; a lone width is also the height. Any other
  * argument is a file to open (so a size and a file exclude each other). */
@@ -41,6 +41,13 @@ bool parseOptions(int argc, char **argv, AppOptions &options)
                 return false;
             }
             options.configDir = argv[i];
+        } else if (std::strcmp(argv[i], "--scale") == 0) {
+            int percent = 0;
+            i++;
+            if (i >= argc || !parseNumber(argv[i], 100, 300, percent)) {
+                return false;
+            }
+            options.uiScale = static_cast<float>(percent) / 100.0f; /* given as a percent */
         } else if (std::strcmp(argv[i], "--screenshot") == 0) {
             if (++i >= argc) {
                 return false;

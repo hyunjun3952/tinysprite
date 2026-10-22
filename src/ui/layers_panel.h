@@ -58,7 +58,11 @@ class LayersPanel
     void renameField(int index, Layer &layer);
     void thumbnail(const Layer &layer, float rowHeight);
     void deleteDialog();
-    void activeLayerDetails();
+    /* The Properties section: what the list cannot show or change (name, eye and lock are there):
+     * the opacity, which applies to every selected layer, and what the active layer holds. */
+    void properties();
+    void propertyOpacity(const Layer &layer);
+    void propertyInfo(const Layer &layer);
     void buttons();
 
     Editor &editor_;

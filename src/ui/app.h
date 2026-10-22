@@ -16,6 +16,7 @@
 #include "panels.h"
 #include "recovery.h"
 #include "settings.h"
+#include "statusbar.h"
 #include "timeline_panel.h"
 #include "tools_panel.h"
 
@@ -25,6 +26,7 @@ struct AppOptions {
     int maxFrames = 0;      /* >0: exit after this many frames (smoke runs without a display) */
     std::string screenshot; /* with --frames: save the last frame to this .bmp before exiting */
     std::string file;       /* a .pxa or image to open at start, "" for a blank sprite */
+    float uiScale = 0.0f;   /* the UI scale to use instead of the saved / detected one; 0 = none */
     std::string configDir;  /* keep settings / autosave here (also in a --frames run); "" = the
                              * user's config directory, which a --frames run leaves alone */
 };
@@ -44,30 +46,6 @@ class App
 
     void run(const AppOptions &options);
 
-  private:
-    static constexpr size_t RECENT_MAX = 10; /* entries kept in the recent files list */
-
-    bool createWindow(int width, int height);
-    bool initImGui();
-    void loadSettings(const SettingsMap &settings);
-
-    void menuBar();
-    void fileMenu();
-    void openRecentMenu(bool idle);
-    void editMenu();
-    void frameMenu();
-    void viewMenu();
-    /* The commands of commands.h: what each does, whether it can run now, and its menu item. */
-    void runCommand(CommandId id);
-    bool commandEnabled(CommandId id) const;
-    void commandItem(CommandId id);
-    void plainShortcuts();
-    void ctrlShortcuts();
-    void escapeShortcut();
-    bool modalOpen() const;
-    void handleShortcuts();
-    void layersWindow(float height);
-
     /* File menu: each action asks for a path in a small dialog (there is no native file chooser).
      */
     enum class FileAction {
@@ -78,13 +56,73 @@ class App
         ImportPalette,
         ExportPalette,
         ExportGif,
-        ExportSheet
+        ExportSheet,
+        Count /* not an action: the number of them */
     };
+
+    /* What the path dialog does for one FileAction (see fileInfo in app_files.cpp). */
+    struct FileActionInfo {
+        const char *title;
+        const char *extension; /* added to a name typed without one; "" when the action reads */
+        const char *done;      /* the start of the toast once it worked */
+        bool (App::*run)(const std::string &path);
+        void (App::*options)(); /* the dialog fields beyond the path, or null */
+        bool writes() const;
+    };
+    static const FileActionInfo &fileInfo(FileAction action);
+
+  private:
+    static constexpr size_t RECENT_MAX = 10; /* entries kept in the recent files list */
+
+    bool createWindow(int width, int height);
+    bool initImGui();
+    void loadSettings(const SettingsMap &settings);
+
+    void setUiScale(float scale);
+    void uiScaleMenu();
+    /* A message in the corner of the window that fades by itself; errors stay longer. */
+    void toast(const std::string &text, bool error = false);
+
+    void menuBar();
+    void fileMenu();
+    void openRecentMenu(bool idle);
+    void editMenu();
+    void frameMenu();
+    void viewMenu();
+    /* The commands of commands.h: what each does, whether it can run now, and its menu item. */
+    struct CommandAction {
+        void (*run)(App &app);
+        bool (*enabled)(const App &app);
+    };
+    static const CommandAction &commandAction(CommandId id);
+    void runCommand(CommandId id);
+    bool commandEnabled(CommandId id) const;
+    void commandItem(CommandId id);
+    void plainShortcuts();
+    void ctrlShortcuts();
+    void escapeShortcut();
+    bool modalOpen() const;
+    void handleShortcuts();
+    void layersWindow(float height);
+
     void askForPath(FileAction action);
+    /* True when the dialog may write `path`: it is new, it is the document's own file, or the user
+     * already saw the warning and pressed OK again. Otherwise arms the warning. */
+    bool overwriteAllowed(const std::string &path);
+    void fileDone(const std::string &path);
     void save();
     void fileDialog();
-    bool runFileAction(const std::string &path);
-    void exportOptions();
+    bool runOpen(const std::string &path);
+    bool runSaveAs(const std::string &path);
+    bool runExportImage(const std::string &path);
+    bool runExportGif(const std::string &path);
+    bool runExportSheet(const std::string &path);
+    bool runImportPalette(const std::string &path);
+    bool runExportPalette(const std::string &path);
+    void imageOptions();
+    void animationOptions();
+    void gifOptions();
+    void sheetOptions();
     /* The frames and direction the animation exports cover: all frames, or the tag picked in the
      * dialog (its own direction). */
     void exportRange(int &first, int &last, PlayMode &direction) const;
@@ -137,6 +175,10 @@ class App
     std::string filePath_;     /* the .pxa the document was opened from / saved to, "" if none */
     char pathInput_[512] = ""; /* the dialog's text field */
     std::string fileError_;
+    std::string lastDir_; /* where the last file was opened / saved, for the next dialog */
+    std::string
+        overwritePath_; /* the path the dialog asked to overwrite and the user was warned about */
+    Toasts toasts_;
 
     std::function<void()> pending_;   /* waits for the unsaved-changes popup */
     std::function<void()> afterSave_; /* runs once the Save as dialog it opened succeeds */

@@ -276,27 +276,6 @@ void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
     }
 }
 
-/* Zoom and hovered cel in the canvas corner. Drawn here, after the canvas has applied this frame's
- * zoom / pan / hover, so the numbers never lag the image. */
-void Canvas::drawStatus(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
-{
-    char text[128];
-    const Layer *layer = editor_.sprite().layer(editor_.activeLayer());
-    int len = std::snprintf(text, sizeof(text), "%dx%d   Zoom: %g%%   Layer: %s",
-                            editor_.sprite().width(), editor_.sprite().height(),
-                            static_cast<double>(editor_.view().viewport.zoom) * 100.0,
-                            layer ? layer->name().c_str() : "-");
-    if (editor_.hoverInSprite()) {
-        std::snprintf(text + len, sizeof(text) - static_cast<size_t>(len), "   Cel: %d, %d",
-                      editor_.hoverX(), editor_.hoverY());
-    }
-    ImVec2 size = ImGui::CalcTextSize(text);
-    ImVec2 p0(origin.x + 6.0f, origin.y + avail.y - size.y - 10.0f);
-    draw->AddRectFilled(ImVec2(p0.x - 4.0f, p0.y - 2.0f),
-                        ImVec2(p0.x + size.x + 4.0f, p0.y + size.y + 2.0f), IM_COL32(0, 0, 0, 160));
-    draw->AddText(p0, IM_COL32(255, 255, 255, 255), text);
-}
-
 /* While the eyedropper is picking: a magnifier beside the cursor showing the cels around it, the
  * cel being picked outlined in the middle, and its color underneath. */
 void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
@@ -401,9 +380,6 @@ void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
     drawSelection(draw, origin);
     if (editor_.overlays().cursor) {
         drawHoverOutline(draw, origin);
-    }
-    if (editor_.overlays().status) {
-        drawStatus(draw, origin, avail);
     }
     draw->PopClipRect();
 }

@@ -25,6 +25,7 @@ inline constexpr const char *SELECTION = "Selection";
 inline constexpr const char *COLOR = "Color";
 inline constexpr const char *RECENT = "Recent";
 inline constexpr const char *LAYERS = "Layers";
+inline constexpr const char *PROPERTIES = "Properties";
 } // namespace sections
 
 class Panels
@@ -35,6 +36,10 @@ class Panels
 
     /* Restores the default layout. */
     void reset();
+
+    /* Multiplies every panel width by `ratio` (the UI scale changed), within the limits at the
+     * current scale. */
+    void rescale(float ratio);
 
     /* Assigns the docked panels their positions and returns the width the canvas loses on each
      * side. Call once per frame before begin. */

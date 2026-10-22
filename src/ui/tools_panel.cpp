@@ -47,9 +47,25 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Cross", "C", ImGuiKey_C, "Drag to draw a plus sign (outline, or filled in Tool options)."},
 }};
 
-constexpr float SWATCH_SIZE = 18.0f;
-constexpr int SWATCHES_PER_ROW = 9;
-constexpr float SWATCH_GAP = 4.0f;
+constexpr float SWATCH_SIZE_BASE = 22.0f;
+constexpr float SWATCH_GAP_BASE = 4.0f;
+
+float swatchSize()
+{
+    return theme::px(SWATCH_SIZE_BASE);
+}
+
+float swatchGap()
+{
+    return theme::px(SWATCH_GAP_BASE);
+}
+
+/* As many swatches as fit in the panel's width, so a wider panel shows longer rows. */
+int swatchesPerRow()
+{
+    float size = swatchSize() + swatchGap();
+    return std::max(1, static_cast<int>((ImGui::GetContentRegionAvail().x + swatchGap()) / size));
+}
 
 ImVec4 toImVec4(const float color[4])
 {
@@ -68,7 +84,7 @@ bool swatch(Rgba color, bool selected)
         "##swatch",
         ImVec4(static_cast<float>(color.r) / 255.0f, static_cast<float>(color.g) / 255.0f,
                static_cast<float>(color.b) / 255.0f, static_cast<float>(color.a) / 255.0f),
-        flags, ImVec2(SWATCH_SIZE, SWATCH_SIZE));
+        flags, ImVec2(swatchSize(), swatchSize()));
     if (selected) {
         ImGui::PopStyleVar();
     }
@@ -286,7 +302,8 @@ void ToolsPanel::show(Panels &panels, float height)
     auto open = [&panels](const char *name) {
         return panels.sectionVisible(PanelId::Tools, name) && theme::section(name);
     };
-    if (open(sections::TOOLS)) {
+    /* The panel is already titled "Tools": its first section needs no header of its own. */
+    if (panels.sectionVisible(PanelId::Tools, sections::TOOLS)) {
         toolGrid();
     }
     if (open(sections::SHAPES)) {
@@ -358,10 +375,11 @@ void ToolsPanel::recentColors()
     }
     /* Distinct from the palette swatches' IDs below. */
     ImGui::PushID("recent");
+    const int perRow = swatchesPerRow();
     for (int i = 0; i < editor_.recent().size(); i++) {
         ImGui::PushID(i);
-        if (i % SWATCHES_PER_ROW != 0) {
-            ImGui::SameLine(0.0f, SWATCH_GAP);
+        if (i % perRow != 0) {
+            ImGui::SameLine(0.0f, swatchGap());
         }
         if (swatch(editor_.recent()[i], false)) {
             editor_.setForeground(editor_.recent()[i]);
@@ -376,10 +394,11 @@ void ToolsPanel::paletteSwatches()
     const Palette &palette = editor_.sprite().palette();
     int count = palette.count();
     ImGui::PushID("palette");
+    const int perRow = swatchesPerRow();
     for (int i = 0; i < count; i++) {
         ImGui::PushID(i);
-        if (i % SWATCHES_PER_ROW != 0) {
-            ImGui::SameLine(0.0f, SWATCH_GAP);
+        if (i % perRow != 0) {
+            ImGui::SameLine(0.0f, swatchGap());
         }
         if (swatch(palette.get(i), i == editor_.paletteSelected())) {
             editor_.palettePick(i);

@@ -16,7 +16,9 @@
 class TimelinePanel
 {
   public:
-    static constexpr float HEIGHT = 246.0f;
+    static constexpr float BASE_HEIGHT = 246.0f;
+    /* The strip's height at the current UI scale. */
+    static float height();
 
     explicit TimelinePanel(Editor &editor);
 

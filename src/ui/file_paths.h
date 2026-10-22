@@ -1,0 +1,21 @@
+#ifndef TINYSPRITE_UI_FILE_PATHS_H
+#define TINYSPRITE_UI_FILE_PATHS_H
+
+#include <string>
+
+/* Small string helpers for the path dialog; they only look at the text, never at the disk. Both
+ * '/' and '\\' separate directories, since the Windows build accepts either. */
+
+/* `path` with `extension` (".png") appended when its file name has none; "" stays "". */
+std::string with_default_extension(const std::string &path, const std::string &extension);
+
+/* Everything before the last separator ("" for a bare name, "/" for a file in the root). */
+std::string directory_of(const std::string &path);
+
+/* The last component. */
+std::string file_name_of(const std::string &path);
+
+/* `name` inside `directory`, with one separator between them; "" as the directory gives `name`. */
+std::string join_path(const std::string &directory, const std::string &name);
+
+#endif

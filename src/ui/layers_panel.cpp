@@ -314,14 +314,9 @@ void LayersPanel::rows()
 
 /* The opacity edits the layer live while the slider is active and records one undo step when it is
  * released, so dragging it is not one step per frame. (The name is edited in the list.) */
-void LayersPanel::activeLayerDetails()
+void LayersPanel::propertyOpacity(const Layer &layer)
 {
-    int index = editor_.activeLayer();
-    Layer *layer = editor_.sprite().layer(index);
-    if (!layer) {
-        return;
-    }
-    const uint8_t opacityNow = layer->opacity();
+    const uint8_t opacityNow = layer.opacity();
     /* read before the slider can change anything: the drag may start on this very frame */
     std::vector<std::pair<int, uint8_t>> selectedNow = editor_.selectedLayerOpacities();
     /* The name on the left, then a slider that fills the row and shows a percentage. */
@@ -340,6 +335,36 @@ void LayersPanel::activeLayerDetails()
     if (ImGui::IsItemDeactivatedAfterEdit()) {
         editor_.commitSelectedLayersOpacity(opacityBefore_);
     }
+}
+
+/* Facts about the layer that cannot be edited here: its size and how many frames have a cel of
+ * their own or share one. */
+void LayersPanel::propertyInfo(const Layer &layer)
+{
+    const int frames = editor_.sprite().frameCount();
+    int linked = 0;
+    for (int f = 0; f < frames; f++) {
+        if (layer.celLinked(f)) {
+            linked++;
+        }
+    }
+    ImGui::TextDisabled("Size %d x %d px", editor_.sprite().width(), editor_.sprite().height());
+    ImGui::TextDisabled("%d frame%s, %d linked", frames, frames == 1 ? "" : "s", linked);
+    theme::tip("A linked cel is shared with another frame: drawing on one changes them all.");
+}
+
+void LayersPanel::properties()
+{
+    const Layer *layer = editor_.sprite().layer(editor_.activeLayer());
+    if (!layer) {
+        return;
+    }
+    if (editor_.selectedLayers().size() > 1) {
+        ImGui::TextDisabled("%d layers selected: opacity applies to all",
+                            static_cast<int>(editor_.selectedLayers().size()));
+    }
+    propertyOpacity(*layer);
+    propertyInfo(*layer);
 }
 
 /* Layer actions under the list: one icon button each, evenly spread (the tooltips name them).
@@ -443,13 +468,14 @@ void LayersPanel::show(const Panels &panels)
     }
     /* Layers cannot change under a tool that is mid-drag. */
     ImGui::BeginDisabled(editor_.stroking());
-    auto open = [&panels](const char *name) {
-        return panels.sectionVisible(PanelId::Layers, name) && theme::section(name);
-    };
-    if (open(sections::LAYERS)) {
+    /* The panel is titled "Layers" and has just this one section, so it needs no header. */
+    if (panels.sectionVisible(PanelId::Layers, sections::LAYERS)) {
         rows();
         buttons();
-        activeLayerDetails();
+    }
+    if (panels.sectionVisible(PanelId::Layers, sections::PROPERTIES) &&
+        theme::section(sections::PROPERTIES)) {
+        properties();
     }
     ImGui::EndDisabled();
     deleteDialog();

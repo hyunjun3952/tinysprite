@@ -2,84 +2,55 @@
 
 #include "app.h"
 
+#include <iterator>
+
 #include "imgui.h"
+
+/* What each command does and when it can run, one row per CommandId in the same order as COMMANDS
+ * (commands.cpp holds the labels and keys). A new command is a row here, not a case in two
+ * switches. */
+const App::CommandAction &App::commandAction(CommandId id)
+{
+    auto always = [](const App &) { return true; };
+    auto idle = [](const App &app) { return !app.editor_->stroking(); };
+    auto canUndo = [](const App &app) {
+        return !app.editor_->stroking() && app.editor_->history().canUndo();
+    };
+    auto canRedo = [](const App &app) {
+        return !app.editor_->stroking() && app.editor_->history().canRedo();
+    };
+    auto selected = [](const App &app) {
+        return !app.editor_->stroking() && app.editor_->hasSelection();
+    };
+    static const CommandAction TABLE[] = {
+        {[](App &app) { app.guardUnsaved([&app] { app.openNew_ = true; }); }, idle},
+        {[](App &app) { app.guardUnsaved([&app] { app.askForPath(FileAction::Open); }); }, idle},
+        {[](App &app) { app.save(); }, always},
+        {[](App &app) { app.askForPath(FileAction::SaveAs); }, always},
+        {[](App &app) { app.askForPath(FileAction::ExportImage); }, always},
+        {[](App &app) { app.editor_->undo(); }, canUndo},
+        {[](App &app) { app.editor_->redo(); }, canRedo},
+        {[](App &app) { app.editor_->cutSelection(); }, selected},
+        {[](App &app) { app.editor_->copySelection(); }, selected},
+        {[](App &app) { app.editor_->paste(); }, idle},
+        {[](App &app) { app.editor_->selectAll(); }, idle},
+        {[](App &app) { app.editor_->zoomStep(1); }, always},
+        {[](App &app) { app.editor_->zoomStep(-1); }, always},
+        {[](App &app) { app.editor_->view().needs_fit = true; }, always},
+    };
+    static_assert(std::size(TABLE) == static_cast<size_t>(COMMAND_COUNT),
+                  "one CommandAction row per CommandId");
+    return TABLE[static_cast<size_t>(id)];
+}
 
 void App::runCommand(CommandId id)
 {
-    switch (id) {
-    case CommandId::New:
-        guardUnsaved([this] { openNew_ = true; });
-        break;
-    case CommandId::Open:
-        guardUnsaved([this] { askForPath(FileAction::Open); });
-        break;
-    case CommandId::Save:
-        save();
-        break;
-    case CommandId::SaveAs:
-        askForPath(FileAction::SaveAs);
-        break;
-    case CommandId::ExportImage:
-        askForPath(FileAction::ExportImage);
-        break;
-    case CommandId::Undo:
-        editor_->undo();
-        break;
-    case CommandId::Redo:
-        editor_->redo();
-        break;
-    case CommandId::Cut:
-        editor_->cutSelection();
-        break;
-    case CommandId::Copy:
-        editor_->copySelection();
-        break;
-    case CommandId::Paste:
-        editor_->paste();
-        break;
-    case CommandId::SelectAll:
-        editor_->selectAll();
-        break;
-    case CommandId::ZoomIn:
-        editor_->zoomStep(1);
-        break;
-    case CommandId::ZoomOut:
-        editor_->zoomStep(-1);
-        break;
-    case CommandId::Fit:
-        editor_->view().needs_fit = true;
-        break;
-    case CommandId::Count:
-        break;
-    }
+    commandAction(id).run(*this);
 }
 
 bool App::commandEnabled(CommandId id) const
 {
-    bool idle = !editor_->stroking();
-    switch (id) {
-    case CommandId::New:
-    case CommandId::Open:
-    case CommandId::Paste:
-    case CommandId::SelectAll:
-        return idle;
-    case CommandId::Undo:
-        return idle && editor_->history().canUndo();
-    case CommandId::Redo:
-        return idle && editor_->history().canRedo();
-    case CommandId::Cut:
-    case CommandId::Copy:
-        return idle && editor_->hasSelection();
-    case CommandId::Save:
-    case CommandId::SaveAs:
-    case CommandId::ExportImage:
-    case CommandId::ZoomIn:
-    case CommandId::ZoomOut:
-    case CommandId::Fit:
-    case CommandId::Count:
-        return true;
-    }
-    return false;
+    return commandAction(id).enabled(*this);
 }
 
 void App::commandItem(CommandId id)
