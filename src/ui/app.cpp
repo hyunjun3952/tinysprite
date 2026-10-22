@@ -105,6 +105,33 @@ void App::loadSettings(const SettingsMap &settings)
     settings_get_int(settings, "new.height", 1, CEL_MAX_DIMENSION, newHeight_);
 }
 
+/* The scale comes from --scale, else the saved one, else what the display's DPI suggests. */
+static float initialScale(const AppOptions &options, const SettingsMap &settings)
+{
+    if (options.uiScale > 0.0f) {
+        return options.uiScale;
+    }
+    float scale = 1.0f;
+    if (settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX, scale)) {
+        return scale;
+    }
+    float dpi = 0.0f;
+    return SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
+}
+
+/* The saved window size; a default, scaled with the UI, when none was saved. */
+static void initialWindowSize(const SettingsMap &settings, int &width, int &height)
+{
+    width = WINDOW_WIDTH;
+    height = WINDOW_HEIGHT;
+    settings_get_int(settings, "window.width", 320, 16384, width);
+    settings_get_int(settings, "window.height", 240, 16384, height);
+    if (!settings.count("window.width")) {
+        width = static_cast<int>(theme::px(static_cast<float>(width)));
+        height = static_cast<int>(theme::px(static_cast<float>(height)));
+    }
+}
+
 bool App::init(const AppOptions &options)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -115,24 +142,10 @@ bool App::init(const AppOptions &options)
     persist_ = options.maxFrames == 0 || !options.configDir.empty();
     configDir_ = !options.configDir.empty() ? options.configDir : persist_ ? config_dir() : "";
     SettingsMap settings = settings_load(configDir_);
-    int windowWidth = WINDOW_WIDTH;
-    int windowHeight = WINDOW_HEIGHT;
-    settings_get_int(settings, "window.width", 320, 16384, windowWidth);
-    settings_get_int(settings, "window.height", 240, 16384, windowHeight);
-    /* The scale comes from --scale, else the saved one, else what the display's DPI suggests. */
-    float dpi = 0.0f;
-    float scale = 1.0f;
-    if (options.uiScale > 0.0f) {
-        scale = options.uiScale;
-    } else if (!settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX,
-                                   scale)) {
-        scale = SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
-    }
-    theme::setScale(scale);
-    if (!settings.count("window.width")) {
-        windowWidth = static_cast<int>(theme::px(static_cast<float>(windowWidth)));
-        windowHeight = static_cast<int>(theme::px(static_cast<float>(windowHeight)));
-    }
+    theme::setScale(initialScale(options, settings));
+    int windowWidth = 0;
+    int windowHeight = 0;
+    initialWindowSize(settings, windowWidth, windowHeight);
     if (!createWindow(windowWidth, windowHeight)) {
         return false;
     }
@@ -254,73 +267,81 @@ bool App::saveScreenshot(const std::string &path) const
     return ok;
 }
 
+/* Feeds the window's events to ImGui and handles the ones the app owns. */
+void App::pollEvents()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL2_ProcessEvent(&event);
+        if (event.type == SDL_QUIT) {
+            guardUnsaved([this] { running_ = false; });
+        } else if (event.type == SDL_DROPFILE) {
+            dropFile(event.drop.file);
+            SDL_free(event.drop.file);
+        }
+    }
+}
+
+/* Lays out and builds every panel and dialog of one UI frame. */
+void App::buildUi()
+{
+    menuBar();
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    float left = 0.0f;
+    float right = 0.0f;
+    panels_.layout(left, right);
+    float status = editor_->overlays().status ? status_bar_height() : 0.0f;
+    float body = viewport->WorkSize.y - status; /* above the status bar */
+    toolsPanel_->show(panels_, body);
+    layersWindow(body);
+    Uint32 now = SDL_GetTicks();
+    editor_->tick(static_cast<int>(now - lastTick_));
+    lastTick_ = now;
+    float timeline = editor_->overlays().timeline ? TimelinePanel::height() : 0.0f;
+    if (timeline > 0.0f) {
+        timelinePanel_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + body - timeline,
+                             viewport->WorkSize.x - left - right);
+    }
+    canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
+                  viewport->WorkSize.x - left - right, body - timeline);
+    if (status > 0.0f) {
+        status_bar_show(*editor_, viewport->WorkPos.x, viewport->WorkPos.y + body,
+                        viewport->WorkSize.x);
+    }
+    toasts_.draw(ImGui::GetTime(), status + theme::px(16.0f));
+    fileDialog();
+    confirmDialog();
+    newDialog();
+    recoverDialog();
+    helpWindow();
+    handleShortcuts();
+    autosave();
+    updateTitle();
+}
+
 void App::run(const AppOptions &options)
 {
     int frames = 0;
     while (running_) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT) {
-                guardUnsaved([this] { running_ = false; });
-            } else if (event.type == SDL_DROPFILE) {
-                dropFile(event.drop.file);
-            }
-            if (event.type == SDL_DROPFILE) {
-                SDL_free(event.drop.file);
-            }
-        }
-
+        pollEvents();
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-        menuBar();
-        const ImGuiViewport *viewport = ImGui::GetMainViewport();
-        float left = 0.0f;
-        float right = 0.0f;
-        panels_.layout(left, right);
-        float status = editor_->overlays().status ? status_bar_height() : 0.0f;
-        float body = viewport->WorkSize.y - status; /* above the status bar */
-        toolsPanel_->show(panels_, body);
-        layersWindow(body);
-        Uint32 now = SDL_GetTicks();
-        editor_->tick(static_cast<int>(now - lastTick_));
-        lastTick_ = now;
-        float timeline = editor_->overlays().timeline ? TimelinePanel::height() : 0.0f;
-        if (timeline > 0.0f) {
-            timelinePanel_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + body - timeline,
-                                 viewport->WorkSize.x - left - right);
-        }
-        canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
-                      viewport->WorkSize.x - left - right, body - timeline);
-        if (status > 0.0f) {
-            status_bar_show(*editor_, viewport->WorkPos.x, viewport->WorkPos.y + body,
-                            viewport->WorkSize.x);
-        }
-        toasts_.draw(ImGui::GetTime(), status + theme::px(16.0f));
-        fileDialog();
-        confirmDialog();
-        newDialog();
-        recoverDialog();
-        helpWindow();
-        handleShortcuts();
-        autosave();
-        updateTitle();
+        buildUi();
 
         SDL_SetRenderDrawColor(renderer_, (theme::WORKSPACE >> 16) & 0xff,
                                (theme::WORKSPACE >> 8) & 0xff, theme::WORKSPACE & 0xff, 255);
         SDL_RenderClear(renderer_);
         ImGui::Render();
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer_);
-        if (!options.screenshot.empty() && options.maxFrames > 0 &&
-            frames + 1 >= options.maxFrames && !saveScreenshot(options.screenshot)) {
+        bool lastFrame = options.maxFrames > 0 && frames + 1 >= options.maxFrames;
+        if (lastFrame && !options.screenshot.empty() && !saveScreenshot(options.screenshot)) {
             std::fprintf(stderr, "cannot save %s\n", options.screenshot.c_str());
         }
         SDL_RenderPresent(renderer_);
 
-        if (options.maxFrames > 0 && ++frames >= options.maxFrames) {
-            running_ = false;
-        }
+        frames++;
+        running_ = running_ && !lastFrame;
     }
     shutdown();
 }

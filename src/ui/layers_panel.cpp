@@ -158,9 +158,15 @@ void LayersPanel::rowDragDrop(int index, const Layer &layer, const RowContext &c
         }
         ImGui::EndDragDropSource();
     }
-    if (!ImGui::BeginDragDropTarget()) {
-        return;
+    if (ImGui::BeginDragDropTarget()) {
+        rowDropTarget(index, drop);
+        ImGui::EndDragDropTarget();
     }
+}
+
+/* The row as a drop target: draws where the dragged layer would land and reports the drop. */
+void LayersPanel::rowDropTarget(int index, Drop &drop)
+{
     /* Looked at while hovering (before the drop), to draw where the layer would land. */
     constexpr ImGuiDragDropFlags FLAGS =
         ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
@@ -176,7 +182,6 @@ void LayersPanel::rowDragDrop(int index, const Layer &layer, const RowContext &c
             }
         }
     }
-    ImGui::EndDragDropTarget();
 }
 
 /* The row's tooltip, and the double click that starts renaming. */

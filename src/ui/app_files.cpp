@@ -299,6 +299,59 @@ void App::sheetOptions()
     export_.spacing = std::clamp(export_.spacing, 0, 256);
 }
 
+/* The last error and the overwrite warning for `path`, under the dialog's options. */
+void App::fileDialogMessages(const std::string &path)
+{
+    if (!fileError_.empty()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());
+    }
+    if (!overwritePath_.empty()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "%s already exists.",
+                           file_name_of(path).c_str());
+    }
+}
+
+/* Runs the dialog's action on `path` unless it is empty or needs an overwrite nobody allowed yet;
+ * true when it succeeded and the dialog is done. */
+bool App::runFileAction(const FileActionInfo &info, const std::string &path)
+{
+    if (path.empty() || (info.writes() && !overwriteAllowed(path))) {
+        return false;
+    }
+    if (!(this->*info.run)(path)) {
+        return false;
+    }
+    fileDone(path);
+    return true;
+}
+
+/* Closes the dialog; a Save As that went through carries on with what waited for it. */
+void App::closeFileDialog()
+{
+    bool saved = fileAction_ == FileAction::SaveAs && !dirty();
+    fileAction_ = FileAction::None;
+    ImGui::CloseCurrentPopup();
+    std::function<void()> proceed = std::move(afterSave_);
+    afterSave_ = nullptr;
+    if (saved && proceed) {
+        proceed();
+    }
+}
+
+/* The "Path" field, focused when the dialog opens; true when Enter was pressed in it. */
+bool App::pathField()
+{
+    if (ImGui::IsWindowAppearing()) {
+        ImGui::SetKeyboardFocusHere();
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Path");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(360.0f);
+    return ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
+                            ImGuiInputTextFlags_EnterReturnsTrue);
+}
+
 void App::fileDialog()
 {
     const FileActionInfo &info = fileInfo(fileAction_);
@@ -310,15 +363,7 @@ void App::fileDialog()
     if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         return;
     }
-    if (ImGui::IsWindowAppearing()) {
-        ImGui::SetKeyboardFocusHere();
-    }
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Path");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(360.0f);
-    bool enter = ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
-                                  ImGuiInputTextFlags_EnterReturnsTrue);
+    bool enter = pathField();
     /* A name typed without an extension gets the one the dialog writes. */
     const std::string typed = pathInput_;
     const std::string path = info.writes() ? with_default_extension(typed, info.extension) : typed;
@@ -331,38 +376,15 @@ void App::fileDialog()
     if (info.options) {
         (this->*info.options)();
     }
-    if (!fileError_.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());
-    }
-    if (!overwritePath_.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "%s already exists.",
-                           file_name_of(path).c_str());
-    }
-    bool done = false;
+    fileDialogMessages(path);
     ImGui::BeginDisabled(path.empty());
     bool confirm = ImGui::Button(overwritePath_.empty() ? "OK" : "Overwrite");
     ImGui::EndDisabled();
-    if ((confirm || enter) && !path.empty()) {
-        if (!info.writes() || overwriteAllowed(path)) {
-            done = (this->*info.run)(path);
-            if (done) {
-                fileDone(path);
-            }
-        }
-    }
+    bool done = (confirm || enter) && runFileAction(info, path);
     ImGui::SameLine();
-    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        done = true;
-    }
-    if (done) {
-        bool saved = fileAction_ == FileAction::SaveAs && !dirty();
-        fileAction_ = FileAction::None;
-        ImGui::CloseCurrentPopup();
-        std::function<void()> proceed = std::move(afterSave_);
-        afterSave_ = nullptr;
-        if (saved && proceed) {
-            proceed();
-        }
+    bool cancel = ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape);
+    if (done || cancel) {
+        closeFileDialog();
     }
     ImGui::EndPopup();
 }

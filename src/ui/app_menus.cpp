@@ -88,18 +88,31 @@ void App::frameMenu()
         return;
     }
     bool idle = !editor_->stroking();
-    int frame = editor_->frame();
-    int count = editor_->sprite().frameCount();
+    frameEditItems(idle);
+    ImGui::Separator();
+    celLinkItems(idle);
+    ImGui::Separator();
+    frameStepItems(idle);
+    ImGui::EndMenu();
+}
+
+void App::frameEditItems(bool idle)
+{
     if (ImGui::MenuItem("New frame", nullptr, false, idle)) {
         editor_->addFrame();
     }
     if (ImGui::MenuItem("Duplicate frame", nullptr, false, idle)) {
         editor_->duplicateFrame();
     }
-    if (ImGui::MenuItem("Delete frame", nullptr, false, idle && count > 1)) {
-        editor_->removeFrame(frame);
+    if (ImGui::MenuItem("Delete frame", nullptr, false,
+                        idle && editor_->sprite().frameCount() > 1)) {
+        editor_->removeFrame(editor_->frame());
     }
-    ImGui::Separator();
+}
+
+void App::celLinkItems(bool idle)
+{
+    int frame = editor_->frame();
     int layer = editor_->activeLayer();
     const Layer *active = editor_->sprite().layer(layer);
     if (ImGui::MenuItem("Link cel to previous frame", nullptr, false,
@@ -110,7 +123,12 @@ void App::frameMenu()
                         idle && active && !active->locked() && active->celLinked(frame))) {
         editor_->unlinkCel(layer, frame);
     }
-    ImGui::Separator();
+}
+
+void App::frameStepItems(bool idle)
+{
+    int frame = editor_->frame();
+    int count = editor_->sprite().frameCount();
     if (ImGui::MenuItem("Previous frame", ",", false, idle && frame > 0)) {
         editor_->setFrame(frame - 1);
     }
@@ -121,7 +139,6 @@ void App::frameMenu()
     if (ImGui::MenuItem(editor_->playing() ? "Stop" : "Play", "Enter", false, idle)) {
         editor_->togglePlayback();
     }
-    ImGui::EndMenu();
 }
 
 /* The size of the whole UI, for high-resolution displays. */

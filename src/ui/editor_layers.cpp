@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -78,14 +79,6 @@ void Editor::setLayerLocked(int index, bool locked)
     }
 }
 
-void Editor::duplicateLayer(int index)
-{
-    if (!stroking() && layer_op_duplicate(history(), sprite(), index)) {
-        pickLayer(index + 1, LayerPick::Only);
-        markAllDirty();
-    }
-}
-
 void Editor::mergeLayerDown(int index)
 {
     if (stroking() || !layer_op_merge_down(history(), sprite(), index)) {
@@ -150,10 +143,7 @@ bool Editor::canMergeLayers() const
     }
     /* Each selected layer is folded into the one selected below it. Once gathered, only the
      * lowest one can have nothing visible under it. */
-    bool visibleBelow = false;
-    for (int i = 0; i < selected.front(); i++) {
-        visibleBelow = visibleBelow || sprite().layer(i)->visible();
-    }
+    bool visibleBelow = layer_any_visible_below(sprite(), selected.front());
     for (size_t k = 1; k < selected.size(); k++) {
         const Layer &upper = *sprite().layer(selected[k]);
         const Layer &lower = *sprite().layer(selected[k - 1]);
@@ -266,20 +256,20 @@ void Editor::reorderLayers(const std::vector<Layer *> &order)
     markAllDirty();
 }
 
-/* The layer order after every selected layer swaps with the unselected one next to it in the given
- * direction (+1 up the stack, -1 down), and whether anything moved. Selected layers that have
- * another selected layer or the end of the stack in the way stay put, so a block keeps its shape.
- */
-std::vector<Layer *> Editor::shiftedLayerOrder(int direction, bool &moved) const
+/* The layer indexes in the order they end up in after every selected layer swaps with the
+ * unselected one next to it in the given direction (+1 up the stack, -1 down); the identity order
+ * when nothing can move. Selected layers that have another selected layer or the end of the stack
+ * in the way stay put, so a block keeps its shape. */
+std::vector<int> Editor::shiftedLayerOrder(int direction) const
 {
     int count = sprite().layerCount();
-    std::vector<Layer *> order;
+    std::vector<int> order(static_cast<size_t>(count));
+    std::iota(order.begin(), order.end(), 0);
     std::vector<unsigned char> selected; /* not vector<bool>: its elements cannot be swapped */
+    selected.reserve(static_cast<size_t>(count));
     for (int i = 0; i < count; i++) {
-        order.push_back(const_cast<Sprite &>(sprite()).layer(i));
         selected.push_back(layerSelected(i) ? 1 : 0);
     }
-    moved = false;
     for (int step = 0; step < count - 1; step++) {
         /* walk from the end the layers move towards, so a layer never moves twice */
         int i = direction > 0 ? count - 2 - step : step + 1;
@@ -287,33 +277,38 @@ std::vector<Layer *> Editor::shiftedLayerOrder(int direction, bool &moved) const
         if (selected[static_cast<size_t>(i)] != 0 && selected[static_cast<size_t>(next)] == 0) {
             std::swap(order[static_cast<size_t>(i)], order[static_cast<size_t>(next)]);
             std::swap(selected[static_cast<size_t>(i)], selected[static_cast<size_t>(next)]);
-            moved = true;
         }
     }
     return order;
 }
 
+bool Editor::canMoveLayers(int direction) const
+{
+    std::vector<int> order = shiftedLayerOrder(direction);
+    return !stroking() && !std::is_sorted(order.begin(), order.end());
+}
+
 bool Editor::canMoveLayersUp() const
 {
-    bool moved = false;
-    shiftedLayerOrder(1, moved);
-    return !stroking() && moved;
+    return canMoveLayers(1);
 }
 
 bool Editor::canMoveLayersDown() const
 {
-    bool moved = false;
-    shiftedLayerOrder(-1, moved);
-    return !stroking() && moved;
+    return canMoveLayers(-1);
 }
 
 void Editor::moveSelectedLayersBy(int direction)
 {
-    bool moved = false;
-    std::vector<Layer *> order = shiftedLayerOrder(direction > 0 ? 1 : -1, moved);
-    if (!stroking() && moved) {
-        reorderLayers(order);
+    int step = direction > 0 ? 1 : -1;
+    if (!canMoveLayers(step)) {
+        return;
     }
+    std::vector<Layer *> layers;
+    for (int index : shiftedLayerOrder(step)) {
+        layers.push_back(sprite().layer(index));
+    }
+    reorderLayers(layers);
 }
 
 void Editor::commitLayerName(int index, const std::string &beforeName)
@@ -321,15 +316,6 @@ void Editor::commitLayerName(int index, const std::string &beforeName)
     Layer *layer = sprite().layer(index);
     if (!stroking() && layer) {
         layer_op_record_name(history(), *layer, beforeName);
-    }
-}
-
-void Editor::commitLayerOpacity(int index, uint8_t beforeOpacity)
-{
-    Layer *layer = sprite().layer(index);
-    if (!stroking() && layer) {
-        layer_op_record_opacity(history(), *layer, beforeOpacity);
-        markAllDirty();
     }
 }
 

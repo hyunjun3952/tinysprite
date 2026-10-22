@@ -411,39 +411,62 @@ const std::array<const char *, SIZE> &bitmap(Icon icon)
     return BITMAPS[static_cast<size_t>(icon)];
 }
 
-void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
+namespace
 {
-    const std::array<const char *, SIZE> &rows = bitmap(icon);
-    /* Center what is lit, not the 16x16 cell, so a small icon does not sit in a corner. */
+
+/* The box around the lit pixels of a bitmap (inclusive); x1 < 0 when none is lit. */
+struct LitBounds {
     int x0 = SIZE;
     int x1 = -1;
     int y0 = SIZE;
     int y1 = -1;
+};
+
+LitBounds litBounds(const std::array<const char *, SIZE> &rows)
+{
+    LitBounds b;
     for (int y = 0; y < SIZE; y++) {
         for (int x = 0; x < SIZE; x++) {
             if (rows[static_cast<size_t>(y)][x] == 'X') {
-                x0 = std::min(x0, x);
-                x1 = std::max(x1, x);
-                y0 = std::min(y0, y);
-                y1 = std::max(y1, y);
+                b.x0 = std::min(b.x0, x);
+                b.x1 = std::max(b.x1, x);
+                b.y0 = std::min(b.y0, y);
+                b.y1 = std::max(b.y1, y);
             }
         }
     }
-    if (x1 < 0) {
+    return b;
+}
+
+/* The end (inclusive) of the run of lit pixels that starts at `x` in `row`, not past `limit`. */
+int runEnd(const char *row, int x, int limit)
+{
+    int end = x;
+    while (end + 1 <= limit && row[end + 1] == 'X') {
+        end++;
+    }
+    return end;
+}
+
+} // namespace
+
+void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    const std::array<const char *, SIZE> &rows = bitmap(icon);
+    /* Center what is lit, not the 16x16 cell, so a small icon does not sit in a corner. */
+    LitBounds b = litBounds(rows);
+    if (b.x1 < 0) {
         return;
     }
-    float originX = std::floor((min.x + max.x) / 2.0f - static_cast<float>(x0 + x1 + 1) / 2.0f);
-    float originY = std::floor((min.y + max.y) / 2.0f - static_cast<float>(y0 + y1 + 1) / 2.0f);
-    for (int y = y0; y <= y1; y++) {
+    float originX = std::floor((min.x + max.x) / 2.0f - static_cast<float>(b.x0 + b.x1 + 1) / 2.0f);
+    float originY = std::floor((min.y + max.y) / 2.0f - static_cast<float>(b.y0 + b.y1 + 1) / 2.0f);
+    for (int y = b.y0; y <= b.y1; y++) {
         const char *row = rows[static_cast<size_t>(y)];
-        for (int x = x0; x <= x1; x++) {
+        for (int x = b.x0; x <= b.x1; x++) {
             if (row[x] != 'X') {
                 continue;
             }
-            int end = x;
-            while (end + 1 <= x1 && row[end + 1] == 'X') {
-                end++;
-            }
+            int end = runEnd(row, x, b.x1);
             list->AddRectFilled(
                 ImVec2(originX + static_cast<float>(x), originY + static_cast<float>(y)),
                 ImVec2(originX + static_cast<float>(end + 1), originY + static_cast<float>(y + 1)),

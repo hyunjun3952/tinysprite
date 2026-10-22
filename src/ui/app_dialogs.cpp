@@ -20,6 +20,25 @@ void App::guardUnsaved(std::function<void()> proceed)
     openConfirm_ = true;
 }
 
+/* Save, then go on with what the dialog guarded. Without a path (or after a failed save) the
+ * Save as dialog is open: go on from there. */
+void App::saveAndProceed()
+{
+    std::function<void()> proceed = std::move(pending_);
+    pending_ = nullptr;
+    if (!filePath_.empty()) {
+        save();
+    }
+    if (!dirty()) {
+        proceed();
+        return;
+    }
+    if (filePath_.empty()) {
+        askForPath(FileAction::SaveAs);
+    }
+    afterSave_ = std::move(proceed);
+}
+
 void App::confirmDialog()
 {
     static const char *const TITLE = "Unsaved changes";
@@ -34,20 +53,7 @@ void App::confirmDialog()
     bool close = false;
     if (ImGui::Button("Save")) {
         close = true;
-        std::function<void()> proceed = std::move(pending_);
-        pending_ = nullptr;
-        if (!filePath_.empty()) {
-            save();
-        }
-        /* Without a path (or after a failed save) the Save as dialog is open: go on from there. */
-        if (dirty()) {
-            if (filePath_.empty()) {
-                askForPath(FileAction::SaveAs);
-            }
-            afterSave_ = std::move(proceed);
-        } else {
-            proceed();
-        }
+        saveAndProceed();
     }
     ImGui::SameLine();
     if (ImGui::Button("Discard")) {
@@ -88,17 +94,9 @@ void App::openOrAsk(const std::string &path)
 }
 
 /* "New sprite": a size, then a blank document. */
-void App::newDialog()
+/* The size presets and the width / height fields of the New dialog. */
+void App::newSizeFields()
 {
-    static const char *const TITLE = "New sprite";
-    if (openNew_) {
-        ImGui::OpenPopup(TITLE);
-        openNew_ = false;
-    }
-    newShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    if (!newShown_) {
-        return;
-    }
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Presets");
     for (int size : {16, 32, 64, 128, 256}) {
@@ -120,6 +118,20 @@ void App::newDialog()
     ImGui::InputInt("##new_height", &newHeight_, 1, 16);
     newWidth_ = std::clamp(newWidth_, 1, CEL_MAX_DIMENSION);
     newHeight_ = std::clamp(newHeight_, 1, CEL_MAX_DIMENSION);
+}
+
+void App::newDialog()
+{
+    static const char *const TITLE = "New sprite";
+    if (openNew_) {
+        ImGui::OpenPopup(TITLE);
+        openNew_ = false;
+    }
+    newShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (!newShown_) {
+        return;
+    }
+    newSizeFields();
     bool close = false;
     if (ImGui::Button("Create") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         if (editor_->newDocument(newWidth_, newHeight_)) {

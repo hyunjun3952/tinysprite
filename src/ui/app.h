@@ -76,6 +76,10 @@ class App
 
     bool createWindow(int width, int height);
     bool initImGui();
+    void helpShortcut();
+    void deleteShortcut();
+    void pollEvents();
+    void buildUi();
     void loadSettings(const SettingsMap &settings);
 
     void setUiScale(float scale);
@@ -88,6 +92,9 @@ class App
     void openRecentMenu(bool idle);
     void editMenu();
     void frameMenu();
+    void frameEditItems(bool idle);
+    void celLinkItems(bool idle);
+    void frameStepItems(bool idle);
     void viewMenu();
     /* The commands of commands.h: what each does, whether it can run now, and its menu item. */
     struct CommandAction {
@@ -112,6 +119,10 @@ class App
     void fileDone(const std::string &path);
     void save();
     void fileDialog();
+    void fileDialogMessages(const std::string &path);
+    bool runFileAction(const FileActionInfo &info, const std::string &path);
+    void closeFileDialog();
+    bool pathField();
     bool runOpen(const std::string &path);
     bool runSaveAs(const std::string &path);
     bool runExportImage(const std::string &path);
@@ -135,6 +146,7 @@ class App
     bool dirty() const;
     void guardUnsaved(std::function<void()> proceed);
     void confirmDialog();
+    void saveAndProceed();
     void updateTitle();
     void dropFile(const std::string &path);
     /* Replaces the document with `path`; a failure reopens the Open dialog with the path filled in
@@ -142,6 +154,7 @@ class App
     void openOrAsk(const std::string &path);
     void helpWindow();
     void newDialog();
+    void newSizeFields();
     void recoverDialog();
     void autosave();
     /* Saves the preferences, the window size and the layout, and drops the autosave copy: a clean

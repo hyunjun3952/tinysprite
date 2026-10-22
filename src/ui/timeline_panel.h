@@ -41,7 +41,19 @@ class TimelinePanel
     void onionControls();
     void tagControls();
     void tagRow(int frames);
+    void tagBand(int frame, int shown, ImVec2 min, ImVec2 max);
     void grid();
+    /* A frame dragged onto another by its number; from < 0 for none. */
+    struct FrameMove {
+        int from = -1;
+        int to = -1;
+    };
+    void frameHeaders(int frames, FrameMove &move);
+    void frameDragDrop(int frame, FrameMove &move);
+    bool tagNameField(Sprite::Tag &tag);
+    void layerRow(int layer, int frames);
+    void celMenu(int layer, int frame);
+    void celMarks(int layer, int frame, bool active, Rect cell);
     void refreshFilled();
     bool filled(int layer, int frame) const;
 

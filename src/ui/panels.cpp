@@ -172,26 +172,30 @@ void Panels::dragToDock(Panel &panel)
     }
 }
 
+/* Whether the mouse is on the grab strip along the panel's inner edge `edge`. The strip lies
+ * inside the panel: outside it the canvas would take the click. */
+static bool onGrabStrip(bool leftDocked, float edge)
+{
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImVec2 mouse = ImGui::GetMousePos();
+    bool inside =
+        mouse.y >= viewport->WorkPos.y && mouse.y < viewport->WorkPos.y + viewport->WorkSize.y;
+    float grabX0 = leftDocked ? edge - theme::px(RESIZE_GRAB) : edge;
+    return inside && mouse.x >= grabX0 && mouse.x <= grabX0 + theme::px(RESIZE_GRAB);
+}
+
 /* Drag the inner edge of a docked panel to change its width. */
 void Panels::resizeEdge(Panel &panel)
 {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 mouse = ImGui::GetMousePos();
     float edge = panel.side == DockSide::Left ? panel.dockX + panel.width : panel.dockX;
-    bool inside =
-        mouse.y >= viewport->WorkPos.y && mouse.y < viewport->WorkPos.y + viewport->WorkSize.y;
-    /* The grab strip lies inside the panel: outside it the canvas would take the click. */
-    float grabX0 = panel.side == DockSide::Left ? edge - theme::px(RESIZE_GRAB) : edge;
-    bool hovered = inside && mouse.x >= grabX0 && mouse.x <= grabX0 + theme::px(RESIZE_GRAB);
+    bool hovered = onGrabStrip(panel.side == DockSide::Left, edge);
     if (hovered && !ImGui::IsAnyItemActive()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
-            panel.resizing = true;
-        }
+        panel.resizing = panel.resizing || ImGui::IsMouseClicked(ImGuiMouseButton_Left, false);
     }
-    if (panel.resizing && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-        panel.resizing = false;
-    }
+    panel.resizing = panel.resizing && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     if (panel.resizing) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         float width = panel.side == DockSide::Left ? mouse.x - panel.dockX

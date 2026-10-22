@@ -50,6 +50,7 @@ class LayersPanel
     void row(int index, const RowContext &ctx, Drop &drop);
     void rowSelectable(int index, const RowContext &ctx);
     void rowDragDrop(int index, const Layer &layer, const RowContext &ctx, Drop &drop);
+    void rowDropTarget(int index, Drop &drop);
     void rowHintAndRename(int index, const Layer &layer);
     void nameCell(int index, Layer &layer, const RowContext &ctx);
     bool wholeSelection(int index, const RowContext &ctx) const;

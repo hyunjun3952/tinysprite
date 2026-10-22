@@ -371,8 +371,8 @@ class Editor
 
     /* Shift+press with the pencil or eraser draws a line from the end of the previous pencil /
      * eraser stroke to the pressed cel, instead of a dot. lineFrom() is that start point, set
-     * only while such a press is being handled; lastDrawPoint() is where the previous stroke
-     * ended (forgotten when the document is replaced). */
+     * only while such a press is being handled; setLastDrawPoint() records where a stroke ended
+     * (forgotten when the document is replaced). */
     std::optional<ToolPoint> lineFrom() const
     {
         return lineFrom_;
@@ -480,10 +480,9 @@ class Editor
     bool canMoveLayersUp() const;
     bool canMoveLayersDown() const;
 
-    /* Duplicate puts a copy above the layer and makes it active; merge draws the layer onto the
-     * one below it (both must be visible). If the merged layer was active the one below becomes
-     * active, otherwise the active layer keeps pointing at the same layer. */
-    void duplicateLayer(int index);
+    /* Merge draws the layer onto the one below it (both must be visible). If the merged layer was
+     * active the one below becomes active, otherwise the active layer keeps pointing at the same
+     * layer. */
     void mergeLayerDown(int index);
 
     /* The opacity slider edits every selected layer: selectedLayerOpacities is what they hold when
@@ -498,11 +497,10 @@ class Editor
      * layers that already hold the mode. Held off while stroking. */
     void setSelectedLayersBlendMode(BlendMode mode);
 
-    /* Records a name / opacity edit made live with Layer::set*: the layer currently holds the
-     * edited value, `before*` is what it held when the edit began. One undo step; nothing if
+    /* Records a name edit made live with Layer::setName: the layer currently holds the edited
+     * value, `beforeName` is what it held when the edit began. One undo step; nothing if
      * unchanged. */
     void commitLayerName(int index, const std::string &beforeName);
-    void commitLayerOpacity(int index, uint8_t beforeOpacity);
 
     /* Selection helpers. Delete clears the selected pixels (one undo step). */
     void selectAll();
@@ -551,7 +549,8 @@ class Editor
 
     Rect spriteBounds() const;
     void reorderLayers(const std::vector<Layer *> &order);
-    std::vector<Layer *> shiftedLayerOrder(int direction, bool &moved) const;
+    std::vector<int> shiftedLayerOrder(int direction) const;
+    bool canMoveLayers(int direction) const;
     void startPlayback();
     void afterHistoryStep(const Layer *active = nullptr);
 

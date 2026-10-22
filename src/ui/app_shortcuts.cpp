@@ -2,7 +2,17 @@
 
 #include "app.h"
 
+#include <algorithm>
+#include <initializer_list>
+
 #include "imgui.h"
+
+/* Whether any of the keys went down this frame (`repeat`: also while held). */
+static bool anyPressed(std::initializer_list<ImGuiKey> keys, bool repeat = true)
+{
+    return std::any_of(keys.begin(), keys.end(),
+                       [repeat](ImGuiKey key) { return ImGui::IsKeyPressed(key, repeat); });
+}
 
 /* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size) and F
  * (fit), , . and Enter
@@ -14,31 +24,28 @@ void App::plainShortcuts()
             editor_->selectTool(static_cast<ToolKind>(tool));
         }
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
+    if (anyPressed({ImGuiKey_X}, false)) {
         editor_->swapColors();
     }
     /* + / - (and [ / ]) change the brush size by 1; the wheel zooms. "+" is Shift+= on many
      * layouts, so the Shift state is deliberately ignored. */
-    if (ImGui::IsKeyPressed(ImGuiKey_Equal) || ImGui::IsKeyPressed(ImGuiKey_KeypadAdd) ||
-        ImGui::IsKeyPressed(ImGuiKey_RightBracket)) {
+    if (anyPressed({ImGuiKey_Equal, ImGuiKey_KeypadAdd, ImGuiKey_RightBracket})) {
         editor_->changeBrushSize(1);
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Minus) || ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract) ||
-        ImGui::IsKeyPressed(ImGuiKey_LeftBracket)) {
+    if (anyPressed({ImGuiKey_Minus, ImGuiKey_KeypadSubtract, ImGuiKey_LeftBracket})) {
         editor_->changeBrushSize(-1);
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
+    if (anyPressed({ImGuiKey_F}, false)) {
         editor_->view().needs_fit = true;
     }
     /* , and . step through the frames (they repeat while held); Enter plays and stops. */
-    if (ImGui::IsKeyPressed(ImGuiKey_Comma)) {
+    if (anyPressed({ImGuiKey_Comma})) {
         editor_->setFrame(editor_->frame() - 1);
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Period)) {
+    if (anyPressed({ImGuiKey_Period})) {
         editor_->setFrame(editor_->frame() + 1);
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
-        ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)) {
+    if (anyPressed({ImGuiKey_Enter, ImGuiKey_KeypadEnter}, false)) {
         editor_->togglePlayback();
     }
 }
@@ -77,6 +84,30 @@ void App::escapeShortcut()
     }
 }
 
+/* F1 or ? toggles the shortcut list. */
+void App::helpShortcut()
+{
+    const ImGuiIO &io = ImGui::GetIO();
+    if (ImGui::IsKeyPressed(ImGuiKey_F1, false) ||
+        (io.KeyShift && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Slash, false))) {
+        showHelp_ = !showHelp_;
+    }
+}
+
+/* With the layer list focused Delete means "delete the layer" (after asking); anywhere else it
+ * clears the selected pixels. */
+void App::deleteShortcut()
+{
+    if (!ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+        return;
+    }
+    if (layersPanel_->focused()) {
+        layersPanel_->askToDelete();
+    } else {
+        editor_->deleteSelection();
+    }
+}
+
 void App::handleShortcuts()
 {
     const ImGuiIO &io = ImGui::GetIO();
@@ -85,23 +116,12 @@ void App::handleShortcuts()
         editor_->tempPick(false);
         return;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_F1, false) ||
-        (io.KeyShift && !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Slash, false))) {
-        showHelp_ = !showHelp_;
-    }
+    helpShortcut();
     escapeShortcut();
     if (editor_->stroking()) {
         return;
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-        /* With the layer list focused Delete means "delete the layer" (after asking); anywhere
-         * else it clears the selected pixels. */
-        if (layersPanel_->focused()) {
-            layersPanel_->askToDelete();
-        } else {
-            editor_->deleteSelection();
-        }
-    }
+    deleteShortcut();
     if (io.KeyCtrl) {
         ctrlShortcuts();
     } else if (!io.KeyAlt) {

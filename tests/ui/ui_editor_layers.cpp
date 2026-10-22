@@ -103,7 +103,7 @@ TEST(live_name_and_opacity_edits_commit_as_one_step)
     e->commitLayerName(0, "Layer 1");
     layer->setOpacity(200);
     layer->setOpacity(90);
-    e->commitLayerOpacity(0, 255);
+    e->commitSelectedLayersOpacity({{0, 255}});
     ASSERT_TRUE(strcmp(layer->name().c_str(), "Body") == 0);
     ASSERT_EQ_INT(90, layer->opacity());
     e->undo();
@@ -120,7 +120,7 @@ TEST(unchanged_live_edit_records_nothing)
 {
     Editor *e = make_editor();
     e->commitLayerName(0, "Layer 1");
-    e->commitLayerOpacity(0, 255);
+    e->commitSelectedLayersOpacity({{0, 255}});
     ASSERT_TRUE(!e->history().canUndo());
     delete e;
 }
@@ -393,7 +393,8 @@ TEST(duplicate_layer_selects_the_copy)
     Editor *e = make_editor();
     dot(e, 2, 2);
     e->addLayer();
-    e->duplicateLayer(0);
+    e->setActiveLayer(0);
+    e->duplicateSelectedLayers();
     ASSERT_EQ_INT(3, e->sprite().layerCount());
     ASSERT_EQ_INT(1, e->activeLayer());
     ASSERT_EQ_INT(255, alpha(e, 2, 2));
@@ -445,7 +446,7 @@ TEST(duplicate_and_merge_are_held_off_while_dragging_or_invalid)
     ASSERT_EQ_INT(2, e->sprite().layerCount());
     e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
-    e->duplicateLayer(0);
+    e->duplicateSelectedLayers();
     e->mergeLayerDown(1);
     ASSERT_EQ_INT(2, e->sprite().layerCount());
     e->release();
