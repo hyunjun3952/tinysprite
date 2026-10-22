@@ -335,6 +335,8 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
     ImGui::SetNextWindowSize(ImVec2(width, height));
+    /* No scrollbar, so a narrow window cuts the controls off cleanly; Shift + wheel (or a sideways
+     * wheel) still scrolls them. */
     constexpr ImGuiWindowFlags FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                        ImGuiWindowFlags_NoSavedSettings |
                                        ImGuiWindowFlags_NoBringToFrontOnFocus;
@@ -409,7 +411,7 @@ void ToolsPanel::resetDialog()
         ImGui::OpenPopup(TITLE);
         openReset_ = false;
     }
-    dialogOpen_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    dialogOpen_ = theme::begin_modal(TITLE);
     if (!dialogOpen_) {
         return;
     }
@@ -431,7 +433,7 @@ void ToolsPanel::resetDialog()
     if (close) {
         ImGui::CloseCurrentPopup();
     }
-    ImGui::EndPopup();
+    theme::end_modal();
 }
 
 /* The recent-colors row and the sprite palette swatches. Clicking a swatch makes it the foreground

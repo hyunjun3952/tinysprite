@@ -47,7 +47,7 @@ void App::confirmDialog()
         ImGui::OpenPopup(TITLE);
         openConfirm_ = false;
     }
-    confirmShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    confirmShown_ = theme::begin_modal(TITLE);
     if (!confirmShown_) {
         return;
     }
@@ -70,7 +70,7 @@ void App::confirmDialog()
         pending_ = nullptr;
         ImGui::CloseCurrentPopup();
     }
-    ImGui::EndPopup();
+    theme::end_modal();
 }
 
 /* A file dropped on the window replaces the document; a failure shows in the Open dialog with
@@ -127,7 +127,7 @@ void App::newDialog()
         ImGui::OpenPopup(TITLE);
         openNew_ = false;
     }
-    newShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    newShown_ = theme::begin_modal(TITLE);
     if (!newShown_) {
         return;
     }
@@ -146,7 +146,7 @@ void App::newDialog()
     if (close) {
         ImGui::CloseCurrentPopup();
     }
-    ImGui::EndPopup();
+    theme::end_modal();
 }
 
 /* Offered at start when the last session left an autosave copy behind (it did not exit cleanly). */
@@ -157,7 +157,7 @@ void App::recoverDialog()
         ImGui::OpenPopup(TITLE);
         openRecover_ = false;
     }
-    recoverShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    recoverShown_ = theme::begin_modal(TITLE);
     if (!recoverShown_) {
         return;
     }
@@ -182,5 +182,5 @@ void App::recoverDialog()
         recovery_clear(configDir_);
         ImGui::CloseCurrentPopup();
     }
-    ImGui::EndPopup();
+    theme::end_modal();
 }

@@ -564,6 +564,25 @@ ImU32 mix(unsigned from, unsigned to, float t)
         ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, 1.0f));
 }
 
+bool begin_modal(const char *title)
+{
+    /* The fade is the popup's alpha while its contents are drawn, so the style var stays pushed
+     * until end_modal; with no popup it falls back to 0 so the next opening starts from nothing. */
+    float fade = animate(ImGui::GetID(title), ImGui::IsPopupOpen(title) ? 1.0f : 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, std::max(fade, 0.01f));
+    const bool shown = ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (!shown) {
+        ImGui::PopStyleVar();
+    }
+    return shown;
+}
+
+void end_modal()
+{
+    ImGui::EndPopup();
+    ImGui::PopStyleVar();
+}
+
 ImU32 workspaceColor()
 {
     return toU32(WORKSPACE);

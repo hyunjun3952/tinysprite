@@ -67,10 +67,42 @@ TEST(an_empty_slider_has_no_fill)
     ASSERT_TRUE(rig.h.pixel(static_cast<int>(rig.min.x) + 20, y) == theme::CANVAS_SOFT);
 }
 
+TEST(a_modal_fades_in_when_it_opens)
+{
+    test_ui::Harness h;
+    bool opened = false;
+    int frames = 0;
+    int shown = 0;
+    float firstAlpha = -1.0f;
+    float lastAlpha = -1.0f;
+    h.body = [&] {
+        ImGui::GetIO().DeltaTime = 0.05f; /* the frames of a test are far shorter than real ones */
+        /* like the app's dialogs: asked every frame, opened a few frames in */
+        if (!opened && ++frames == 3) {
+            ImGui::OpenPopup("Fade test");
+            opened = true;
+        }
+        if (theme::begin_modal("Fade test")) {
+            lastAlpha = ImGui::GetStyle().Alpha;
+            firstAlpha = shown++ == 0 ? lastAlpha : firstAlpha;
+            ImGui::TextUnformatted("hello");
+            theme::end_modal();
+        }
+    };
+    for (int i = 0; i < 400 && lastAlpha < 1.0f; i++) {
+        h.frame(0.0f, 0.0f, false);
+    }
+    ASSERT_TRUE(shown > 1);
+    ASSERT_TRUE(firstAlpha > 0.0f && firstAlpha < 1.0f);
+    ASSERT_TRUE(lastAlpha == 1.0f);
+    ASSERT_TRUE(ImGui::GetStyle().Alpha == 1.0f); /* nothing leaks out of the dialog */
+}
+
 int main()
 {
     RUN(dragging_a_slider_sets_the_value_by_the_mouse_position);
     RUN(a_slider_is_filled_up_to_its_value);
     RUN(an_empty_slider_has_no_fill);
+    RUN(a_modal_fades_in_when_it_opens);
     return TEST_SUMMARY();
 }

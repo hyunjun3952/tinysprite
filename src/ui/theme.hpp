@@ -161,6 +161,12 @@ float ease_toward(float current, float target, float dt, float seconds);
 float animate(ImGuiID id, float target, float seconds = ANIM_SECONDS);
 ImU32 mix(unsigned from, unsigned to, float t);
 
+/* A modal dialog (BeginPopupModal, auto-resizing) that fades in over ANIM_SECONDS when it opens.
+ * Open it with ImGui::OpenPopup as usual; call end_modal instead of EndPopup, and only when
+ * begin_modal returned true. */
+bool begin_modal(const char *title);
+void end_modal();
+
 } // namespace theme
 
 #endif

@@ -485,7 +485,7 @@ void LayersPanel::deleteDialog()
         ImGui::OpenPopup(TITLE);
         openDelete_ = false;
     }
-    dialogOpen_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    dialogOpen_ = theme::begin_modal(TITLE);
     if (!dialogOpen_) {
         return;
     }
@@ -507,7 +507,7 @@ void LayersPanel::deleteDialog()
     if (close) {
         ImGui::CloseCurrentPopup();
     }
-    ImGui::EndPopup();
+    theme::end_modal();
 }
 
 /* The actions have no buttons: say where they are, in the room under the last row. */

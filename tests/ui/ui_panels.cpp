@@ -139,6 +139,30 @@ TEST(reset_keeps_the_widths_at_the_current_ui_scale)
     ASSERT_TRUE(afterReset == scaled);
 }
 
+TEST(docked_panels_give_the_canvas_room_in_a_narrow_window)
+{
+    Harness h;
+    h.frame(0.0f, 0.0f, false);
+    float left = 0.0f;
+    float right = 0.0f;
+    h.panels.layout(left, right);
+    SettingsMap saved;
+    h.panels.store(saved);
+    float chosen = 0.0f;
+    settings_get_float(saved, "panel.layers.width", 0.0f, 10000.0f, chosen);
+    ASSERT_TRUE(right == chosen); /* a 1000 px window at scale 1 squeezes nothing */
+    theme::setScale(2.0f);
+    h.panels.rescale(2.0f);
+    h.panels.layout(left, right);
+    h.panels.store(saved);
+    settings_get_float(saved, "panel.layers.width", 0.0f, 10000.0f, chosen);
+    theme::setScale(1.0f);
+    /* at 2x the chosen inspector width would leave the canvas too little, so it is drawn narrower
+     * (never below its minimum), while the saved width stays what the user chose */
+    ASSERT_TRUE(right < chosen);
+    ASSERT_TRUE(right >= 2.0f * 250.0f);
+}
+
 /* The width of a docked panel's window, after dragging its inner edge from (x, 300) to (toX, 300).
  */
 static float width_after_edge_drag(Harness &h, const char *window, float x, float toX)
@@ -219,6 +243,7 @@ int main()
     RUN(a_name_that_is_not_a_section_counts_as_visible);
     RUN(reset_shows_every_section_again);
     RUN(reset_keeps_the_widths_at_the_current_ui_scale);
+    RUN(docked_panels_give_the_canvas_room_in_a_narrow_window);
     RUN(closing_a_floating_panel_hides_it);
     RUN(the_tool_bar_has_a_fixed_width);
     RUN(the_inspector_stays_between_its_minimum_and_maximum_width);

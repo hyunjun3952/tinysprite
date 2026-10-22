@@ -46,6 +46,7 @@ void Panels::reset()
         panel.minWidth = minWidth;
         panel.maxWidth = maxWidth;
         panel.width = theme::px(width); /* at the current UI scale */
+        panel.shown = panel.width;
         panel.side = side;
         panel.home = side;
         for (const char *name : sectionNames) {
@@ -93,20 +94,46 @@ void Panels::dock(Panel &panel, DockSide side)
 void Panels::layout(float &left, float &right)
 {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    fitWidths(viewport->WorkSize.x);
     float rightEdge = viewport->WorkPos.x + viewport->WorkSize.x;
     left = 0.0f;
     right = 0.0f;
     for (Panel &panel : panels_) {
         if (panel.visible && panel.side == DockSide::Left) {
             panel.dockX = viewport->WorkPos.x + left;
-            left += panel.width;
+            left += panel.shown;
         }
     }
     /* Right-docked panels keep the same order, so walk them from the outer edge inwards. */
     for (auto it = panels_.rbegin(); it != panels_.rend(); ++it) {
         if (it->visible && it->side == DockSide::Right) {
-            right += it->width;
+            right += it->shown;
             it->dockX = rightEdge - right;
+        }
+    }
+}
+
+/* Sets every panel's drawn width: the chosen one, with the resizable docked panels narrowed (down
+ * to their minimum) as far as it takes to leave the canvas its room in a window `available` wide.
+ */
+void Panels::fitWidths(float available)
+{
+    float docked = 0.0f;
+    for (Panel &panel : panels_) {
+        panel.shown = panel.width;
+        if (panel.visible && panel.side != DockSide::Float) {
+            docked += panel.width;
+        }
+    }
+    float excess = docked - (available - theme::px(PANELS_CANVAS_MIN));
+    for (Panel &panel : panels_) {
+        if (excess <= 0.0f) {
+            break;
+        }
+        if (panel.visible && panel.side != DockSide::Float && panel.resizable()) {
+            float give = std::min(excess, std::max(panel.width - theme::px(panel.minWidth), 0.0f));
+            panel.shown -= give;
+            excess -= give;
         }
     }
 }
@@ -166,10 +193,10 @@ void Panels::dragToDock(Panel &panel)
             dock(panel, side);
         }
     } else if (atEdge && ImGui::IsMouseDragging(ImGuiMouseButton_Left, TITLE_DRAG_DISTANCE)) {
-        float x0 = side == DockSide::Left ? leftEdge : rightEdge - panel.width;
+        float x0 = side == DockSide::Left ? leftEdge : rightEdge - panel.shown;
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImVec2(x0, viewport->WorkPos.y),
-            ImVec2(x0 + panel.width, viewport->WorkPos.y + viewport->WorkSize.y), COL32_PANEL_DROP);
+            ImVec2(x0 + panel.shown, viewport->WorkPos.y + viewport->WorkSize.y), COL32_PANEL_DROP);
     }
 }
 
@@ -193,7 +220,7 @@ void Panels::resizeEdge(Panel &panel)
     }
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 mouse = ImGui::GetMousePos();
-    float edge = panel.side == DockSide::Left ? panel.dockX + panel.width : panel.dockX;
+    float edge = panel.side == DockSide::Left ? panel.dockX + panel.shown : panel.dockX;
     bool hovered = onGrabStrip(panel.side == DockSide::Left, edge);
     if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
         /* the first click started a drag: end it, so the held button does not undo the reset */
@@ -209,7 +236,7 @@ void Panels::resizeEdge(Panel &panel)
     if (panel.resizing) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         float width = panel.side == DockSide::Left ? mouse.x - panel.dockX
-                                                   : panel.dockX + panel.width - mouse.x;
+                                                   : panel.dockX + panel.shown - mouse.x;
         panel.width = std::clamp(width, theme::px(panel.minWidth), theme::px(panel.maxWidth));
     }
     if (hovered || panel.resizing) {
@@ -228,7 +255,7 @@ bool Panels::begin(PanelId id, float height)
     }
     if (panel.side != DockSide::Float) {
         ImGui::SetNextWindowPos(ImVec2(panel.dockX, viewport->WorkPos.y));
-        ImGui::SetNextWindowSize(ImVec2(panel.width, height));
+        ImGui::SetNextWindowSize(ImVec2(panel.shown, height));
         windowOpen_ = true;
         bool shown = ImGui::Begin(panel.title, nullptr,
                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |

@@ -119,7 +119,12 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 - Motion, kept small: a toast fades in while rising 8 px (`Toasts::rise`, `ENTER_SECONDS`), and the tool-bar buttons and the
   layer eye / lock toggles ease between resting, hovered and selected (`theme::animate` keeps one 0..1 value per widget
   id in the window's state storage, `theme::ease_toward` / `theme::mix` are the pure parts). The app redraws every frame,
-  so no wake-up logic is needed. Not animated on purpose: menus, dialogs, panel docking, the timeline fold.
+  so no wake-up logic is needed. Modal dialogs fade in (`theme::begin_modal` / `end_modal` push the popup's alpha; every
+  dialog asks each frame, so the stored value is 0 again before it opens). Not animated on purpose: menus, panel docking,
+  the timeline fold.
+- Narrow windows: the window opens inside the display's usable area with a minimum size (`window_size.hpp`), docked panels
+  are drawn narrower (`Panels::fitWidths`, the chosen width is kept) so the canvas keeps `PANELS_CANVAS_MIN`, and the
+  timeline scrolls sideways. The options bar has no scrollbar (it is cut off; Shift + wheel scrolls it).
 
 ## Phase 2b: layer blend modes
 

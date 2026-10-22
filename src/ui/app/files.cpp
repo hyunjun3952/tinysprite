@@ -368,7 +368,7 @@ void App::fileDialog()
         ImGui::OpenPopup(title);
         openFileDialog_ = false;
     }
-    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (!theme::begin_modal(title)) {
         return;
     }
     bool enter = pathField();
@@ -398,5 +398,5 @@ void App::fileDialog()
     if (done || cancel) {
         closeFileDialog();
     }
-    ImGui::EndPopup();
+    theme::end_modal();
 }

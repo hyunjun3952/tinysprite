@@ -26,6 +26,9 @@ inline constexpr const char *LAYERS = "Layers";
 inline constexpr const char *PROPERTIES = "Properties";
 } // namespace sections
 
+/* The canvas keeps at least this much width (at UI scale 1) beside the docked panels. */
+inline constexpr float PANELS_CANVAS_MIN = 240.0f;
+
 class Panels
 {
   public:
@@ -40,7 +43,9 @@ class Panels
     void rescale(float ratio);
 
     /* Assigns the docked panels their positions and returns the width the canvas loses on each
-     * side. Call once per frame before begin. */
+     * side. Call once per frame before begin. When the window is too narrow to leave the canvas
+     * PANELS_CANVAS_MIN (at UI scale 1) the resizable panels are drawn narrower, down to their
+     * minimum; the width the user chose is kept and comes back with a wider window. */
     void layout(float &left, float &right);
 
     /* Starts the panel's window. Draw the content when this returns true; always call end (it
@@ -85,7 +90,8 @@ class Panels
     struct Panel {
         const char *key; /* settings keys: panel.<key>.*; never changes, unlike the title */
         const char *title;
-        float width;
+        float width;        /* what the user chose (saved) */
+        float shown = 0.0f; /* what is drawn: width, or less in a window too narrow for it */
         float defaultWidth; /* at UI scale 1: what a double click on the inner edge restores */
         float minWidth;     /* the limits of a resize, at UI scale 1; equal for a fixed width */
         float maxWidth;
@@ -106,6 +112,7 @@ class Panels
         std::vector<Section> sections;
     };
 
+    void fitWidths(float available);
     static void dock(Panel &panel, DockSide side);
     void panelMenu(Panel &panel);
     static void dragToDock(Panel &panel);

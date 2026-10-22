@@ -541,7 +541,8 @@ void TimelinePanel::show(float x, float y, float width, float height)
     constexpr ImGuiWindowFlags FLAGS = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
                                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                                        ImGuiWindowFlags_NoSavedSettings |
-                                       ImGuiWindowFlags_NoFocusOnAppearing;
+                                       ImGuiWindowFlags_NoFocusOnAppearing |
+                                       ImGuiWindowFlags_HorizontalScrollbar; /* a narrow window */
     if (ImGui::Begin("Timeline", nullptr, FLAGS)) {
         ImGui::BeginDisabled(editor_.stroking());
         toolbar();
