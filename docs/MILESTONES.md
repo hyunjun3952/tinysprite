@@ -9,8 +9,7 @@ Rules: `CLAUDE.md`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
 Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas that came out of it are below.
 
 - [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.h`, smoke test.
-- [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `scripts/{format,lint,setup-hooks}.sh`,
-      `.pre-commit-config.yaml`, GitHub Actions CI.
+- [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `.pre-commit-config.yaml` (clang-format on commit, clang-tidy on push), GitHub Actions CI.
 - [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, public headers in `include/tinysprite/`.
       Cel is RGBA only; the palette holds at most 256 colors; a sprite starts with 1 frame and 1 layer.
 - [x] **3. Rasterizer** — line, rectangle, ellipse, polygon, flood fill, tested against golden pixel arrays.
@@ -129,22 +128,19 @@ headless CLI export, optional Aseprite import.
 - UI stack is SDL2 + Dear ImGui (native C++ API, `thirdparty/imgui`); the whole project is C++17 (it was C11 for core / io, with a C++ UI, until the cpp-migration).
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
 - Cel is RGBA now; the indexed-color mode from the original design is deferred.
-- `scripts/lint.sh` and `scripts/format.sh` use `git ls-files -co`, so untracked files are checked too.
-  `lint.sh --changed` (used by the pre-push hook) lints only the .cpp files that differ from main plus the ones
-  including a changed header; CI and a plain run lint everything, so a local pass can still miss what a different
-  clang-tidy version finds in CI.
+- The clang-tidy hook (pre-push) lints only the .cpp files being pushed, so a changed header is not re-checked against
+  the files that include it; CI lints everything (`pre-commit run --all-files --hook-stage manual`).
 - clang-tidy runs with warnings-as-errors; explicit casts are required for multi-level pointer
   conversions such as `calloc`/`realloc`/`free` of `T **`.
 - stb is compiled only in `src/io/stb_impl.cpp`, without warnings; the rest of `src/io` includes the headers.
 - There is one build dir, `build/`: the UI is built whenever SDL2 is found (`TINYSPRITE_BUILD_UI` defaults to that), so
-  `scripts/lint.sh` covers `src/ui` and `tests/ui` too. An old `build/` keeps a cached `OFF`: re-run cmake with `-DTINYSPRITE_BUILD_UI=ON`.
+  the clang-tidy hook covers `src/ui` and `tests/ui` too. An old `build/` keeps a cached `OFF`: re-run cmake with `-DTINYSPRITE_BUILD_UI=ON`.
   CI builds the UI explicitly (`-DTINYSPRITE_BUILD_UI=ON`) and runs these tests.
 - Zoom ranges 1/16x..64x (`VIEWPORT_ZOOM_MIN/MAX`); Fit picks a whole-number zoom, or a power of two below 1x for
   sprites larger than the canvas.
-- `clang-format` / `clang-tidy` are pinned to the major in `scripts/clang-version` (18, what Ubuntu noble gives CI);
+- `clang-format` / `clang-tidy` are pinned in `.pre-commit-config.yaml` (18.1.8, pip wheels used by CI and locally);
   a newer local tool let CI-only findings through (`bugprone-unchecked-optional-access` in #8). CI runs `lint`, `linux`
   and `windows` as separate jobs.
-- Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh`).
 - `tinysprite_core` links `libm` (viewport uses `floorf`).
 - The canvas edits `Editor.active_layer` / `Editor.frame` (frame stays 0 until phase 2).
 - Live shape / move strokes redraw from scratch on every update (`LiveStroke::restart`), so
@@ -245,8 +241,8 @@ headless CLI export, optional Aseprite import.
   Export image dialog has a Scale field that is remembered. File > Open recent keeps ten `.pxa` paths (`recent_add`,
   `recent.N` keys), the New dialog has 16 / 32 / 64 / 128 / 256 presets and remembers its size, Ctrl + / - / 0 zoom.
 - F1 / `?` opens the keyboard shortcut list (`App::helpWindow`, also in the Help menu).
-- Dev packages are listed once in `scripts/install-deps.sh` (CI and `.devcontainer/` both call it); add new apt
-  dependencies there. The devcontainer does not forward a display, so the UI window is not shown from inside it.
+- Dev packages are installed by `postCreateCommand` in `.devcontainer/devcontainer.json` and the `Install tools` steps
+  of `ci.yml`; add new apt dependencies in both. The devcontainer does not forward a display, so the UI window is not shown from inside it.
 
 ## Known limits (what is left)
 - The model does not enforce layer locks; the `Editor` does (`editableCel`).

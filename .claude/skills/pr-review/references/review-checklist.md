@@ -25,7 +25,7 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 - No raw owning pointers. Invalid size throws `std::invalid_argument`; refusable operations return `bool` or null.
 - Cognitive complexity of every function in `src/` is 15 or less.
 - Commit messages: English, Conventional Commits.
-- C++17 only; K&R style, 4 spaces (`scripts/format.sh --check`).
+- C++17 only; K&R style, 4 spaces (clang-format hook).
 - Branch policy: a risky change (new module, format change, cross-layer behavior) should be a PR; a small low-risk change would have gone straight to `main`.
   Mention it only if the PR is clearly the wrong size for its risk.
 

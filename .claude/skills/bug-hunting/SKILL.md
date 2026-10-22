@@ -32,13 +32,11 @@ Say the scope back in one line. A big scope is split by module and done one at a
 
 - Test code: `tests/*.cpp`, `tests/ui/*.cpp`, and the test helpers they include (`tests/minitest.h`, `tests/ui/*.h`).
 - Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,h}` and the public headers in `include/tinysprite/*.h`.
-- Scripts: `scripts/*` (shell and any other script there, for example `format.sh`, `lint.sh`, `setup-hooks.sh`, `install-deps.sh`, `check-clang-version.sh`).
 
 Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `.devcontainer/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
 Open those for context only (how to build or run, known gotchas and intended behavior in `docs/`), never to report a finding in them.
 If a suspicion points outside the target (for example a CI workflow), mention it in one line under "not checked" in the report instead of hunting it.
 Findings in test code are about the test being wrong: asserts that cannot fail, golden data that encodes a bug, missing cases, order dependence, leaks between tests.
-Findings in scripts are about wrong exit codes (a pipe hiding a failure), unquoted paths, unchecked tool versions, and behavior that differs from what CLAUDE.md says the script does.
 
 Read `references/hotspots.md` for the places where this codebase has gone wrong or is easy to get wrong.
 
@@ -88,7 +86,7 @@ do not count it as a confirmed bug.
 When the test itself is changed (existing test edited or new test added), write down:
 - **Range**: what the test now covers and what it still does not (inputs, modules, platforms).
 - **Regression procedure**: the commands that show existing behavior still works after the fix
-  (affected test files by name, then the full `ctest --test-dir build --output-on-failure`, then `scripts/format.sh --check` and `scripts/lint.sh` for C++ changes), and their exit codes.
+  (affected test files by name, then the full `ctest --test-dir build --output-on-failure`, then `pre-commit run --all-files --hook-stage manual` for C++ changes), and their exit codes.
 Never weaken or delete an existing assertion to make a test pass; that hides the bug.
 
 ## Step 4: UI defects (screenshots only here)
@@ -138,7 +136,7 @@ The step 2 table goes after the bug list. Do not write the report into the repo 
 ## After the report
 
 When the user chooses findings to fix: write the failing test first, fix, run the regression procedure above,
-then `scripts/format.sh --check` and `scripts/lint.sh` and read their exit codes. Commit rules and the branch policy are in CLAUDE.md
+then `pre-commit run --all-files --hook-stage manual` and read its exit code. Commit rules and the branch policy are in CLAUDE.md
 (small fixes go straight to `main`; risky ones get a `fix/...` branch and PR).
 
 ## Troubleshooting

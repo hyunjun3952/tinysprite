@@ -8,14 +8,18 @@ on:
       - 'include/**'
       - 'tests/**'
       - 'CMakeLists.txt'
-      - 'scripts/**'
+      - '.pre-commit-config.yaml'
+      - '.clang-format'
+      - '.clang-tidy'
   pull_request:
     paths:
       - 'src/**'
       - 'include/**'
       - 'tests/**'
       - 'CMakeLists.txt'
-      - 'scripts/**'
+      - '.pre-commit-config.yaml'
+      - '.clang-format'
+      - '.clang-tidy'
 
 permissions:
   contents: read
@@ -31,22 +35,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install tools
-        run: scripts/install-deps.sh
-      - name: Shellcheck
-        run: shellcheck scripts/*.sh
-      - name: Editor tool versions
-        run: scripts/check-clang-version.sh
-      - name: Format check
-        run: scripts/format.sh --check
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsdl2-dev
       - uses: actions/cache@v6
         with:
-          path: build/.lint-cache
-          key: lint-${{ github.sha }}
-          restore-keys: lint-
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Configure
         run: cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
-      - name: Lint
-        run: scripts/lint.sh
+      - name: Format and lint
+        run: pipx run pre-commit run --all-files --hook-stage manual --show-diff-on-failure
 
   linux:
     timeout-minutes: 20
@@ -54,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install tools
-        run: scripts/install-deps.sh
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ccache libsdl2-dev
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ccache

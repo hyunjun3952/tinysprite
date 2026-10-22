@@ -1,7 +1,6 @@
 ---
 Language: Cpp
 BasedOnStyle: LLVM
-# K&R: function braces on their own line, all other braces attached
 BreakBeforeBraces: Linux
 IndentWidth: 4
 TabWidth: 4

@@ -48,7 +48,7 @@ gh pr checks N
 This repo has three CI jobs: `lint`, `linux`, `windows`. All three must have really run and passed.
 
 - "no checks reported" can mean CI has not registered yet: re-check later, do not read it as a pass.
-- CI runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, or `scripts/` change (`paths` in `ci.yml`), so a PR that touches none of them legitimately has no checks. Say that instead of calling it a failure.
+- CI runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (`paths` in `ci.yml`), so a PR that touches none of them legitimately has no checks. Say that instead of calling it a failure.
 - A failed job: read its log (`gh run view RUN_ID --log-failed`), name the failing step and the cause. Review can continue,
   but the verdict cannot be approve.
 - A green CI is not proof of correctness: CI uses a different clang-tidy version than a local run, and tests only cover what they cover.

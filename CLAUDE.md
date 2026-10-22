@@ -16,16 +16,15 @@ ctest --test-dir build -R history          # one test (ctest name = file name mi
 cmake -S . -B build -DTINYSPRITE_BUILD_UI=OFF    # core + io + tests only (no SDL2 needed)
 ```
 
-Format/lint (needs `clang-format` and `clang-tidy`; K&R style, 4-space indent, config in `.clang-format` / `.clang-tidy`):
+Format/lint (K&R style, 4-space indent, config in `.clang-format` / `.clang-tidy`). Both tools are pinned once, in `.pre-commit-config.yaml` (pip wheels, so local and CI run the same version); there are no helper scripts:
 
 ```sh
-scripts/format.sh           # apply formatting (--check to verify only)
-scripts/lint.sh             # clang-tidy via build/compile_commands.json (covers src/ui when the UI is built)
-scripts/lint.sh --changed   # only .cpp files that differ from main (and those including a changed header): fast
-scripts/setup-hooks.sh      # once per clone (installs pre-commit): .pre-commit-config.yaml = commit: format check + shellcheck, push: format + lint --changed
+pre-commit install                                # once per clone (the devcontainer does it): clang-format on commit, clang-tidy on push
+pre-commit run --all-files --hook-stage manual    # format + lint everything, exactly what CI runs
+pre-commit run clang-tidy --hook-stage manual --files src/core/sprite.cpp   # one file (needs build/compile_commands.json)
 ```
 
-CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, or `scripts/` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (shellcheck, format check, clang-tidy), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The clang tools are pinned to the version in `scripts/clang-version` (the one CI installs; `scripts/install-deps.sh` installs it locally, and the scripts refuse to run without it; the editor uses clangd of that same version (diagnostics and formatting) via `.devcontainer/`, kept in step by `scripts/check-clang-version.sh` in the `lint` job). Run format and lint before committing; `thirdparty/` is excluded from both.
+CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json` (set up by `.devcontainer/`). `thirdparty/` is excluded from both tools.
 
 ## Architecture
 
@@ -39,7 +38,7 @@ Module map, data flow, document model, undo, rendering, UI and the `.pxa` format
 ## Conventions
 
 - **TDD**: write the failing test first (`tests/test_<feature>.cpp`, one file per feature, using `tests/minitest.h`: `TEST`, `RUN`, `ASSERT_*`), then implement. New `test_*.cpp` files are picked up by CMake globbing (re-run cmake). Test layout (core/io tests, `tests/ui/ui_*.cpp` under `SDL_VIDEODRIVER=dummy`, golden pixel arrays): `docs/ARCHITECTURE.md#testing`.
-- Keep every function in `src/` at a cognitive complexity of 15 or less (checked by `scripts/lint.sh`; not applied to `tests/`). Split by what the branches decide, not by line count (examples: `pxa.cpp`'s `Decoder`, `timeline_panel.cpp`'s `grid`).
+- Keep every function in `src/` at a cognitive complexity of 15 or less (checked by clang-tidy; not applied to `tests/`). Split by what the branches decide, not by line count (examples: `pxa.cpp`'s `Decoder`, `timeline_panel.cpp`'s `grid`).
 - C++17, no raw owning pointers: document types are RAII classes; live strokes are created by a static `begin()` returning a `std::unique_ptr` (null if the history already has an open stroke) and cancel themselves when destroyed unfinished. Invalid sizes throw `std::invalid_argument`; refusable operations return `bool` or null. Details: `docs/ARCHITECTURE.md`. Tests run under ASan/UBSan.
 - Commits: English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
 - Record dependency name, pinned version and license in `thirdparty/README.md` when adding anything to `thirdparty/`.
@@ -49,9 +48,9 @@ Module map, data flow, document model, undo, rendering, UI and the `.pxa` format
 These rules exist because they were broken repeatedly; follow them without being reminded.
 
 **Lint and format**
-- Run `scripts/format.sh --check` and `scripts/lint.sh` (or `--changed` while iterating) before every commit that touches C++ or scripts, and fix everything they report. Run the full `scripts/lint.sh` before opening or updating a PR.
+- Run the hooks (`pre-commit run --all-files --hook-stage manual`, or the clang-tidy hook on the changed files while iterating) before every commit that touches C++, and fix everything they report. Run the full set before opening or updating a PR.
 - Judge a check by its real exit code. Never pipe it through `tail`/`head` and read `$?` (that is the pipe's status): redirect to a log file, then test `$?` and read the log.
-- A local pass does not prove CI passes: CI uses a different clang-tidy version. CI is the source of truth. If CI lint fails and the local run is clean, change the code so the flagged construct is gone (do not assume the first fix worked), then watch CI again.
+- CI runs the same pinned hooks, but it is the source of truth (it lints with the UI build, a stale local `build/` may not). If CI lint fails and the local run is clean, change the code so the flagged construct is gone (do not assume the first fix worked), then watch CI again.
 - Never report "lint passed" or "tests passed" without having checked the exit code of that run.
 
 **Branches and PRs**

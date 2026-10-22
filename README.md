@@ -32,12 +32,12 @@ default; `-DTINYSPRITE_SANITIZE=OFF` turns them off.
 
 ## Contributing
 
-Development is test-first; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the code. Format and lint before committing:
+Development is test-first; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the code. Format and lint run as git hooks (clang-format on commit, clang-tidy on push, both pinned in `.pre-commit-config.yaml`):
 
 ```sh
-scripts/setup-hooks.sh   # once per clone: installs pre-commit, which runs the checks as git hooks
-scripts/format.sh        # --check to verify only
-scripts/lint.sh
+pip install pre-commit && pre-commit install       # once per clone
+cmake -S . -B build                                # clang-tidy reads build/compile_commands.json
+pre-commit run --all-files --hook-stage manual    # everything, as CI does
 ```
 
 A devcontainer (`.devcontainer/`) is included. Commits follow
@@ -46,7 +46,7 @@ A devcontainer (`.devcontainer/`) is included. Commits follow
 The devcontainer needs Docker. On Windows with WSL 2, "Reopen in Container" fails with `The command 'docker'
 could not be found in this WSL 2 distro` until Docker Desktop > Settings > Resources > WSL integration is
 switched on for the distro. Docker is optional: open the folder in WSL instead (VS Code "WSL: Reopen Folder in
-WSL"), run `scripts/install-deps.sh` once, and build, test, format and lint with the scripts there. The UI
+WSL"), run `sudo apt install libsdl2-dev pipx` once, and build, test, format and lint there. The UI
 window also shows up from WSL (WSLg), which a container cannot do.
 
 ## License

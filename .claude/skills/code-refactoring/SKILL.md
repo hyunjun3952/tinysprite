@@ -70,7 +70,7 @@ One finding at a time, in a loop:
 1. Confirm the safety net covers the code (Step 0). Add a characterization test if it does not.
 2. Make the smallest structural change; keep the build green after every step, not only at the end.
 3. Run the affected tests, then the full `ctest`. Same results as the baseline, no test edited to fit.
-4. `scripts/format.sh --check` and `scripts/lint.sh --changed`, each judged by its own exit code. Run the full `scripts/lint.sh` before opening or updating a PR.
+4. `pre-commit run --all-files --hook-stage manual`, judged by its exit code (clang-tidy alone: `pre-commit run clang-tidy --hook-stage manual --files <changed .cpp>`). Run the full set before opening or updating a PR.
 5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
 6. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
 
