@@ -99,8 +99,8 @@ std::string slicesJson(const Sprite &sprite, int scale)
         out += out.empty() ? "\n" : ",\n";
         out += "    {\"name\": " + quoted(slice.name) + ", \"bounds\": " + rectJson(r);
         if (slice.hasPivot) {
-            out += ", \"pivot\": {\"x\": " + std::to_string(slice.pivotX * scale) +
-                   ", \"y\": " + std::to_string(slice.pivotY * scale) + "}";
+            out += R"(, "pivot": {"x": )" + std::to_string(slice.pivotX * scale) + R"(, "y": )" +
+                   std::to_string(slice.pivotY * scale) + "}";
         }
         out += "}";
     }
