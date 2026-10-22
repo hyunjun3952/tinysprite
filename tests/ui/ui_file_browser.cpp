@@ -24,6 +24,10 @@ struct Scratch {
         touch("notes.txt");
         touch(".secret.png");
     }
+    Scratch(const Scratch &) = delete;
+    Scratch &operator=(const Scratch &) = delete;
+    Scratch(Scratch &&) = delete;
+    Scratch &operator=(Scratch &&) = delete;
     ~Scratch()
     {
         std::error_code ignored;
@@ -70,7 +74,7 @@ TEST(the_parent_of_a_folder)
     ASSERT_TRUE(parent_directory("/a") == "/");
     ASSERT_TRUE(parent_directory("/") == "/");
     ASSERT_TRUE(parent_directory("a/b") == "a");
-    ASSERT_TRUE(parent_directory("a") == "");
+    ASSERT_TRUE(parent_directory("a").empty());
     ASSERT_TRUE(parent_directory("") == "..");
 }
 
@@ -112,7 +116,7 @@ TEST(a_leading_tilde_means_the_home_folder)
     ASSERT_TRUE(expand_home("~/project/a.pxa") == "/home/someone/project/a.pxa");
     ASSERT_TRUE(expand_home("/x/~/y") == "/x/~/y");
     ASSERT_TRUE(expand_home("~other/a") == "~other/a"); /* another user's home is not handled */
-    ASSERT_TRUE(expand_home("") == "");
+    ASSERT_TRUE(expand_home("").empty());
 }
 
 TEST(a_search_finds_matches_in_the_folders_below_with_their_relative_paths)

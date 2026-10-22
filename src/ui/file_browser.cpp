@@ -137,6 +137,7 @@ struct Search {
     std::vector<DirEntry> found;
 };
 
+// NOLINTNEXTLINE(misc-no-recursion): a depth-first walk of folders, bounded by maxDepth
 void searchIn(Search &search, const std::string &root, const std::string &prefix, int depth)
 {
     for (const DirEntry &entry : list_directory(root, search.extensions)) {

@@ -77,6 +77,7 @@ static void applyOpenAll(int request, int depth, int &budget)
 }
 
 /* One folder row of the tree: its name selects it as the place to save to, its arrow opens it. */
+// NOLINTNEXTLINE(misc-no-recursion): the tree draws a folder's rows inside its node, so it recurses
 bool App::folderNode(const FileActionInfo &info, const std::string &path, const std::string &name,
                      bool selected, int depth)
 {
@@ -120,6 +121,7 @@ bool App::fileRow(const FileActionInfo &info, const std::string &path, const std
 
 /* The rows below `directory`: its folders (each can be opened) and the files of the action's kinds.
  */
+// NOLINTNEXTLINE(misc-no-recursion): see folderNode
 bool App::treeRows(const FileActionInfo &info, const std::string &directory, int depth)
 {
     const std::string target = browse_directory(expand_home(pathInput_), startDirectory());
