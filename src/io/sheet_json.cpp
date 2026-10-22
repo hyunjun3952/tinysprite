@@ -59,13 +59,26 @@ std::string rectJson(const Rect &r)
            ", \"w\": " + std::to_string(r.w) + ", \"h\": " + std::to_string(r.h) + "}";
 }
 
-std::string framesJson(const Sprite &sprite, int first, const SpriteSheet &sheet)
+/* What a packed frame adds: that it was trimmed, which part of the whole frame it is, and how big
+ * the whole frame is (both as drawn, so the scale is in them). */
+std::string trimJson(const Sprite &sprite, const SpriteSheet &sheet, size_t i, int scale)
+{
+    return R"(, "trimmed": true, "spriteSourceSize": )" + rectJson(sheet.trims[i]) +
+           R"(, "sourceSize": {"w": )" + std::to_string(sprite.width() * scale) +
+           ", \"h\": " + std::to_string(sprite.height() * scale) + "}";
+}
+
+std::string framesJson(const Sprite &sprite, int first, const SpriteSheet &sheet, int scale)
 {
     std::string out;
     for (size_t i = 0; i < sheet.frames.size(); i++) {
         out += i == 0 ? "\n" : ",\n";
         out += "    {\"frame\": " + rectJson(sheet.frames[i]) + ", \"duration\": " +
-               std::to_string(sprite.frameDuration(first + static_cast<int>(i))) + "}";
+               std::to_string(sprite.frameDuration(first + static_cast<int>(i)));
+        if (sheet.trimmed && i < sheet.trims.size()) {
+            out += trimJson(sprite, sheet, i, scale);
+        }
+        out += "}";
     }
     return out;
 }
@@ -113,7 +126,7 @@ std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &
                                       const SpriteSheet &sheet, const std::string &image)
 {
     int last = frame_range_end(sprite, options.first, options.last);
-    std::string frames = framesJson(sprite, options.first, sheet);
+    std::string frames = framesJson(sprite, options.first, sheet, options.scale);
     std::string tags = tagsJson(sprite, options.first, last);
     std::string out =
         "{\n  \"meta\": {\n    \"app\": \"tinysprite\",\n    \"image\": " + quoted(image) +

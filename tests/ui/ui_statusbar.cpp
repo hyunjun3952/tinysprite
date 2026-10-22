@@ -60,6 +60,16 @@ TEST(a_toast_fades_in_and_rises_into_place)
                 0.0f); /* it does not move on the way out */
 }
 
+TEST(the_extension_is_swapped_for_another)
+{
+    ASSERT_TRUE(with_replaced_extension("art.png", ".json") == "art.json");
+    ASSERT_TRUE(with_replaced_extension("a.b.png", ".json") == "a.b.json");
+    ASSERT_TRUE(with_replaced_extension("dir.v2/art", ".json") == "dir.v2/art.json");
+    ASSERT_TRUE(with_replaced_extension("dir.v2\\art.gif", ".json") == "dir.v2\\art.json");
+    ASSERT_TRUE(with_replaced_extension("art.", ".json") == "art.json");
+    ASSERT_TRUE(with_replaced_extension("", ".json").empty());
+}
+
 TEST(extension_is_added_only_when_missing)
 {
     ASSERT_TRUE(with_default_extension("art", ".pxa") == "art.pxa");
@@ -188,6 +198,7 @@ int main()
     RUN(error_toast_lasts_longer_and_a_new_one_replaces_the_old);
     RUN(fade_is_full_then_drops_to_zero_at_the_end);
     RUN(a_toast_fades_in_and_rises_into_place);
+    RUN(the_extension_is_swapped_for_another);
     RUN(extension_is_added_only_when_missing);
     RUN(directory_of_and_join);
     RUN(a_required_extension_is_added_unless_the_name_already_ends_in_it);

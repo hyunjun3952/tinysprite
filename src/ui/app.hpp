@@ -289,6 +289,7 @@ class App
         int columns = 0;
         int spacing = 0;
         bool loop = true;
+        bool json = true; /* the sprite sheet dialog also writes the metadata beside the image */
     };
     ExportChoices export_;
     int newWidth_ = 64;

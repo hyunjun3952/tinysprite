@@ -209,8 +209,126 @@ TEST(export_writes_an_image_that_reads_back)
     ASSERT_TRUE(!spritesheet_export(frames(3), "no_such_dir/x.png", SheetOptions{}));
 }
 
+/* An 8 x 8 sprite with three frames: a 3 x 2 red blob at (2, 3), a single green pixel at (7, 7)
+ * and an empty one. */
+static Sprite blobs()
+{
+    Sprite s(8, 8);
+    s.insertFrame(1, s.makeFrame());
+    s.insertFrame(2, s.makeFrame());
+    for (int y = 3; y < 5; y++) {
+        for (int x = 2; x < 5; x++) {
+            s.layer(0)->cel(0)->set(x, y, RED);
+        }
+    }
+    s.layer(0)->cel(1)->set(7, 7, Rgba{0, 255, 0, 255});
+    return s;
+}
+
+static SheetOptions packed_options()
+{
+    SheetOptions o;
+    o.layout = SheetLayout::Packed;
+    return o;
+}
+
+static bool overlap(const Rect &a, const Rect &b)
+{
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+TEST(packed_trims_each_frame_to_what_is_drawn_and_remembers_where_it_was)
+{
+    std::optional<SpriteSheet> sheet = spritesheet_render(blobs(), packed_options());
+    ASSERT_TRUE(sheet.has_value());
+    if (!sheet) {
+        return;
+    }
+    ASSERT_TRUE(sheet->trimmed);
+    ASSERT_EQ_INT(3, static_cast<int>(sheet->frames.size()));
+    ASSERT_EQ_INT(3, static_cast<int>(sheet->trims.size()));
+    ASSERT_EQ_INT(3, sheet->frames[0].w);
+    ASSERT_EQ_INT(2, sheet->frames[0].h);
+    ASSERT_EQ_INT(2, sheet->trims[0].x); /* where the blob sat inside its 8 x 8 frame */
+    ASSERT_EQ_INT(3, sheet->trims[0].y);
+    ASSERT_EQ_INT(3, sheet->trims[0].w);
+    ASSERT_EQ_INT(1, sheet->frames[1].w);
+    ASSERT_EQ_INT(7, sheet->trims[1].x);
+    ASSERT_EQ_INT(7, sheet->trims[1].y);
+    /* an empty frame keeps a 1 x 1 transparent cell at the origin */
+    ASSERT_EQ_INT(1, sheet->frames[2].w);
+    ASSERT_EQ_INT(1, sheet->frames[2].h);
+    ASSERT_EQ_INT(0, sheet->trims[2].x);
+    ASSERT_EQ_INT(0, at(*sheet, sheet->frames[2].x, sheet->frames[2].y).a);
+    ASSERT_TRUE(sheet->width * sheet->height < 3 * 8 * 8); /* smaller than three whole frames */
+}
+
+TEST(packed_frames_hold_the_trimmed_pixels_and_never_overlap)
+{
+    std::optional<SpriteSheet> sheet = spritesheet_render(blobs(), packed_options());
+    ASSERT_TRUE(sheet.has_value());
+    if (!sheet) {
+        return;
+    }
+    const Rect &red = sheet->frames[0];
+    for (int y = 0; y < red.h; y++) {
+        for (int x = 0; x < red.w; x++) {
+            ASSERT_EQ_INT(255, at(*sheet, red.x + x, red.y + y).r);
+        }
+    }
+    const Rect &green = sheet->frames[1];
+    ASSERT_EQ_INT(255, at(*sheet, green.x, green.y).g);
+    for (size_t i = 0; i < sheet->frames.size(); i++) {
+        ASSERT_TRUE(sheet->frames[i].x >= 0 &&
+                    sheet->frames[i].x + sheet->frames[i].w <= sheet->width);
+        ASSERT_TRUE(sheet->frames[i].y >= 0 &&
+                    sheet->frames[i].y + sheet->frames[i].h <= sheet->height);
+        for (size_t j = i + 1; j < sheet->frames.size(); j++) {
+            ASSERT_TRUE(!overlap(sheet->frames[i], sheet->frames[j]));
+        }
+    }
+}
+
+TEST(packed_follows_the_scale_and_keeps_the_spacing_between_frames)
+{
+    SheetOptions o = packed_options();
+    o.scale = 2;
+    o.spacing = 1;
+    std::optional<SpriteSheet> sheet = spritesheet_render(blobs(), o);
+    ASSERT_TRUE(sheet.has_value());
+    if (!sheet) {
+        return;
+    }
+    ASSERT_EQ_INT(6, sheet->frames[0].w);
+    ASSERT_EQ_INT(4, sheet->frames[0].h);
+    ASSERT_EQ_INT(4, sheet->trims[0].x); /* the offset is scaled too */
+    ASSERT_EQ_INT(6, sheet->trims[0].y);
+    for (size_t i = 0; i < sheet->frames.size(); i++) {
+        for (size_t j = i + 1; j < sheet->frames.size(); j++) {
+            Rect grown = sheet->frames[i];
+            grown.w += 1;
+            grown.h += 1;
+            ASSERT_TRUE(!overlap(grown, sheet->frames[j]));
+        }
+    }
+}
+
+TEST(a_layout_that_is_not_packed_is_not_trimmed)
+{
+    std::optional<SpriteSheet> sheet = spritesheet_render(blobs(), SheetOptions{});
+    ASSERT_TRUE(sheet.has_value());
+    if (sheet) {
+        ASSERT_TRUE(!sheet->trimmed);
+        ASSERT_TRUE(sheet->trims.empty());
+    }
+}
+
 int main()
 {
+    RUN(packed_trims_each_frame_to_what_is_drawn_and_remembers_where_it_was);
+    RUN(packed_frames_hold_the_trimmed_pixels_and_never_overlap);
+    RUN(packed_follows_the_scale_and_keeps_the_spacing_between_frames);
+    RUN(a_layout_that_is_not_packed_is_not_trimmed);
     RUN(horizontal_puts_the_frames_side_by_side);
     RUN(vertical_stacks_them);
     RUN(a_grid_wraps_at_the_column_count);

@@ -205,7 +205,11 @@ bool App::runExportSheet(const std::string &path)
     options.columns = export_.columns;
     options.spacing = export_.spacing;
     options.scale = exportScale_;
-    if (!spritesheet_export(editor_->sprite(), path, options)) {
+    const bool written =
+        export_.json ? spritesheet_export_with_json(editor_->sprite(), path,
+                                                    with_replaced_extension(path, ".json"), options)
+                     : spritesheet_export(editor_->sprite(), path, options);
+    if (!written) {
         fileError_ = "Cannot write " + path + " (use " + image_write_formats() +
                      "; the sheet can be up to 16384 px)";
         return false;
@@ -302,13 +306,14 @@ void App::gifOptions()
 void App::sheetOptions()
 {
     animationOptions();
-    static const char *const LAYOUTS[] = {"Horizontal strip", "Vertical strip", "Grid"};
+    static const char *const LAYOUTS[] = {"Horizontal strip", "Vertical strip", "Grid",
+                                          "Packed (trimmed)"};
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Layout");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200.0f);
     if (theme::begin_combo("##sheet_layout", LAYOUTS[export_.layout])) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < static_cast<int>(std::size(LAYOUTS)); i++) {
             if (ImGui::Selectable(LAYOUTS[i], i == export_.layout)) {
                 export_.layout = i;
             }
@@ -329,6 +334,9 @@ void App::sheetOptions()
     ImGui::SameLine();
     theme::input_int("##sheet_spacing", &export_.spacing, 1, 4, " px");
     export_.spacing = std::clamp(export_.spacing, 0, 256);
+    ImGui::Checkbox("Also write a .json file", &export_.json);
+    theme::tip("The frames (and, for a packed sheet, where each piece was trimmed from), their "
+               "durations, the tags and the slices, for a game to load next to the image.");
 }
 
 /* The last error and the overwrite warning for `path`, under the dialog's options. */

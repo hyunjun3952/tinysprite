@@ -40,6 +40,17 @@ std::string with_required_extension(const std::string &path, const std::string &
     return path.empty() || ends ? path : path + extension;
 }
 
+std::string with_replaced_extension(const std::string &path, const std::string &extension)
+{
+    if (path.empty()) {
+        return path;
+    }
+    size_t name = lastSeparator(path);
+    name = name == std::string::npos ? 0 : name + 1;
+    size_t dot = path.find_last_of('.');
+    return (dot == std::string::npos || dot < name ? path : path.substr(0, dot)) + extension;
+}
+
 std::string directory_of(const std::string &path)
 {
     size_t at = lastSeparator(path);

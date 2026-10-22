@@ -18,7 +18,7 @@ constexpr int EXIT_USAGE = 2;
 
 constexpr const char *USAGE =
     "usage: %s export <input> --sheet out.png [--json out.json] [--layout "
-    "horizontal|vertical|grid]\n"
+    "horizontal|vertical|grid|packed]\n"
     "          [--columns N] [--spacing N] [--scale N] [--first N] [--last N]\n"
     "       %s export <input> --image out.png [--frame N] [--scale N]\n"
     "       %s export <input> --gif out.gif [--scale N]\n";
@@ -53,6 +53,8 @@ bool parseLayout(const char *text, SheetLayout &layout)
         layout = SheetLayout::Vertical;
     } else if (std::strcmp(text, "grid") == 0) {
         layout = SheetLayout::Grid;
+    } else if (std::strcmp(text, "packed") == 0) {
+        layout = SheetLayout::Packed;
     } else {
         return false;
     }

@@ -106,8 +106,11 @@ bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions 
  * laid out in one image. Horizontal puts them side by side, vertical one under the other, a grid
  * wraps after `columns` frames (0: as many as makes it roughly square). `spacing` transparent
  * pixels separate neighbouring frames (not the edges), `scale` enlarges by whole pixels like
- * image_export. */
-enum class SheetLayout { Horizontal, Vertical, Grid };
+ * image_export. Packed trims every frame to the pixels that are drawn (a frame with none keeps a
+ * 1 x 1 transparent cell) and packs the trimmed pieces tightly into the smallest sheet it finds
+ * (see pack_rects); `spacing` is the gap between pieces, `columns` is not used, and the JSON tells
+ * where each piece sat in its frame. */
+enum class SheetLayout { Horizontal, Vertical, Grid, Packed };
 
 struct SheetOptions {
     int first = 0;
@@ -123,6 +126,11 @@ struct SpriteSheet {
     int height = 0;
     std::vector<Rgba> pixels; /* width * height, row-major */
     std::vector<Rect> frames; /* where each frame went, in frame order */
+    /* A packed sheet only: the pixels of each frame are the part of the frame that is drawn, and
+     * trims[i] says which part, as an x, y, w, h inside the frame as drawn (the scale applied; w
+     * and h equal frames[i]'s). Empty for the other layouts. */
+    bool trimmed = false;
+    std::vector<Rect> trims;
 };
 
 /* Nothing for a bad range, scale, spacing or column count, or a sheet wider or taller than
