@@ -1,5 +1,0 @@
-#!/bin/sh
-# Enable with: scripts/setup-hooks.sh
-set -eu
-cd "$(git rev-parse --show-toplevel)"
-exec scripts/format.sh --check

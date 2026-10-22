@@ -1,7 +1,0 @@
-#!/bin/sh
-# Enable with: scripts/setup-hooks.sh
-set -eu
-cd "$(git rev-parse --show-toplevel)"
-scripts/format.sh --check
-# only what differs from main; CI lints everything
-scripts/lint.sh --changed

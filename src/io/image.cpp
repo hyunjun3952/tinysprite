@@ -129,6 +129,13 @@ std::string image_write_formats()
 namespace
 {
 
+/* Whether the header says the image fits a cel; read before decoding, which allocates the whole
+ * image. */
+bool fitsCel(int width, int height)
+{
+    return width >= 1 && height >= 1 && width <= CEL_MAX_DIMENSION && height <= CEL_MAX_DIMENSION;
+}
+
 /* The frames of an animated GIF as a sprite (one layer, a cel and duration per frame); nothing if
  * the file is not a GIF with more than one frame, so the caller falls back to the plain loader. */
 std::optional<Sprite> importAnimatedGif(const std::string &path)
@@ -137,6 +144,14 @@ std::optional<Sprite> importAnimatedGif(const std::string &path)
     std::vector<unsigned char> data((std::istreambuf_iterator<char>(file)),
                                     std::istreambuf_iterator<char>());
     if (data.size() < 6 || std::memcmp(data.data(), "GIF8", 4) != 0) {
+        return std::nullopt;
+    }
+    int headerWidth = 0;
+    int headerHeight = 0;
+    int headerChannels = 0;
+    if (!stbi_info_from_memory(data.data(), static_cast<int>(data.size()), &headerWidth,
+                               &headerHeight, &headerChannels) ||
+        !fitsCel(headerWidth, headerHeight)) {
         return std::nullopt;
     }
     int *delays = nullptr;
@@ -149,7 +164,7 @@ std::optional<Sprite> importAnimatedGif(const std::string &path)
                                   &height, &frames, &channels, 4),
         &stbi_image_free);
     std::unique_ptr<int, decltype(&stbi_image_free)> delayHolder(delays, &stbi_image_free);
-    if (!pixels || frames < 2 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
+    if (!pixels || frames < 2 || !fitsCel(width, height)) {
         return std::nullopt;
     }
     Sprite sprite(width, height);
@@ -178,9 +193,12 @@ std::optional<Sprite> image_import(const std::string &path)
     int width = 0;
     int height = 0;
     int channels = 0;
+    if (!stbi_info(path.c_str(), &width, &height, &channels) || !fitsCel(width, height)) {
+        return std::nullopt;
+    }
     std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(
         stbi_load(path.c_str(), &width, &height, &channels, 4), &stbi_image_free);
-    if (!pixels || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
+    if (!pixels || !fitsCel(width, height)) {
         return std::nullopt;
     }
     Sprite sprite(width, height);

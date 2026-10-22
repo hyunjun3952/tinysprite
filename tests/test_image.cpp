@@ -1,4 +1,9 @@
 #include <cstdio>
+#include <fstream>
+#include <vector>
+#ifdef __linux__
+#include <sys/resource.h>
+#endif
 
 #include "minitest.h"
 #include "tinysprite/io.h"
@@ -198,6 +203,48 @@ TEST(an_export_follows_the_layer_blend_mode)
     ASSERT_TRUE(!(normal == multiply));
 }
 
+#ifdef __linux__
+/* A GIF that declares a huge screen but holds almost no data. */
+static std::vector<uint8_t> hugeDeclaredGif(int dim)
+{
+    auto put16 = [](std::vector<uint8_t> &v, int x) {
+        v.push_back(static_cast<uint8_t>(x & 255));
+        v.push_back(static_cast<uint8_t>(x >> 8));
+    };
+    std::vector<uint8_t> g = {'G', 'I', 'F', '8', '9', 'a'};
+    put16(g, dim);
+    put16(g, dim);
+    g.insert(g.end(), {0x80, 0, 0, 0, 0, 0, 255, 255, 255});
+    g.push_back(0x2c);
+    put16(g, 0);
+    put16(g, 0);
+    put16(g, dim);
+    put16(g, dim);
+    g.push_back(0);
+    g.insert(g.end(), {2, 2, 0x44, 0x01, 0, 0x3b});
+    return g;
+}
+
+TEST(an_oversized_image_is_refused_before_it_is_decoded)
+{
+    const char *path = "test_image_huge.gif";
+    std::vector<uint8_t> gif = hugeDeclaredGif(8192); /* 268 MB per buffer once decoded */
+    std::ofstream(path, std::ios::binary)
+        .write(reinterpret_cast<const char *>(gif.data()),
+               static_cast<std::streamsize>(gif.size()));
+    struct rusage before {
+    };
+    getrusage(RUSAGE_SELF, &before);
+    ASSERT_TRUE(!image_import(path).has_value());
+    struct rusage after {
+    };
+    getrusage(RUSAGE_SELF, &after);
+    std::remove(path);
+    long grewKb = after.ru_maxrss - before.ru_maxrss;
+    ASSERT_TRUE(grewKb < 100L * 1024L);
+}
+#endif
+
 int main(void)
 {
     RUN(export_then_import_round_trips_the_flattened_image);
@@ -212,5 +259,8 @@ int main(void)
     RUN(export_rejects_a_bad_scale);
     RUN(write_formats_list_what_export_accepts);
     RUN(an_export_follows_the_layer_blend_mode);
+#ifdef __linux__
+    RUN(an_oversized_image_is_refused_before_it_is_decoded);
+#endif
     return TEST_SUMMARY();
 }
