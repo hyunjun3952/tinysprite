@@ -35,7 +35,7 @@ default; `-DTINYSPRITE_SANITIZE=OFF` turns them off.
 Development is test-first; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the code. Format and lint before committing:
 
 ```sh
-scripts/setup-hooks.sh   # once per clone: git hooks run the checks
+scripts/setup-hooks.sh   # once per clone: installs pre-commit, which runs the checks as git hooks
 scripts/format.sh        # --check to verify only
 scripts/lint.sh
 ```

@@ -10,7 +10,7 @@ Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas
 
 - [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.h`, smoke test.
 - [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `scripts/{format,lint,setup-hooks}.sh`,
-      `.githooks/`, GitHub Actions CI.
+      `.pre-commit-config.yaml`, GitHub Actions CI.
 - [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, public headers in `include/tinysprite/`.
       Cel is RGBA only; the palette holds at most 256 colors; a sprite starts with 1 frame and 1 layer.
 - [x] **3. Rasterizer** — line, rectangle, ellipse, polygon, flood fill, tested against golden pixel arrays.
@@ -144,7 +144,7 @@ headless CLI export, optional Aseprite import.
 - `clang-format` / `clang-tidy` are pinned to the major in `scripts/clang-version` (18, what Ubuntu noble gives CI);
   a newer local tool let CI-only findings through (`bugprone-unchecked-optional-access` in #8). CI runs `lint`, `linux`
   and `windows` as separate jobs.
-- Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh .githooks/*`).
+- Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh`).
 - `tinysprite_core` links `libm` (viewport uses `floorf`).
 - The canvas edits `Editor.active_layer` / `Editor.frame` (frame stays 0 until phase 2).
 - Live shape / move strokes redraw from scratch on every update (`LiveStroke::restart`), so

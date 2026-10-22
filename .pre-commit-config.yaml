@@ -1,0 +1,35 @@
+# Install once per clone with scripts/setup-hooks.sh (needs the `pre-commit` tool).
+# The hooks call the repo's own scripts, so they use the clang version pinned in scripts/clang-version.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: format
+        name: clang-format check
+        entry: scripts/format.sh --check
+        language: system
+        files: ^(src|include|tests)/.*\.(cpp|h)$
+        pass_filenames: false
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+        exclude: ^thirdparty/
+      - id: format-push
+        name: clang-format check (push)
+        entry: scripts/format.sh --check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      # only what differs from main; CI lints everything
+      - id: lint-changed
+        name: clang-tidy on changed files
+        entry: scripts/lint.sh --changed
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

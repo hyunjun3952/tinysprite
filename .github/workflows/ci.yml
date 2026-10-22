@@ -33,7 +33,7 @@ jobs:
       - name: Install tools
         run: scripts/install-deps.sh
       - name: Shellcheck
-        run: shellcheck scripts/*.sh .githooks/*
+        run: shellcheck scripts/*.sh
       - name: Editor tool versions
         run: scripts/check-clang-version.sh
       - name: Format check

@@ -22,7 +22,7 @@ Format/lint (needs `clang-format` and `clang-tidy`; K&R style, 4-space indent, c
 scripts/format.sh           # apply formatting (--check to verify only)
 scripts/lint.sh             # clang-tidy via build/compile_commands.json (covers src/ui when the UI is built)
 scripts/lint.sh --changed   # only .cpp files that differ from main (and those including a changed header): fast
-scripts/setup-hooks.sh      # once per clone: pre-commit = format check, pre-push = format + lint --changed
+scripts/setup-hooks.sh      # once per clone (installs pre-commit): .pre-commit-config.yaml = commit: format check + shellcheck, push: format + lint --changed
 ```
 
 CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, or `scripts/` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (shellcheck, format check, clang-tidy), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The clang tools are pinned to the version in `scripts/clang-version` (the one CI installs; `scripts/install-deps.sh` installs it locally, and the scripts refuse to run without it; the editor uses clangd of that same version (diagnostics and formatting) via `.vscode/settings.json` and `.devcontainer/`, kept in step by `scripts/check-clang-version.sh` in the `lint` job). Run format and lint before committing; `thirdparty/` is excluded from both.
