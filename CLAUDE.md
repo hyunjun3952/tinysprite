@@ -25,7 +25,7 @@ scripts/lint.sh --changed   # only .cpp files that differ from main (and those i
 scripts/setup-hooks.sh      # once per clone: pre-commit = format check, pre-push = format + lint --changed
 ```
 
-CI (`.github/workflows/ci.yml`) has three separate jobs: `lint` (shellcheck, format check, clang-tidy), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The clang tools are pinned to the version in `scripts/clang-version` (the one CI installs; `scripts/install-deps.sh` installs it locally, and the scripts refuse to run without it). Run format and lint before committing; `thirdparty/` is excluded from both.
+CI (`.github/workflows/ci.yml`) has three separate jobs: `lint` (shellcheck, format check, clang-tidy), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The clang tools are pinned to the version in `scripts/clang-version` (the one CI installs; `scripts/install-deps.sh` installs it locally, and the scripts refuse to run without it; the editor uses `clangd-18` / `clang-format-18` via `.vscode/settings.json` and `.devcontainer/`, kept in step by `scripts/check-clang-version.sh` in the `lint` job). Run format and lint before committing; `thirdparty/` is excluded from both.
 
 ## Architecture
 

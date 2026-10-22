@@ -18,3 +18,8 @@ $sudo apt-get update
 # shellcheck disable=SC2086
 $sudo apt-get install -y --no-install-recommends \
     build-essential cmake ccache git "clang-format-$clang" "clang-tidy-$clang" shellcheck libsdl2-dev
+# clangd (editor diagnostics, the same clang-tidy checks as the lint) is not needed on CI.
+if [ -z "${CI:-}" ]; then
+    # shellcheck disable=SC2086
+    $sudo apt-get install -y --no-install-recommends "clangd-$clang"
+fi

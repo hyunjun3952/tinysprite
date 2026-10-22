@@ -26,6 +26,8 @@ jobs:
         run: scripts/install-deps.sh
       - name: Shellcheck
         run: shellcheck scripts/*.sh .githooks/*
+      - name: Editor tool versions
+        run: scripts/check-clang-version.sh
       - name: Format check
         run: scripts/format.sh --check
       # clang-tidy stamps (build/.lint-cache) carry over between runs.

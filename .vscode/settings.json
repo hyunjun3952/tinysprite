@@ -2,6 +2,11 @@
     // Run `cmake -S . -B build` once so clangd finds build/compile_commands.json.
     "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.configureOnOpen": false,
+    // Editor diagnostics must match CI: clangd and clang-format are the major in scripts/clang-version
+    // (scripts/install-deps.sh installs them), not the extension's own downloaded clangd.
+    "clangd.path": "clangd-18",
+    "clangd.checkUpdates": false,
+    "clang-format.executable": "clang-format-18",
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}/build",
         "--background-index",
