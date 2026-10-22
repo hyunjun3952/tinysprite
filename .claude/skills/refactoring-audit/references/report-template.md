@@ -19,8 +19,10 @@ Lens: smell (name) | anti-pattern | magic number | complexity | performance | SO
 |---|---|---|---|---|---|---|
 
 ## Applied
-| # | Commit | Before -> after (measured) | Tests run (exit codes) | format / lint |
-|---|---|---|---|---|
+| # | Commit | Before -> after (measured) | Tests run (exit codes) | format / lint | Public headers diff | Screen identical (UI) |
+|---|---|---|---|---|---|---|
+
+A step whose number did not drop was reverted; list it under Left out.
 
 ## Left out (보류)
 - R4: reason (no measurable gain / waits for a condition / taste only)
@@ -28,8 +30,11 @@ Lens: smell (name) | anti-pattern | magic number | complexity | performance | SO
 ## Found on the way (not refactoring)
 - Suspected bug at file:line, handed to bug-hunting.
 
+## Same smell elsewhere (class sweep)
+- file:line, not fixed here
+
 ## Docs updated
-ARCHITECTURE.md / MILESTONES.md changes, or "none needed".
+ARCHITECTURE.md / MILESTONES.md changes (including deferred findings added to "Left from the pattern survey"), or "none needed".
 
 ## Next
 Proposed order for the remaining findings.

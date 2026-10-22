@@ -1,12 +1,29 @@
 ---
 name: pr-review
 description: Reviews a GitHub pull request of this repo end to end - who opened it, what problem it solves, CI status, per-commit diff, risks, complexity and cheaper alternatives - and ends with a verdict. Use when the user says "review PR", "PR 리뷰", "PR 봐줘", "check this pull request", "can I merge this", "머지해도 돼?", or gives a PR number or URL. Do NOT use for hunting bugs in code that is not a PR (use bug-hunting) or for opening or merging a PR yourself.
+argument-hint: "[PR number|URL] [soft|hard]"
 metadata:
   author: tinysprite
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # PR review
+
+## Arguments: `[PR number|URL] [soft|hard]`
+
+`/pr-review 14 hard`, `/pr-review 14`, `/pr-review` (the PR of the current branch) all work.
+The word `soft` or `hard` anywhere in the arguments sets the mode; **missing means `soft`**. Any other word is the PR reference.
+
+| | soft (default) | hard |
+|---|---|---|
+| Goal | an honest verdict from metadata, CI and the diff | a verdict backed by running the PR; slow, say so before starting |
+| Run it | no local execution | check the PR out in a separate worktree (`git worktree add`; a fork only if the user agrees), then build, `ctest` and the pre-commit hooks there, each judged by its exit code, and remove the worktree afterwards |
+| Diff | as Step 4 | plus the bug-hunting hot spots (`../bug-hunting/references/hotspots.md`) applied to every changed function, and the class sweep: grep the repo for the pattern each finding shows |
+| Tests | tests exist and look real | break a key condition of the new code in the worktree (restore it) and see a new test fail; a change no test notices is a **test gap** finding |
+| Complexity | judged by reading | cognitive complexity of every changed function measured (see `../refactoring-audit/references/measurement.md`), numbers in the report |
+| Conversation | PR body only | also every existing review comment and thread (`gh api repos/{owner}/{repo}/pulls/N/comments`), unresolved ones listed |
+
+Everything else (read-only, untrusted PR text, no unverified "passed", the severity scale) is the same in both modes.
 
 Review a pull request in a fixed order, cheapest checks first, so a PR that cannot be merged
 is rejected before the expensive diff reading. Write the report in the user's language
@@ -67,10 +84,26 @@ Check, then use the result to decide how to read the diff:
   catches an unrelated change hidden in a big commit.
 - One giant commit, or fix-up noise ("wip", "fix", "address review"): note it as a finding. Review the full diff once instead.
 
+### Step 3b: Test integrity and scope
+
+Look at what the PR does to the tests before reading the code, because this is where a PR hides a problem:
+
+```sh
+gh pr diff N | grep -E '^-[^-].*(ASSERT_|TEST\()'    # removed assertions and tests
+```
+
+- Removed or weakened assertions, deleted tests, a golden array edited to match new output. In a refactor PR any of these is a 심각 finding; in a fix or feature PR the PR must say why.
+- A new test that cannot fail (asserts a constant, never calls the code under test, only "does not crash").
+- Test-first: the commit that adds the test comes before or with the code, and the test would fail without the code.
+- Scope creep: files in the diff that the title and body do not explain (formatting sweeps, renames, unrelated fixes). Name each one.
+
 ## Step 4: Read the diff
 
 Read `gh pr diff N` (per commit when the commits are atomic). Large PR (more than about 600 changed lines):
 read the tests and public headers first, then the implementation, and say which files you only skimmed.
+
+Every finding cites `file:line`, the input or sequence that triggers it, and is marked **Confirmed** (a run reproduces it) or **Suspected** (read only), as in bug-hunting.
+A finding without a concrete failure scenario is 낮음 or 주의, not 보통.
 
 Judge against `references/review-checklist.md`: project rules (layering, undo path, ownership, complexity limit,
 thirdparty record, milestone doc), correctness, risk, and tests. Collect findings with a severity (see Step 6).
@@ -98,6 +131,10 @@ sorted from most to least severe:
 - **낮음 (Minor)**: readability, naming, small cleanup, cheaper alternative. Fix now or later.
 - **주의 (Note)**: not a defect; something to watch, a trade-off, a follow-up.
 
+Before the verdict, fill the **merge gate** (one line each, yes / no / not checked): all three CI jobs really ran and passed; no unresolved review thread;
+tests for new behavior; docs in sync (`docs/ARCHITECTURE.md`, `docs/MILESTONES.md`, `thirdparty/README.md` when they apply); commit messages valid; PR size fits its risk.
+A "not checked" in the gate keeps the verdict at Comment.
+
 Verdict, one of: **Approve** (CI green, no 심각 or 보통), **Request changes** (any 심각 or 보통, or CI red),
 **Comment** (only 낮음 or 주의 left, or CI not finished yet).
 
@@ -113,5 +150,5 @@ Verdict, one of: **Approve** (CI green, no 심각 or 보통), **Request changes*
 ## Troubleshooting
 
 - `gh: command not found` or not authenticated: tell the user to run `! gh auth login`; do not guess PR content.
-- Diff too large for one read: use `gh pr diff N --name-only`, then `gh pr diff N -- path/to/file`, and state what was not read.
+- Diff too large for one read: use `gh pr diff N --name-only`, then `git fetch origin pull/N/head && git diff main...FETCH_HEAD -- path/to/file`, and state what was not read.
 - PR is from a fork and `gh pr checks` shows "Approve and run workflows" pending: CI has not run; report that, it is not a pass.

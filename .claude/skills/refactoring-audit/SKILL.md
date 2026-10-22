@@ -4,10 +4,10 @@ description: Finds and plans behavior-preserving refactorings in this C++ repo -
 argument-hint: "[target] [soft|hard]"
 metadata:
   author: tinysprite
-  version: 1.1.0
+  version: 1.2.0
 ---
 
-# Code refactoring
+# Refactoring audit
 
 ## Arguments: `[target] [soft|hard]`
 
@@ -42,6 +42,9 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 - **Default is report first.** Do not edit source until the user picks which findings to apply. Then apply one finding per commit.
 - **Not every smell deserves a fix.** Each finding needs a cost/benefit line; if the gain is "no gain" or "taste", mark it 보류 and move on.
   Prefer the cheapest change that removes the problem; a new class or pattern is the last option, not the first.
+- **Revert when the gain is not there.** After each step re-measure the number the finding promised. If it did not drop, the step is reverted, not kept "because it is cleaner".
+- **Moves are separate from edits.** Moving code (file, class, function) and changing it never share a commit, so `git diff -M --stat` shows the move as a pure rename.
+- **Public surface stays fixed unless approved.** `git diff main -- include/` must be empty after a refactoring, and no function signature, header name or file format byte changes without the user's yes.
 - Layering, the undo path and the document model in CLAUDE.md are fixed. A refactoring must not move SDL/ImGui into `src/core` or `src/io`,
   bypass `History`, flatten `Sprite -> Layers x Frames -> Cel`, or change the `.pxa` format.
 
@@ -91,12 +94,18 @@ One finding at a time, in a loop:
 1. Confirm the safety net covers the code (Step 0). Add a characterization test if it does not.
 2. Make the smallest structural change; keep the build green after every step, not only at the end.
 3. Run the affected tests, then the full `ctest`. Same results as the baseline, no test edited to fit.
+   UI code: also prove the screen did not change. Render the same file before and after
+   (`SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite FILE.pxa --frames 3 --screenshot OUT.png --config-dir TMPDIR`, see bug-hunting Step 4) and compare with `cmp`; a difference is a behavior change.
+   Deleting code: show it is dead first (grep every use including `tests/` and `tests/ui/`, then build and run the tests without it); "looks unused" is not proof.
 4. `pre-commit run --all-files --hook-stage manual`, judged by its exit code (clang-tidy alone: `pre-commit run clang-tidy --hook-stage manual --files <changed .cpp>`). Run the full set before opening or updating a PR.
 5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
-6. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
+6. Sweep the class: grep the repo for the same smell. List the other sites in the report; do not fix them in this commit.
+7. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
 
 Branch policy from CLAUDE.md: a small refactoring inside one module goes straight to `main`. Changes across layers, public headers, or anything hard to revert get a `refactor/...` branch and a PR.
 When a refactoring changes structure other docs describe, update `docs/ARCHITECTURE.md` in the same commit.
+A finding the user declines or defers goes into "Left from the pattern survey" in `docs/MILESTONES.md` (one line, with the condition that would make it worth doing), so it is not found and argued again next time.
+A finding that grows past about 200 changed lines is split into steps that each leave the build green, or re-planned as a branch.
 
 ## Step 4: Report
 

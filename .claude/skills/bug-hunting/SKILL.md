@@ -4,7 +4,7 @@ description: Hunts bugs in this repo's code by logic review first, then confirms
 argument-hint: "[target] [soft|hard]"
 metadata:
   author: tinysprite
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Bug hunting
@@ -37,6 +37,8 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 - Report a failing test only. A test that passes is not written into the report (but a suspicion it disproved is dropped, not kept as a bug).
 - Never report "tests passed" without the exit code of that run. Do not pipe a test or lint run through `tail`/`head`
   and read `$?`; redirect to a log file, test `$?`, then read the log.
+- Every finding carries a **Reachability** line: the user action or API call sequence that gets the program into the buggy state.
+  A defect nobody can reach is 주의 at most, however ugly the code.
 - Mark every finding **Confirmed** (a test or run reproduces it) or **Suspected** (logic only, could not be reproduced), and say why.
 - Never invent how the UI looks. Without a screenshot you took (Step 4, UI defects only), describe what the code draws, say that it is derived from code,
   and ask the user for a screenshot when the exact visual matters.
@@ -70,6 +72,13 @@ Read the code in scope without running anything. For each function ask:
 
 Write each suspicion down as: location (`file:line`), claim, the input or sequence that should trigger it.
 Use the tests that already exist as the map of what is covered; look at what they do not cover.
+
+### Step 1b: History check and class sweep
+
+- Before trusting a suspicion, look at what already happened there: `git log -S'symbol' --oneline -- PATH` and `git blame -L` on the lines.
+  A line that an earlier `fix:` commit shaped is a regression risk; read that commit's test. A "gotcha" in `docs/MILESTONES.md` may already explain the code.
+- When a suspicion holds, **sweep its class**: grep the repo for the same pattern (same API misuse, same missing `markDirty`, same unchecked `begin()`)
+  and list every sibling site as its own suspicion. One bug found is evidence the pattern exists elsewhere.
 
 ## Step 2: Triage small issues
 
@@ -107,6 +116,16 @@ When the test itself is changed (existing test edited or new test added), write 
 - **Regression procedure**: the commands that show existing behavior still works after the fix
   (affected test files by name, then the full `ctest --test-dir build --output-on-failure`, then `pre-commit run --all-files --hook-stage manual` for C++ changes), and their exit codes.
 Never weaken or delete an existing assertion to make a test pass; that hides the bug.
+
+### Step 3b: Try to disprove each finding
+
+Before a finding enters the report, argue against it once, in writing (one line each):
+
+1. Is the state reachable, or does a caller, a UI guard or an earlier check already prevent it?
+2. Does the test assert the **intended** behavior (`docs/ARCHITECTURE.md`, existing tests), or only what I assumed?
+3. Does it fail without my scratchpad changes and with sanitizers off too (not an artifact of the harness)?
+
+A finding that does not survive is dropped or downgraded (Confirmed -> Suspected, or 주의). Say how many were dropped; it shows the pass was honest.
 
 ## Step 4: UI defects (screenshots only here)
 
@@ -155,7 +174,8 @@ The step 2 table goes after the bug list. Do not write the report into the repo 
 ## After the report
 
 When the user chooses findings to fix: write the failing test first, fix, run the regression procedure above,
-then `pre-commit run --all-files --hook-stage manual` and read its exit code. Commit rules and the branch policy are in CLAUDE.md
+re-check the sibling sites of the class sweep (fix them in the same change or list them as follow-ups),
+add the pattern to `references/hotspots.md` if it is new (one line: what went wrong, where, how to spot it), then `pre-commit run --all-files --hook-stage manual` and read its exit code. Commit rules and the branch policy are in CLAUDE.md
 (small fixes go straight to `main`; risky ones get a `fix/...` branch and PR).
 
 ## Troubleshooting
