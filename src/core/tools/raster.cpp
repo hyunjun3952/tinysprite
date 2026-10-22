@@ -31,8 +31,16 @@ void raster_line(int x0, int y0, int x1, int y1, const RasterPlotFn &plot)
     }
 }
 
-static void hspan(int x0, int x1, int y, const RasterPlotFn &plot)
+/* The cels x0..x1 of row y; with a clip, only those inside it. */
+static void hspan(int x0, int x1, int y, const RasterPlotFn &plot, const Rect *clip = nullptr)
 {
+    if (clip) {
+        if (y < clip->y || y - clip->y >= clip->h) {
+            return;
+        }
+        x0 = std::max(x0, clip->x);
+        x1 = std::min(x1, clip->x + clip->w - 1);
+    }
     for (int x = x0; x <= x1; x++) {
         plot(x, y);
     }
@@ -45,14 +53,17 @@ static void order(int &a, int &b)
     }
 }
 
-void raster_rect(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot)
+void raster_rect(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot,
+                 const Rect *clip)
 {
     order(x0, x1);
     order(y0, y1);
 
     if (filled) {
-        for (int y = y0; y <= y1; y++) {
-            hspan(x0, x1, y, plot);
+        int top = clip ? std::max(y0, clip->y) : y0;
+        int bottom = clip ? std::min(y1, clip->y + clip->h - 1) : y1;
+        for (int y = top; y <= bottom; y++) {
+            hspan(x0, x1, y, plot, clip);
         }
         return;
     }
@@ -72,13 +83,13 @@ void raster_rect(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn
 /* The pixels of one step of the ellipse walk: the four mirrored points of the outline, or for a
  * filled ellipse the two spans of a new row (the middle row of an odd height is one span). */
 static void ellipse_row(long long lx, long long rx, long long up, long long dn, bool filled,
-                        bool new_row, const RasterPlotFn &plot)
+                        bool new_row, const RasterPlotFn &plot, const Rect *clip)
 {
     if (filled) {
         if (new_row) {
-            hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(dn), plot);
+            hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(dn), plot, clip);
             if (up != dn) {
-                hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(up), plot);
+                hspan(static_cast<int>(lx), static_cast<int>(rx), static_cast<int>(up), plot, clip);
             }
         }
         return;
@@ -94,12 +105,14 @@ static void ellipse_row(long long lx, long long rx, long long up, long long dn, 
 /* A flat ellipse stops the walk before its top and bottom rows are reached; finishes the
  * remaining rows at the tips. */
 static void ellipse_tips(long long lx, long long rx, long long up, long long dn, long long b,
-                         bool filled, const RasterPlotFn &plot)
+                         bool filled, const RasterPlotFn &plot, const Rect *clip)
 {
     while (dn - up <= b) {
         if (filled) {
-            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(dn), plot);
-            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(up), plot);
+            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(dn), plot,
+                  clip);
+            hspan(static_cast<int>(lx) - 1, static_cast<int>(rx) + 1, static_cast<int>(up), plot,
+                  clip);
         } else {
             plot(static_cast<int>(lx) - 1, static_cast<int>(dn));
             plot(static_cast<int>(rx) + 1, static_cast<int>(dn));
@@ -116,7 +129,8 @@ static void ellipse_tips(long long lx, long long rx, long long up, long long dn,
  * (lx/rx are the left and right columns, up/dn the upper and lower rows). `err` is the error term
  * of the next diagonal step; dx and dy are its increments for stepping in x or in y. A box with an
  * even height has two middle rows, so up starts one row above dn (b1 is 1 for an even height). */
-void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot)
+void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot,
+                    const Rect *clip)
 {
     order(x0, x1);
     order(y0, y1);
@@ -137,7 +151,7 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
     long long step_b = 8 * b * b;
 
     do {
-        ellipse_row(lx, rx, up, dn, filled, new_row != 0, plot);
+        ellipse_row(lx, rx, up, dn, filled, new_row != 0, plot, clip);
         new_row = 0;
 
         long long e2 = 2 * err;
@@ -156,7 +170,7 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
         }
     } while (lx <= rx);
 
-    ellipse_tips(lx, rx, up, dn, b, filled, plot);
+    ellipse_tips(lx, rx, up, dn, b, filled, plot, clip);
 }
 
 /* Scanline fill: for every row, the crossings with the edges, paired up into spans. */
@@ -178,13 +192,18 @@ static void scanline_crossings(const std::vector<std::pair<int, int>> &points, i
     std::sort(crossings.begin(), crossings.end());
 }
 
-static void fill_polygon(const std::vector<std::pair<int, int>> &points, const RasterPlotFn &plot)
+static void fill_polygon(const std::vector<std::pair<int, int>> &points, const RasterPlotFn &plot,
+                         const Rect *clip)
 {
     int top = points[0].second;
     int bottom = points[0].second;
     for (const auto &p : points) {
         top = std::min(top, p.second);
         bottom = std::max(bottom, p.second);
+    }
+    if (clip) {
+        top = std::max(top, clip->y);
+        bottom = std::min(bottom, clip->y + clip->h - 1);
     }
     std::vector<double> crossings;
     for (int y = top; y <= bottom; y++) {
@@ -194,13 +213,13 @@ static void fill_polygon(const std::vector<std::pair<int, int>> &points, const R
              * lit, which keeps a mirrored polygon an exact mirror image. */
             int from = static_cast<int>(std::ceil(crossings[i]));
             int to = static_cast<int>(std::floor(crossings[i + 1]));
-            hspan(from, to, y, plot);
+            hspan(from, to, y, plot, clip);
         }
     }
 }
 
 void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
-                    const RasterPlotFn &plot)
+                    const RasterPlotFn &plot, const Rect *clip)
 {
     if (points.empty()) {
         return;
@@ -210,7 +229,7 @@ void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
         return;
     }
     if (filled) {
-        fill_polygon(points, plot);
+        fill_polygon(points, plot, clip);
     }
     const size_t n = points.size();
     for (size_t i = 0; i < n; i++) {

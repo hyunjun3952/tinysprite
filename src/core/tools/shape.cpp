@@ -75,32 +75,32 @@ Points hexagonCorners(int x0, int y0, int x1, int y1)
 }
 
 /* How each kind of shape is drawn inside the box spanned by a and b (both inclusive). */
-void drawLine(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool)
+void drawLine(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool, const Rect &)
 {
     raster_line(a.x, a.y, b.x, b.y, plot);
 }
 
-void drawRect(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled)
+void drawRect(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled, const Rect &clip)
 {
-    raster_rect(a.x, a.y, b.x, b.y, filled, plot);
+    raster_rect(a.x, a.y, b.x, b.y, filled, plot, &clip);
 }
 
-void drawEllipse(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled)
+void drawEllipse(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled, const Rect &clip)
 {
-    raster_ellipse(a.x, a.y, b.x, b.y, filled, plot);
+    raster_ellipse(a.x, a.y, b.x, b.y, filled, plot, &clip);
 }
 
 template <Points (*corners)(int, int, int, int)>
-void drawPolygon(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled)
+void drawPolygon(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled, const Rect &clip)
 {
     raster_polygon(
         corners(std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)),
-        filled, plot);
+        filled, plot, &clip);
 }
 
 struct ShapeSpec {
     bool fillable;
-    void (*draw)(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled);
+    void (*draw)(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool filled, const Rect &clip);
 };
 
 /* In ShapeKind order: a kind added to the enum needs its row here (a test draws every kind). */
@@ -118,14 +118,16 @@ const std::array<ShapeSpec, SHAPE_COUNT> SHAPES = {{
 /* A kind outside the table (ShapeKind::Count) draws nothing. */
 const ShapeSpec &specOf(ShapeKind kind)
 {
-    static const ShapeSpec NONE = {false, [](const RasterPlotFn &, ToolPoint, ToolPoint, bool) {}};
+    static const ShapeSpec NONE = {
+        false, [](const RasterPlotFn &, ToolPoint, ToolPoint, bool, const Rect &) {}};
     auto index = static_cast<size_t>(kind);
     return index < SHAPES.size() ? SHAPES[index] : NONE;
 }
 
-void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, ToolPoint b)
+void drawOne(const RasterPlotFn &plot, const ShapeStyle &style, ToolPoint a, ToolPoint b,
+             const Rect &clip)
 {
-    specOf(style.kind).draw(plot, a, b, style.filled);
+    specOf(style.kind).draw(plot, a, b, style.filled, clip);
 }
 
 /* The cels the brush paints around a plotted outline pixel, relative to it; just the pixel itself
@@ -151,30 +153,26 @@ std::vector<ToolPoint> brushOffsets(const ShapeStyle &style)
     return offsets;
 }
 
-/* Draws the shape and its reflections. Reflecting both end points reflects the whole shape since
- * every kind is symmetric about its bounding box; the brush offsets are reflected with it, so an
- * even brush stays symmetric. */
+/* Draws the shape once and reflects every pixel it plots (brush stamp included) across each
+ * enabled axis, so a reflection is the exact mirror image whatever the kind: a triangle turns
+ * upside down under a vertical mirror, and a box of even width does not shift its apex by a cel.
+ * The fill is clipped to the cel, which the reflection maps onto itself. */
 void draw(History &history, const Cel &cel, const ShapeStyle &style, ToolPoint a, ToolPoint b)
 {
     RasterPlotFn plot = history_plot(history, cel, style.color);
     const std::vector<ToolPoint> offsets = brushOffsets(style);
     const Symmetry &sym = style.symmetry;
-    for (int i = 0; i < symmetry_count(sym); i++) {
-        ToolPoint origin = symmetry_copy(sym, cel.width(), cel.height(), ToolPoint{0, 0}, i);
-        std::vector<ToolPoint> mapped;
+    const int copies = symmetry_count(sym);
+    RasterPlotFn stamp = [&](int x, int y) {
         for (ToolPoint o : offsets) {
-            ToolPoint r = symmetry_copy(sym, cel.width(), cel.height(), o, i);
-            mapped.push_back(ToolPoint{r.x - origin.x, r.y - origin.y});
-        }
-        RasterPlotFn stamp = [&plot, &mapped](int x, int y) {
-            for (ToolPoint m : mapped) {
-                plot(x + m.x, y + m.y);
+            for (int i = 0; i < copies; i++) {
+                ToolPoint at =
+                    symmetry_copy(sym, cel.width(), cel.height(), ToolPoint{x + o.x, y + o.y}, i);
+                plot(at.x, at.y);
             }
-        };
-        drawOne(mapped.size() == 1 && mapped[0].x == 0 && mapped[0].y == 0 ? plot : stamp, style,
-                symmetry_copy(sym, cel.width(), cel.height(), a, i),
-                symmetry_copy(sym, cel.width(), cel.height(), b, i));
-    }
+        }
+    };
+    drawOne(stamp, style, a, b, Rect{0, 0, cel.width(), cel.height()});
 }
 
 } // namespace

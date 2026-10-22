@@ -250,7 +250,7 @@ headless CLI export, optional Aseprite import.
 
 ## Known limits (what is left)
 - The model does not enforce layer locks; the `Editor` does (`editableCel`).
-- Rasterizers clip nothing; the caller bounds-checks. A selection is one rectangle, and pixels moved off the sprite are
+- Rasterizers clip no pixels; the caller bounds-checks. Filled ones take an optional clip rect that only skips fill rows and columns outside it (a shape dragged far past the cel stays cheap), and shapes draw once and reflect each plotted pixel for symmetry. A selection is one rectangle, and pixels moved off the sprite are
   lost. Merging needs both layers visible.
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); ImGui's built-in font (Inter / DM Mono are not embedded).

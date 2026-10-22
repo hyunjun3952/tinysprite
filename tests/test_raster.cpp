@@ -450,6 +450,21 @@ TEST(flood_fill_large_cel)
     ASSERT_EQ_INT(512 * 512, g.plots);
 }
 
+TEST(filled_rasterizers_only_visit_the_clip_rect)
+{
+    const Rect clip = {0, 0, 8, 6};
+    long long calls = 0;
+    RasterPlotFn count = [&calls](int, int) { calls++; };
+    raster_rect(-100000, -100000, 100000, 100000, true, count, &clip);
+    raster_ellipse(-100000, -100000, 100000, 100000, true, count, &clip);
+    raster_polygon({{-100000, -100000}, {100000, -100000}, {0, 100000}}, true, count, &clip);
+    /* the outline of the polygon is not clipped, but it is only as long as its edges */
+    ASSERT_TRUE(calls < 48 * 3 + 700000);
+    calls = 0;
+    raster_rect(-100000, -100000, 100000, 100000, true, count, &clip);
+    ASSERT_EQ_INT(48, calls);
+}
+
 int main(void)
 {
     RUN(line_single_point);
@@ -479,5 +494,6 @@ int main(void)
     RUN(flood_fill_rejects_out_of_bounds_seed);
     RUN(flood_fill_callback_may_edit_the_cel);
     RUN(flood_fill_large_cel);
+    RUN(filled_rasterizers_only_visit_the_clip_rect);
     return TEST_SUMMARY();
 }

@@ -475,6 +475,76 @@ TEST(a_live_shape_with_a_brush_redraws_cleanly)
     s->end();
 }
 
+static bool mirrored_x(const Cel &c)
+{
+    for (int y = 0; y < c.height(); y++) {
+        for (int x = 0; x < c.width(); x++) {
+            if (c.get(x, y) != c.get(c.width() - 1 - x, y)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool mirrored_y(const Cel &c)
+{
+    for (int y = 0; y < c.height(); y++) {
+        for (int x = 0; x < c.width(); x++) {
+            if (c.get(x, y) != c.get(x, c.height() - 1 - y)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+TEST(a_mirrored_shape_is_the_exact_mirror_image_for_every_kind)
+{
+    for (int kind = 0; kind < SHAPE_COUNT; kind++) {
+        for (int x1 = 2; x1 < 8; x1++) {
+            for (int filled = 0; filled < 2; filled++) {
+                ShapeStyle style;
+                style.kind = static_cast<ShapeKind>(kind);
+                style.filled = filled != 0;
+                style.color = RED;
+                style.symmetry.mirror_x = true;
+                History hx;
+                Cel cx(16, 12);
+                shape_stroke(hx, cx, style, ToolPoint{1, 1}, ToolPoint{x1, 9});
+                if (!mirrored_x(cx)) {
+                    MT_FAIL("kind %d box width %d filled %d: not mirrored left-right", kind, x1,
+                            filled);
+                }
+                style.symmetry = Symmetry{false, true};
+                History hy;
+                Cel cy(16, 12);
+                shape_stroke(hy, cy, style, ToolPoint{1, 1}, ToolPoint{x1, 9});
+                if (!mirrored_y(cy)) {
+                    MT_FAIL("kind %d box width %d filled %d: not mirrored top-bottom", kind, x1,
+                            filled);
+                }
+            }
+        }
+    }
+}
+
+TEST(a_filled_shape_dragged_far_outside_the_cel_stays_cheap)
+{
+    for (int kind = 1; kind < SHAPE_COUNT; kind++) {
+        History h;
+        Cel c(8, 6);
+        ShapeStyle style;
+        style.kind = static_cast<ShapeKind>(kind);
+        style.filled = true;
+        style.color = RED;
+        shape_stroke(h, c, style, ToolPoint{2, 2}, ToolPoint{100000, 100000});
+        if (kind == static_cast<int>(ShapeKind::Rect)) {
+            ASSERT_EQ_INT(RED.a, c.get(7, 5).a); /* the fill still reaches the cel */
+        }
+    }
+}
+
 int main(void)
 {
     RUN(line_connects_the_corners);
@@ -508,5 +578,7 @@ int main(void)
     RUN(a_mirrored_thick_shape_is_symmetric_even_for_an_even_brush);
     RUN(a_huge_brush_is_capped_and_stays_inside_the_cel);
     RUN(a_live_shape_with_a_brush_redraws_cleanly);
+    RUN(a_mirrored_shape_is_the_exact_mirror_image_for_every_kind);
+    RUN(a_filled_shape_dragged_far_outside_the_cel_stays_cheap);
     return TEST_SUMMARY();
 }
