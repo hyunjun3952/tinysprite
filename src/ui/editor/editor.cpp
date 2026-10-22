@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "drag.hpp"
-#include "editor_internal.hpp"
+#include "editor/internal.hpp"
 
 Editor::Editor(SDL_Renderer *renderer, Sprite sprite)
     : renderer_(renderer), sprite_(std::move(sprite))

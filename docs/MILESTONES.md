@@ -245,7 +245,7 @@ candidates listed under UI polish.
 ## Convenience features (outside the milestones)
 - Panning: the right or middle button drag (or Space + left drag) moves the view with a hand cursor; the canvas item accepts
   the right button for that, so a right click never draws (`tests/ui/ui_canvas.cpp`).
-- Shortcuts live in `src/ui/app_shortcuts.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
+- Shortcuts live in `src/ui/app/shortcuts.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
   `+` / `-` and `[` / `]` brush size (1 px; `Editor::changeBrushSize`), the wheel zooms, holding the middle button = temporary eyedropper (`Editor::tempPick`; dragging it pans), Space + drag pans.
 - Clipboard (`selection.hpp`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite; undoing it restores the selection rectangle.

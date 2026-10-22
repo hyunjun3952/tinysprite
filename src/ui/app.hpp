@@ -63,7 +63,7 @@ class App
         Count /* not an action: the number of them */
     };
 
-    /* What the path dialog does for one FileAction (see fileInfo in app_files.cpp). */
+    /* What the path dialog does for one FileAction (see fileInfo in app/files.cpp). */
     struct FileActionInfo {
         const char *title;
         const char *extension; /* added to a name typed without one; "" when the action reads */

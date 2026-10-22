@@ -80,10 +80,11 @@ properties leave (`LayersPanel::list`), so the properties stay at the bottom. Pa
 (`panel.tools.*`, `panel.layers.*`), not from the title.
 
 `App` and `Editor` are big classes whose code is split over several files by what it is about, so the implementation files
-stay a few hundred lines each (the class declarations remain in `editor.hpp` and `app.hpp`): `app.cpp` (startup, main loop, autosave), `app_menus.cpp`, `app_shortcuts.cpp`, `app_dialogs.cpp`,
-`app_files.cpp`; `editor.cpp` (document, strokes, texture), `editor_layers.cpp`, `editor_palette.cpp`,
-`editor_selection.cpp`, `editor_settings.cpp`. Helpers shared between the `editor_*.cpp` files are declared in
-`editor_internal.hpp` and defined in `editor_internal.cpp`.
+stay a few hundred lines each (the class declarations remain in `editor.hpp` and `app.hpp` in `src/ui/`). `src/ui/app/`:
+`app.cpp` (startup, main loop, autosave), `menus.cpp`, `commands.cpp`, `shortcuts.cpp`, `dialogs.cpp`, `files.cpp`.
+`src/ui/editor/`: `editor.cpp` (document, strokes, texture), `layers.cpp`, `frames.cpp`, `palette.cpp`, `selection.cpp`,
+`settings.cpp`. Helpers shared between the files in `editor/` (and `layer_selection.cpp`) are declared in
+`editor/internal.hpp` and defined in `editor/internal.cpp`.
 
 `Editor` delegates two self-contained pieces: `LayerSelection` (`layer_selection.hpp`: the active layer plus Ctrl/Shift
 picks, tracked by layer identity) and `CompositeSurface` (`composite_surface.hpp`: the CPU buffer, its texture and the
@@ -97,13 +98,13 @@ eyedropper, shape, select (which also moves). The editor holds at most one. `Can
 on release or `cancel` on Esc, which is how one drag becomes exactly one undo step.
 
 The menu commands that have a Ctrl shortcut (file, edit, zoom) are one table in `commands.cpp`: label, keys, Shift
-rule, key repeat. The menus (`app_menus.cpp`) and the shortcut handler (`app_shortcuts.cpp`) both read it, and
-`app_commands.cpp` holds what each command does and when it is enabled. Tool letters and the single-key shortcuts
-stay in `app_shortcuts.cpp`; the help window text is still written by hand.
+rule, key repeat. The menus (`app/menus.cpp`) and the shortcut handler (`app/shortcuts.cpp`) both read it, and
+`app/commands.cpp` holds what each command does and when it is enabled. Tool letters and the single-key shortcuts
+stay in `app/shortcuts.cpp`; the help window text is still written by hand.
 
 The timeline (`timeline_panel.cpp`) is a strip under the canvas, not one of the dockable `Panels`: a toolbar, an onion
 skin row, a tag row and a grid of cels. `Editor` holds the current frame, the selected tag and the playback
-(`editor_frames.cpp`); `App` calls `Editor::tick` once per UI frame with the elapsed time.
+(`editor/frames.cpp`); `App` calls `Editor::tick` once per UI frame with the elapsed time.
 
 Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an autosave copy
 of a document with unsaved changes; the next start offers to recover it. Neither is touched by `--frames` smoke runs

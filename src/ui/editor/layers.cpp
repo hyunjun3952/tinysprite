@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "editor_internal.hpp"
+#include "editor/internal.hpp"
 
 #include "tinysprite/layer_ops.hpp"
 

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <utility>
 
-#include "editor_internal.hpp"
+#include "editor/internal.hpp"
 #include "tinysprite/palette_ops.hpp"
 
 Rgba Editor::foreground() const

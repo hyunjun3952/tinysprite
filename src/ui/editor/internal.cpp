@@ -1,4 +1,4 @@
-#include "editor_internal.hpp"
+#include "editor/internal.hpp"
 
 #include <algorithm>
 #include <cmath>

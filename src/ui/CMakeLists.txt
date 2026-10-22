@@ -15,8 +15,9 @@ target_link_libraries(tinysprite_imgui PUBLIC SDL2::SDL2)
 target_compile_options(tinysprite_imgui PRIVATE -w)
 
 add_library(tinysprite_ui STATIC
-  editor.cpp editor_internal.cpp editor_layers.cpp editor_frames.cpp editor_palette.cpp editor_selection.cpp editor_settings.cpp drags.cpp tool.cpp layer_selection.cpp composite_surface.cpp commands.cpp
-  app.cpp app_menus.cpp app_commands.cpp app_shortcuts.cpp app_dialogs.cpp app_files.cpp
+  editor/editor.cpp editor/internal.cpp editor/layers.cpp editor/frames.cpp editor/palette.cpp editor/selection.cpp editor/settings.cpp
+  drags.cpp tool.cpp layer_selection.cpp composite_surface.cpp commands.cpp
+  app/app.cpp app/menus.cpp app/commands.cpp app/shortcuts.cpp app/dialogs.cpp app/files.cpp
   canvas.cpp statusbar.cpp file_paths.cpp panels.cpp tools_panel.cpp layers_panel.cpp timeline_panel.cpp layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(tinysprite_ui PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/geist
