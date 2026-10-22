@@ -18,7 +18,7 @@ add_library(tinysprite_ui STATIC
   editor/editor.cpp editor/internal.cpp editor/layers.cpp editor/frames.cpp editor/palette.cpp editor/selection.cpp editor/settings.cpp
   drags.cpp tool.cpp layer_selection.cpp composite_surface.cpp commands.cpp
   app/app.cpp app/menus.cpp app/commands.cpp app/shortcuts.cpp app/dialogs.cpp app/files.cpp
-  canvas.cpp statusbar.cpp file_paths.cpp panels.cpp tools_panel.cpp layers_panel.cpp timeline_panel.cpp layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
+  canvas.cpp statusbar.cpp file_paths.cpp window_size.cpp panels.cpp tools_panel.cpp layers_panel.cpp timeline_panel.cpp layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(tinysprite_ui PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/geist
                                                   ${PROJECT_SOURCE_DIR}/thirdparty/material-symbols)

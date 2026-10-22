@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "window_size.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -50,9 +51,19 @@ App::~App()
 
 bool App::createWindow(int width, int height)
 {
+    /* A window bigger than the screen (a small display, a large UI scale) would have its edges and
+     * the status bar off screen, so the size is fitted to the usable area. */
+    SDL_Rect area = {0, 0, 0, 0};
+    SDL_GetDisplayUsableBounds(0, &area); /* stays 0 x 0 when unknown */
+    const WindowSize usable{area.w, area.h};
+    WindowSize fitted = window_fit(WindowSize{width, height}, usable);
+    width = fitted.width;
+    height = fitted.height;
     window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width,
                                height, SDL_WINDOW_RESIZABLE);
     if (window_) {
+        WindowSize smallest = window_fit(window_minimum(theme::scale()), usable);
+        SDL_SetWindowMinimumSize(window_, smallest.width, smallest.height);
         renderer_ =
             SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         if (!renderer_) {
