@@ -44,6 +44,16 @@ struct AppTestAccess {
     {
         app.guardUnsaved([] {});
     }
+    void pressCtrlT()
+    {
+        ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_T, true);
+        frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_T, false);
+        ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, false);
+        frame();
+        frame();
+    }
     void pressEscape()
     {
         ImGui::GetIO().AddKeyEvent(ImGuiKey_Escape, true);
@@ -72,8 +82,20 @@ TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
     ASSERT_TRUE(editor.hasSelection());
 }
 
+TEST(ctrl_t_hides_and_shows_the_timeline)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    ASSERT_TRUE(t.editor().overlays().timeline);
+    t.pressCtrlT();
+    ASSERT_TRUE(!t.editor().overlays().timeline);
+    t.pressCtrlT();
+    ASSERT_TRUE(t.editor().overlays().timeline);
+}
+
 int main()
 {
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
+    RUN(ctrl_t_hides_and_shows_the_timeline);
     return TEST_SUMMARY();
 }

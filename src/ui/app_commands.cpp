@@ -37,6 +37,8 @@ const App::CommandAction &App::commandAction(CommandId id)
         {[](App &app) { app.editor_->zoomStep(1); }, always},
         {[](App &app) { app.editor_->zoomStep(-1); }, always},
         {[](App &app) { app.editor_->view().needs_fit = true; }, always},
+        {[](App &app) { app.editor_->overlays().timeline = !app.editor_->overlays().timeline; },
+         always},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(COMMAND_COUNT),
                   "one CommandAction row per CommandId");
@@ -53,10 +55,11 @@ bool App::commandEnabled(CommandId id) const
     return commandAction(id).enabled(*this);
 }
 
-void App::commandItem(CommandId id)
+void App::commandItem(CommandId id, bool checked)
 {
     const Command &command = command_of(id);
-    if (ImGui::MenuItem(command.label, command_hint(command).c_str(), false, commandEnabled(id))) {
+    if (ImGui::MenuItem(command.label, command_hint(command).c_str(), checked,
+                        commandEnabled(id))) {
         runCommand(id);
     }
 }

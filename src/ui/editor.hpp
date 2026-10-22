@@ -156,7 +156,8 @@ class Editor
         bool status = true;
         bool cursor = true;
         bool mirror_axes = true;
-        bool timeline = true; /* the timeline strip along the bottom of the window */
+        bool timeline = true;    /* the timeline strip along the bottom of the window */
+        bool options_bar = true; /* the options of the active tool, above the canvas */
     };
     Overlays &overlays()
     {

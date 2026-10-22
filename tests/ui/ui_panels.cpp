@@ -80,15 +80,17 @@ TEST(closing_a_floating_panel_hides_it)
 
 TEST(sections_are_visible_until_hidden)
 {
+    /* The Tools panel is the narrow tool bar (tools and shapes); Color, Layers and Properties are
+     * sections of the right panel. */
     Panels panels;
-    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::RECENT));
-    panels.setSectionVisible(PanelId::Tools, sections::RECENT, false);
-    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
-    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::COLOR));
-    /* The Layers panel has its own sections. */
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::COLOR));
+    panels.setSectionVisible(PanelId::Layers, sections::COLOR, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Layers, sections::COLOR));
     ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::LAYERS));
-    panels.setSectionVisible(PanelId::Layers, sections::RECENT, false);
-    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::SHAPES));
+    panels.setSectionVisible(PanelId::Tools, sections::SHAPES, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::SHAPES));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::TOOLS));
 }
 
 TEST(layers_panel_has_a_properties_section_that_can_be_hidden)
@@ -137,13 +139,11 @@ TEST(reset_keeps_the_widths_at_the_current_ui_scale)
     ASSERT_TRUE(afterReset == scaled);
 }
 
-TEST(symmetry_section_is_hidden_until_switched_on)
+TEST(the_right_panel_is_named_for_what_it_holds)
 {
     Harness h;
-    ASSERT_TRUE(!h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
-    ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SHAPES));
-    h.panels.setSectionVisible(PanelId::Tools, sections::SYMMETRY, true);
-    ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
+    h.frame(0.0f, 0.0f, false);
+    ASSERT_TRUE(ImGui::FindWindowByName("Inspector") != nullptr);
 }
 
 int main()
@@ -158,7 +158,7 @@ int main()
     RUN(reset_shows_every_section_again);
     RUN(reset_keeps_the_widths_at_the_current_ui_scale);
     RUN(closing_a_floating_panel_hides_it);
-    RUN(symmetry_section_is_hidden_until_switched_on);
+    RUN(the_right_panel_is_named_for_what_it_holds);
     RUN(layers_panel_has_a_properties_section_that_can_be_hidden);
     return TEST_SUMMARY();
 }

@@ -46,6 +46,7 @@ class LayersPanel
         int to = -1;
     };
 
+    void list();
     void rows();
     void row(int index, const RowContext &ctx, Drop &drop);
     void rowSelectable(int index, const RowContext &ctx);
@@ -66,6 +67,8 @@ class LayersPanel
     void propertyOpacity(const Layer &layer);
     void propertyBlend(const Layer &layer);
     void propertyInfo(const Layer &layer);
+    void propertyLabel(const char *name);
+    void propertyValue(const char *name, const std::string &value);
     void buttons();
 
     Editor &editor_;
@@ -77,6 +80,7 @@ class LayersPanel
     std::string renameBefore_;
     bool renameFocus_ = false;
 
+    float below_ = 160.0f;    /* the height under the list (the properties), last frame */
     int focusFrame_ = -1;     /* the ImGui frame in which the window had the focus */
     bool openDelete_ = false; /* the dialog still has to be opened */
     bool dialogOpen_ = false;

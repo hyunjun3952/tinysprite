@@ -43,6 +43,7 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "view.cursor", overlays_.cursor);
     settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_set_bool(settings, "view.timeline", overlays_.timeline);
+    settings_set_bool(settings, "view.options_bar", overlays_.options_bar);
     settings_set_bool(settings, "onion.on", onionOn_);
     settings_set_int(settings, "onion.before", onion_.before);
     settings_set_int(settings, "onion.after", onion_.after);
@@ -66,6 +67,7 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "view.cursor", overlays_.cursor);
     settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_get_bool(settings, "view.timeline", overlays_.timeline);
+    settings_get_bool(settings, "view.options_bar", overlays_.options_bar);
     bool onionOn = onionOn_;
     OnionSkin onion = onion_;
     int value = 0;

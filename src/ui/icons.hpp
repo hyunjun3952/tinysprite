@@ -51,6 +51,10 @@ unsigned codepoint(Icon icon);
  * strokes stay on the pixel grid. */
 float glyph_size(float uiScale);
 
+/* The glyph size inside a round button: 80% of glyph_size, so the glyph sits comfortably in a
+ * circle. */
+float round_glyph_size(float uiScale);
+
 /* Where to start the glyph's text so that its ink box, (x0, y0)-(x1, y1) relative to that start,
  * is centered in [min, max]. A glyph's em box is not centered on its drawing (an arrow or a
  * pencil sits off to one side of it), so the ink is what has to be centered. Whole pixels. */
@@ -63,6 +67,12 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
  * scope and start with "##" (there is no label). While disabled it shows the "not allowed" cursor
  * instead of the tooltip. Returns true when clicked. */
 bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled = true);
+
+/* A circular button (a filled disc in the button colors) with the icon centered, for a small
+ * secondary action such as swapping the colors. `diameter` is in pixels; the rest is as button().
+ */
+bool round_button(Icon icon, const char *id, const char *tooltip, float diameter,
+                  bool enabled = true);
 
 /* A framed button for one choice out of several: filled with the accent while `selected`. Returns
  * true when clicked. */

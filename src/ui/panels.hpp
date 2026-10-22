@@ -7,9 +7,11 @@
 
 #include "settings.hpp"
 
-/* The side panels (Tools, Layers): each is docked to the left or right window edge, or floats as a
- * movable window. Docked panels can be resized by their inner edge and are pulled out by dragging
- * their title bar; a floating panel docks again when its title bar is dragged to an edge. */
+/* The side panels (Tools: the narrow tool bar; Layers: the right panel, titled "Inspector", with
+ * the color, the layers and their properties): each is docked to the left or right window edge, or
+ * floats as a movable window. Docked panels can be resized by their inner edge and are pulled out
+ * by dragging their title bar; a floating panel docks again when its title bar is dragged to an
+ * edge. */
 
 enum class PanelId { Tools, Layers, Count };
 
@@ -19,11 +21,7 @@ namespace sections
 {
 inline constexpr const char *TOOLS = "Tools";
 inline constexpr const char *SHAPES = "Shapes";
-inline constexpr const char *TOOL_OPTIONS = "Tool options";
-inline constexpr const char *SYMMETRY = "Symmetry";
-inline constexpr const char *SELECTION = "Selection";
 inline constexpr const char *COLOR = "Color";
-inline constexpr const char *RECENT = "Recent";
 inline constexpr const char *LAYERS = "Layers";
 inline constexpr const char *PROPERTIES = "Properties";
 } // namespace sections
@@ -85,6 +83,7 @@ class Panels
      * Dragging a floating panel's title bar to an edge docks it there. Hidden panels give their
      * space away. */
     struct Panel {
+        const char *key; /* settings keys: panel.<key>.*; never changes, unlike the title */
         const char *title;
         float width;
         bool visible = true;

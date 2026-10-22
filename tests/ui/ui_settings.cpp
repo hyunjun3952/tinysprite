@@ -81,8 +81,8 @@ TEST(panel_layout_survives_a_round_trip)
 {
     Panels a;
     a.setVisible(PanelId::Layers, false);
-    a.setSectionVisible(PanelId::Tools, sections::SYMMETRY, true);
-    a.setSectionVisible(PanelId::Tools, sections::RECENT, false);
+    a.setSectionVisible(PanelId::Layers, sections::COLOR, false);
+    a.setSectionVisible(PanelId::Tools, sections::SHAPES, false);
     SettingsMap s;
     a.store(s);
 
@@ -90,9 +90,9 @@ TEST(panel_layout_survives_a_round_trip)
     b.load(s);
     ASSERT_TRUE(!b.visible(PanelId::Layers));
     ASSERT_TRUE(b.visible(PanelId::Tools));
-    ASSERT_TRUE(b.sectionVisible(PanelId::Tools, sections::SYMMETRY));
-    ASSERT_TRUE(!b.sectionVisible(PanelId::Tools, sections::RECENT));
-    ASSERT_TRUE(b.sectionVisible(PanelId::Tools, sections::COLOR));
+    ASSERT_TRUE(!b.sectionVisible(PanelId::Layers, sections::COLOR));
+    ASSERT_TRUE(!b.sectionVisible(PanelId::Tools, sections::SHAPES));
+    ASSERT_TRUE(b.sectionVisible(PanelId::Tools, sections::TOOLS));
 }
 
 TEST(panel_load_ignores_bad_entries)

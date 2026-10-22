@@ -78,8 +78,16 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 - Menus: a Layer menu (the Layers panel's actions, `Editor::canRemoveSelectedLayers` is shared with the panel's
   Delete button), File groups Export and Palette into submenus, Edit gains Deselect / Clear / Transform selection,
   View is split into zoom, canvas overlays and panels.
-- Docks: section headers are a hairline plus a caret and title instead of filled bars; the Selection section shows
-  only while the select tool is active or something is selected (the Edit menu has the same actions at any time).
+- Docks: section headers are a hairline plus a caret and title instead of filled bars. Layout, chosen after
+  prototyping three variants side by side (tidy the old structure / move Color to the right / Aseprite's context bar):
+  a 52 px vertical tool bar on the left (tools and shapes, no headers), an options bar above the canvas (brush, shape,
+  selection transforms, mirror X / Y; View > Tool options hides it), and a right panel "Inspector" with Color (and the
+  recent colors under the palette), Layers (buttons above the list, the list fills the free height) and Properties
+  (a two-column grid: blend, opacity, then size, frames, palette) pinned to the bottom. The sections Tool options,
+  Symmetry, Selection and Recent no longer exist as dock sections.
+- The timeline is shown or hidden with Ctrl+T (a `CommandId`, so the View menu item and the key cannot drift) or the
+  small tab on its edge (`App::timelineHandle`); `view.timeline` and the new `view.options_bar` are saved.
+- A round button (`icons::round_button`) for small secondary actions; the foreground / background swap uses it.
 - Looked at and not taken: `PopupWindow` hot regions and `AnimatedWidget` easing (ImGui popups already close on an
   outside click, and the UI is immediate-mode), a separate "small" font (one more atlas size for little gain now).
 
@@ -222,7 +230,7 @@ candidates listed under UI polish.
   separately. Pixel-perfect is ignored above size 1. Shapes use it for their outline, the bucket does not.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
-- UI layout (`src/ui/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
+- UI layout (`src/ui/panels.cpp`): Tools (the tool bar) / Layers (titled Inspector) are docked left / right (resizable by the inner edge, 48-480 px) or
   floating windows; dragging a docked panel's title bar pulls it out (it follows the mouse until release), and
   dragging a floating title bar to an edge docks it. The layout is persisted (`Panels::store` / `load`). The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`).
@@ -232,7 +240,7 @@ candidates listed under UI polish.
   shortcut is in the tooltip), the other buttons are text, grouped into collapsible sections (`theme::section`) in the
   Tools and Layers panels; the icons are font glyphs
   (`src/ui/icons.cpp`; `tests/ui/ui_icons.cpp` checks the table and that every glyph is in the font). The
-  Tool options section shows only what the active tool uses. The font is an embedded Geist subset (UI polish 2); there is no mono font. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
+  The options bar shows only what the active tool uses. The font is an embedded Geist subset (UI polish 2); there is no mono font. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
   display; `ctest -R ui_smoke` runs three frames of the app.
 - Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
   `namespace sections`; the menu stays open while toggling; "Reset layout and sections" restores everything). View

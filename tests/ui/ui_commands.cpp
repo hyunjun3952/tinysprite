@@ -107,6 +107,14 @@ TEST(shift_is_ignored_where_a_command_does_not_care)
     ASSERT_TRUE(run(false, {ImGuiKey_Keypad0})->id == CommandId::Fit);
 }
 
+TEST(ctrl_t_toggles_the_timeline)
+{
+    const Command &toggle = command(CommandId::ToggleTimeline);
+    ASSERT_TRUE(std::string(toggle.label) == "Timeline");
+    ASSERT_TRUE(command_hint(toggle) == "Ctrl+T");
+    ASSERT_TRUE(run(false, {ImGuiKey_T}) == &toggle);
+}
+
 TEST(no_key_runs_nothing)
 {
     ASSERT_TRUE(run(false, {}) == nullptr);
@@ -139,6 +147,7 @@ int main()
     RUN(a_hint_can_be_spelled_out);
     RUN(shift_tells_save_from_save_as_and_undo_from_redo);
     RUN(shift_is_ignored_where_a_command_does_not_care);
+    RUN(ctrl_t_toggles_the_timeline);
     RUN(no_key_runs_nothing);
     RUN(a_disabled_command_does_not_run);
     RUN(only_undo_redo_and_zoom_repeat_while_held);

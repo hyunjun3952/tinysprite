@@ -12,11 +12,11 @@
 namespace
 {
 
-constexpr float TOOLS_PANEL_WIDTH = 250.0f;
+constexpr float TOOLS_PANEL_WIDTH = 52.0f; /* one column of icon buttons */
 constexpr float LAYERS_PANEL_WIDTH = 280.0f;
 constexpr float FLOAT_OFFSET = 40.0f;
 constexpr float RESIZE_GRAB = 4.0f;
-constexpr float PANEL_MIN_WIDTH = 170.0f;
+constexpr float PANEL_MIN_WIDTH = 48.0f;
 constexpr float PANEL_MAX_WIDTH = 480.0f;
 constexpr float DOCK_ZONE =
     60.0f; /* mouse distance from a window edge that docks a dragged panel */
@@ -34,9 +34,10 @@ Panels::Panels()
 
 void Panels::reset()
 {
-    auto make = [](const char *title, float width, DockSide side,
+    auto make = [](const char *key, const char *title, float width, DockSide side,
                    std::initializer_list<const char *> sectionNames) {
         Panel panel{};
+        panel.key = key;
         panel.title = title;
         panel.width = theme::px(width); /* at the current UI scale */
         panel.side = side;
@@ -46,18 +47,11 @@ void Panels::reset()
         }
         return panel;
     };
-    panels_[static_cast<size_t>(PanelId::Tools)] =
-        make("Tools", TOOLS_PANEL_WIDTH, DockSide::Left,
-             {sections::TOOLS, sections::SHAPES, sections::TOOL_OPTIONS, sections::SYMMETRY,
-              sections::SELECTION, sections::COLOR, sections::RECENT});
-    /* Symmetry is occasional: hidden until it is switched on in the Window menu. */
-    for (Section &section : panels_[static_cast<size_t>(PanelId::Tools)].sections) {
-        if (std::strcmp(section.name, sections::SYMMETRY) == 0) {
-            section.visible = false;
-        }
-    }
-    panels_[static_cast<size_t>(PanelId::Layers)] = make(
-        "Layers", LAYERS_PANEL_WIDTH, DockSide::Right, {sections::LAYERS, sections::PROPERTIES});
+    panels_[static_cast<size_t>(PanelId::Tools)] = make(
+        "tools", "Tools", TOOLS_PANEL_WIDTH, DockSide::Left, {sections::TOOLS, sections::SHAPES});
+    panels_[static_cast<size_t>(PanelId::Layers)] =
+        make("layers", "Inspector", LAYERS_PANEL_WIDTH, DockSide::Right,
+             {sections::COLOR, sections::LAYERS, sections::PROPERTIES});
 }
 
 bool Panels::sectionVisible(PanelId id, const char *name) const
@@ -252,13 +246,11 @@ bool Panels::begin(PanelId id, float height)
 namespace
 {
 
-std::string keyPrefix(const char *title)
+/* The settings keys of a panel come from a fixed name, not its title, so renaming a window does
+ * not orphan what a user already saved. */
+std::string keyPrefix(const char *key)
 {
-    std::string key = "panel.";
-    for (const char *c = title; *c != '\0'; c++) {
-        key += static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
-    }
-    return key + ".";
+    return std::string("panel.") + key + ".";
 }
 
 } // namespace
@@ -266,7 +258,7 @@ std::string keyPrefix(const char *title)
 void Panels::store(SettingsMap &settings) const
 {
     for (const Panel &panel : panels_) {
-        std::string prefix = keyPrefix(panel.title);
+        std::string prefix = keyPrefix(panel.key);
         settings_set_bool(settings, prefix + "visible", panel.visible);
         settings_set_int(settings, prefix + "side", static_cast<int>(panel.side));
         settings_set_int(settings, prefix + "home", static_cast<int>(panel.home));
@@ -280,7 +272,7 @@ void Panels::store(SettingsMap &settings) const
 void Panels::load(const SettingsMap &settings)
 {
     for (Panel &panel : panels_) {
-        std::string prefix = keyPrefix(panel.title);
+        std::string prefix = keyPrefix(panel.key);
         settings_get_bool(settings, prefix + "visible", panel.visible);
         int side = 0;
         if (settings_get_int(settings, prefix + "side", 0, 2, side)) {

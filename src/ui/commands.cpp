@@ -15,6 +15,7 @@ const Command COMMANDS[COMMAND_COUNT] = {
     {"Zoom in", "Ctrl++", CommandId::ZoomIn, {{ImGuiKey_Equal}, {ImGuiKey_KeypadAdd}}, true},
     {"Zoom out", nullptr, CommandId::ZoomOut, {{ImGuiKey_Minus}, {ImGuiKey_KeypadSubtract}}, true},
     {"Fit", "F, Ctrl+0", CommandId::Fit, {{ImGuiKey_0}, {ImGuiKey_Keypad0}}, false},
+    {"Timeline", nullptr, CommandId::ToggleTimeline, {{ImGuiKey_T}}, false},
 };
 
 namespace

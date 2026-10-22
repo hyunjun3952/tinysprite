@@ -1,4 +1,5 @@
 /* The layer list driven with synthetic input: double-click a row to rename the layer in place. */
+#include <cstring>
 #include <memory>
 
 #include "editor.hpp"
@@ -16,7 +17,25 @@ namespace
  * docked at the right edge of a 1000 px wide window with no menu bar (the panel has no section
  * header above the list). */
 constexpr float ROW_X = 780.0f;
-constexpr float ROW_Y = 37.0f;
+constexpr float ROW_HEIGHT = 32.0f; /* a thumbnail row of the list */
+
+/* The top of the scrolling list of rows, found from its window: it moves when the panel above it
+ * (the Color block, the buttons) changes, so the tests do not hard-code it. */
+float list_top()
+{
+    for (const ImGuiWindow *window : ImGui::GetCurrentContext()->Windows) {
+        if (std::strstr(window->Name, "layer_list") != nullptr) {
+            return window->Pos.y;
+        }
+    }
+    return 0.0f;
+}
+
+/* The middle of the row that is `fromTop` rows below the top of the list. */
+float row_y(int fromTop)
+{
+    return list_top() + ROW_HEIGHT / 2.0f + ROW_HEIGHT * static_cast<float>(fromTop);
+}
 
 struct Fixture {
     Harness h;
@@ -28,24 +47,25 @@ struct Fixture {
         editor = Editor::create(h.renderer, 8, 8);
         layers = std::make_unique<LayersPanel>(*editor);
         h.layersBody = [this] { layers->show(h.panels); };
-        h.frame(ROW_X, ROW_Y, false);
+        h.frame(ROW_X, 0.0f, false);     /* builds the panel */
+        h.frame(ROW_X, row_y(0), false); /* the list exists now */
     }
 
     void click()
     {
-        h.frame(ROW_X, ROW_Y, true);
-        h.frame(ROW_X, ROW_Y, false);
+        h.frame(ROW_X, row_y(0), true);
+        h.frame(ROW_X, row_y(0), false);
     }
     void doubleClick()
     {
         click();
         click();
-        h.frame(ROW_X, ROW_Y, false);
+        h.frame(ROW_X, row_y(0), false);
     }
     void type(const char *text)
     {
         ImGui::GetIO().AddInputCharactersUTF8(text);
-        h.frame(ROW_X, ROW_Y, false);
+        h.frame(ROW_X, row_y(0), false);
     }
     const char *name() const
     {
@@ -91,10 +111,6 @@ TEST(a_single_click_does_not_start_renaming)
 }
 
 /* Rows are 32 px tall and the first one starts about 27 px down; the list is top layer first. */
-static float row_y(int fromTop)
-{
-    return 43.0f + 32.0f * static_cast<float>(fromTop);
-}
 
 static void add_layers(Fixture &f, int total)
 {
@@ -349,7 +365,9 @@ TEST(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip)
     bool sawEnabledTip = false;
     bool sawBlockedCursor = false;
     bool tipOnBlocked = false;
-    for (int row = 80; row < 160; row += 8) {
+    /* The buttons sit right above the list. */
+    const int bottom = static_cast<int>(list_top());
+    for (int row = bottom - 40; row < bottom; row += 4) {
         for (int x = 745; x < 1000; x += 8) {
             Hover h = hover_at(f, static_cast<float>(x), static_cast<float>(row));
             bool blocked = h.cursor == ImGuiMouseCursor_NotAllowed;
@@ -368,7 +386,7 @@ TEST(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere)
     Fixture f;
     add_layers(f, 2);
     f.click();
-    f.h.frame(ROW_X, ROW_Y, false);
+    f.h.frame(ROW_X, row_y(0), false);
     ASSERT_TRUE(f.layers->focused());
     f.h.frame(300, 300, true);
     f.h.frame(300, 300, false);

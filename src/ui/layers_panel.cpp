@@ -13,6 +13,8 @@ namespace
 {
 
 constexpr float OPACITY_COLUMN = 76.0f;
+constexpr float PROPERTY_NAME_COLUMN = 72.0f; /* the names in the properties grid */
+constexpr float LIST_MIN_HEIGHT = 96.0f;      /* the layer list never gets shorter than this */
 
 /* What each BlendMode does, for the tooltips of the Blend combo and the layer rows. */
 constexpr const char *BLEND_HINTS[BLEND_MODE_COUNT] = {
@@ -355,10 +357,7 @@ void LayersPanel::propertyBlend(const Layer &layer)
     for (int i : editor_.selectedLayers()) {
         mixed = mixed || editor_.sprite().layer(i)->blendMode() != layer.blendMode();
     }
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Blend");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(-FLT_MIN);
+    propertyLabel("Blend");
     if (ImGui::BeginCombo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
         for (int m = 0; m < BLEND_MODE_COUNT; m++) {
             auto mode = static_cast<BlendMode>(m);
@@ -379,12 +378,9 @@ void LayersPanel::propertyOpacity(const Layer &layer)
     const uint8_t opacityNow = layer.opacity();
     /* read before the slider can change anything: the drag may start on this very frame */
     std::vector<std::pair<int, uint8_t>> selectedNow = editor_.selectedLayerOpacities();
-    /* The name on the left, then a slider that fills the row and shows a percentage. */
+    /* A slider that fills the value column and shows a percentage. */
     int percent = (opacityNow * 100 + 127) / 255;
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Opacity");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(-FLT_MIN);
+    propertyLabel("Opacity");
     if (ImGui::SliderInt("##opacity", &percent, 0, 100, "%d%%")) {
         editor_.setSelectedLayersOpacityLive(static_cast<uint8_t>((percent * 255 + 50) / 100));
     }
@@ -397,22 +393,46 @@ void LayersPanel::propertyOpacity(const Layer &layer)
     }
 }
 
-/* Facts about the layer that cannot be edited here: its size and how many frames have a cel of
- * their own or share one. */
+/* One row of the properties grid: the name in the left column, and the widget that follows fills
+ * the right one. */
+void LayersPanel::propertyLabel(const char *name)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", name);
+    ImGui::TableNextColumn();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+}
+
+/* A row with a name and a read-only value. */
+void LayersPanel::propertyValue(const char *name, const std::string &value)
+{
+    propertyLabel(name);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(value.c_str());
+}
+
+/* Facts about the sprite that cannot be edited here: its size, its frames (and how many cels of
+ * this layer are shared with another frame) and the palette. */
 void LayersPanel::propertyInfo(const Layer &layer)
 {
-    const int frames = editor_.sprite().frameCount();
+    const Sprite &sprite = editor_.sprite();
+    const int frames = sprite.frameCount();
     int linked = 0;
     for (int f = 0; f < frames; f++) {
         if (layer.celLinked(f)) {
             linked++;
         }
     }
-    ImGui::TextDisabled("Size %d x %d px", editor_.sprite().width(), editor_.sprite().height());
-    ImGui::TextDisabled("%d frame%s, %d linked", frames, frames == 1 ? "" : "s", linked);
+    propertyValue("Size",
+                  std::to_string(sprite.width()) + " x " + std::to_string(sprite.height()) + " px");
+    propertyValue("Frames", std::to_string(frames) + "  (" + std::to_string(linked) + " linked)");
     theme::tip("A linked cel is shared with another frame: drawing on one changes them all.");
+    propertyValue("Palette", std::to_string(sprite.palette().count()) + " colors");
 }
 
+/* The grid of the section: the layer's blend and opacity, then the facts about the sprite. */
 void LayersPanel::properties()
 {
     const Layer *layer = editor_.sprite().layer(editor_.activeLayer());
@@ -423,9 +443,17 @@ void LayersPanel::properties()
         ImGui::TextDisabled("%d layers selected: opacity and blend apply to all",
                             static_cast<int>(editor_.selectedLayers().size()));
     }
+    constexpr ImGuiTableFlags FLAGS = ImGuiTableFlags_SizingFixedFit;
+    if (!ImGui::BeginTable("##properties", 2, FLAGS)) {
+        return;
+    }
+    ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed,
+                            theme::px(PROPERTY_NAME_COLUMN));
+    ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
     propertyBlend(*layer);
     propertyOpacity(*layer);
     propertyInfo(*layer);
+    ImGui::EndTable();
 }
 
 /* Layer actions under the list: one icon button each, evenly spread (the tooltips name them).
@@ -521,6 +549,21 @@ void LayersPanel::deleteDialog()
     ImGui::EndPopup();
 }
 
+/* The rows in a scrolling area that takes all the height the properties below leave, so the list
+ * grows with the window and the properties sit at the bottom of the panel. */
+void LayersPanel::list()
+{
+    const float height =
+        std::max(theme::px(LIST_MIN_HEIGHT), ImGui::GetContentRegionAvail().y - below_);
+    /* A recessed area, so the room under the last row reads as part of the list. */
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::rgb(theme::WORKSPACE, 0.55f));
+    if (ImGui::BeginChild("##layer_list", ImVec2(0.0f, height), ImGuiChildFlags_None)) {
+        rows();
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+}
+
 void LayersPanel::show(const Panels &panels)
 {
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
@@ -528,14 +571,21 @@ void LayersPanel::show(const Panels &panels)
     }
     /* Layers cannot change under a tool that is mid-drag. */
     ImGui::BeginDisabled(editor_.stroking());
-    /* The panel is titled "Layers" and has just this one section, so it needs no header. */
-    if (panels.sectionVisible(PanelId::Layers, sections::LAYERS)) {
-        rows();
+    float belowStart = 0.0f;
+    if (panels.sectionVisible(PanelId::Layers, sections::LAYERS) &&
+        theme::section(sections::LAYERS)) {
         buttons();
+        list();
+        belowStart = ImGui::GetCursorPosY();
     }
     if (panels.sectionVisible(PanelId::Layers, sections::PROPERTIES) &&
         theme::section(sections::PROPERTIES)) {
         properties();
+    }
+    if (belowStart > 0.0f) {
+        /* what sat under the list this frame (the properties); the next frame sizes the list by it
+         */
+        below_ = ImGui::GetCursorPosY() - belowStart + ImGui::GetStyle().ItemSpacing.y;
     }
     ImGui::EndDisabled();
     deleteDialog();

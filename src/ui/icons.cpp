@@ -48,6 +48,7 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
 
 constexpr float ROUND = 6.0f;
 constexpr float GLYPH_SIZE_BASE = 20.0f;
+constexpr float ROUND_GLYPH_RATIO = 0.8f; /* of the square-button glyph */
 
 ImU32 withAlpha(unsigned hex, float alpha)
 {
@@ -74,10 +75,15 @@ float glyph_size(float uiScale)
     return std::round(GLYPH_SIZE_BASE * uiScale);
 }
 
+float round_glyph_size(float uiScale)
+{
+    return std::round(glyph_size(uiScale) * ROUND_GLYPH_RATIO);
+}
+
 ImVec2 glyph_origin(ImVec2 min, ImVec2 max, float x0, float y0, float x1, float y1)
 {
-    return ImVec2(std::floor((min.x + max.x) / 2.0f - (x0 + x1) / 2.0f),
-                  std::floor((min.y + max.y) / 2.0f - (y0 + y1) / 2.0f));
+    return {std::floor((min.x + max.x) / 2.0f - (x0 + x1) / 2.0f),
+            std::floor((min.y + max.y) / 2.0f - (y0 + y1) / 2.0f)};
 }
 
 /* A rhombus outline, as thick as a Material Symbols stroke at the same size. */
@@ -92,14 +98,13 @@ void drawDiamond(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
     list->AddPolyline(points, 4, color, ImDrawFlags_Closed, size * 0.07f);
 }
 
-void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
+namespace
 {
-    if (icon == Icon::Diamond) {
-        drawDiamond(list, min, max, color);
-        return;
-    }
+
+/* The glyph of `icon` at `size` pixels, centered in [min, max] by its ink. */
+void drawGlyph(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color, float size)
+{
     ImFont *font = ImGui::GetFont();
-    const float size = glyph_size(theme::scale());
     const ImFontGlyph *glyph =
         font->GetFontBaked(size)->FindGlyph(static_cast<ImWchar>(codepoint(icon)));
     if (glyph == nullptr || !glyph->Visible) {
@@ -108,6 +113,40 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
     ImVec2 at = glyph_origin(min, max, glyph->X0, glyph->Y0, glyph->X1, glyph->Y1);
     const std::array<char, 4> text = utf8(codepoint(icon));
     list->AddText(font, size, at, color, text.data());
+}
+
+} // namespace
+
+void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    if (icon == Icon::Diamond) {
+        drawDiamond(list, min, max, color);
+        return;
+    }
+    drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));
+}
+
+bool round_button(Icon icon, const char *id, const char *tooltip, float diameter, bool enabled)
+{
+    ImGui::BeginDisabled(!enabled);
+    bool clicked = ImGui::InvisibleButton(id, ImVec2(diameter, diameter));
+    ImGui::EndDisabled();
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    ImGuiCol fill = ImGuiCol_Button;
+    if (ImGui::IsItemActive()) {
+        fill = ImGuiCol_ButtonActive;
+    } else if (ImGui::IsItemHovered()) {
+        fill = ImGuiCol_ButtonHovered;
+    }
+    ImDrawList *list = ImGui::GetWindowDrawList();
+    list->AddCircleFilled(ImVec2((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f), diameter / 2.0f,
+                          ImGui::GetColorU32(fill), 0);
+    drawGlyph(list, icon, min, max,
+              enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f),
+              round_glyph_size(theme::scale()));
+    theme::hint(tooltip, enabled);
+    return clicked && enabled;
 }
 
 bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled)

@@ -24,6 +24,7 @@ enum class CommandId {
     ZoomIn,
     ZoomOut,
     Fit,
+    ToggleTimeline,
     Count,
 };
 

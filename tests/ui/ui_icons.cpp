@@ -59,11 +59,21 @@ TEST(the_glyph_size_follows_the_ui_scale_in_whole_pixels)
     ASSERT_TRUE(icons::glyph_size(1.1f) == 22.0f);
 }
 
+/* A round button is smaller than a square one, so its glyph is drawn smaller too: a 20 px glyph
+ * would crowd a circle of about 24 px. */
+TEST(a_round_button_draws_its_glyph_smaller)
+{
+    ASSERT_TRUE(icons::round_glyph_size(1.0f) == 16.0f);
+    ASSERT_TRUE(icons::round_glyph_size(2.0f) == 32.0f);
+    ASSERT_TRUE(icons::round_glyph_size(1.5f) < icons::glyph_size(1.5f));
+}
+
 int main()
 {
     RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_diamond);
     RUN(every_icon_glyph_is_in_the_embedded_font);
     RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);
     RUN(the_glyph_size_follows_the_ui_scale_in_whole_pixels);
+    RUN(a_round_button_draws_its_glyph_smaller);
     return TEST_SUMMARY();
 }

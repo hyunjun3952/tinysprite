@@ -114,13 +114,14 @@ class App
     static const CommandAction &commandAction(CommandId id);
     void runCommand(CommandId id);
     bool commandEnabled(CommandId id) const;
-    void commandItem(CommandId id);
+    void commandItem(CommandId id, bool checked = false);
     void plainShortcuts();
     void ctrlShortcuts();
     void escapeShortcut();
     bool modalOpen() const;
     void handleShortcuts();
     void layersWindow(float height);
+    void timelineHandle(float x, float width, float edgeY);
 
     void askForPath(FileAction action);
     /* True when the dialog may write `path`: it is new, it is the document's own file, or the user

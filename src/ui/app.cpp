@@ -7,6 +7,7 @@
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
+#include "icons.hpp"
 #include "imgui.h"
 #include "theme.hpp"
 #include "tinysprite/io.hpp"
@@ -17,6 +18,7 @@ namespace
 constexpr int WINDOW_WIDTH = 1100;
 constexpr int WINDOW_HEIGHT = 720;
 constexpr Uint32 AUTOSAVE_INTERVAL_MS = 30000;
+constexpr float OPTIONS_BAR_HEIGHT = 40.0f; /* at scale 1 */
 
 } // namespace
 
@@ -247,6 +249,7 @@ void App::shutdown()
 void App::layersWindow(float height)
 {
     if (panels_.begin(PanelId::Layers, height)) {
+        toolsPanel_->colorBlock(panels_);
         layersPanel_->show(panels_);
     }
     panels_.end();
@@ -291,6 +294,31 @@ void App::pollEvents()
 }
 
 /* Lays out and builds every panel and dialog of one UI frame. */
+/* A small tab on the edge between the canvas and the timeline (or the bottom of the canvas while
+ * the timeline is hidden) that shows or hides the timeline, as Ctrl+T does. */
+void App::timelineHandle(float x, float width, float edgeY)
+{
+    const ImVec2 size(theme::px(48.0f), theme::px(18.0f));
+    ImGui::SetNextWindowPos(ImVec2(x + (width - size.x) / 2.0f, edgeY - size.y));
+    ImGui::SetNextWindowSize(size);
+    constexpr ImGuiWindowFlags FLAGS =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBackground;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    if (ImGui::Begin("##timeline_handle", nullptr, FLAGS)) {
+        const bool shown = editor_->overlays().timeline;
+        const std::string tip = std::string(shown ? "Hide" : "Show") + " the timeline (" +
+                                command_hint(command_of(CommandId::ToggleTimeline)) + ")";
+        if (icons::button(shown ? icons::Icon::ChevronDown : icons::Icon::ChevronUp,
+                          "##toggle_timeline", tip.c_str(), size)) {
+            runCommand(CommandId::ToggleTimeline);
+        }
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+}
+
 void App::buildUi()
 {
     menuBar();
@@ -310,8 +338,15 @@ void App::buildUi()
         timelinePanel_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + body - timeline,
                              viewport->WorkSize.x - left - right);
     }
-    canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y,
-                  viewport->WorkSize.x - left - right, body - timeline);
+    const float bar = editor_->overlays().options_bar ? theme::px(OPTIONS_BAR_HEIGHT) : 0.0f;
+    if (bar > 0.0f) {
+        toolsPanel_->contextBar(viewport->WorkPos.x + left, viewport->WorkPos.y,
+                                viewport->WorkSize.x - left - right, bar);
+    }
+    canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + bar,
+                  viewport->WorkSize.x - left - right, body - timeline - bar);
+    timelineHandle(viewport->WorkPos.x + left, viewport->WorkSize.x - left - right,
+                   viewport->WorkPos.y + body - timeline);
     if (status > 0.0f) {
         status_bar_show(*editor_, viewport->WorkPos.x, viewport->WorkPos.y + body,
                         viewport->WorkSize.x);

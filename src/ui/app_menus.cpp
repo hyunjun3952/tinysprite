@@ -289,8 +289,10 @@ void App::viewMenu()
     }
     theme::tip("Show the neighbouring frames faintly under the current one.");
     ImGui::Separator();
-    ImGui::MenuItem("Timeline", nullptr, &editor_->overlays().timeline);
+    commandItem(CommandId::ToggleTimeline, editor_->overlays().timeline);
     theme::tip("The frames and playback strip along the bottom of the window.");
+    ImGui::MenuItem("Tool options", nullptr, &editor_->overlays().options_bar);
+    theme::tip("The options of the active tool, in a bar above the canvas.");
     ImGui::MenuItem("Status bar", nullptr, &editor_->overlays().status);
     theme::tip("The bar along the bottom with the size, tool, frame, zoom and hovered cel.");
     ImGui::Separator();
