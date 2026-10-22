@@ -40,6 +40,19 @@ Done. The design is in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas are in th
 - [x] **14. Export** — `gif_encode` (own LZW encoder) and `spritesheet_render`, with File menu dialogs; animated GIF
       import.
 
+## UI polish (after phase 2)
+
+Done: panel headers without repeats, a status bar and toasts, brighter panel borders, a UI scale (View menu,
+`--scale`, saved in `settings.ini`; the default comes from the display DPI), a path dialog that remembers its folder,
+adds the extension and asks before overwriting, and a Properties section (opacity, size, linked cels) in Layers.
+
+- Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
+  `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
+- Not done: blend modes (a core change for its own branch), a TTF font (the 13 px bitmap font is only scaled), a
+  file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
+- Left from the pattern survey: an `Editor` change observer or an `applyOp` helper, a `theme::labeledRow` helper,
+  merging the tool tables, declarative settings bindings.
+
 ## Phase 3: game pipeline
 Spritesheet packing + JSON metadata, slices/pivots/hitboxes, tilemap editor, filters,
 headless CLI export, optional Aseprite import.
