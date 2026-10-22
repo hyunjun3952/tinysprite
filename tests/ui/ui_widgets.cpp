@@ -98,11 +98,69 @@ TEST(a_modal_fades_in_when_it_opens)
     ASSERT_TRUE(ImGui::GetStyle().Alpha == 1.0f); /* nothing leaks out of the dialog */
 }
 
+/* A menu bar with one menu, "File", whose title is at `title` once drawn. */
+struct MenuRig {
+    test_ui::Harness h;
+    ImVec2 title;
+
+    MenuRig()
+    {
+        h.body = [this] {
+            ImGui::GetIO().DeltaTime =
+                0.1f; /* the frames of a test are far shorter than real ones */
+            if (ImGui::BeginMainMenuBar()) {
+                if (theme::begin_menu("File")) {
+                    ImGui::MenuItem("Open");
+                    ImGui::EndMenu();
+                }
+                if (title.x == 0.0f) {
+                    title = ImVec2(20.0f, ImGui::GetWindowHeight() / 2.0f);
+                }
+                ImGui::EndMainMenuBar();
+            }
+        };
+        h.frame(0.0f, 300.0f, false);
+    }
+    bool open() const
+    {
+        return ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId);
+    }
+    void frames(float x, float y, int count)
+    {
+        for (int i = 0; i < count; i++) {
+            h.frame(x, y, false);
+        }
+    }
+};
+
+TEST(a_menu_opens_on_hover_and_closes_when_the_mouse_leaves)
+{
+    MenuRig rig;
+    rig.frames(rig.title.x, rig.title.y, 3);
+    ASSERT_TRUE(rig.open());
+    rig.frames(rig.title.x, 15.0f + 0.0f, 3); /* still on the bar: stays */
+    ASSERT_TRUE(rig.open());
+    rig.frames(700.0f, 500.0f, 6); /* far away from the bar and the menu */
+    ASSERT_TRUE(!rig.open());
+}
+
+TEST(a_menu_stays_open_while_the_mouse_is_over_it)
+{
+    MenuRig rig;
+    rig.frames(rig.title.x, rig.title.y, 3);
+    ASSERT_TRUE(rig.open());
+    /* the first item sits just under the bar */
+    rig.frames(rig.title.x + 10.0f, ImGui::GetFrameHeight() + 14.0f, 8);
+    ASSERT_TRUE(rig.open());
+}
+
 int main()
 {
     RUN(dragging_a_slider_sets_the_value_by_the_mouse_position);
     RUN(a_slider_is_filled_up_to_its_value);
     RUN(an_empty_slider_has_no_fill);
     RUN(a_modal_fades_in_when_it_opens);
+    RUN(a_menu_opens_on_hover_and_closes_when_the_mouse_leaves);
+    RUN(a_menu_stays_open_while_the_mouse_is_over_it);
     return TEST_SUMMARY();
 }

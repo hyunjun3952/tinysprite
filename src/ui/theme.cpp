@@ -211,9 +211,56 @@ float columnWidth(int count)
     return std::max(width, 1.0f);
 }
 
+namespace
+{
+
+constexpr float MENU_LEAVE_SECONDS =
+    0.25f;                                /* how long the mouse may be away before a menu closes */
+constexpr float MENU_LEAVE_MARGIN = 6.0f; /* the slack around the bar and the open menus */
+
+/* Whether the mouse is over the menu bar of the current window or any open popup (a menu and its
+ * submenus are popups), with a little slack for the gap between a title and its menu. */
+bool mouse_near_menus()
+{
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    const float slack = px(MENU_LEAVE_MARGIN);
+    ImRect bar = ImGui::GetCurrentWindow()->MenuBarRect();
+    bar.Expand(slack);
+    if (bar.Contains(mouse)) {
+        return true;
+    }
+    for (const ImGuiPopupData &popup : ImGui::GetCurrentContext()->OpenPopupStack) {
+        if (popup.Window != nullptr) {
+            ImRect rect = popup.Window->Rect();
+            rect.Expand(slack);
+            if (rect.Contains(mouse)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace
+
 bool begin_menu(const char *label)
 {
+    /* The bar's own state: how long the mouse has been away from the menus while this one is open.
+     */
+    ImGuiStorage *storage = ImGui::GetStateStorage();
+    const ImGuiID key = ImGui::GetID(label);
+    float away = storage->GetFloat(key, 0.0f);
     const bool open = ImGui::BeginMenu(label);
+    if (open) {
+        away = mouse_near_menus() ? 0.0f : away + ImGui::GetIO().DeltaTime;
+        if (away > MENU_LEAVE_SECONDS) {
+            ImGui::CloseCurrentPopup(); /* the menu and its submenus */
+            away = 0.0f;
+        }
+    } else {
+        away = 0.0f;
+    }
+    storage->SetFloat(key, away); /* the bar's storage, not the popup's */
     if (!open && ImGui::IsItemHovered() &&
         !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
         ImGui::OpenPopup(label);
