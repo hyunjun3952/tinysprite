@@ -108,6 +108,23 @@ TEST(removing_an_earlier_frame_keeps_the_same_frame_selected)
     delete e;
 }
 
+TEST(a_frame_beyond_the_cel_budget_is_refused_and_reported)
+{
+    Editor *e = make_editor();
+    e->sprite().setCelBudget(8 * 6 * 4 * 2); /* two cels */
+    e->addFrame();
+    ASSERT_EQ_INT(2, e->sprite().frameCount());
+    ASSERT_TRUE(!e->takeMemoryShort());
+    e->addFrame();
+    ASSERT_EQ_INT(2, e->sprite().frameCount());
+    ASSERT_EQ_INT(1, e->frame());
+    ASSERT_TRUE(e->takeMemoryShort());
+    e->duplicateFrame();
+    ASSERT_EQ_INT(2, e->sprite().frameCount());
+    ASSERT_TRUE(e->takeMemoryShort());
+    delete e;
+}
+
 TEST(removing_the_current_frame_moves_on_to_the_one_that_followed_it)
 {
     Editor *e = make_editor();
@@ -537,6 +554,7 @@ int main()
     RUN(duplicate_selects_the_copy);
     RUN(remove_selects_a_neighbour_and_refuses_the_last_frame);
     RUN(removing_an_earlier_frame_keeps_the_same_frame_selected);
+    RUN(a_frame_beyond_the_cel_budget_is_refused_and_reported);
     RUN(removing_the_current_frame_moves_on_to_the_one_that_followed_it);
     RUN(removing_a_later_frame_leaves_the_current_number_alone);
     RUN(move_keeps_the_selection_on_the_same_frame);

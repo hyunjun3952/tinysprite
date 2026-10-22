@@ -49,7 +49,7 @@ HistoryAction layerRemoved(const std::shared_ptr<Membership> &m)
 
 Layer *layer_op_add(History &history, Sprite &sprite, const std::string &name)
 {
-    if (history.strokeActive()) {
+    if (history.strokeActive() || !sprite.fitsCels(1, 0)) {
         return nullptr;
     }
     Layer &layer = sprite.addLayer(name);
@@ -70,7 +70,7 @@ bool layer_op_remove(History &history, Sprite &sprite, int index)
 Layer *layer_op_duplicate(History &history, Sprite &sprite, int index)
 {
     const Layer *source = sprite.layer(index);
-    if (!source || history.strokeActive()) {
+    if (!source || history.strokeActive() || !sprite.fitsCels(1, 0)) {
         return nullptr;
     }
     constexpr const char *SUFFIX = " copy";
@@ -195,16 +195,18 @@ bool layer_op_merge_down(History &history, Sprite &sprite, int index)
                 composite_blend(low[i], up[i], upper->opacity(), upper->blendMode()));
         }
     }
-    return history.perform(HistoryAction{[m] {
-                                             m->lower->setCelList(m->linked);
-                                             m->write(m->before);
-                                             m->upper.attach();
-                                         },
-                                         [m] {
-                                             m->lower->setCelList(m->separate);
-                                             m->write(m->after);
-                                             m->upper.detach();
-                                         }});
+    HistoryAction action{[m] {
+                             m->lower->setCelList(m->linked);
+                             m->write(m->before);
+                             m->upper.attach();
+                         },
+                         [m] {
+                             m->lower->setCelList(m->separate);
+                             m->write(m->after);
+                             m->upper.detach();
+                         }};
+    action.bytes = (m->before.size() + m->after.size()) * sizeof(Rgba);
+    return history.perform(std::move(action));
 }
 
 bool layer_op_move(History &history, Sprite &sprite, int from, int to)

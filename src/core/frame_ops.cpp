@@ -80,7 +80,8 @@ bool recordInsert(History &history, Sprite &sprite, int index, Sprite::Frame &&f
 
 bool frame_op_add(History &history, Sprite &sprite, int index)
 {
-    if (history.strokeActive() || index < 0 || index > sprite.frameCount()) {
+    if (history.strokeActive() || index < 0 || index > sprite.frameCount() ||
+        !sprite.fitsCels(0, 1)) {
         return false;
     }
     return recordInsert(history, sprite, index, sprite.makeFrame());
@@ -88,7 +89,8 @@ bool frame_op_add(History &history, Sprite &sprite, int index)
 
 bool frame_op_duplicate(History &history, Sprite &sprite, int index)
 {
-    if (history.strokeActive() || index < 0 || index >= sprite.frameCount()) {
+    if (history.strokeActive() || index < 0 || index >= sprite.frameCount() ||
+        !sprite.fitsCels(0, 1)) {
         return false;
     }
     return recordInsert(history, sprite, index + 1, sprite.copyFrame(index));

@@ -390,6 +390,9 @@ void App::buildUi()
     Uint32 now = SDL_GetTicks();
     editor_->tick(static_cast<int>(now - lastTick_));
     lastTick_ = now;
+    if (editor_->takeMemoryShort()) {
+        toast("Not enough memory for that: close layers, frames or tabs first", true);
+    }
     const float tabs = tabBarHeight();
     tabBar(viewport->WorkPos.x + left, viewport->WorkPos.y, viewport->WorkSize.x - left - right,
            tabs);

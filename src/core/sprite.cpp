@@ -25,6 +25,15 @@ const Layer *Sprite::layer(int index) const
     return layers_[static_cast<size_t>(index)].get();
 }
 
+bool Sprite::fitsCels(int moreLayers, int moreFrames) const
+{
+    /* 64-bit: 65535 layers x 65535 frames x 64 MiB still fits */
+    const unsigned long long cels = static_cast<unsigned long long>(layers_.size() + moreLayers) *
+                                    static_cast<unsigned long long>(frameCount_ + moreFrames);
+    const unsigned long long cel = static_cast<unsigned long long>(width_) * height_ * sizeof(Rgba);
+    return cels * cel <= celBudget_;
+}
+
 Layer &Sprite::addLayer(const std::string &name)
 {
     layers_.push_back(std::make_unique<Layer>(name, width_, height_, frameCount_));

@@ -44,6 +44,14 @@ Changes that are not pixel deltas (adding, removing, moving, renaming layers, op
 actions with their own undo and redo callables (`History::pushAction`, wrapped by `layer_ops.hpp`). A layer that is
 removed, or added and then undone, is kept alive by the history step so that pixel steps on its cels stay valid.
 
+Memory is bounded in two places so that running out of it is a refusal and not a crash. A sprite has a cel budget
+(`SPRITE_MAX_CEL_BYTES`, 2 GiB of `width x height x 4` per layer and frame; `Sprite::fitsCels`): `layer_op_add`,
+`layer_op_duplicate`, `frame_op_add` and `frame_op_duplicate` refuse beyond it. A `History` keeps at most
+`HISTORY_MAX_BYTES` of steps (`setLimit`): a stroke weighs its deltas, an action what it declares in
+`HistoryAction::bytes` (merge down declares its snapshots), and the oldest steps are dropped first, never the newest.
+`Editor` reports a refusal through `takeMemoryShort()` (the App shows a toast) and catches `std::bad_alloc` around the
+operations that allocate cels (`guarded`), closing any open history group so the history cannot freeze.
+
 Tools sit on top of that:
 
 - `raster.hpp` has pure rasterizers (line, rectangle, ellipse, polygon, flood fill). They report pixels through a

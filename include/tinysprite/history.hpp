@@ -16,7 +16,13 @@
 struct HistoryAction {
     std::function<void()> undo;
     std::function<void()> redo;
+    /* About how much memory the step keeps alive besides the callables themselves (pixel
+     * snapshots, say); it counts toward the history's limit. */
+    size_t bytes = 0;
 };
+
+/* How much memory the undo steps of one History may hold before the oldest are dropped. */
+inline constexpr size_t HISTORY_MAX_BYTES = size_t{512} << 20;
 
 /* Undo/redo log. One undo step is one stroke; internally a stroke is a list of pixel deltas
  * (index, old, new). Every pixel edit must go through History::setPixel. Edits that are not pixel
@@ -98,6 +104,14 @@ class History
         return saved_ && *saved_ == cursor_;
     }
 
+    /* Sets how many bytes of steps are kept (HISTORY_MAX_BYTES by default): when a new step takes
+     * the history past it, the oldest steps are dropped (they can no longer be undone), but the
+     * newest is always kept. A pixel step weighs its deltas, an action what it declares. */
+    void setLimit(size_t bytes)
+    {
+        limit_ = bytes;
+    }
+
     /* Drops every undo/redo step that touches `cel` (cancelling the active stroke if it is on
      * `cel`), so the cel can be destroyed. The remaining steps keep their order and the undo/redo
      * boundary. Steps on other cels are assumed independent of the dropped ones. */
@@ -120,8 +134,13 @@ class History
     static void revert(const Step &step);
     static void apply(const Step &step);
 
+    static size_t weigh(const Step &step);
+
     /* Appends `step` after the cursor, discarding the redo steps. */
     void commit(Step &&step);
+
+    /* Drops the oldest steps while the whole is over the limit_ (never the newest). */
+    void trim();
 
     std::vector<Step> steps_; /* steps_[0..cursor_) are applied, the rest can be redone */
     size_t cursor_ = 0;
@@ -129,6 +148,7 @@ class History
     bool grouping_ = false;
     std::vector<Step> group_;         /* the steps of the open group, in order */
     std::optional<size_t> saved_ = 0; /* cursor_ value of the saved state, if still reachable */
+    size_t limit_ = HISTORY_MAX_BYTES;
     Step active_; /* the open stroke; it is open exactly while active_.cel is set */
 };
 

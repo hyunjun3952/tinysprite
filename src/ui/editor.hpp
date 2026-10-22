@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <new>
 #include <optional>
 #include <string>
 #include <utility>
@@ -355,6 +356,14 @@ class Editor
     void setPalette(Palette palette);
     /* True when the document counts as changed although the undo history is at its save point: one
      * that was recovered from an autosave (see markModified). */
+    /* True once after an edit was refused (the sprite's cel budget is used up) or given up (the
+     * allocator failed) for lack of memory; the document is as it was, and the caller tells the
+     * user. */
+    bool takeMemoryShort()
+    {
+        return std::exchange(memoryShort_, false);
+    }
+
     bool modifiedOutsideHistory() const
     {
         return modifiedOutsideHistory_;
@@ -591,6 +600,20 @@ class Editor
     bool nudgeSelection(int dx, int dy);
 
   private:
+    /* Runs `edit`; if the allocator fails inside it the edit is given up (see
+     * abandonedForMemory) instead of taking the program down, and false is returned. */
+    template <class F> bool guarded(F &&edit)
+    {
+        try {
+            edit();
+            return true;
+        } catch (const std::bad_alloc &) {
+            abandonedForMemory();
+            return false;
+        }
+    }
+    void abandonedForMemory();
+
     /* The editable selected pixels, copied, with the cel and area they came from; nullopt when
      * there is no selection or the cel cannot be edited. */
     struct SelectionEdit {
@@ -622,6 +645,7 @@ class Editor
     RecentColors recent_ = {};
     int paletteSelected_ = -1;
     bool modifiedOutsideHistory_ = false;
+    bool memoryShort_ = false; /* an edit was refused or given up for lack of memory */
     bool showGrid_ = true;
     Overlays overlays_;
     LayerSelection layers_;

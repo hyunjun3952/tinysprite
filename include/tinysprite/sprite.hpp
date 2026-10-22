@@ -19,6 +19,11 @@ inline constexpr int SLICE_NAME_MAX = 63; /* bytes */
 inline constexpr int FRAME_DURATION_DEFAULT = 100; /* milliseconds */
 inline constexpr int FRAME_DURATION_MAX = 65535;
 
+/* The most memory the cels of one sprite may take: width x height x 4 bytes for every layer and
+ * frame (cels shared by linked frames are counted once per frame). Operations that would add cels
+ * beyond it refuse, so a document cannot grow until the allocator gives up. */
+inline constexpr unsigned long long SPRITE_MAX_CEL_BYTES = 2ULL << 30;
+
 class Sprite
 {
   public:
@@ -145,6 +150,16 @@ class Sprite
         return static_cast<int>(layers_.size());
     }
 
+    /* Whether `moreLayers` layers and `moreFrames` frames more would still fit the cel budget. */
+    bool fitsCels(int moreLayers, int moreFrames) const;
+
+    /* Replaces the cel budget (SPRITE_MAX_CEL_BYTES by default); a sprite already over it keeps
+     * its cels but cannot grow. */
+    void setCelBudget(unsigned long long bytes)
+    {
+        celBudget_ = bytes;
+    }
+
     /* Layers are ordered bottom (index 0) to top. Returns null if index is out of range. */
     Layer *layer(int index);
     const Layer *layer(int index) const;
@@ -175,6 +190,7 @@ class Sprite
     int width_;
     int height_;
     int frameCount_ = 1;
+    unsigned long long celBudget_ = SPRITE_MAX_CEL_BYTES;
     std::vector<int> durations_ = {FRAME_DURATION_DEFAULT}; /* one per frame */
     Palette palette_;
     std::vector<Tag> tags_;

@@ -33,15 +33,26 @@ void Editor::pickLayer(int index, LayerPick mode)
     layers_.pick(sprite(), index, mode);
 }
 
+void Editor::abandonedForMemory()
+{
+    history().endGroup(); /* a group left open would freeze the history */
+    memoryShort_ = true;
+    markAllDirty();
+}
+
 void Editor::addLayer()
 {
     if (stroking()) {
         return;
     }
-    if (layer_op_add(history(), sprite(), "Layer " + std::to_string(sprite().layerCount() + 1)) !=
-        nullptr) {
-        pickLayer(sprite().layerCount() - 1, LayerPick::Only);
-    }
+    guarded([this] {
+        if (layer_op_add(history(), sprite(),
+                         "Layer " + std::to_string(sprite().layerCount() + 1)) != nullptr) {
+            pickLayer(sprite().layerCount() - 1, LayerPick::Only);
+        } else {
+            memoryShort_ = true; /* only the cel budget refuses here */
+        }
+    });
 }
 
 void Editor::removeLayer(int index)
@@ -82,7 +93,9 @@ void Editor::setLayerLocked(int index, bool locked)
 
 void Editor::mergeLayerDown(int index)
 {
-    if (stroking() || !layer_op_merge_down(history(), sprite(), index)) {
+    bool merged = false;
+    guarded([&] { merged = !stroking() && layer_op_merge_down(history(), sprite(), index); });
+    if (!merged) {
         return;
     }
     /* The merged layer is gone: its selection moves down, layers above it shift down by one. */
@@ -124,13 +137,17 @@ void Editor::duplicateSelectedLayers()
     std::vector<int> selected = selectedLayers();
     history().beginGroup();
     /* From the top down, so the indexes still to be copied do not move. */
-    for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
-        const Layer *copy = layer_op_duplicate(history(), sprite(), *it);
-        if (copy) {
-            copies.push_back(copy);
-            activeCopy = *it == layers_.active() ? copy : activeCopy;
+    guarded([&] {
+        for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
+            const Layer *copy = layer_op_duplicate(history(), sprite(), *it);
+            if (copy) {
+                copies.push_back(copy);
+                activeCopy = *it == layers_.active() ? copy : activeCopy;
+            } else {
+                memoryShort_ = true; /* only the cel budget refuses here */
+            }
         }
-    }
+    });
     history().endGroup();
     if (copies.empty()) {
         return;
@@ -188,7 +205,10 @@ void Editor::mergeSelectedLayers()
     }
     /* ... then fold them down one by one, topmost first. */
     for (size_t k = layers.size() - 1; k >= 1; k--) {
-        layer_op_merge_down(history(), sprite(), lowest + static_cast<int>(k));
+        if (!guarded(
+                [&] { layer_op_merge_down(history(), sprite(), lowest + static_cast<int>(k)); })) {
+            break;
+        }
     }
     history().endGroup();
     pickLayer(lowest, LayerPick::Only);

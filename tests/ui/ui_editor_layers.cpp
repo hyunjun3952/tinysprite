@@ -505,6 +505,25 @@ TEST(removing_a_layer_below_the_active_one_keeps_that_layer_active)
     delete e;
 }
 
+TEST(a_layer_beyond_the_cel_budget_is_refused_and_reported)
+{
+    Editor *e = make_editor();
+    e->sprite().setCelBudget(8 * 6 * 4 * 3); /* three cels */
+    e->addLayer();
+    e->addLayer();
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
+    ASSERT_TRUE(!e->takeMemoryShort());
+    e->addLayer();
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
+    ASSERT_TRUE(e->takeMemoryShort());
+    ASSERT_TRUE(!e->takeMemoryShort()); /* told once */
+    e->duplicateSelectedLayers();
+    ASSERT_EQ_INT(3, e->sprite().layerCount());
+    ASSERT_TRUE(e->takeMemoryShort());
+    ASSERT_TRUE(e->history().undo()); /* the editor still works: the last add is undone */
+    delete e;
+}
+
 TEST(undo_and_redo_keep_the_same_layer_active)
 {
     Editor *e = make_editor();
@@ -750,6 +769,7 @@ int main()
     RUN(merge_is_refused_when_a_lower_selected_layer_is_locked);
     RUN(merge_is_refused_when_a_blend_would_change_the_look);
     RUN(removing_a_layer_below_the_active_one_keeps_that_layer_active);
+    RUN(a_layer_beyond_the_cel_budget_is_refused_and_reported);
     RUN(undo_and_redo_keep_the_same_layer_active);
     RUN(opacity_edits_apply_to_every_selected_layer_as_one_step);
     RUN(layers_keep_their_own_opacity_before_a_shared_edit);

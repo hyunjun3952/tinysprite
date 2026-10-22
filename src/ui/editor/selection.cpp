@@ -75,8 +75,12 @@ void Editor::paste()
         y = selection_->y;
     }
     Rect pasted = {x, y, clip.width(), clip.height()};
-    if (!clip_paste(history(), *cel, clip, x, y,
-                    selectionAction(selection_, clippedSelection(pasted)))) {
+    bool done = false;
+    guarded([&] {
+        done = clip_paste(history(), *cel, clip, x, y,
+                          selectionAction(selection_, clippedSelection(pasted)));
+    });
+    if (!done) {
         return;
     }
     markDirty(pasted);

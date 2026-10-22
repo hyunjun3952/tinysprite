@@ -1,5 +1,6 @@
 #include "tinysprite/history.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -84,6 +85,9 @@ bool History::endGroup()
     /* The group becomes one action step that owns the steps it covers. */
     auto shared = std::make_shared<std::vector<Step>>(std::move(steps));
     Step group;
+    for (const Step &step : *shared) {
+        group.action.bytes += weigh(step);
+    }
     group.action.undo = [shared] {
         for (auto it = shared->rbegin(); it != shared->rend(); ++it) {
             revert(*it);
@@ -98,6 +102,33 @@ bool History::endGroup()
     return true;
 }
 
+size_t History::weigh(const Step &step)
+{
+    return step.deltas.size() * sizeof(Delta) + step.action.bytes;
+}
+
+void History::trim()
+{
+    size_t total = 0;
+    for (const Step &step : steps_) {
+        total += weigh(step);
+    }
+    size_t dropped = 0;
+    while (total > limit_ && dropped + 1 < steps_.size()) {
+        total -= weigh(steps_[dropped]);
+        dropped++;
+    }
+    if (dropped == 0) {
+        return;
+    }
+    steps_.erase(steps_.begin(), steps_.begin() + static_cast<std::ptrdiff_t>(dropped));
+    cursor_ -= std::min(cursor_, dropped);
+    /* the saved state is reachable only if it was not among the steps that went */
+    if (saved_) {
+        saved_ = *saved_ >= dropped ? std::optional<size_t>(*saved_ - dropped) : std::nullopt;
+    }
+}
+
 void History::commit(Step &&step)
 {
     if (grouping_) {
@@ -110,6 +141,7 @@ void History::commit(Step &&step)
     steps_.erase(steps_.begin() + static_cast<std::ptrdiff_t>(cursor_), steps_.end());
     steps_.push_back(std::move(step));
     cursor_ = steps_.size();
+    trim();
 }
 
 bool History::endStroke()

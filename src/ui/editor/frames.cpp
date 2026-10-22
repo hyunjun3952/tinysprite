@@ -25,18 +25,32 @@ bool Editor::setFrame(int frame)
 void Editor::addFrame()
 {
     stopPlayback();
-    if (!stroking() && frame_op_add(history(), sprite(), frame_ + 1)) {
+    if (stroking()) {
+        return;
+    }
+    bool added = false;
+    guarded([&] { added = frame_op_add(history(), sprite(), frame_ + 1); });
+    if (added) {
         frame_++;
         markAllDirty();
+    } else {
+        memoryShort_ = true; /* only the cel budget (or the allocator) refuses here */
     }
 }
 
 void Editor::duplicateFrame()
 {
     stopPlayback();
-    if (!stroking() && frame_op_duplicate(history(), sprite(), frame_)) {
+    if (stroking()) {
+        return;
+    }
+    bool added = false;
+    guarded([&] { added = frame_op_duplicate(history(), sprite(), frame_); });
+    if (added) {
         frame_++;
         markAllDirty();
+    } else {
+        memoryShort_ = true;
     }
 }
 
@@ -89,7 +103,11 @@ void Editor::unlinkCel(int layer, int frame)
 {
     stopPlayback();
     Layer *target = sprite().layer(layer);
-    if (!stroking() && target && !target->locked() && cel_op_unlink(history(), *target, frame)) {
+    bool unlinked = false;
+    if (!stroking() && target && !target->locked()) {
+        guarded([&] { unlinked = cel_op_unlink(history(), *target, frame); });
+    }
+    if (unlinked) {
         markAllDirty();
     }
 }
