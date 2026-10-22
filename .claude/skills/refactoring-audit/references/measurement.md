@@ -14,7 +14,7 @@ cmake -S . -B build >/dev/null            # makes compile_commands.json
 $tidy -p build --quiet \
   --checks='-*,readability-function-cognitive-complexity' \
   --config='{CheckOptions: {readability-function-cognitive-complexity.Threshold: "7"}}' \
-  --header-filter='^$' src/core/*.cpp src/io/*.cpp src/ui/*.cpp > LOG 2>&1; echo "exit=$?"
+  --header-filter='^$' src/core/*.cpp src/io/*.cpp src/ui/*.cpp src/ui/*/*.cpp > LOG 2>&1; echo "exit=$?"
 grep 'cognitive complexity' LOG
 ```
 
