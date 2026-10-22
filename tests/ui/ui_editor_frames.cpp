@@ -111,7 +111,7 @@ TEST(removing_an_earlier_frame_keeps_the_same_frame_selected)
 TEST(a_frame_beyond_the_cel_budget_is_refused_and_reported)
 {
     Editor *e = make_editor();
-    e->sprite().setCelBudget(8 * 6 * 4 * 2); /* two cels */
+    e->sprite().setCelBudget(8ULL * 6 * 4 * 2); /* two cels */
     e->addFrame();
     ASSERT_EQ_INT(2, e->sprite().frameCount());
     ASSERT_TRUE(!e->takeMemoryShort());

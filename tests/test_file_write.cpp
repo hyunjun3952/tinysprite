@@ -30,7 +30,9 @@ TEST(a_utf8_path_round_trips_and_a_file_there_can_be_written_and_read)
     ASSERT_TRUE(pxa_save(sprite, path));
     std::optional<Sprite> back = pxa_load(path);
     ASSERT_TRUE(back.has_value());
-    ASSERT_EQ_INT(3, back->width());
+    if (back) {
+        ASSERT_EQ_INT(3, back->width());
+    }
     std::filesystem::remove_all(path_from_utf8(folder));
 }
 

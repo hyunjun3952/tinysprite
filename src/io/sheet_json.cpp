@@ -9,18 +9,30 @@
 namespace
 {
 
+/* How long a sequence that starts with `lead` is: 1 for ASCII, 0 for a byte that starts none. */
+size_t utf8Length(unsigned char lead)
+{
+    if (lead < 0xC2 || lead > 0xF4) {
+        return lead < 0x80 ? 1 : 0;
+    }
+    if (lead >= 0xF0) {
+        return 4;
+    }
+    return lead >= 0xE0 ? 3 : 2;
+}
+
 /* The length of the well-formed UTF-8 sequence that starts at `at` (overlong forms, surrogates and
  * code points past U+10FFFF included as malformed), or 0 if there is none. */
 size_t utf8Sequence(const std::string &text, size_t at)
 {
     const auto byte = [&](size_t i) { return static_cast<unsigned char>(text[i]); };
     const unsigned char lead = byte(at);
-    if (lead < 0x80) {
-        return 1;
+    const size_t length = utf8Length(lead);
+    if (length <= 1) {
+        return length;
     }
-    const size_t length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC2 ? 2 : 0;
-    if (length == 0 || lead > 0xF4 || at + length > text.size()) {
-        return 0;
+    if (at + length > text.size()) {
+        return 0; /* cut short */
     }
     for (size_t i = 1; i < length; i++) {
         if ((byte(at + i) & 0xC0) != 0x80) {

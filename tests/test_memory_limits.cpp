@@ -23,7 +23,7 @@ TEST(layers_and_frames_stop_at_the_cel_budget)
 {
     Sprite s(8, 8);
     History h;
-    s.setCelBudget(8 * 8 * 4 * 4); /* four cels */
+    s.setCelBudget(8ULL * 8 * 4 * 4); /* four cels */
     ASSERT_TRUE(layer_op_add(h, s, "b") != nullptr);
     ASSERT_TRUE(frame_op_add(h, s, 1)); /* 2 layers x 2 frames */
     ASSERT_TRUE(layer_op_add(h, s, "c") == nullptr);
@@ -40,7 +40,7 @@ TEST(a_removed_layer_makes_room_again)
 {
     Sprite s(8, 8);
     History h;
-    s.setCelBudget(8 * 8 * 4 * 2);
+    s.setCelBudget(8ULL * 8 * 4 * 2);
     ASSERT_TRUE(layer_op_add(h, s, "b") != nullptr);
     ASSERT_TRUE(layer_op_add(h, s, "c") == nullptr);
     ASSERT_TRUE(layer_op_remove(h, s, 1));
@@ -92,7 +92,7 @@ TEST(dropping_old_steps_keeps_the_save_point_honest)
 {
     History h;
     Cel cel(8, 8);
-    h.setLimit(3 * 12 * 2); /* room for a few deltas */
+    h.setLimit(size_t{3} * 12 * 2); /* room for a few deltas */
     stroke(h, cel, 2, shade(0));
     h.markSaved();
     ASSERT_TRUE(h.atSavePoint());

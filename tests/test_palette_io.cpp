@@ -98,12 +98,10 @@ TEST(a_utf8_bom_is_ignored)
 {
     std::optional<Palette> hex = palette_decode("\xEF\xBB\xBF"
                                                 "ff0000\n00ff00\n");
-    ASSERT_TRUE(hex.has_value());
-    ASSERT_EQ_INT(2, hex->count());
+    ASSERT_TRUE(hex.has_value() && hex->count() == 2);
     std::optional<Palette> gpl = palette_decode("\xEF\xBB\xBF"
                                                 "GIMP Palette\nName: x\n#\n255 0 0 Red\n");
-    ASSERT_TRUE(gpl.has_value());
-    ASSERT_EQ_INT(1, gpl->count());
+    ASSERT_TRUE(gpl.has_value() && gpl->count() == 1);
 }
 
 TEST(only_the_first_256_colors_are_kept)

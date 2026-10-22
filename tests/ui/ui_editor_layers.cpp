@@ -508,7 +508,7 @@ TEST(removing_a_layer_below_the_active_one_keeps_that_layer_active)
 TEST(a_layer_beyond_the_cel_budget_is_refused_and_reported)
 {
     Editor *e = make_editor();
-    e->sprite().setCelBudget(8 * 6 * 4 * 3); /* three cels */
+    e->sprite().setCelBudget(8ULL * 6 * 4 * 3); /* three cels */
     e->addLayer();
     e->addLayer();
     ASSERT_EQ_INT(3, e->sprite().layerCount());

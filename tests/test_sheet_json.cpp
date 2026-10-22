@@ -154,6 +154,9 @@ TEST(a_name_with_invalid_utf8_is_written_as_replacement_characters)
     s.addTag(Sprite::Tag{"\xed\x95\x9c\xea\xb8\x80 \xf0\x9f\x98\x80", 0, 0, PlayMode::Forward});
     std::optional<SpriteSheet> sheet = spritesheet_render(s, SheetOptions{});
     ASSERT_TRUE(sheet.has_value());
+    if (!sheet) {
+        return;
+    }
     std::string json = spritesheet_metadata_json(s, SheetOptions{}, *sheet, "a.png");
     ASSERT_TRUE(json.find("bad\\ufffd\\ufffd name") != std::string::npos);
     ASSERT_TRUE(json.find("cut\\ufffd\\ufffd") != std::string::npos);
