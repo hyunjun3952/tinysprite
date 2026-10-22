@@ -34,7 +34,7 @@ Say the scope back in one line. A big scope is split by module and done one at a
 - Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,h}` and the public headers in `include/tinysprite/*.h`.
 - Scripts: `scripts/*` (shell and any other script there, for example `format.sh`, `lint.sh`, `setup-hooks.sh`, `install-deps.sh`, `check-clang-version.sh`).
 
-Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `.devcontainer/`, `.vscode/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
+Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `.devcontainer/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
 Open those for context only (how to build or run, known gotchas and intended behavior in `docs/`), never to report a finding in them.
 If a suspicion points outside the target (for example a CI workflow), mention it in one line under "not checked" in the report instead of hunting it.
 Findings in test code are about the test being wrong: asserts that cannot fail, golden data that encodes a bug, missing cases, order dependence, leaks between tests.
