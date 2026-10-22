@@ -141,6 +141,33 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   are drawn narrower (`Panels::fitWidths`, the chosen width is kept) so the canvas keeps `PANELS_CANVAS_MIN`, and the
   timeline scrolls sideways. The options bar has no scrollbar (it is cut off; Shift + wheel scrolls it).
 
+## Document tabs and split view
+
+Several documents open at once, as tabs, and two of them side by side. Done on `feat/doc-tabs`.
+
+- Every document has its own `Editor` (history, selection, view, texture): `App::docs_` holds `Document { editor, path,
+  serial }`, `App::active_` is the shown one and `App::editor_` (a non-owning pointer) is its editor, so the menus and
+  shortcuts keep saying `editor_->`. The panels and the canvas hold an `Editor *` too and are pointed at another one by
+  `setEditor` (which drops what they remember about the old document: thumbnails, a rename in progress, the timeline's
+  filled-cel cache). New and Open make a tab (an untouched untitled tab is reused by Open, a file that is open is just
+  shown); the unsaved-changes question moved from New / Open to closing a tab and to quitting (`App::quit` asks about
+  every tab with changes, one after the other, Cancel stops it).
+- What the user carries from tab to tab (tool, colors, brush and shape options, overlays, symmetry and the clipboard) is
+  copied into the editor that is activated: `Editor::adoptPreferences` (built on `store` / `load`). That is also how
+  a selection copied in one tab pastes into another.
+- The tab bar is ImGui's (`app/tabs.cpp`): reorderable (ImGui reorders its own list and `syncTabOrder` brings `docs_`
+  into the same order), a dot on a tab with unsaved changes, a close button, a middle click closes, a right click offers
+  Close / Split right / Split down / Close others / Close to the right, and `+` opens the New dialog. Ctrl+W closes the
+  tab, Ctrl+Tab / Ctrl+Shift+Tab (or Ctrl+PageDown / PageUp) switch. ImGui's selection is only believed when the app did
+  not change the active tab in the same frame (`tabSelected_`).
+- Split view (`app/split.cpp`): View > Split right / Split down / Close split (or the tab menu) show a second `Canvas`
+  ("Canvas 2") beside or under the first, with a draggable handle (ratio 0.15 to 0.85, double click to reset). A click in
+  a pane makes its document the active one (`Canvas::setOnPress`; the active pane has a line along its top), picking a
+  tab fills the active pane, and a tab that is in the other pane just takes the focus there. Closing a tab that a pane
+  shows ends the split. The timeline, options bar, status bar and the Inspector follow the active document.
+- Known limits: the autosave copy holds one document (the one being edited, else the first with changes); the split is
+  not saved between runs; playback runs only in the active document.
+
 ## Phase 2b: layer blend modes
 
 A blend mode decides how a layer's color combines with what is under it. Today every layer is a plain

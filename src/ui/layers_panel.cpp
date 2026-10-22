@@ -58,7 +58,16 @@ void drawDropLine(ImVec2 rowMin, ImVec2 rowMax, bool fromBelow)
 
 } // namespace
 
-LayersPanel::LayersPanel(Editor &editor) : editor_(editor), thumbs_(editor.renderer())
+void LayersPanel::setEditor(Editor &editor)
+{
+    editor_ = &editor;
+    thumbs_.clear();
+    renaming_ = -1;
+    opacityBefore_.clear();
+    openDelete_ = false;
+}
+
+LayersPanel::LayersPanel(Editor &editor) : editor_(&editor), thumbs_(editor.renderer())
 {
 }
 
@@ -79,7 +88,7 @@ void LayersPanel::renameField(int index, Layer &layer)
     }
     if (ImGui::IsItemDeactivated()) {
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            editor_.commitLayerName(index, renameBefore_);
+            editor_->commitLayerName(index, renameBefore_);
         }
         renaming_ = -1;
     }
@@ -90,7 +99,7 @@ void LayersPanel::renameField(int index, Layer &layer)
 void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
 {
     LayerThumbnails::Thumb thumb =
-        thumbs_.get(layer, editor_.frame(), THUMB_WIDTH, THUMB_HEIGHT, editor_.revision());
+        thumbs_.get(layer, editor_->frame(), THUMB_WIDTH, THUMB_HEIGHT, editor_->revision());
     ImVec2 cell = ImGui::GetCursorScreenPos();
     ImGui::Dummy(ImVec2(THUMB_COLUMN, rowHeight));
     if (!thumb.texture) {
@@ -131,7 +140,7 @@ void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
  * that spans all columns; the other cells sit on top of it. */
 void LayersPanel::rowSelectable(int index, const RowContext &ctx)
 {
-    if (ImGui::Selectable("##row", editor_.layerSelected(index),
+    if (ImGui::Selectable("##row", editor_->layerSelected(index),
                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap,
                           ImVec2(0.0f, ctx.rowHeight))) {
         const ImGuiIO &io = ImGui::GetIO();
@@ -141,14 +150,14 @@ void LayersPanel::rowSelectable(int index, const RowContext &ctx)
         } else if (io.KeyCtrl) {
             pick = LayerPick::Toggle;
         }
-        editor_.pickLayer(index, pick);
+        editor_->pickLayer(index, pick);
     }
     /* A right click acts on the row under it, as in a file manager: it becomes the selection unless
      * it is already part of it (then the actions apply to the whole selection). */
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && !editor_.layerSelected(index)) {
-        editor_.pickLayer(index, LayerPick::Only);
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && !editor_->layerSelected(index)) {
+        editor_->pickLayer(index, LayerPick::Only);
     }
-    if (ctx.multiple && index == editor_.activeLayer()) {
+    if (ctx.multiple && index == editor_->activeLayer()) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImGui::GetItemRectMin(),
             ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
@@ -163,7 +172,7 @@ void LayersPanel::rowDragDrop(int index, const Layer &layer, const RowContext &c
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
         ImGui::SetDragDropPayload("LAYER_ROW", &index, sizeof(index));
         if (wholeSelection(index, ctx)) {
-            ImGui::Text("%d layers", static_cast<int>(editor_.selectedLayers().size()));
+            ImGui::Text("%d layers", static_cast<int>(editor_->selectedLayers().size()));
         } else {
             ImGui::TextUnformatted(layer.name().c_str());
         }
@@ -185,7 +194,7 @@ void LayersPanel::rowDropTarget(int index, Drop &drop)
         int from = *static_cast<const int *>(payload->Data);
         /* Dropping a selection onto one of its own layers moves nothing. */
         bool onItself =
-            from == index || (editor_.layerSelected(from) && editor_.layerSelected(index));
+            from == index || (editor_->layerSelected(from) && editor_->layerSelected(index));
         if (!onItself) {
             drawDropLine(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), from < index);
             if (payload->IsDelivery()) {
@@ -212,7 +221,7 @@ void LayersPanel::rowHintAndRename(int index, const Layer &layer)
      * and two quick ones on the same row must not collapse it. */
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) &&
         !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyShift) {
-        editor_.setActiveLayer(index);
+        editor_->setActiveLayer(index);
         renaming_ = index;
         renameBefore_ = layer.name();
         renameFocus_ = true;
@@ -223,7 +232,7 @@ void LayersPanel::rowHintAndRename(int index, const Layer &layer)
  * multi-selection. */
 bool LayersPanel::wholeSelection(int index, const RowContext &ctx) const
 {
-    return ctx.multiple && editor_.layerSelected(index);
+    return ctx.multiple && editor_->layerSelected(index);
 }
 
 /* The eye toggle. With the row inside a multi-selection it applies to the whole selection. */
@@ -239,9 +248,9 @@ void LayersPanel::visibilityToggle(int index, const Layer &layer, const RowConte
     }
     bool visible = !layer.visible();
     if (wholeSelection(index, ctx)) {
-        editor_.setSelectedLayersVisible(visible);
+        editor_->setSelectedLayersVisible(visible);
     } else {
-        editor_.setLayerVisible(index, visible);
+        editor_->setLayerVisible(index, visible);
     }
 }
 
@@ -258,9 +267,9 @@ void LayersPanel::lockToggle(int index, const Layer &layer, const RowContext &ct
     }
     bool locked = !layer.locked();
     if (wholeSelection(index, ctx)) {
-        editor_.setSelectedLayersLocked(locked);
+        editor_->setSelectedLayersLocked(locked);
     } else {
-        editor_.setLayerLocked(index, locked);
+        editor_->setLayerLocked(index, locked);
     }
 }
 
@@ -281,7 +290,7 @@ void LayersPanel::nameCell(int index, Layer &layer, const RowContext &ctx)
 
 void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
 {
-    Layer &layer = *editor_.sprite().layer(index);
+    Layer &layer = *editor_->sprite().layer(index);
     ImGui::PushID(index);
     ImGui::TableNextRow(ImGuiTableRowFlags_None, ctx.rowHeight);
     ImGui::TableSetColumnIndex(0);
@@ -324,14 +333,14 @@ void LayersPanel::rows()
     if (!ImGui::BeginTable("layers", 5, FLAGS)) {
         return;
     }
-    if (renaming_ >= editor_.sprite().layerCount()) {
+    if (renaming_ >= editor_->sprite().layerCount()) {
         renaming_ = -1; /* the layer is gone (undo, delete) */
     }
-    thumbs_.prune(editor_.sprite());
+    thumbs_.prune(editor_->sprite());
     RowContext ctx;
     ctx.frameHeight = ImGui::GetFrameHeight();
     ctx.rowHeight = static_cast<float>(THUMB_HEIGHT) + 8.0f;
-    ctx.multiple = editor_.selectedLayers().size() > 1;
+    ctx.multiple = editor_->selectedLayers().size() > 1;
     ImGui::TableSetupColumn("##visible", ImGuiTableColumnFlags_WidthFixed,
                             ctx.frameHeight + EDGE_MARGIN);
     ImGui::TableSetupColumn("##thumbnail", ImGuiTableColumnFlags_WidthFixed, THUMB_COLUMN);
@@ -340,16 +349,16 @@ void LayersPanel::rows()
     ImGui::TableSetupColumn("##lock", ImGuiTableColumnFlags_WidthFixed,
                             ctx.frameHeight + EDGE_MARGIN);
     Drop drop; /* applied after the loop: the list must not change under it */
-    for (int i = editor_.sprite().layerCount() - 1; i >= 0; i--) {
+    for (int i = editor_->sprite().layerCount() - 1; i >= 0; i--) {
         row(i, ctx, drop);
     }
     ImGui::EndTable();
     if (drop.from >= 0) {
-        bool wasSelected = editor_.layerSelected(drop.from);
-        editor_.moveSelectedLayers(drop.from, drop.to);
+        bool wasSelected = editor_->layerSelected(drop.from);
+        editor_->moveSelectedLayers(drop.from, drop.to);
         if (!wasSelected) {
             /* the dragged layer becomes the selection */
-            editor_.pickLayer(drop.to, LayerPick::Only);
+            editor_->pickLayer(drop.to, LayerPick::Only);
         }
     }
 }
@@ -359,15 +368,15 @@ void LayersPanel::rows()
 void LayersPanel::propertyBlend(const Layer &layer)
 {
     bool mixed = false;
-    for (int i : editor_.selectedLayers()) {
-        mixed = mixed || editor_.sprite().layer(i)->blendMode() != layer.blendMode();
+    for (int i : editor_->selectedLayers()) {
+        mixed = mixed || editor_->sprite().layer(i)->blendMode() != layer.blendMode();
     }
     propertyLabel("Blend");
     if (theme::begin_combo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
         for (int m = 0; m < BLEND_MODE_COUNT; m++) {
             auto mode = static_cast<BlendMode>(m);
             if (ImGui::Selectable(blend_mode_name(mode), !mixed && mode == layer.blendMode())) {
-                editor_.setSelectedLayersBlendMode(mode);
+                editor_->setSelectedLayersBlendMode(mode);
             }
             theme::tip(BLEND_HINTS[m]);
         }
@@ -382,19 +391,19 @@ void LayersPanel::propertyOpacity(const Layer &layer)
 {
     const uint8_t opacityNow = layer.opacity();
     /* read before the slider can change anything: the drag may start on this very frame */
-    std::vector<std::pair<int, uint8_t>> selectedNow = editor_.selectedLayerOpacities();
+    std::vector<std::pair<int, uint8_t>> selectedNow = editor_->selectedLayerOpacities();
     /* A slider that fills the value column and shows a percentage. */
     int percent = (opacityNow * 100 + 127) / 255;
     propertyLabel("Opacity");
     if (theme::slider_int("##opacity", &percent, 0, 100, "%")) {
-        editor_.setSelectedLayersOpacityLive(static_cast<uint8_t>((percent * 255 + 50) / 100));
+        editor_->setSelectedLayersOpacityLive(static_cast<uint8_t>((percent * 255 + 50) / 100));
     }
     theme::tip("How much the layer shows through: 0% is invisible, 100% is fully opaque.");
     if (ImGui::IsItemActivated()) {
         opacityBefore_ = std::move(selectedNow);
     }
     if (ImGui::IsItemDeactivatedAfterEdit()) {
-        editor_.commitSelectedLayersOpacity(opacityBefore_);
+        editor_->commitSelectedLayersOpacity(opacityBefore_);
     }
 }
 
@@ -422,7 +431,7 @@ void LayersPanel::propertyValue(const char *name, const std::string &value)
  * this layer are shared with another frame) and the palette. */
 void LayersPanel::propertyInfo(const Layer &layer)
 {
-    const Sprite &sprite = editor_.sprite();
+    const Sprite &sprite = editor_->sprite();
     const int frames = sprite.frameCount();
     int linked = 0;
     for (int f = 0; f < frames; f++) {
@@ -440,13 +449,13 @@ void LayersPanel::propertyInfo(const Layer &layer)
 /* The grid of the section: the layer's blend and opacity, then the facts about the sprite. */
 void LayersPanel::properties()
 {
-    const Layer *layer = editor_.sprite().layer(editor_.activeLayer());
+    const Layer *layer = editor_->sprite().layer(editor_->activeLayer());
     if (!layer) {
         return;
     }
-    if (editor_.selectedLayers().size() > 1) {
+    if (editor_->selectedLayers().size() > 1) {
         ImGui::TextDisabled("%d layers selected: opacity and blend apply to all",
-                            static_cast<int>(editor_.selectedLayers().size()));
+                            static_cast<int>(editor_->selectedLayers().size()));
     }
     constexpr ImGuiTableFlags FLAGS = ImGuiTableFlags_SizingFixedFit;
     if (!ImGui::BeginTable("##properties", 2, FLAGS)) {
@@ -468,11 +477,11 @@ bool LayersPanel::focused() const
 
 void LayersPanel::askToDelete()
 {
-    if (!editor_.canRemoveSelectedLayers()) {
+    if (!editor_->canRemoveSelectedLayers()) {
         return; /* at least one layer must stay */
     }
-    deleteCount_ = static_cast<int>(editor_.selectedLayers().size());
-    deleteName_ = editor_.sprite().layer(editor_.activeLayer())->name();
+    deleteCount_ = static_cast<int>(editor_->selectedLayers().size());
+    deleteName_ = editor_->sprite().layer(editor_->activeLayer())->name();
     openDelete_ = true;
 }
 
@@ -498,7 +507,7 @@ void LayersPanel::deleteDialog()
     bool close = false;
     const int clicked = theme::dialog_buttons({"Cancel", "Delete"}, 1, true);
     if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-        editor_.removeSelectedLayers();
+        editor_->removeSelectedLayers();
         close = true;
     }
     if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
@@ -551,7 +560,7 @@ void LayersPanel::show(const Panels &panels)
         focusFrame_ = ImGui::GetFrameCount();
     }
     /* Layers cannot change under a tool that is mid-drag. */
-    ImGui::BeginDisabled(editor_.stroking());
+    ImGui::BeginDisabled(editor_->stroking());
     float belowStart = 0.0f;
     if (panels.sectionVisible(PanelId::Layers, sections::LAYERS) &&
         theme::section(sections::LAYERS)) {

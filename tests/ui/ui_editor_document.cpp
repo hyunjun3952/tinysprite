@@ -131,6 +131,49 @@ TEST(loading_bad_preferences_keeps_the_defaults)
     delete e;
 }
 
+/* Each document tab has its own Editor; the preferences and the clipboard belong to the user, so
+ * they follow from one tab to the next. */
+TEST(adopting_preferences_copies_the_tool_colors_brush_overlays_and_clipboard)
+{
+    Editor *a = make_editor();
+    Editor *b = make_editor();
+    a->selectTool(ToolKind::Bucket);
+    a->options().brush_size = 4;
+    a->options().brush_round = true;
+    a->foregroundFloats()[0] = 0.0f;
+    a->foregroundFloats()[2] = 1.0f; /* blue */
+    a->overlays().status = false;
+    a->selectTool(ToolKind::Pencil);
+    click(a, 1, 1);
+    a->selectAll();
+    ASSERT_TRUE(a->copySelection());
+    b->adoptPreferences(*a);
+    ASSERT_EQ_INT(static_cast<int>(ToolKind::Pencil), static_cast<int>(b->tool()));
+    ASSERT_EQ_INT(4, b->options().brush_size);
+    ASSERT_TRUE(b->options().brush_round);
+    ASSERT_EQ_INT(255, b->foreground().b);
+    ASSERT_TRUE(!b->overlays().status);
+    /* the clipboard came along: pasting in the other document works */
+    b->selectTool(ToolKind::Select);
+    b->paste();
+    ASSERT_EQ_INT(255, alpha(b, 1, 1));
+    ASSERT_TRUE(b->history().canUndo());
+    delete a;
+    delete b;
+}
+
+TEST(adopting_preferences_leaves_the_document_alone)
+{
+    Editor *a = make_editor();
+    Editor *b = make_editor();
+    click(b, 2, 2);
+    b->adoptPreferences(*a);
+    ASSERT_EQ_INT(255, alpha(b, 2, 2));
+    ASSERT_TRUE(b->history().canUndo());
+    delete a;
+    delete b;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -143,6 +186,8 @@ int main()
     RUN(new_document_is_blank_with_the_default_palette);
     RUN(preferences_round_trip_through_the_settings);
     RUN(loading_bad_preferences_keeps_the_defaults);
+    RUN(adopting_preferences_copies_the_tool_colors_brush_overlays_and_clipboard);
+    RUN(adopting_preferences_leaves_the_document_alone);
     ui_quit();
     return TEST_SUMMARY();
 }

@@ -1,6 +1,10 @@
 #ifndef TINYSPRITE_UI_CANVAS_HPP
 #define TINYSPRITE_UI_CANVAS_HPP
 
+#include <functional>
+#include <string>
+#include <utility>
+
 #include "editor.hpp"
 #include "imgui.h"
 
@@ -9,11 +13,30 @@
 class Canvas
 {
   public:
-    explicit Canvas(Editor &editor);
+    /* `windowName` is the ImGui window of this canvas; two canvases (a split view) need different
+     * ones. */
+    explicit Canvas(Editor &editor, const char *windowName = "Canvas");
+
+    /* Called when a mouse button goes down over the canvas, before the press is handled: a split
+     * view uses it to make this pane's document the active one. */
+    void setOnPress(std::function<void()> onPress)
+    {
+        onPress_ = std::move(onPress);
+    }
+
+    /* Marks the canvas as the active pane of a split view with a line along its top edge. */
+    void setHighlighted(bool highlighted)
+    {
+        highlighted_ = highlighted;
+    }
 
     /* Call once per frame between the backends' new-frame calls and ImGui::Render. `x`, `y`, `w`,
      * `h` place the window. */
     void show(float x, float y, float w, float h);
+
+    /* Shows another document from now on (a tab was picked); what the panel remembers about the
+     * old one is dropped. */
+    void setEditor(Editor &editor);
 
   private:
     /* Screen-space rectangle (canvas window origin + view transform) of the whole sprite. */
@@ -41,7 +64,10 @@ class Canvas
     ImVec2 middlePress_;
     double middleTime_ = 0.0;
 
-    Editor &editor_;
+    Editor *editor_; /* the document shown; changed by setEditor */
+    std::string windowName_;
+    std::function<void()> onPress_;
+    bool highlighted_ = false;
 };
 
 #endif

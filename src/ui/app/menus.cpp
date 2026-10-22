@@ -31,7 +31,7 @@ void App::openRecentMenu(bool idle)
     }
     ImGui::EndMenu();
     if (!chosen.empty()) {
-        guardUnsaved([this, chosen] { openOrAsk(chosen); });
+        openOrAsk(chosen);
     }
 }
 
@@ -77,12 +77,13 @@ void App::fileMenu()
     ImGui::Separator();
     commandItem(CommandId::Save);
     commandItem(CommandId::SaveAs);
+    commandItem(CommandId::CloseTab);
     ImGui::Separator();
     exportMenu(idle);
     paletteMenu(idle);
     ImGui::Separator();
     if (ImGui::MenuItem("Quit")) {
-        guardUnsaved([this] { running_ = false; });
+        quit();
     }
     ImGui::EndMenu();
 }
@@ -281,6 +282,19 @@ void App::viewMenu()
     }
     theme::tip("Show the neighbouring frames faintly under the current one.");
     ImGui::Separator();
+    const bool canSplit = !editor_->stroking() && docs_.size() > 1;
+    if (ImGui::MenuItem("Split right", nullptr, split_ && splitSideBySide_, canSplit)) {
+        splitView(-1, true);
+    }
+    if (ImGui::MenuItem("Split down", nullptr, split_ && !splitSideBySide_, canSplit)) {
+        splitView(-1, false);
+    }
+    if (ImGui::MenuItem("Close split", nullptr, false, split_)) {
+        unsplit();
+    }
+    theme::tip("Show two documents side by side. Click a pane to work in it; a tab fills the "
+               "active pane.");
+    ImGui::Separator();
     commandItem(CommandId::ToggleTimeline, editor_->overlays().timeline);
     theme::tip("The frames and playback strip along the bottom of the window.");
     ImGui::MenuItem("Tool options", nullptr, &editor_->overlays().options_bar);
@@ -338,6 +352,7 @@ void App::helpWindow()
         {"Delete (layer list focused)", "Delete the selected layers, after asking"},
         {", .", "Previous / next frame"},
         {"Ctrl+Shift+F, Ctrl+Shift+J", "New frame, duplicate frame"},
+        {"Ctrl+W, Ctrl+Tab, Ctrl+Shift+Tab", "Close tab, next tab, previous tab"},
         {"Enter", "Play / stop the animation (Esc also stops it)"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
         {"Right click on the layer list", "Layer actions (the same as the Layer menu)"},

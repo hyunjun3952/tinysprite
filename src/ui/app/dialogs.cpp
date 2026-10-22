@@ -27,14 +27,14 @@ void App::saveAndProceed()
 {
     std::function<void()> proceed = std::move(pending_);
     pending_ = nullptr;
-    if (!filePath_.empty()) {
+    if (!filePath().empty()) {
         save();
     }
     if (!dirty()) {
         proceed();
         return;
     }
-    if (filePath_.empty()) {
+    if (filePath().empty()) {
         askForPath(FileAction::SaveAs);
     }
     afterSave_ = std::move(proceed);
@@ -73,14 +73,14 @@ void App::confirmDialog()
     theme::end_modal();
 }
 
-/* A file dropped on the window replaces the document; a failure shows in the Open dialog with
+/* A file dropped on the window opens in a tab; a failure shows in the Open dialog with
  * the dropped path filled in. */
 void App::dropFile(const std::string &path)
 {
     if (editor_->stroking()) {
         return;
     }
-    guardUnsaved([this, path] { openOrAsk(path); });
+    openOrAsk(path);
 }
 
 void App::openOrAsk(const std::string &path)
@@ -135,8 +135,7 @@ void App::newDialog()
     bool close = false;
     const int clicked = theme::dialog_buttons({"Cancel", "Create"}, 1);
     if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-        if (editor_->newDocument(newWidth_, newHeight_)) {
-            filePath_.clear();
+        if (addBlankDocument(newWidth_, newHeight_)) {
             close = true;
         }
     }
@@ -169,8 +168,7 @@ void App::recoverDialog()
     bool close = false;
     const int clicked = theme::dialog_buttons({"Discard", "Recover"}, 1);
     if (clicked == 1) {
-        if (recovered_ && editor_->setSprite(std::move(recovered_->sprite))) {
-            filePath_ = recovered_->path;
+        if (recovered_ && addDocument(std::move(recovered_->sprite), recovered_->path, true)) {
             editor_->markModified();
         }
         close = true;

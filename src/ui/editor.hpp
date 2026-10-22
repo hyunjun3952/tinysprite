@@ -442,6 +442,11 @@ class Editor
     void store(SettingsMap &settings) const;
     void load(const SettingsMap &settings);
 
+    /* Takes over `other`'s preferences (what store / load keep, plus the symmetry) and its
+     * clipboard, leaving this document alone. Each document tab has its own Editor; this is how the
+     * tool, the colors and a copied selection follow the user from one tab to the next. */
+    void adoptPreferences(const Editor &other);
+
     /* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
     void zoomStep(int direction);
 

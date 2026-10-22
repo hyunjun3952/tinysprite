@@ -31,8 +31,10 @@ App::~App()
     /* Everything that owns textures goes before the renderer they belong to. */
     layersPanel_.reset();
     toolsPanel_.reset();
+    canvas2_.reset();
     canvas_.reset();
-    editor_.reset();
+    docs_.clear();
+    editor_ = nullptr;
     if (backends_) {
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
@@ -172,7 +174,12 @@ bool App::init(const AppOptions &options)
         return false;
     }
     if (initImGui()) {
-        editor_ = Editor::create(renderer_, options.width, options.height);
+        std::unique_ptr<Editor> first = Editor::create(renderer_, options.width, options.height);
+        if (first) {
+            docs_.push_back({std::move(first), "", nextSerial_++});
+            editor_ = docs_.front().editor.get();
+            pane_[0] = editor_;
+        }
     }
     if (!editor_) {
         std::fprintf(stderr, "failed to initialise the editor\n");
@@ -180,6 +187,7 @@ bool App::init(const AppOptions &options)
     }
     loadSettings(settings);
     canvas_ = std::make_unique<Canvas>(*editor_);
+    canvas_->setOnPress([this] { focusPane(0); });
     toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
     layersPanel_ = std::make_unique<LayersPanel>(*editor_);
     layersPanel_->setContextMenu([this] { layerMenuItems(); });
@@ -197,16 +205,10 @@ bool App::init(const AppOptions &options)
     return true;
 }
 
-bool App::dirty() const
-{
-    return !editor_->history().atSavePoint() || editor_->modifiedOutsideHistory();
-}
-
 /* "name.pxa" or "untitled", with a trailing "*" while there are unsaved changes. */
 void App::updateTitle()
 {
-    std::string name =
-        filePath_.empty() ? "untitled" : filePath_.substr(filePath_.find_last_of("/\\") + 1);
+    std::string name = documentTitle(doc());
     std::string title = (dirty() ? name + "*" : name) + " - tinysprite";
     if (title != title_) {
         title_ = title;
@@ -214,14 +216,21 @@ void App::updateTitle()
     }
 }
 
-/* While the document has unsaved changes, a copy goes to the config directory every so often; a
- * document that is clean again no longer needs one. */
+/* While a document has unsaved changes, a copy goes to the config directory every so often (the one
+ * being edited, else the first with changes: the recovery file holds one document); once none has
+ * unsaved changes any more it is not needed. */
 void App::autosave()
 {
     if (!persist_ || recovered_) {
         return;
     }
-    if (!dirty()) {
+    const Document *target = dirty(doc()) ? &doc() : nullptr;
+    for (const Document &document : docs_) {
+        if (target == nullptr && dirty(document)) {
+            target = &document;
+        }
+    }
+    if (target == nullptr) {
         if (hasAutosave_) {
             recovery_clear(configDir_);
             hasAutosave_ = false;
@@ -229,11 +238,12 @@ void App::autosave()
         return;
     }
     Uint32 now = SDL_GetTicks();
-    if (editor_->stroking() || now - lastAutosave_ < AUTOSAVE_INTERVAL_MS) {
+    if (target->editor->stroking() || now - lastAutosave_ < AUTOSAVE_INTERVAL_MS) {
         return;
     }
     lastAutosave_ = now;
-    hasAutosave_ = recovery_save(configDir_, editor_->sprite(), filePath_) || hasAutosave_;
+    hasAutosave_ =
+        recovery_save(configDir_, target->editor->sprite(), target->path) || hasAutosave_;
 }
 
 void App::shutdown()
@@ -300,7 +310,7 @@ void App::pollEvents()
     while (SDL_PollEvent(&event) != 0) {
         ImGui_ImplSDL2_ProcessEvent(&event);
         if (event.type == SDL_QUIT) {
-            guardUnsaved([this] { running_ = false; });
+            quit();
         } else if (event.type == SDL_DROPFILE) {
             dropFile(event.drop.file);
             SDL_free(event.drop.file);
@@ -379,8 +389,11 @@ void App::buildUi()
     Uint32 now = SDL_GetTicks();
     editor_->tick(static_cast<int>(now - lastTick_));
     lastTick_ = now;
+    const float tabs = tabBarHeight();
+    tabBar(viewport->WorkPos.x + left, viewport->WorkPos.y, viewport->WorkSize.x - left - right,
+           tabs);
     const float bar = editor_->overlays().options_bar ? theme::px(OPTIONS_BAR_HEIGHT) : 0.0f;
-    const float maxTimeline = (body - bar) * TIMELINE_MAX_SHARE;
+    const float maxTimeline = (body - tabs - bar) * TIMELINE_MAX_SHARE;
     float timeline = editor_->overlays().timeline
                          ? std::min(theme::px(editor_->overlays().timeline_height), maxTimeline)
                          : 0.0f;
@@ -389,11 +402,11 @@ void App::buildUi()
                              viewport->WorkSize.x - left - right, timeline);
     }
     if (bar > 0.0f) {
-        toolsPanel_->contextBar(viewport->WorkPos.x + left, viewport->WorkPos.y,
+        toolsPanel_->contextBar(viewport->WorkPos.x + left, viewport->WorkPos.y + tabs,
                                 viewport->WorkSize.x - left - right, bar);
     }
-    canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + bar,
-                  viewport->WorkSize.x - left - right, body - timeline - bar);
+    canvasArea(viewport->WorkPos.x + left, viewport->WorkPos.y + tabs + bar,
+               viewport->WorkSize.x - left - right, body - timeline - tabs - bar);
 
     if (status > 0.0f) {
         status_bar_show(*editor_, viewport->WorkPos.x, viewport->WorkPos.y + body,

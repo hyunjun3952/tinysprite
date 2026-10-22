@@ -66,10 +66,10 @@ void App::askForPath(FileAction action)
     browseSearch_[0] = '\0';
     /* Start where the last file was, and offer the document's name for what is written. */
     std::string start;
-    if (action == FileAction::SaveAs && !filePath_.empty()) {
-        start = filePath_;
+    if (action == FileAction::SaveAs && !filePath().empty()) {
+        start = filePath();
     } else if (fileInfo(action).writes()) {
-        std::string name = filePath_.empty() ? "sprite" : file_name_of(filePath_);
+        std::string name = filePath().empty() ? "sprite" : file_name_of(filePath());
         size_t dot = name.find_last_of('.');
         start =
             join_path(startDirectory(), (dot == std::string::npos ? name : name.substr(0, dot)) +
@@ -91,7 +91,7 @@ bool App::overwriteAllowed(const std::string &path)
 {
     std::error_code error;
     bool exists = std::filesystem::exists(path, error);
-    if (!exists || (fileAction_ == FileAction::SaveAs && path == filePath_) ||
+    if (!exists || (fileAction_ == FileAction::SaveAs && path == filePath()) ||
         overwritePath_ == path) {
         return true;
     }
@@ -112,20 +112,25 @@ void App::fileDone(const std::string &path)
 
 void App::save()
 {
-    if (filePath_.empty()) {
+    if (filePath().empty()) {
         askForPath(FileAction::SaveAs);
-    } else if (!pxa_save(editor_->sprite(), filePath_)) {
+    } else if (!pxa_save(editor_->sprite(), filePath())) {
         askForPath(FileAction::SaveAs);
-        fileError_ = cannotWrite(filePath_);
+        fileError_ = cannotWrite(filePath());
         toast(fileError_, true);
     } else {
         editor_->markSaved();
-        toast("Saved " + file_name_of(filePath_));
+        toast("Saved " + file_name_of(filePath()));
     }
 }
 
 bool App::openPath(const std::string &path)
 {
+    /* A file that is open already is just shown. */
+    if (int open = findDocument(path); open >= 0) {
+        activateDocument(open);
+        return true;
+    }
     /* A .pxa file starts with its magic number; anything else may be an image. */
     std::optional<Sprite> sprite = pxa_load(path);
     bool isPxa = sprite.has_value();
@@ -134,10 +139,9 @@ bool App::openPath(const std::string &path)
     }
     if (!sprite) {
         fileError_ = "Cannot read " + path;
-    } else if (!editor_->setSprite(std::move(*sprite))) {
+    } else if (!addDocument(std::move(*sprite), isPxa ? path : "", true)) {
         fileError_ = "Cannot open " + path + " right now";
     } else {
-        filePath_ = isPxa ? path : "";
         if (isPxa) {
             recent_add(recent_, path, RECENT_MAX);
         }
@@ -159,7 +163,7 @@ bool App::runSaveAs(const std::string &path)
         fileError_ = cannotWrite(path);
         return false;
     }
-    filePath_ = path;
+    filePath() = path;
     recent_add(recent_, path, RECENT_MAX);
     editor_->markSaved();
     return true;

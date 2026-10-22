@@ -183,8 +183,71 @@ class App
     /* "Cannot write <path>" plus the OS reason of the last failed file write, if there is one. */
     static std::string cannotWrite(const std::string &path);
 
-    /* Opens a .pxa file or imports an image as the document; on failure sets fileError_. */
+    /* One open document, shown as a tab. Every document has its own Editor (history, selection,
+     * view, texture); `editor_` points at the active one's, which the panels and menus work on. */
+    struct Document {
+        std::unique_ptr<Editor> editor;
+        std::string path; /* the .pxa it was opened from / saved to, "" if none */
+        int serial = 0;   /* names an untitled one: "untitled", "untitled 2", ... */
+    };
+
+    /* Opens a .pxa file or imports an image in a new tab (an untouched untitled tab is reused, and
+     * a file that is already open is just shown); on failure sets fileError_. */
     bool openPath(const std::string &path);
+
+    /* The documents (app/documents.cpp). The active one is docs_[active_] and editor_ points at
+     * its Editor. */
+    Document &doc()
+    {
+        return docs_[static_cast<size_t>(active_)];
+    }
+    const Document &doc() const
+    {
+        return docs_[static_cast<size_t>(active_)];
+    }
+    std::string &filePath()
+    {
+        return doc().path;
+    }
+    bool dirty(const Document &document) const;
+    /* An untitled tab nobody has edited: opening a file reuses it instead of adding a tab. */
+    bool pristine(const Document &document) const;
+    std::string documentTitle(const Document &document) const;
+    int findDocument(const std::string &path) const;
+    /* Adds a tab for `sprite` (or reuses the untouched active one when `reuse`), and shows it. */
+    bool addDocument(Sprite sprite, const std::string &path, bool reuse);
+    bool addBlankDocument(int width, int height);
+    /* Shows tab `index`: the panels follow, and the tool, colors and clipboard come along. Refused
+     * while a tool is being dragged. */
+    void activateDocument(int index);
+    /* Moves tab `from` so it ends up at `to`; the active tab stays the same document. */
+    void moveDocument(int from, int to);
+    /* Takes tab `index` away without asking; a last tab is replaced by a blank one. */
+    void removeDocument(int index);
+    /* Closes tab `index`, asking first when it has unsaved changes. */
+    void closeDocument(int index);
+    /* The tab bar (app/tabs.cpp): drawn over [x, x + width] x [y, y + height]; its height is
+     * tabBarHeight(). */
+    void tabBar(float x, float y, float width, float height);
+    static float tabBarHeight();
+    void tabItem(int index, bool forced, int &picked, int &closeRequest, ImGuiID &id);
+    void syncTabOrder(const std::vector<ImGuiID> &ids);
+    void tabMenu(int index, int &closeRequest);
+    void closeMarked();
+    void closeAfter(const Editor *keep, bool rightOnly);
+    int nextToClose(const Editor *keep, bool rightOnly) const;
+    /* The split view (app/split.cpp): the canvas area holds two panes, each showing a document. A
+     * click in a pane makes its document the active one; picking a tab fills the active pane. */
+    bool splitView(int rightDocument, bool sideBySide);
+    void unsplit();
+    void focusPane(int pane);
+    void bindPanes();
+    void canvasArea(float x, float y, float width, float height);
+    void splitSash(float x, float y, float width, float height, float thickness);
+    void dragSash(float offset, float total, float thickness);
+    void sashHandle(ImVec2 size, ImVec2 origin, float total, float thickness);
+    /* Leaves the app once every tab with unsaved changes was saved or discarded. */
+    void quit();
 
     /* Unsaved changes: `proceed` runs at once if the document is saved, otherwise after the user
      * chose Save (then it runs once the save went through) or Discard in a confirmation popup. */
@@ -230,7 +293,6 @@ class App
     SDL_Renderer *renderer_ = nullptr;
 
     FileAction fileAction_ = FileAction::None;
-    std::string filePath_;     /* the .pxa the document was opened from / saved to, "" if none */
     char pathInput_[512] = ""; /* the dialog's text field */
     std::string browseRoot_;   /* the folder the tree starts at; "" = not chosen yet */
     std::map<std::string, std::vector<DirEntry>> browseCache_; /* folder -> its entries */
@@ -251,7 +313,19 @@ class App
     std::string title_;
 
     Panels panels_;
-    std::unique_ptr<Editor> editor_;
+    std::vector<Document> docs_;
+    int active_ = 0;
+    int nextSerial_ = 1;
+    bool split_ = false;                   /* two panes show documents */
+    bool splitSideBySide_ = true;          /* left | right, else top / bottom */
+    float splitRatio_ = 0.5f;              /* the first pane's share of the canvas area */
+    Editor *pane_[2] = {nullptr, nullptr}; /* what each pane shows (pane_[0] only when not split) */
+    int activePane_ = 0;
+    std::unique_ptr<Canvas> canvas2_;      /* the second pane's canvas, made with the first split */
+    int tabSelected_ = -1;                 /* the tab the tab bar was last told is selected */
+    const Editor *closeOthers_ = nullptr;  /* set by a tab's menu: close every other tab */
+    const Editor *closeRightOf_ = nullptr; /* ... or every tab after this one */
+    Editor *editor_ = nullptr;
     std::unique_ptr<Canvas> canvas_;
     std::unique_ptr<ToolsPanel> toolsPanel_;
     std::unique_ptr<LayersPanel> layersPanel_;

@@ -31,9 +31,10 @@ const App::CommandAction &App::commandAction(CommandId id)
     auto canMoveDown = [](const App &app) {
         return !app.editor_->stroking() && app.editor_->canMoveLayersDown();
     };
+    auto hasTabs = [](const App &app) { return !app.editor_->stroking() && app.docs_.size() > 1; };
     static const CommandAction TABLE[] = {
-        {[](App &app) { app.guardUnsaved([&app] { app.openNew_ = true; }); }, idle},
-        {[](App &app) { app.guardUnsaved([&app] { app.askForPath(FileAction::Open); }); }, idle},
+        {[](App &app) { app.openNew_ = true; }, idle},
+        {[](App &app) { app.askForPath(FileAction::Open); }, idle},
         {[](App &app) { app.save(); }, always},
         {[](App &app) { app.askForPath(FileAction::SaveAs); }, always},
         {[](App &app) { app.askForPath(FileAction::ExportImage); }, always},
@@ -55,6 +56,16 @@ const App::CommandAction &App::commandAction(CommandId id)
         {[](App &app) { app.editor_->moveSelectedLayersBy(-1); }, canMoveDown},
         {[](App &app) { app.editor_->addFrame(); }, idle},
         {[](App &app) { app.editor_->duplicateFrame(); }, idle},
+        {[](App &app) { app.closeDocument(app.active_); }, idle},
+        {[](App &app) {
+             app.activateDocument((app.active_ + 1) % static_cast<int>(app.docs_.size()));
+         },
+         hasTabs},
+        {[](App &app) {
+             const int count = static_cast<int>(app.docs_.size());
+             app.activateDocument((app.active_ + count - 1) % count);
+         },
+         hasTabs},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(COMMAND_COUNT),
                   "one CommandAction row per CommandId");

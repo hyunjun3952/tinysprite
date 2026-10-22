@@ -99,7 +99,13 @@ bool swatch(Rgba color, bool selected)
 
 } // namespace
 
-ToolsPanel::ToolsPanel(Editor &editor) : editor_(editor)
+void ToolsPanel::setEditor(Editor &editor)
+{
+    editor_ = &editor;
+    openReset_ = false;
+}
+
+ToolsPanel::ToolsPanel(Editor &editor) : editor_(&editor)
 {
 }
 
@@ -126,13 +132,13 @@ void ToolsPanel::colorWidget()
 
     /* Background first so the foreground, drawn later, wins the overlap. */
     ImGui::SetCursorPos(ImVec2(start.x + offset, start.y + offset));
-    if (ImGui::ColorButton("##bg_swatch", toImVec4(editor_.backgroundFloats()), buttonFlags,
+    if (ImGui::ColorButton("##bg_swatch", toImVec4(editor_->backgroundFloats()), buttonFlags,
                            size)) {
         ImGui::OpenPopup("bg_picker");
     }
     theme::tip("Background color. Click to edit; X swaps it with the foreground.");
     ImGui::SetCursorPos(start);
-    if (ImGui::ColorButton("##fg_swatch", toImVec4(editor_.foregroundFloats()), buttonFlags,
+    if (ImGui::ColorButton("##fg_swatch", toImVec4(editor_->foregroundFloats()), buttonFlags,
                            size)) {
         ImGui::OpenPopup("fg_picker");
     }
@@ -142,23 +148,23 @@ void ToolsPanel::colorWidget()
         ImVec2(start.x + swatch + offset + theme::px(SWAP_BUTTON_GAP_BASE), start.y));
     if (icons::round_button(icons::Icon::Swap, "##swap_colors",
                             "Swap foreground and background (X)", theme::px(SWAP_BUTTON_SIZE))) {
-        editor_.swapColors();
+        editor_->swapColors();
     }
     ImGui::SetCursorPos(
         ImVec2(start.x, start.y + swatch + offset + theme::px(COLOR_SECTION_GAP_BASE)));
 
     if (ImGui::BeginPopup("fg_picker")) {
         ImGui::Text("Foreground");
-        ImGui::ColorPicker4("##fg_picker", editor_.foregroundFloats(), pickerFlags);
+        ImGui::ColorPicker4("##fg_picker", editor_->foregroundFloats(), pickerFlags);
         ImGui::Spacing();
-        theme::hex_field("fg_hex", editor_.foregroundFloats(), fgHex_);
+        theme::hex_field("fg_hex", editor_->foregroundFloats(), fgHex_);
         ImGui::EndPopup();
     }
     if (ImGui::BeginPopup("bg_picker")) {
         ImGui::Text("Background");
-        ImGui::ColorPicker4("##bg_picker", editor_.backgroundFloats(), pickerFlags);
+        ImGui::ColorPicker4("##bg_picker", editor_->backgroundFloats(), pickerFlags);
         ImGui::Spacing();
-        theme::hex_field("bg_hex", editor_.backgroundFloats(), bgHex_);
+        theme::hex_field("bg_hex", editor_->backgroundFloats(), bgHex_);
         ImGui::EndPopup();
     }
 }
@@ -197,9 +203,9 @@ void ToolsPanel::iconRow(const ToolIcon *first, size_t count)
         const ToolInfo &info = TOOLS[static_cast<size_t>(entry.tool)];
         char tooltip[160];
         std::snprintf(tooltip, sizeof(tooltip), "%s (%s)\n%s", info.label, info.hint, info.tooltip);
-        if (icons::choice(entry.icon, entry.id, tooltip, editor_.tool() == entry.tool,
+        if (icons::choice(entry.icon, entry.id, tooltip, editor_->tool() == entry.tool,
                           ImVec2(side, side))) {
-            editor_.selectTool(entry.tool);
+            editor_->selectTool(entry.tool);
         }
     }
 }
@@ -249,7 +255,7 @@ void barGap()
 /* "Size" and a slider, the brush width of the pencil and eraser and the outline of a shape. */
 void ToolsPanel::barSize(const char *tip)
 {
-    Editor::ToolOptions &options = editor_.options();
+    Editor::ToolOptions &options = editor_->options();
     ImGui::AlignTextToFramePadding();
     ImGui::TextDisabled("Size");
     ImGui::SameLine();
@@ -260,7 +266,7 @@ void ToolsPanel::barSize(const char *tip)
 
 void ToolsPanel::barBrush()
 {
-    Editor::ToolOptions &options = editor_.options();
+    Editor::ToolOptions &options = editor_->options();
     barGap();
     barSize("Brush width in pixels. + and - (or [ and ]) change it by 1.");
     barGap();
@@ -274,7 +280,7 @@ void ToolsPanel::barBrush()
 
 void ToolsPanel::barShape(ToolKind tool)
 {
-    Editor::ToolOptions &options = editor_.options();
+    Editor::ToolOptions &options = editor_->options();
     const bool closed = isClosedShape(tool);
     if (closed) {
         barGap();
@@ -290,24 +296,24 @@ void ToolsPanel::barShape(ToolKind tool)
 /* Flip and turn the selected pixels (the Edit menu has the same actions). */
 void ToolsPanel::barSelection()
 {
-    const bool enabled = editor_.hasSelection() && !editor_.stroking();
+    const bool enabled = editor_->hasSelection() && !editor_->stroking();
     barGap();
     if (theme::actionButton("Flip H", "Flip the selection horizontally", 0.0f, enabled)) {
-        editor_.flipSelection(true);
+        editor_->flipSelection(true);
     }
     ImGui::SameLine();
     if (theme::actionButton("Flip V", "Flip the selection vertically", 0.0f, enabled)) {
-        editor_.flipSelection(false);
+        editor_->flipSelection(false);
     }
     ImGui::SameLine();
     if (theme::actionButton("Rotate CW", "Rotate the selection clockwise", 0.0f, enabled)) {
-        editor_.rotateSelection(true);
+        editor_->rotateSelection(true);
     }
     ImGui::SameLine();
     if (theme::actionButton("Rotate CCW", "Rotate the selection counterclockwise", 0.0f, enabled)) {
-        editor_.rotateSelection(false);
+        editor_->rotateSelection(false);
     }
-    if (!editor_.hasSelection()) {
+    if (!editor_->hasSelection()) {
         ImGui::SameLine();
         ImGui::TextDisabled("Drag on the canvas to select an area");
     }
@@ -317,7 +323,7 @@ void ToolsPanel::barSelection()
  * right end of the bar when there is room for them. */
 void ToolsPanel::barSymmetry()
 {
-    Symmetry &symmetry = editor_.options().symmetry;
+    Symmetry &symmetry = editor_->options().symmetry;
     if (ImGui::GetContentRegionAvail().x < theme::px(BAR_MIRROR_WIDTH)) {
         return;
     }
@@ -343,7 +349,7 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(theme::px(12.0f), theme::px(6.0f)));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     if (ImGui::Begin("##options_bar", nullptr, FLAGS)) {
-        const ToolKind tool = editor_.tool();
+        const ToolKind tool = editor_->tool();
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(TOOLS[static_cast<size_t>(tool)].label);
         const ToolGroup group = tool_traits(tool).group;
@@ -351,7 +357,7 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
             barBrush();
         } else if (group == ToolGroup::Shape) {
             barShape(tool);
-        } else if (tool == ToolKind::Select || editor_.hasSelection()) {
+        } else if (tool == ToolKind::Select || editor_->hasSelection()) {
             barSelection();
         }
         if (group == ToolGroup::Brush || group == ToolGroup::Shape || group == ToolGroup::Fill) {
@@ -375,7 +381,7 @@ void ToolsPanel::colorBlock(const Panels &panels)
     if (panels.sectionVisible(PanelId::Layers, sections::COLOR) && theme::section("Color")) {
         colorWidget();
         paletteSwatches();
-        if (editor_.recent().size() > 0) {
+        if (editor_->recent().size() > 0) {
             ImGui::Spacing();
             ImGui::TextDisabled("Recent");
             recentColors();
@@ -421,7 +427,7 @@ void ToolsPanel::resetDialog()
     /* Cancel is drawn last, so it is the button that gets the keyboard focus below */
     const int clicked = theme::dialog_buttons({"Reset", "Cancel"}, 0, true);
     if (clicked == 0) {
-        editor_.paletteReset();
+        editor_->paletteReset();
         close = true;
     }
     if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
@@ -440,19 +446,19 @@ void ToolsPanel::resetDialog()
  * color. */
 void ToolsPanel::recentColors()
 {
-    if (editor_.recent().size() == 0) {
+    if (editor_->recent().size() == 0) {
         return;
     }
     /* Distinct from the palette swatches' IDs below. */
     ImGui::PushID("recent");
     const int perRow = swatchesPerRow();
-    for (int i = 0; i < editor_.recent().size(); i++) {
+    for (int i = 0; i < editor_->recent().size(); i++) {
         ImGui::PushID(i);
         if (i % perRow != 0) {
             ImGui::SameLine(0.0f, swatchGap());
         }
-        if (swatch(editor_.recent()[i], false)) {
-            editor_.setForeground(editor_.recent()[i]);
+        if (swatch(editor_->recent()[i], false)) {
+            editor_->setForeground(editor_->recent()[i]);
         }
         ImGui::PopID();
     }
@@ -461,7 +467,7 @@ void ToolsPanel::recentColors()
 
 void ToolsPanel::paletteSwatches()
 {
-    const Palette &palette = editor_.sprite().palette();
+    const Palette &palette = editor_->sprite().palette();
     int count = palette.count();
     ImGui::PushID("palette");
     const int perRow = swatchesPerRow();
@@ -470,32 +476,32 @@ void ToolsPanel::paletteSwatches()
         if (i % perRow != 0) {
             ImGui::SameLine(0.0f, swatchGap());
         }
-        if (swatch(palette.get(i), i == editor_.paletteSelected())) {
-            editor_.palettePick(i);
+        if (swatch(palette.get(i), i == editor_->paletteSelected())) {
+            editor_->palettePick(i);
         }
         ImGui::PopID();
     }
     ImGui::PopID();
     ImVec2 size(theme::columnWidth(4), ImGui::GetFrameHeight() + 6.0f);
     if (icons::button(icons::Icon::Plus, "##palette_add", "Add the foreground color to the palette",
-                      size, editor_.paletteCanAdd())) {
-        editor_.paletteAdd();
+                      size, editor_->paletteCanAdd())) {
+        editor_->paletteAdd();
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Minus, "##palette_remove", "Remove the selected swatch", size,
-                      editor_.paletteSelected() >= 0)) {
-        editor_.paletteRemove(editor_.paletteSelected());
+                      editor_->paletteSelected() >= 0)) {
+        editor_->paletteRemove(editor_->paletteSelected());
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Swap, "##palette_replace",
                       "Replace the selected swatch with the foreground color", size,
-                      editor_.paletteCanReplace())) {
-        editor_.paletteReplaceSelected();
+                      editor_->paletteCanReplace())) {
+        editor_->paletteReplaceSelected();
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Reset, "##palette_reset",
                       "Reset the palette to the default colors (cannot be undone)", size,
-                      !editor_.paletteIsDefault())) {
+                      !editor_->paletteIsDefault())) {
         openReset_ = true; /* asks first: it throws the palette's colors away */
     }
 }

@@ -36,6 +36,10 @@ class TimelinePanel
 
     explicit TimelinePanel(Editor &editor);
 
+    /* Shows another document from now on (a tab was picked); what the panel remembers about the
+     * old one is dropped. */
+    void setEditor(Editor &editor);
+
     /* Places the strip with its top-left corner at (x, y), `width` wide and `height` tall, and
      * draws it. */
     void show(float x, float y, float width, float height);
@@ -71,7 +75,7 @@ class TimelinePanel
     void refreshFilled();
     bool filled(int layer, int frame) const;
 
-    Editor &editor_;
+    Editor *editor_;                    /* the document shown; changed by setEditor */
     std::vector<unsigned char> filled_; /* [layer * frames + frame]: the cel has a visible pixel */
     int filledLayers_ = 0;
     int filledFrames_ = 0;

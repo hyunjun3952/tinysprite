@@ -74,7 +74,18 @@ int tagShownAt(const std::vector<Sprite::Tag> &tags, int frame, int selected)
 
 } // namespace
 
-TimelinePanel::TimelinePanel(Editor &editor) : editor_(editor)
+void TimelinePanel::setEditor(Editor &editor)
+{
+    editor_ = &editor;
+    filledValid_ = false;
+    tagNameActive_ = false;
+    cells_.clear();
+    headers_.clear();
+    tagCells_.clear();
+    drawnFrames_ = 0;
+}
+
+TimelinePanel::TimelinePanel(Editor &editor) : editor_(&editor)
 {
 }
 
@@ -82,10 +93,10 @@ TimelinePanel::TimelinePanel(Editor &editor) : editor_(editor)
  * the document's revision changed. */
 void TimelinePanel::refreshFilled()
 {
-    const Sprite &sprite = editor_.sprite();
+    const Sprite &sprite = editor_->sprite();
     int layers = sprite.layerCount();
     int frames = sprite.frameCount();
-    if (filledValid_ && filledRevision_ == editor_.revision() && filledLayers_ == layers &&
+    if (filledValid_ && filledRevision_ == editor_->revision() && filledLayers_ == layers &&
         filledFrames_ == frames) {
         return;
     }
@@ -101,7 +112,7 @@ void TimelinePanel::refreshFilled()
     }
     filledLayers_ = layers;
     filledFrames_ = frames;
-    filledRevision_ = editor_.revision();
+    filledRevision_ = editor_->revision();
     filledValid_ = true;
 }
 
@@ -138,37 +149,37 @@ TimelinePanel::Rect TimelinePanel::tagCellRect(int frame) const
 void TimelinePanel::toolbar()
 {
     using icons::Icon;
-    const Sprite &sprite = editor_.sprite();
-    int current = editor_.frame();
+    const Sprite &sprite = editor_->sprite();
+    int current = editor_->frame();
     int count = sprite.frameCount();
     ImVec2 iconSize(theme::px(30.0f), ImGui::GetFrameHeight());
 
-    if (theme::actionButton(editor_.playing() ? "Stop" : "Play",
+    if (theme::actionButton(editor_->playing() ? "Stop" : "Play",
                             "Play the animation (Enter); any edit stops it", theme::px(54.0f))) {
-        editor_.togglePlayback();
+        editor_->togglePlayback();
     }
     ImGui::SameLine();
     if (theme::actionButton("<", "Previous frame (,)", theme::px(26.0f), current > 0)) {
-        editor_.setFrame(current - 1);
+        editor_->setFrame(current - 1);
     }
     ImGui::SameLine();
     if (theme::actionButton(">", "Next frame (.)", theme::px(26.0f), current + 1 < count)) {
-        editor_.setFrame(current + 1);
+        editor_->setFrame(current + 1);
     }
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::Text("%d / %d", current + 1, count);
     ImGui::SameLine();
     if (icons::button(Icon::Plus, "##newframe", "New blank frame after this one", iconSize)) {
-        editor_.addFrame();
+        editor_->addFrame();
     }
     ImGui::SameLine();
     if (icons::button(Icon::Copy, "##dupframe", "Duplicate this frame", iconSize)) {
-        editor_.duplicateFrame();
+        editor_->duplicateFrame();
     }
     ImGui::SameLine();
     if (icons::button(Icon::Trash, "##delframe", "Delete this frame", iconSize, count > 1)) {
-        editor_.removeFrame(current);
+        editor_->removeFrame(current);
     }
 
     ImGui::SameLine();
@@ -179,18 +190,18 @@ void TimelinePanel::toolbar()
     ImGui::SetNextItemWidth(theme::px(88.0f));
     if (theme::input_int("##ms", &ms, 0, 0, " ms", ImGuiInputTextFlags_EnterReturnsTrue) ||
         ImGui::IsItemDeactivatedAfterEdit()) {
-        editor_.setFrameDuration(current, std::clamp(ms, 1, FRAME_DURATION_MAX));
+        editor_->setFrameDuration(current, std::clamp(ms, 1, FRAME_DURATION_MAX));
     }
     if (ImGui::IsItemActivated()) {
-        editor_
-            .stopPlayback(); /* the field belongs to the frame shown now: keep it from moving on */
+        /* the field belongs to the frame shown now: keep it from moving on */
+        editor_->stopPlayback();
     }
     theme::tip("How long this frame is shown, in milliseconds.");
 
     ImGui::SameLine();
-    PlayMode mode = editor_.playMode();
+    PlayMode mode = editor_->playMode();
     if (modeCombo("##mode", mode, theme::px(100.0f))) {
-        editor_.setPlayMode(mode);
+        editor_->setPlayMode(mode);
     }
     theme::tip("Direction of playback.");
 }
@@ -210,8 +221,8 @@ static void onionTip(const char *text, bool on)
 /* The second toolbar row: the onion skin switch and how many ghosts it shows. */
 void TimelinePanel::onionControls()
 {
-    bool on = editor_.onionEnabled();
-    OnionSkin skin = editor_.onionSkin();
+    bool on = editor_->onionEnabled();
+    OnionSkin skin = editor_->onionSkin();
     bool changed = ImGui::Checkbox("Onion skin", &on);
     theme::tip("Show the neighbouring frames faintly under this one (not while playing).");
     ImGui::BeginDisabled(!on);
@@ -245,7 +256,7 @@ void TimelinePanel::onionControls()
     onionTip("How strongly the nearest ghost shows; farther ones fade out.", on);
     ImGui::EndDisabled();
     if (changed) {
-        editor_.setOnion(on, skin);
+        editor_->setOnion(on, skin);
     }
 }
 
@@ -272,13 +283,13 @@ bool TimelinePanel::tagNameField(Sprite::Tag &tag)
  * name, range and direction. */
 void TimelinePanel::tagControls()
 {
-    const Sprite &sprite = editor_.sprite();
+    const Sprite &sprite = editor_->sprite();
     int frames = sprite.frameCount();
     if (theme::actionButton("+ Tag", "Tag the current frame; then widen it with From / To.",
                             theme::px(54.0f))) {
-        editor_.addTag();
+        editor_->addTag();
     }
-    int selected = editor_.selectedTag();
+    int selected = editor_->selectedTag();
     if (selected < 0 || selected >= static_cast<int>(sprite.tags().size())) {
         ImGui::SameLine();
         ImGui::AlignTextToFramePadding();
@@ -317,11 +328,11 @@ void TimelinePanel::tagControls()
 
     ImGui::SameLine();
     if (theme::actionButton("Delete tag", "Remove the tag (the frames stay).", theme::px(80.0f))) {
-        editor_.removeTag(selected);
+        editor_->removeTag(selected);
         return;
     }
     if (changed) {
-        editor_.editTag(selected, tag);
+        editor_->editTag(selected, tag);
     }
 }
 
@@ -329,14 +340,14 @@ void TimelinePanel::tagControls()
  * first frame and a tooltip. `min` / `max` is the frame's cell. */
 void TimelinePanel::tagBand(int frame, int shown, ImVec2 min, ImVec2 max)
 {
-    const Sprite::Tag &tag = editor_.sprite().tags()[static_cast<size_t>(shown)];
+    const Sprite::Tag &tag = editor_->sprite().tags()[static_cast<size_t>(shown)];
     ImU32 color = TAG_COLORS[static_cast<size_t>(shown) % std::size(TAG_COLORS)];
     float gap = 2.0f * ImGui::GetStyle().CellPadding.x; /* between two columns */
     ImDrawList *draw = ImGui::GetWindowDrawList();
     /* extend the band over the column gap so it reads as one piece */
     float right = max.x + (frame < tag.to ? gap : 0.0f);
     draw->AddRectFilled(min, ImVec2(right, max.y), color);
-    if (shown == editor_.selectedTag()) {
+    if (shown == editor_->selectedTag()) {
         draw->AddRect(min, ImVec2(right, max.y), ImGui::GetColorU32(theme::rgb(theme::INK)));
     }
     if (frame == tag.from) {
@@ -353,7 +364,7 @@ void TimelinePanel::tagBand(int frame, int shown, ImVec2 min, ImVec2 max)
 /* The tag row of the grid: a band over the frames of each tag, its name on the first frame. */
 void TimelinePanel::tagRow(int frames)
 {
-    const std::vector<Sprite::Tag> &tags = editor_.sprite().tags();
+    const std::vector<Sprite::Tag> &tags = editor_->sprite().tags();
     tagCells_.assign(static_cast<size_t>(frames), Rect{});
     ImGui::TableNextRow(0, cellHeight() - theme::px(4.0f));
     ImGui::TableSetColumnIndex(0);
@@ -361,12 +372,12 @@ void TimelinePanel::tagRow(int frames)
     ImGui::TextDisabled("Tags");
     for (int f = 0; f < frames; f++) {
         ImGui::TableSetColumnIndex(f + 1);
-        int shown = tagShownAt(tags, f, editor_.selectedTag());
+        int shown = tagShownAt(tags, f, editor_->selectedTag());
         ImGui::PushID(f);
         ImVec2 min = ImGui::GetCursorScreenPos();
         if (ImGui::InvisibleButton("##tag", ImVec2(cellWidth(), cellHeight() - theme::px(4.0f))) &&
             shown >= 0) {
-            editor_.selectTag(shown == editor_.selectedTag() ? -1 : shown);
+            editor_->selectTag(shown == editor_->selectedTag() ? -1 : shown);
         }
         ImVec2 max = ImGui::GetItemRectMax();
         tagCells_[static_cast<size_t>(f)] = Rect{min, max};
@@ -397,15 +408,15 @@ void TimelinePanel::frameDragDrop(int f, FrameMove &move)
  * (the pair is left in `move` for the caller to apply once the table is closed). */
 void TimelinePanel::frameHeaders(int frames, FrameMove &move)
 {
-    const Sprite &sprite = editor_.sprite();
+    const Sprite &sprite = editor_->sprite();
     ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
     ImGui::TableSetColumnIndex(0);
     for (int f = 0; f < frames; f++) {
         ImGui::TableSetColumnIndex(f + 1);
         ImGui::PushID(f);
-        if (ImGui::Selectable(std::to_string(f + 1).c_str(), f == editor_.frame(), 0,
+        if (ImGui::Selectable(std::to_string(f + 1).c_str(), f == editor_->frame(), 0,
                               ImVec2(cellWidth() - theme::px(8.0f), 0.0f))) {
-            editor_.setFrame(f);
+            editor_->setFrame(f);
         }
         headers_[static_cast<size_t>(f)] = Rect{ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
         frameDragDrop(f, move);
@@ -423,14 +434,14 @@ void TimelinePanel::celMenu(int layer, int f)
         return;
     }
     if (ImGui::MenuItem("Link to previous frame", nullptr, false, f > 0)) {
-        editor_.linkCel(layer, f - 1, f);
+        editor_->linkCel(layer, f - 1, f);
     }
     if (ImGui::MenuItem("Link to next frame", nullptr, false,
-                        f + 1 < editor_.sprite().frameCount())) {
-        editor_.linkCel(layer, f + 1, f);
+                        f + 1 < editor_->sprite().frameCount())) {
+        editor_->linkCel(layer, f + 1, f);
     }
-    if (ImGui::MenuItem("Unlink", nullptr, false, editor_.sprite().layer(layer)->celLinked(f))) {
-        editor_.unlinkCel(layer, f);
+    if (ImGui::MenuItem("Unlink", nullptr, false, editor_->sprite().layer(layer)->celLinked(f))) {
+        editor_->unlinkCel(layer, f);
     }
     ImGui::EndPopup();
 }
@@ -438,8 +449,8 @@ void TimelinePanel::celMenu(int layer, int f)
 /* One layer's row: its name, then a cel per frame. */
 void TimelinePanel::layerRow(int l, int frames)
 {
-    const Layer &layer = *editor_.sprite().layer(l);
-    int current = editor_.frame();
+    const Layer &layer = *editor_->sprite().layer(l);
+    int current = editor_->frame();
     ImGui::TableNextRow(0, cellHeight());
     ImGui::TableSetColumnIndex(0);
     ImGui::AlignTextToFramePadding();
@@ -455,11 +466,11 @@ void TimelinePanel::layerRow(int l, int frames)
                                    ImGui::GetColorU32(theme::rgb(theme::HOVER)));
         }
         ImGui::PushID(l * frames + f);
-        bool active = l == editor_.activeLayer() && f == current;
+        bool active = l == editor_->activeLayer() && f == current;
         if (ImGui::Selectable("##cel", active, 0,
                               ImVec2(cellWidth() - theme::px(8.0f), cellHeight()))) {
-            editor_.setFrame(f);
-            editor_.setActiveLayer(l);
+            editor_->setFrame(f);
+            editor_->setActiveLayer(l);
         }
         celMenu(l, f);
         ImVec2 min = ImGui::GetItemRectMin();
@@ -482,7 +493,7 @@ void TimelinePanel::celMarks(int l, int f, bool active, Rect cell)
             ImVec2((cell.min.x + cell.max.x) / 2.0f, (cell.min.y + cell.max.y) / 2.0f), dotRadius(),
             ink);
     }
-    if (editor_.sprite().layer(l)->celLinked(f)) {
+    if (editor_->sprite().layer(l)->celLinked(f)) {
         draw->AddRectFilled(ImVec2(cell.min.x + 3.0f, cell.max.y - 4.0f),
                             ImVec2(cell.max.x - 3.0f, cell.max.y - 2.0f),
                             ImGui::GetColorU32(theme::rgb(theme::INK)));
@@ -491,7 +502,7 @@ void TimelinePanel::celMarks(int l, int f, bool active, Rect cell)
 
 void TimelinePanel::grid()
 {
-    const Sprite &sprite = editor_.sprite();
+    const Sprite &sprite = editor_->sprite();
     int frames = sprite.frameCount();
     int layers = sprite.layerCount();
     refreshFilled();
@@ -519,7 +530,7 @@ void TimelinePanel::grid()
     }
     ImGui::EndTable();
     if (move.from >= 0 && move.from != move.to) {
-        editor_.moveFrame(move.from, move.to);
+        editor_->moveFrame(move.from, move.to);
     }
 }
 
@@ -544,7 +555,7 @@ void TimelinePanel::show(float x, float y, float width, float height)
                                        ImGuiWindowFlags_NoFocusOnAppearing |
                                        ImGuiWindowFlags_HorizontalScrollbar; /* a narrow window */
     if (ImGui::Begin("Timeline", nullptr, FLAGS)) {
-        ImGui::BeginDisabled(editor_.stroking());
+        ImGui::BeginDisabled(editor_->stroking());
         toolbar();
         onionControls();
         tagControls();

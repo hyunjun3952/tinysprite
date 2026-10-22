@@ -68,6 +68,17 @@ void Editor::store(SettingsMap &settings) const
     settings_set_int(settings, "tool", static_cast<int>(tempPick_ ? pickReturn_ : tool_));
 }
 
+void Editor::adoptPreferences(const Editor &other)
+{
+    SettingsMap preferences;
+    other.store(preferences);
+    load(preferences);
+    options_.symmetry = other.options_.symmetry;
+    if (other.clipboard_) {
+        clipboard_ = other.clipboard_;
+    }
+}
+
 void Editor::load(const SettingsMap &settings)
 {
     settings_get_bool(settings, "view.grid", showGrid_);

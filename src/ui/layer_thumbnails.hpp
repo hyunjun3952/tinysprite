@@ -28,6 +28,13 @@ class LayerThumbnails
      * thumbnail_size) and current as of `revision`. */
     Thumb get(const Layer &layer, int frame, int maxWidth, int maxHeight, uint64_t revision);
 
+    /* Drops every thumbnail (another document is shown: layer addresses and revisions of the old
+     * one mean nothing for it). */
+    void clear()
+    {
+        entries_.clear();
+    }
+
     /* Drops the thumbnails of layers that are no longer in `sprite`. */
     void prune(const Sprite &sprite);
 
