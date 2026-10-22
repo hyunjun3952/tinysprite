@@ -57,7 +57,7 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   (`pxa` encode / decode, timeline grid, GIF palette, dialogs and shortcuts were split), and clang-tidy now fails a function
   above 15.
 
-## Phase 2b: layer blend modes (branch `feat/blend-modes`)
+## Phase 2b: layer blend modes
 
 A blend mode decides how a layer's color combines with what is under it. Today every layer is a plain
 straight-alpha "over" scaled by its opacity (`composite_over`); a mode replaces the color mix and keeps the alpha
@@ -69,7 +69,7 @@ Scope: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add, Difference (W3C 
 `Cs' = (1 - ab) * Cs + ab * B(Cb, Cs)`, then "over" with the layer alpha x opacity). Not in scope: layer groups,
 per-cel modes, color tags, cel offsets.
 
-TDD, one step per commit; the UI part comes last.
+Done (PR #8, plus the merge-down fix in PR #9). TDD, one step per commit; the UI part came last.
 
 - [x] **15. Core model + compositing** — `BlendMode` enum and `Layer::blendMode()` / `setBlendMode()` in
       `layer.h`; `composite_blend(dst, src, opacity, mode)` in `composite.h` (Normal must equal `composite_over`);
@@ -92,8 +92,24 @@ canvas dirty-rect re-composite needs (nothing new: the mode is read per layer), 
 only Opacity, size and link info, so Blend is its first mode-like control.
 
 ## Phase 3: game pipeline
-Spritesheet packing + JSON metadata, slices/pivots/hitboxes, tilemap editor, filters,
-headless CLI export, optional Aseprite import.
+
+Ordered by value for a game developer and by risk (smallest, most self-contained first). Each is its own
+branch and PR.
+
+- [ ] **19. Sheet metadata + headless CLI** — `spritesheet_metadata_json` (frame rects, durations, tags, sheet
+      size; Aseprite-like "frames" / "meta" layout), `spritesheet_export` writes it next to the image, and
+      `tinysprite export <file> --sheet out.png [--json out.json] [--columns N] [--scale N]` runs without a window
+      (no SDL video init), so a build script can export.
+- [ ] **20. Slices, pivots, hitboxes** — named rects with an optional pivot per sprite (`slice_ops.h`, `SLCE`
+      chunk, JSON `slices`), a slice tool and panel.
+- [ ] **21. Sheet packing** — trim transparent borders and pack frames (skyline), with the trim offsets in the JSON.
+- [ ] **22. Filters** — outline, palette swap, hue / brightness, as undoable layer operations.
+- [ ] **23. Tilemap editor** — tileset from a cel grid, tile layer, `.tmj`-like export.
+- [ ] **24. Aseprite import** (optional).
+
+Backlog, not scheduled (each is large or needs a design decision first): indexed color mode, several-rectangle
+selection, a TTF font and HiDPI, a file browser, the OS reason in failed-write messages, the refactoring
+candidates listed under UI polish.
 
 ## Decisions and gotchas
 - Frames (phase 2): a `Layer` holds its cels as `shared_ptr<Cel>`, in frame order. `Sprite::insertFrame` /
