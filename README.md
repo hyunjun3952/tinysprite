@@ -40,14 +40,11 @@ cmake -S . -B build                                # clang-tidy reads build/comp
 pre-commit run --all-files --hook-stage manual    # everything, as CI does
 ```
 
-A devcontainer (`.devcontainer/`) is included. Commits follow
-[Conventional Commits](https://www.conventionalcommits.org/), e.g. `feat(core): add flood fill`.
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/), e.g. `feat(core): add flood fill`.
 
-The devcontainer needs Docker. On Windows with WSL 2, "Reopen in Container" fails with `The command 'docker'
-could not be found in this WSL 2 distro` until Docker Desktop > Settings > Resources > WSL integration is
-switched on for the distro. Docker is optional: open the folder in WSL instead (VS Code "WSL: Reopen Folder in
-WSL"), run `sudo apt install libsdl2-dev pipx` once, and build, test, format and lint there. The UI
-window also shows up from WSL (WSLg), which a container cannot do.
+On Windows, work in WSL 2 (VS Code "WSL: Reopen Folder in WSL"): run `sudo apt install libsdl2-dev pipx` once,
+then build, test, format and lint there. The UI window shows up from WSL (WSLg). For clangd, point it at
+`build/compile_commands.json` (`--compile-commands-dir=build`).
 
 ## License
 
