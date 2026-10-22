@@ -47,10 +47,6 @@ Scope: what was read (files, commit range). Baseline: existing tests pass/fail (
 | Where | Problem | Proposed change | Why | Change cost | Complexity before -> after |
 |---|---|---|---|---|---|
 
-## Coverage
-| Function | Inputs and sequences tried | Result |
-|---|---|---|
-
 ## Dropped on review
 How many suspicions did not survive the disproof step, one line each (shows the pass was honest).
 

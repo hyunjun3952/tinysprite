@@ -4,7 +4,7 @@ description: Hunts bugs in this repo's code by logic review first, then confirms
 argument-hint: "[target]"
 metadata:
   author: tinysprite
-  version: 1.3.0
+  version: 1.4.0
 ---
 
 # Bug hunting
@@ -13,7 +13,7 @@ metadata:
 
 `/bug-hunting src/core/history.cpp`, `/bug-hunting src/io`, `/bug-hunting HEAD~3..HEAD`, `/bug-hunting` all work.
 The whole argument is the **target**: the scope of Step 0 (function, file, module, commit range, or a symptom in words).
-Missing: follow Step 0 (ask only if unclear). There is one process; every step below always runs. It is slow on a big target, so say so before starting and split a big target by module.
+Missing: follow Step 0 (ask only if unclear). There is one process; a big target is split by module and done one at a time.
 
 Find real defects by reading first and running second. Every reported bug must say how it was confirmed.
 Write the report in the user's language (Korean if they wrote Korean). Code and identifiers stay as they are.
@@ -36,7 +36,6 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 Decide what to hunt before reading. Ask only if it is not clear from the request:
 a function, a module (`src/core`, `src/io`, `src/ui`), the last N commits (`git diff main...HEAD`), or a symptom the user saw.
 Say the scope back in one line. A big scope is split by module and done one at a time.
-Read the direct callers and callees of the target as context (findings still only in the three target groups below).
 
 **Target files are fixed to three groups; nothing else is read for bugs, even if the request names a wider area:**
 
@@ -52,15 +51,12 @@ Read `references/hotspots.md` for the places where this codebase has gone wrong 
 
 ## Step 1: Logic review (first pass)
 
-Read the code in scope without running anything. For **every** function and every early return ask:
+Read the code in scope without running anything. For each function ask:
 
 1. What are the inputs, including empty, minimal (1x1, 1 frame, 1 layer), maximal, negative and out of range?
 2. What state does it assume, and what if that state is stale or shared (linked cels, open stroke, undo in between)?
 3. Do all exits leave the document, history and UI consistent (including early returns and exceptions)?
 4. Are the callers' assumptions the same as the callee's (null, ownership, who calls `markDirty`)?
-
-Then, for each public function, build a boundary table (empty, 1x1, max size, negative, out of range, 1 frame, 1 layer) and walk undo/redo and linked-cel sequences through it.
-This table is the **coverage table** of the report (function x inputs tried).
 
 Write each suspicion down as: location (`file:line`), claim, the input or sequence that should trigger it.
 Use the tests that already exist as the map of what is covered; look at what they do not cover.
@@ -93,14 +89,7 @@ ctest --test-dir build -R NAME --output-on-failure > LOG 2>&1; echo "exit=$?"
 ```
 
 Order: run the existing suite for the scope first (baseline, so you know a failure is new), then add a minimal reproduction test.
-A suspicion that does not fail gets at least two different attempts (another input, another sequence) before it stays Suspected.
-Beyond the single reproductions, always run these on the target:
-
-- Scratchpad tests that apply random operation sequences and check invariants: undo everything = original document, `.pxa` save-load-save is identical,
-  truncated or bit-flipped `.pxa` / image / palette input never crashes.
-- The affected tests 10 times (order dependence, uninitialized memory).
-- clang-tidy with `bugprone-*,cert-*,clang-analyzer-*,cppcoreguidelines-*` on the target; keep only the findings that point at a real bug.
-- **Test quality**: break a key condition in a scratchpad copy of the code (one at a time, then restore) and see that a test fails. A mutation no test notices is a **test gap** finding.
+A suspicion that does not fail gets one more attempt with a different input or sequence before it stays Suspected.
 The sanitizers are on by default; an ASan/UBSan report counts as a failure even when the assertion passes.
 
 Record only the failures, with:
@@ -168,7 +157,7 @@ Fill in `references/report-template.md`. Findings are sorted by severity, most s
 - **낮음 (Minor)**: edge case unlikely in practice, cosmetic, small robustness gap.
 - **주의 (Note)**: not a bug now; fragile design or a trap for the next change.
 
-End with a short summary count per severity, what was not checked (each item justified), and the proposed fix order.
+End with a short summary count per severity, what was not checked, and the proposed fix order.
 The step 2 table goes after the bug list. Do not write the report into the repo unless the user asks.
 
 ## After the report

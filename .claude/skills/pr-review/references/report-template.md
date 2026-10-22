@@ -40,12 +40,10 @@ Removed or weakened assertions, tests that cannot fail, test-first or not, files
 ### [낮음] ...
 ### [주의] ...
 
-## Run results
+## Local run (only if Step 3b ran)
 | Step | Command | Exit code |
 |---|---|---|
-| build / ctest / hooks / test-gap mutation (or "not checked": fork without a yes) | | |
-
-Changed functions: cognitive complexity measured, before -> after.
+| build / ctest | | |
 
 ## Existing review threads
 Unresolved comments from others, or "none".

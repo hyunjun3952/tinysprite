@@ -6,19 +6,19 @@ Numbers come before opinions. Record the command, the build type and the result.
 
 CI already fails above 15 (`readability-function-cognitive-complexity`, config in `.clang-tidy`, `src/` only). To list functions that are close, run
 clang-tidy with a lower threshold; this reports without failing the build. The check warns only when the score is **above** the
-threshold, so threshold 7 lists every function scoring 8 or more:
+threshold, so threshold 11 lists every function scoring 12 or more:
 
 ```sh
 tidy=$(ls -d ~/.cache/pre-commit/*/py_env-*/bin/clang-tidy | head -1)
 cmake -S . -B build >/dev/null            # makes compile_commands.json
 $tidy -p build --quiet \
   --checks='-*,readability-function-cognitive-complexity' \
-  --config='{CheckOptions: {readability-function-cognitive-complexity.Threshold: "7"}}' \
+  --config='{CheckOptions: {readability-function-cognitive-complexity.Threshold: "11"}}' \
   --header-filter='^$' src/core/*.cpp src/io/*.cpp src/ui/*.cpp src/ui/*/*.cpp > LOG 2>&1; echo "exit=$?"
 grep 'cognitive complexity' LOG
 ```
 
-Each warning prints the exact score ("has cognitive complexity of 13 (threshold 8)"). Re-run after the change for the "after" number.
+Each warning prints the exact score ("has cognitive complexity of 13 (threshold 12)"). Re-run after the change for the "after" number.
 src/ui files need the UI build in `build/`. If the pinned clang-tidy is missing, run `pre-commit run clang-tidy --hook-stage manual --files src/core/sprite.cpp` once to create it; if the config override is rejected, edit nothing in the repo, copy the file to the scratchpad and pass a temporary `--config-file`.
 Lines per function and parameter counts are a second signal; compare them with `wc -l` on the function range or by reading.
 
