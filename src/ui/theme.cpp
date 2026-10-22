@@ -5,6 +5,7 @@
 #include <cstdio>
 
 #include "geist_regular_subset.hpp"
+#include "material_symbols_outlined_subset.hpp"
 
 namespace theme
 {
@@ -66,6 +67,18 @@ bool load_fonts()
     if (font == nullptr) {
         return false;
     }
+    /* The icons: Material Symbols merged into the same font, so a glyph is drawn with the text. */
+    static const ImWchar ICON_RANGE[] = {0xE000, 0xF8FF, 0};
+    ImFontConfig icons;
+    icons.FontDataOwnedByAtlas = false;
+    icons.MergeMode = true;
+    icons.PixelSnapH = true;
+    icons.OversampleH = 1;
+    icons.OversampleV = 1;
+    std::snprintf(icons.Name, sizeof(icons.Name), "Material Symbols Outlined");
+    io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(MATERIAL_SYMBOLS_OUTLINED_SUBSET),
+                                   static_cast<int>(sizeof(MATERIAL_SYMBOLS_OUTLINED_SUBSET)), 0.0f,
+                                   &icons, ICON_RANGE);
     ImGui::GetStyle().FontSizeBase = FONT_SIZE;
     return true;
 }

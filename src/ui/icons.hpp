@@ -1,13 +1,13 @@
 #ifndef TINYSPRITE_UI_ICONS_HPP
 #define TINYSPRITE_UI_ICONS_HPP
 
-#include <array>
-
 #include "imgui.h"
 
-/* Pixel-art icons, drawn from 16x16 bitmaps kept in icons.cpp (an 'X' is a lit pixel). They are
- * used only where a picture reads faster than a word: the layer rows, the layer buttons and the
- * tools. No font or generator is involved: to change an icon, edit its rows. */
+/* Icons: Material Symbols (Outlined, Apache 2.0) glyphs from the font that theme::load_fonts()
+ * merges into the UI font, so they scale with the UI, take any color and add no image files. They
+ * are used where a picture reads faster than a word: the tools, the layer rows and buttons, the
+ * palette buttons. To add one, add an Icon and its codepoint (the names are in the Material
+ * Symbols codepoints list) and put the codepoint in the subset in thirdparty/material-symbols. */
 namespace icons
 {
 
@@ -37,22 +37,26 @@ enum class Icon {
     Bucket,
     Eyedropper,
     Select,
+    Swap,
+    ChevronUp,
+    ChevronDown,
     Count
 };
 
-inline constexpr int SIZE = 16; /* the bitmaps' width and height */
+/* The Material Symbols codepoint of `icon` (in the Private Use Area); 0 for the Diamond, which is
+ * drawn with lines because the set has no plain rhombus. */
+unsigned codepoint(Icon icon);
 
-/* The bitmap of `icon`: SIZE rows of SIZE characters, 'X' for a lit pixel and '.' for a clear one.
- */
-const std::array<const char *, SIZE> &bitmap(Icon icon);
+/* The pixel size an icon glyph is drawn at for a UI scale: 20 px at scale 1, whole pixels so the
+ * strokes stay on the pixel grid. */
+float glyph_size(float uiScale);
 
-/* The whole number of screen pixels one bitmap pixel covers at a UI scale: the scale rounded, at
- * least 1. Like the integer guiscale of Aseprite's ui library, so a lit pixel is always a square of
- * the same size and the icons stay crisp at any scale. */
-int pixel_scale(float uiScale);
+/* Where to start the glyph's text so that its ink box, (x0, y0)-(x1, y1) relative to that start,
+ * is centered in [min, max]. A glyph's em box is not centered on its drawing (an arrow or a
+ * pencil sits off to one side of it), so the ink is what has to be centered. Whole pixels. */
+ImVec2 glyph_origin(ImVec2 min, ImVec2 max, float x0, float y0, float x1, float y1);
 
-/* Draws the icon centered in the rectangle [min, max], pixel_scale(theme::scale()) screen pixels
- * per bitmap pixel. */
+/* Draws the icon centered in the rectangle [min, max]. */
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
 
 /* A framed button with the icon centered, like the other buttons. `id` must be unique in the ID
@@ -60,8 +64,8 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
  * instead of the tooltip. Returns true when clicked. */
 bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled = true);
 
-/* A framed button for one choice out of several: filled while `selected`. Returns true when
- * clicked. */
+/* A framed button for one choice out of several: filled with the accent while `selected`. Returns
+ * true when clicked. */
 bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec2 size);
 
 /* A frameless square toggle for a list row: shows `on` in the text color or `off` muted, with a

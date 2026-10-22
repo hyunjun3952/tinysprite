@@ -1,71 +1,69 @@
-/* The icon bitmaps are plain data, so check they are well formed: every icon is SIZE rows of SIZE
- * characters made of 'X' and '.', has lit pixels, and no two icons are identical. */
-#include <cstring>
+/* The icons are Material Symbols glyphs from the embedded font (Apache 2.0). Check the table is
+ * well formed, that every glyph is really in the font, and that an icon is centered by the ink of
+ * its glyph, not by the glyph's em box (which would sit most icons off to one side). */
+#include <set>
 
 #include "icons.hpp"
+#include "imgui.h"
 #include "minitest.hpp"
+#include "theme.hpp"
 
-TEST(every_bitmap_is_well_formed)
+/* Material Symbols has no plain rhombus (its "diamond" is a gem), so that one icon is drawn with
+ * lines and has no codepoint; every other icon is a glyph. */
+TEST(every_icon_has_its_own_private_use_codepoint_except_the_drawn_diamond)
 {
+    std::set<unsigned> seen;
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
-        const auto &rows = icons::bitmap(static_cast<icons::Icon>(i));
-        int lit = 0;
-        for (const char *row : rows) {
-            ASSERT_EQ_INT(icons::SIZE, static_cast<int>(std::strlen(row)));
-            for (int x = 0; x < icons::SIZE; x++) {
-                ASSERT_TRUE(row[x] == 'X' || row[x] == '.');
-                if (row[x] == 'X') {
-                    lit++;
-                }
-            }
+        auto icon = static_cast<icons::Icon>(i);
+        unsigned cp = icons::codepoint(icon);
+        if (icon == icons::Icon::Diamond) {
+            ASSERT_EQ_INT(0, static_cast<int>(cp));
+            continue;
         }
-        ASSERT_TRUE(lit > 0);
+        ASSERT_TRUE(cp >= 0xE000 && cp <= 0xF8FF);
+        ASSERT_TRUE(seen.insert(cp).second); /* two icons never share a glyph */
     }
 }
 
-TEST(icons_differ_from_each_other)
+TEST(every_icon_glyph_is_in_the_embedded_font)
 {
-    int count = static_cast<int>(icons::Icon::Count);
-    for (int a = 0; a < count; a++) {
-        for (int b = a + 1; b < count; b++) {
-            const auto &ra = icons::bitmap(static_cast<icons::Icon>(a));
-            const auto &rb = icons::bitmap(static_cast<icons::Icon>(b));
-            bool same = true;
-            for (size_t y = 0; y < ra.size(); y++) {
-                same = same && std::strcmp(ra[y], rb[y]) == 0;
-            }
-            ASSERT_TRUE(!same);
+    ImGui::CreateContext();
+    ASSERT_TRUE(theme::load_fonts());
+    ImFont *font = ImGui::GetIO().Fonts->Fonts[0];
+    for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
+        auto icon = static_cast<icons::Icon>(i);
+        if (icon != icons::Icon::Diamond) {
+            ASSERT_TRUE(font->IsGlyphInFont(static_cast<ImWchar>(icons::codepoint(icon))));
         }
     }
+    ImGui::DestroyContext();
 }
 
-/* Aseprite multiplies every size by an integer `guiscale()`; an icon drawn at a fractional zoom
- * would get uneven pixel runs, so the bitmaps scale by whole pixels only. */
-TEST(the_pixel_scale_is_a_whole_number_of_at_least_one)
+TEST(a_glyph_is_centered_by_its_ink_on_whole_pixels)
 {
-    ASSERT_EQ_INT(1, icons::pixel_scale(1.0f));
-    ASSERT_EQ_INT(1, icons::pixel_scale(1.25f));
-    ASSERT_EQ_INT(2, icons::pixel_scale(1.5f));
-    ASSERT_EQ_INT(2, icons::pixel_scale(2.0f));
-    ASSERT_EQ_INT(2, icons::pixel_scale(2.25f));
-    ASSERT_EQ_INT(3, icons::pixel_scale(3.0f));
-    ASSERT_EQ_INT(1, icons::pixel_scale(0.2f));
+    /* A 32 x 32 box, a glyph whose ink spans x 2..12 and y 4..16 from where its text starts. */
+    ImVec2 origin = icons::glyph_origin(ImVec2(0, 0), ImVec2(32, 32), 2.0f, 4.0f, 12.0f, 16.0f);
+    ASSERT_TRUE(origin.x == 9.0f); /* 16 - (2 + 12) / 2 */
+    ASSERT_TRUE(origin.y == 6.0f); /* 16 - (4 + 16) / 2 */
+    /* A box that is not at the window's origin, and an ink center that falls between pixels. */
+    ImVec2 shifted = icons::glyph_origin(ImVec2(100, 50), ImVec2(133, 81), 0.0f, 0.0f, 11.0f, 9.0f);
+    ASSERT_TRUE(shifted.x == 111.0f); /* floor(116.5 - 5.5) */
+    ASSERT_TRUE(shifted.y == 61.0f);  /* floor(65.5 - 4.5) */
 }
 
-TEST(the_main_tools_have_icons)
+TEST(the_glyph_size_follows_the_ui_scale_in_whole_pixels)
 {
-    const icons::Icon tools[] = {icons::Icon::Pencil, icons::Icon::Eraser, icons::Icon::Bucket,
-                                 icons::Icon::Eyedropper, icons::Icon::Select};
-    for (icons::Icon icon : tools) {
-        ASSERT_TRUE(icons::bitmap(icon)[0] != nullptr);
-    }
+    ASSERT_TRUE(icons::glyph_size(1.0f) == 20.0f);
+    ASSERT_TRUE(icons::glyph_size(1.25f) == 25.0f);
+    ASSERT_TRUE(icons::glyph_size(2.0f) == 40.0f);
+    ASSERT_TRUE(icons::glyph_size(1.1f) == 22.0f);
 }
 
 int main()
 {
-    RUN(every_bitmap_is_well_formed);
-    RUN(icons_differ_from_each_other);
-    RUN(the_pixel_scale_is_a_whole_number_of_at_least_one);
-    RUN(the_main_tools_have_icons);
+    RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_diamond);
+    RUN(every_icon_glyph_is_in_the_embedded_font);
+    RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);
+    RUN(the_glyph_size_follows_the_ui_scale_in_whole_pixels);
     return TEST_SUMMARY();
 }

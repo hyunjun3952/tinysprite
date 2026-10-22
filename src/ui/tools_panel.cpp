@@ -134,7 +134,9 @@ void ToolsPanel::colorWidget()
 
     ImGui::SetCursorPos(
         ImVec2(start.x + COLOR_SWATCH + COLOR_SWATCH_OFFSET + SWAP_BUTTON_GAP, start.y));
-    if (theme::actionButton("Swap", "Swap foreground and background (X)", 0.0f)) {
+    const float swapSide = ImGui::GetFrameHeight() + theme::px(6.0f);
+    if (icons::button(icons::Icon::Swap, "##swap_colors", "Swap foreground and background (X)",
+                      ImVec2(swapSide, swapSide))) {
         editor_.swapColors();
     }
     ImGui::SetCursorPos(

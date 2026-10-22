@@ -58,8 +58,12 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 ## UI polish 2 (ideas from Aseprite's ui library, MIT; the app's own skin is not reused)
 
-- Icons scale by a whole number (`icons::pixel_scale`, the integer `guiscale()` idea), so a lit pixel is always a
-  square and an icon stays crisp at 150% / 200% instead of staying 16 px.
+- Icons are Material Symbols Outlined glyphs (Apache 2.0, a 4 KB subset in `thirdparty/material-symbols/`) merged into
+  the UI font, so they scale with the UI, take any color and are added by one codepoint (`icons::codepoint`). Each is
+  centered by the ink of its glyph (`icons::glyph_origin`), not its em box. The diamond is drawn with lines because the
+  set has no plain rhombus. A first version used 16x16 pixel bitmaps drawn at a whole-number scale (Aseprite's
+  `guiscale()` idea); next to the Material set the tools were harder to read (eraser, bucket, eyedropper), so they were
+  replaced.
 - The five main tools are icon buttons in one row (name, shortcut and help in the tooltip, like Aseprite's tool bar),
   the same helper (`ToolsPanel::iconRow`) as the shape row; the Tools panel is one row shorter.
 - An embedded font: Geist Regular, a 23 KB subset (`thirdparty/geist/`, SIL OFL, `theme::load_fonts`, 14 px base)
@@ -226,8 +230,8 @@ candidates listed under UI polish.
   their fill, 1 px hairline dividers, 6-8 px corners, no shadows). The accent `theme::ACCENT` marks the selected tool
   (`theme::choiceButton`, `icons::choice`), the checkmark, the slider grab and the layer drop line. Tools and shapes are icon buttons (the
   shortcut is in the tooltip), the other buttons are text, grouped into collapsible sections (`theme::section`) in the
-  Tools and Layers panels; the icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
-  as rects, so there is no font or generator: edit the rows to change one; `tests/ui/ui_icons.cpp` checks their shape). The
+  Tools and Layers panels; the icons are font glyphs
+  (`src/ui/icons.cpp`; `tests/ui/ui_icons.cpp` checks the table and that every glyph is in the font). The
   Tool options section shows only what the active tool uses. The font is an embedded Geist subset (UI polish 2); there is no mono font. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
   display; `ctest -R ui_smoke` runs three frames of the app.
 - Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
