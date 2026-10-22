@@ -3,9 +3,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "app.h"
-#include "tinysprite/cel.h"
-#include "tinysprite/cli.h"
+#include "app.hpp"
+#include "tinysprite/cel.hpp"
+#include "tinysprite/cli.hpp"
 
 namespace
 {

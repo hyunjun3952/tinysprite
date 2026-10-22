@@ -2,8 +2,8 @@
  * identity so they survive the stack being reordered. No window is needed. */
 #include <vector>
 
-#include "layer_selection.h"
-#include "minitest.h"
+#include "layer_selection.hpp"
+#include "minitest.hpp"
 
 static Sprite stack(int layers)
 {

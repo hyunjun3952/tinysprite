@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <utility>
 
-#include "tinysprite/io.h"
+#include "tinysprite/io.hpp"
 
 namespace
 {

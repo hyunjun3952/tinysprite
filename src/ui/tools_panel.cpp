@@ -1,12 +1,12 @@
-#include "tools_panel.h"
+#include "tools_panel.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cfloat>
 #include <cstdio>
 
-#include "icons.h"
-#include "theme.h"
+#include "icons.hpp"
+#include "theme.hpp"
 
 namespace
 {

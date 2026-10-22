@@ -1,4 +1,4 @@
-#include "tinysprite/palette.h"
+#include "tinysprite/palette.hpp"
 
 #include <algorithm>
 

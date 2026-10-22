@@ -3,8 +3,8 @@
  * window, so only the static table is looked at. */
 #include <cstring>
 
-#include "app.h"
-#include "minitest.h"
+#include "app.hpp"
+#include "minitest.hpp"
 
 using Action = App::FileAction;
 

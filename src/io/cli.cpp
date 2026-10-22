@@ -1,4 +1,4 @@
-#include "tinysprite/cli.h"
+#include "tinysprite/cli.hpp"
 
 #include <climits>
 #include <cstdio>
@@ -7,8 +7,8 @@
 #include <optional>
 #include <string>
 
-#include "path_util.h"
-#include "tinysprite/io.h"
+#include "path_util.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {

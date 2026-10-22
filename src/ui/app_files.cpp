@@ -1,6 +1,6 @@
 /* App: opening, saving and exporting files, and the path dialog. */
 
-#include "app.h"
+#include "app.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -12,9 +12,9 @@
 #include <utility>
 #include <vector>
 
-#include "file_paths.h"
+#include "file_paths.hpp"
 #include "imgui.h"
-#include "tinysprite/io.h"
+#include "tinysprite/io.hpp"
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
  * typed without one ("" for the actions that read), what the toast says once it worked, the step

@@ -1,7 +1,7 @@
 #include <cstring>
 
-#include "minitest.h"
-#include "tinysprite/raster.h"
+#include "minitest.hpp"
+#include "tinysprite/raster.hpp"
 
 #define GRID_W 12
 #define GRID_H 12

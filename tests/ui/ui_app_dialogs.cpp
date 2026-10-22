@@ -1,10 +1,10 @@
 /* Whole frames of the app with synthetic key events: a key that closes a dialog must not also act
  * as a shortcut in the same frame. */
-#include "app.h"
+#include "app.hpp"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
 #include "imgui_internal.h"
-#include "minitest.h"
+#include "minitest.hpp"
 
 struct AppTestAccess {
     App app;

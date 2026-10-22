@@ -1,4 +1,4 @@
-#include "tinysprite/layer.h"
+#include "tinysprite/layer.hpp"
 
 #include <algorithm>
 #include <stdexcept>

@@ -4,9 +4,9 @@
 #include <memory>
 #include <vector>
 
-#include "minitest.h"
+#include "minitest.hpp"
 #include "stb_image.h"
-#include "tinysprite/io.h"
+#include "tinysprite/io.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba GREEN = {0, 255, 0, 255};

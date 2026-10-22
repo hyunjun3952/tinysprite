@@ -1,13 +1,13 @@
 /* Editor: the current frame, frame operations and playback. */
 
-#include "editor.h"
+#include "editor.hpp"
 
 #include <algorithm>
 #include <string>
 
-#include "tinysprite/cel_ops.h"
-#include "tinysprite/frame_ops.h"
-#include "tinysprite/tag_ops.h"
+#include "tinysprite/cel_ops.hpp"
+#include "tinysprite/frame_ops.hpp"
+#include "tinysprite/tag_ops.hpp"
 
 bool Editor::setFrame(int frame)
 {

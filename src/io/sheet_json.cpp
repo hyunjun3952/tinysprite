@@ -3,8 +3,8 @@
 #include <filesystem>
 #include <string>
 
-#include "frame_range.h"
-#include "tinysprite/io.h"
+#include "frame_range.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {

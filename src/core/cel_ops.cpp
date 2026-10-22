@@ -1,4 +1,4 @@
-#include "tinysprite/cel_ops.h"
+#include "tinysprite/cel_ops.hpp"
 
 #include <algorithm>
 #include <memory>

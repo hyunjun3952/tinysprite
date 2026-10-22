@@ -49,10 +49,10 @@ Say the scope back in one line. A big scope is split by module and done one at a
 
 **Target files are fixed to three groups; nothing else is read for bugs, even if the request names a wider area:**
 
-- Test code: `tests/*.cpp`, `tests/ui/*.cpp`, and the test helpers they include (`tests/minitest.h`, `tests/ui/*.h`).
-- Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,h}` and the public headers in `include/tinysprite/*.h`.
+- Test code: `tests/*.cpp`, `tests/ui/*.cpp`, and the test helpers they include (`tests/minitest.hpp`, `tests/ui/*.hpp`).
+- Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,hpp}` and the public headers in `include/tinysprite/*.hpp`.
 
-Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `.devcontainer/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
+Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
 Open those for context only (how to build or run, known gotchas and intended behavior in `docs/`), never to report a finding in them.
 If a suspicion points outside the target (for example a CI workflow), mention it in one line under "not checked" in the report instead of hunting it.
 Findings in test code are about the test being wrong: asserts that cannot fail, golden data that encodes a bug, missing cases, order dependence, leaks between tests.
@@ -84,7 +84,7 @@ otherwise a clear estimate marked as such. If a change does not lower complexity
 
 ## Step 3: Test to confirm
 
-For every suspicion that can be tested, try to make it fail. Follow the repo's TDD style (`tests/minitest.h`, one file per feature):
+For every suspicion that can be tested, try to make it fail. Follow the repo's TDD style (`tests/minitest.hpp`, one file per feature):
 
 ```sh
 cmake -S . -B build && cmake --build build

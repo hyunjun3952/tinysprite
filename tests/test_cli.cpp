@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "minitest.h"
-#include "tinysprite/cli.h"
-#include "tinysprite/io.h"
+#include "minitest.hpp"
+#include "tinysprite/cli.hpp"
+#include "tinysprite/io.hpp"
 
 static int run(std::vector<std::string> args)
 {

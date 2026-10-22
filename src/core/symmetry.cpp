@@ -1,4 +1,4 @@
-#include "tinysprite/symmetry.h"
+#include "tinysprite/symmetry.hpp"
 
 #include <algorithm>
 

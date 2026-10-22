@@ -1,6 +1,6 @@
 /* App: the New, Recover and unsaved-changes dialogs, and dropped files. */
 
-#include "app.h"
+#include "app.hpp"
 
 #include <algorithm>
 #include <cstdio>

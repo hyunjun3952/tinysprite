@@ -2,10 +2,10 @@
  * picks a color, the left one still draws. Runs under SDL_VIDEODRIVER=dummy. */
 #include <memory>
 
-#include "canvas.h"
-#include "editor.h"
-#include "minitest.h"
-#include "ui_harness.h"
+#include "canvas.hpp"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "ui_harness.hpp"
 
 using test_ui::Harness;
 

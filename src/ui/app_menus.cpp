@@ -1,13 +1,13 @@
 /* App: the menu bar and the shortcut help window. */
 
-#include "app.h"
+#include "app.hpp"
 
 #include <cmath>
 #include <cstdio>
 #include <string>
 
 #include "imgui.h"
-#include "theme.h"
+#include "theme.hpp"
 
 /* The recent files; picking one asks about unsaved changes first. */
 void App::openRecentMenu(bool idle)

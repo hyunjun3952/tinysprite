@@ -1,9 +1,9 @@
 /* Headless tests for the UI editor state: colors and the palette: foreground / background, recent
  * colors, palette edits. Built only when the UI is built; runs under SDL_VIDEODRIVER=dummy. */
 
-#include "editor.h"
-#include "minitest.h"
-#include "ui_editor_support.h"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "ui_editor_support.hpp"
 
 TEST(swap_colors_exchanges_foreground_and_background)
 {

@@ -1,9 +1,9 @@
-#include "tinysprite/tools.h"
+#include "tinysprite/tools.hpp"
 
 #include <cstdlib>
 
-#include "history_plot.h"
-#include "tinysprite/raster.h"
+#include "history_plot.hpp"
+#include "tinysprite/raster.hpp"
 
 bool pencil_stroke(History &history, Cel &cel, const std::vector<ToolPoint> &points, Rgba color)
 {

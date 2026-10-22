@@ -1,4 +1,4 @@
-#include "tinysprite/history.h"
+#include "tinysprite/history.hpp"
 
 #include <memory>
 #include <utility>

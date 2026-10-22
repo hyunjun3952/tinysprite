@@ -1,10 +1,10 @@
 /* The layer list driven with synthetic input: double-click a row to rename the layer in place. */
 #include <memory>
 
-#include "editor.h"
-#include "layers_panel.h"
-#include "minitest.h"
-#include "ui_harness.h"
+#include "editor.hpp"
+#include "layers_panel.hpp"
+#include "minitest.hpp"
+#include "ui_harness.hpp"
 
 using test_ui::Harness;
 

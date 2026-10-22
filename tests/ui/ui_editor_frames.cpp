@@ -1,9 +1,9 @@
 /* Headless tests for the UI editor state: the current frame, frame operations and playback.
  * Built only when the UI is built; runs under SDL_VIDEODRIVER=dummy. */
 
-#include "editor.h"
-#include "minitest.h"
-#include "ui_editor_support.h"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "ui_editor_support.hpp"
 
 TEST(a_new_document_shows_frame_zero)
 {

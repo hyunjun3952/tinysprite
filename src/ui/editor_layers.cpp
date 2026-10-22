@@ -1,6 +1,6 @@
 /* Editor: the layer stack and which layers are selected. */
 
-#include "editor.h"
+#include "editor.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -9,9 +9,9 @@
 #include <utility>
 #include <vector>
 
-#include "editor_internal.h"
+#include "editor_internal.hpp"
 
-#include "tinysprite/layer_ops.h"
+#include "tinysprite/layer_ops.hpp"
 
 void Editor::setActiveLayer(int index)
 {

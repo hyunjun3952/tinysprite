@@ -1,6 +1,6 @@
-#include "composite_surface.h"
+#include "composite_surface.hpp"
 
-#include "tinysprite/composite.h"
+#include "tinysprite/composite.hpp"
 
 CompositeSurface::CompositeSurface(std::unique_ptr<SDL_Texture, TextureDeleter> texture, int width,
                                    int height)

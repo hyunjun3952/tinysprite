@@ -1,4 +1,4 @@
-#include "tinysprite/cel.h"
+#include "tinysprite/cel.hpp"
 
 #include <stdexcept>
 

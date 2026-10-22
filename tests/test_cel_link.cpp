@@ -1,8 +1,8 @@
-#include "minitest.h"
-#include "tinysprite/cel_ops.h"
-#include "tinysprite/frame_ops.h"
-#include "tinysprite/io.h"
-#include "tinysprite/layer_ops.h"
+#include "minitest.hpp"
+#include "tinysprite/cel_ops.hpp"
+#include "tinysprite/frame_ops.hpp"
+#include "tinysprite/io.hpp"
+#include "tinysprite/layer_ops.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};

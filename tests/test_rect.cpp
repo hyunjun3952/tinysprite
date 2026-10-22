@@ -1,7 +1,7 @@
 #include <climits>
 
-#include "minitest.h"
-#include "tinysprite/rect.h"
+#include "minitest.hpp"
+#include "tinysprite/rect.hpp"
 
 TEST(clip_keeps_a_rectangle_that_fits)
 {

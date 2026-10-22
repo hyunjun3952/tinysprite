@@ -1,5 +1,5 @@
-#include "minitest.h"
-#include "tinysprite/symmetry.h"
+#include "minitest.hpp"
+#include "tinysprite/symmetry.hpp"
 
 TEST(copy_count_follows_the_enabled_axes)
 {

@@ -1,4 +1,4 @@
-#include "tinysprite/composite.h"
+#include "tinysprite/composite.hpp"
 
 #include <algorithm>
 #include <cstddef>

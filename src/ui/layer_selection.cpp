@@ -1,8 +1,8 @@
-#include "layer_selection.h"
+#include "layer_selection.hpp"
 
 #include <algorithm>
 
-#include "editor_internal.h"
+#include "editor_internal.hpp"
 
 bool LayerSelection::contains(const Sprite &sprite, int index) const
 {

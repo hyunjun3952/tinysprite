@@ -2,8 +2,8 @@
  * characters made of 'X' and '.', has lit pixels, and no two icons are identical. */
 #include <cstring>
 
-#include "icons.h"
-#include "minitest.h"
+#include "icons.hpp"
+#include "minitest.hpp"
 
 TEST(every_bitmap_is_well_formed)
 {

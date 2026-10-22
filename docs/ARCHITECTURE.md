@@ -15,7 +15,7 @@ tinysprite_ui     src/ui                              SDL2 + Dear ImGui frontend
 
 Each layer only knows the ones above it in the diagram, and CMake enforces that through target links. `core` and
 `io` never include SDL or ImGui. `io` also has the animated GIF encoder and the sprite sheet layout. Their public headers live in `include/tinysprite/`; headers private to a module
-(`src/core/tools/history_plot.h`, everything in `src/ui`) stay next to the sources.
+(`src/core/tools/history_plot.hpp`, everything in `src/ui`) stay next to the sources.
 
 `tests/test_*.cpp` link only `io` (and so `core`). The UI tests in `tests/ui/` link `tinysprite_ui` and run under
 `SDL_VIDEODRIVER=dummy`. The UI is built whenever SDL2 is installed (`TINYSPRITE_BUILD_UI`).
@@ -27,9 +27,9 @@ RGBA pixel buffer) per frame, as `shared_ptr<Cel>` so that frames can share a ce
 frame taken out of the sprite (a cel per layer plus its duration), which is how a removed frame lives on inside a history
 step. A cel is RGBA for now; indexed color is deferred.
 
-Animation lives in a few small modules next to it: `frame_ops.h` / `tag_ops.h` / `cel_ops.h` / `palette_ops.h` (undoable
-edits, same pattern as `layer_ops.h`), `playback.h` (which frame to show as time passes, and `play_order`) and the onion
-skin in `composite.h`.
+Animation lives in a few small modules next to it: `frame_ops.hpp` / `tag_ops.hpp` / `cel_ops.hpp` / `palette_ops.hpp` (undoable
+edits, same pattern as `layer_ops.hpp`), `playback.hpp` (which frame to show as time passes, and `play_order`) and the onion
+skin in `composite.hpp`.
 
 Invalid sizes throw `std::invalid_argument`. Operations that can legitimately be refused (a stroke is active, an index
 is out of range) return `bool` or null instead.
@@ -41,17 +41,17 @@ and is stored as pixel deltas `(index, old, new)`. Writing a pixel's current col
 changed nothing is dropped.
 
 Changes that are not pixel deltas (adding, removing, moving, renaming layers, opacity, visibility) are recorded as
-actions with their own undo and redo callables (`History::pushAction`, wrapped by `layer_ops.h`). A layer that is
+actions with their own undo and redo callables (`History::pushAction`, wrapped by `layer_ops.hpp`). A layer that is
 removed, or added and then undone, is kept alive by the history step so that pixel steps on its cels stay valid.
 
 Tools sit on top of that:
 
-- `raster.h` has pure rasterizers (line, rectangle, ellipse, polygon, flood fill). They report pixels through a
+- `raster.hpp` has pure rasterizers (line, rectangle, ellipse, polygon, flood fill). They report pixels through a
   callback and never touch a cel, so the same code serves a stroke, a preview and a test.
 - `PencilStroke`, `ShapeStroke` and `MoveStroke` are live strokes created by a static `begin()`. They return null when
   the history already has an open stroke, and cancel themselves when destroyed unfinished. The batch functions
   (`pencil_stroke`, `shape_stroke`, `move_stroke`) feed point lists to the same machinery, which is how tools are tested.
-- Symmetry (`symmetry.h`) mirrors plotted points across the cel's center for the pencil, shapes and bucket.
+- Symmetry (`symmetry.hpp`) mirrors plotted points across the cel's center for the pencil, shapes and bucket.
 
 ## Rendering
 
@@ -70,13 +70,13 @@ App            window, ImGui context, main loop, menus, shortcuts, file and conf
 ```
 
 `App` and `Editor` are big classes whose code is split over several files by what it is about, so the implementation files
-stay a few hundred lines each (the class declarations remain in `editor.h` and `app.h`): `app.cpp` (startup, main loop, autosave), `app_menus.cpp`, `app_shortcuts.cpp`, `app_dialogs.cpp`,
+stay a few hundred lines each (the class declarations remain in `editor.hpp` and `app.hpp`): `app.cpp` (startup, main loop, autosave), `app_menus.cpp`, `app_shortcuts.cpp`, `app_dialogs.cpp`,
 `app_files.cpp`; `editor.cpp` (document, strokes, texture), `editor_layers.cpp`, `editor_palette.cpp`,
 `editor_selection.cpp`, `editor_settings.cpp`. Helpers shared between the `editor_*.cpp` files are declared in
-`editor_internal.h` and defined in `editor_internal.cpp`.
+`editor_internal.hpp` and defined in `editor_internal.cpp`.
 
-`Editor` delegates two self-contained pieces: `LayerSelection` (`layer_selection.h`: the active layer plus Ctrl/Shift
-picks, tracked by layer identity) and `CompositeSurface` (`composite_surface.h`: the CPU buffer, its texture and the
+`Editor` delegates two self-contained pieces: `LayerSelection` (`layer_selection.hpp`: the active layer plus Ctrl/Shift
+picks, tracked by layer identity) and `CompositeSurface` (`composite_surface.hpp`: the CPU buffer, its texture and the
 dirty rectangle). Both are unit-tested without an `Editor`; the editor keeps the same public methods and forwards.
 
 Tools are a table, not switches: `tool.cpp` has one `ToolTraits` row per `ToolKind` (its `ToolGroup` and, for the shape
@@ -116,7 +116,7 @@ version is still 1), and rejects other versions and truncated data.
 | `TAGS` | optional: count, then per tag a name, first and last frame and a direction |
 
 Every writer goes through `file_write_atomic` (temporary file plus rename), so a failed write never destroys an
-existing file. The authoritative description is the comment in `include/tinysprite/io.h`.
+existing file. The authoritative description is the comment in `include/tinysprite/io.hpp`.
 
 ## Testing
 

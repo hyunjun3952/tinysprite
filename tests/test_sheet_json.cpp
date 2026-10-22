@@ -1,7 +1,7 @@
 #include <string>
 
-#include "minitest.h"
-#include "tinysprite/io.h"
+#include "minitest.hpp"
+#include "tinysprite/io.hpp"
 
 static bool has(const std::string &text, const char *part)
 {

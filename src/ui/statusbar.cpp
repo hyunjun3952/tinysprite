@@ -1,11 +1,11 @@
-#include "statusbar.h"
+#include "statusbar.hpp"
 
 #include <algorithm>
 #include <cstdio>
 #include <utility>
 
 #include "imgui.h"
-#include "theme.h"
+#include "theme.hpp"
 
 namespace
 {

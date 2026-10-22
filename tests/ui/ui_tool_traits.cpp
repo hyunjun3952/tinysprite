@@ -2,8 +2,8 @@
  * ToolKind. No window is needed. */
 #include <set>
 
-#include "minitest.h"
-#include "tool.h"
+#include "minitest.hpp"
+#include "tool.hpp"
 
 TEST(every_tool_has_a_row_in_enum_order)
 {

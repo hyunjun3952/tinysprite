@@ -1,4 +1,4 @@
-#include "tinysprite/viewport.h"
+#include "tinysprite/viewport.hpp"
 
 #include <cmath>
 

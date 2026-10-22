@@ -1,9 +1,9 @@
 #include <algorithm>
 #include <cmath>
 
-#include "frame_range.h"
-#include "tinysprite/composite.h"
-#include "tinysprite/io.h"
+#include "frame_range.hpp"
+#include "tinysprite/composite.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {

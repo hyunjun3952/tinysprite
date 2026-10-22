@@ -1,6 +1,6 @@
-#include "tinysprite/tools.h"
+#include "tinysprite/tools.hpp"
 
-#include "tinysprite/composite.h"
+#include "tinysprite/composite.hpp"
 
 std::optional<Rgba> eyedropper_pick_cel(const Cel &cel, int x, int y)
 {

@@ -1,7 +1,7 @@
-#include "minitest.h"
-#include "tinysprite/frame_ops.h"
-#include "tinysprite/playback.h"
-#include "tinysprite/tag_ops.h"
+#include "minitest.hpp"
+#include "tinysprite/frame_ops.hpp"
+#include "tinysprite/playback.hpp"
+#include "tinysprite/tag_ops.hpp"
 
 static Sprite frames(int n)
 {

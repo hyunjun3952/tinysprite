@@ -1,13 +1,13 @@
 /* Editor: saving and loading the preferences. */
 
-#include "editor.h"
+#include "editor.hpp"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 
-#include "editor_internal.h"
+#include "editor_internal.hpp"
 
 namespace
 {

@@ -4,11 +4,11 @@
 #include <filesystem>
 #include <fstream>
 
-#include "minitest.h"
-#include "panels.h"
-#include "recovery.h"
-#include "settings.h"
-#include "tinysprite/io.h"
+#include "minitest.hpp"
+#include "panels.hpp"
+#include "recovery.hpp"
+#include "settings.hpp"
+#include "tinysprite/io.hpp"
 
 namespace fs = std::filesystem;
 

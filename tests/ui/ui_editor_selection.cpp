@@ -2,9 +2,9 @@
  * and selection flip / rotate. Built only when the UI is built; runs under SDL_VIDEODRIVER=dummy.
  */
 
-#include "editor.h"
-#include "minitest.h"
-#include "ui_editor_support.h"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "ui_editor_support.hpp"
 
 static void select_rect(Editor *e, int x0, int y0, int x1, int y1)
 {

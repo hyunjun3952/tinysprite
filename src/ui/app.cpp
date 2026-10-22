@@ -1,4 +1,4 @@
-#include "app.h"
+#include "app.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -8,8 +8,8 @@
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
 #include "imgui.h"
-#include "theme.h"
-#include "tinysprite/io.h"
+#include "theme.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {

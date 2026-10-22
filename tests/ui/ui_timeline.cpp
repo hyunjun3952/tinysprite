@@ -2,10 +2,10 @@
  * frames, and the buttons edit them. */
 #include <memory>
 
-#include "editor.h"
-#include "minitest.h"
-#include "timeline_panel.h"
-#include "ui_harness.h"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "timeline_panel.hpp"
+#include "ui_harness.hpp"
 
 using test_ui::Harness;
 

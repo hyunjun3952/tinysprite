@@ -1,9 +1,9 @@
 /* The texture the canvas shows and the dirty rectangle that decides what is re-composited into it.
  * Runs under SDL_VIDEODRIVER=dummy. */
-#include "composite_surface.h"
-#include "minitest.h"
-#include "tinysprite/sprite.h"
-#include "ui_editor_support.h"
+#include "composite_surface.hpp"
+#include "minitest.hpp"
+#include "tinysprite/sprite.hpp"
+#include "ui_editor_support.hpp"
 
 TEST(a_new_surface_has_a_texture_and_needs_a_full_composite)
 {
