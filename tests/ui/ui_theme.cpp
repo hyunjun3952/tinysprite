@@ -126,8 +126,31 @@ TEST(dialog_buttons_have_a_minimum_width_and_grow_with_their_label)
     ASSERT_TRUE(theme::dialog_button_width(90.0f) == 122.0f); /* 90 + 32 */
 }
 
+TEST(ease_toward_moves_at_a_steady_rate_and_never_overshoots)
+{
+    ASSERT_TRUE(theme::ease_toward(0.0f, 1.0f, 0.05f, 0.1f) == 0.5f);
+    ASSERT_TRUE(theme::ease_toward(0.5f, 1.0f, 0.05f, 0.1f) == 1.0f);
+    ASSERT_TRUE(theme::ease_toward(0.9f, 1.0f, 1.0f, 0.1f) == 1.0f);
+    ASSERT_TRUE(theme::ease_toward(1.0f, 0.0f, 0.025f, 0.1f) == 0.75f);
+    ASSERT_TRUE(theme::ease_toward(0.1f, 0.0f, 1.0f, 0.1f) == 0.0f);
+    ASSERT_TRUE(theme::ease_toward(0.3f, 0.3f, 1.0f, 0.1f) == 0.3f);
+    ASSERT_TRUE(theme::ease_toward(0.0f, 1.0f, 0.5f, 0.0f) == 1.0f); /* no duration: jump */
+}
+
+TEST(mix_blends_two_colors_per_channel)
+{
+    ASSERT_TRUE(theme::mix(0x000000, 0xffffff, 0.0f) ==
+                ImGui::ColorConvertFloat4ToU32(theme::rgb(0x000000)));
+    ASSERT_TRUE(theme::mix(0x000000, 0xffffff, 1.0f) ==
+                ImGui::ColorConvertFloat4ToU32(theme::rgb(0xffffff)));
+    ASSERT_TRUE(theme::mix(0x000000, 0xffffff, 0.5f) ==
+                ImGui::ColorConvertFloat4ToU32(ImVec4(0.5f, 0.5f, 0.5f, 1.0f)));
+}
+
 int main()
 {
+    RUN(ease_toward_moves_at_a_steady_rate_and_never_overshoots);
+    RUN(mix_blends_two_colors_per_channel);
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
     RUN(a_control_fill_is_visibly_lighter_than_the_panel);

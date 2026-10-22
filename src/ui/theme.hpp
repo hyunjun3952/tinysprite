@@ -151,6 +151,16 @@ bool actionButton(const char *label, const char *tooltip, float width, bool enab
 /* Colors for the canvas area, as ImU32. */
 ImU32 workspaceColor();
 
+/* Small transitions. ease_toward moves `current` toward `target` at a steady rate that covers 0..1
+ * in `seconds` (never past the target; no duration jumps). animate keeps one such value per widget
+ * id in the current window and advances it by the frame time: pass 1 while a state holds (hovered,
+ * selected) and 0 otherwise, and use the result as the blend between the two looks. mix blends two
+ * 0xRRGGBB colors. */
+inline constexpr float ANIM_SECONDS = 0.12f;
+float ease_toward(float current, float target, float dt, float seconds);
+float animate(ImGuiID id, float target, float seconds = ANIM_SECONDS);
+ImU32 mix(unsigned from, unsigned to, float t);
+
 } // namespace theme
 
 #endif

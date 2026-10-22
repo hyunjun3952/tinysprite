@@ -72,7 +72,18 @@ float Toasts::alpha(double now) const
         return 0.0f;
     }
     double left = toast->start + lifetime(*toast) - now;
-    return static_cast<float>(std::clamp(left / FADE_SECONDS, 0.0, 1.0));
+    double entered = std::clamp((now - toast->start) / ENTER_SECONDS, 0.0, 1.0);
+    return static_cast<float>(std::min(std::clamp(left / FADE_SECONDS, 0.0, 1.0), entered));
+}
+
+float Toasts::rise(double now) const
+{
+    const Toast *toast = current(now);
+    if (!toast) {
+        return 0.0f;
+    }
+    double left = 1.0 - std::clamp((now - toast->start) / ENTER_SECONDS, 0.0, 1.0);
+    return static_cast<float>(left * left);
 }
 
 void Toasts::draw(double now, float bottomMargin) const
@@ -87,7 +98,8 @@ void Toasts::draw(double now, float bottomMargin) const
     ImVec2 size = ImGui::CalcTextSize(toast->text.c_str());
     float pad = theme::px(10.0f);
     ImVec2 min(viewport->WorkPos.x + (viewport->WorkSize.x - size.x) / 2.0f - pad,
-               viewport->WorkPos.y + viewport->WorkSize.y - bottomMargin - size.y - pad * 2.0f);
+               viewport->WorkPos.y + viewport->WorkSize.y - bottomMargin - size.y - pad * 2.0f +
+                   rise(now) * theme::px(8.0f));
     ImVec2 max(min.x + size.x + pad * 2.0f, min.y + size.y + pad * 2.0f);
     ImVec4 border = toast->error ? ImVec4(0.9f, 0.35f, 0.35f, fade) : theme::rgb(theme::MUTE, fade);
     draw->AddRectFilled(min, max,

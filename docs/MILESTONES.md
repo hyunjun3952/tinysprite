@@ -116,6 +116,11 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 - Looked at and not taken: `PopupWindow` hot regions and `AnimatedWidget` easing (ImGui popups already close on an
   outside click, and the UI is immediate-mode), a separate "small" font (one more atlas size for little gain now).
 
+- Motion, kept small: a toast fades in while rising 8 px (`Toasts::rise`, `ENTER_SECONDS`), and the tool-bar buttons and the
+  layer eye / lock toggles ease between resting, hovered and selected (`theme::animate` keeps one 0..1 value per widget
+  id in the window's state storage, `theme::ease_toward` / `theme::mix` are the pure parts). The app redraws every frame,
+  so no wake-up logic is needed. Not animated on purpose: menus, dialogs, panel docking, the timeline fold.
+
 ## Phase 2b: layer blend modes
 
 A blend mode decides how a layer's color combines with what is under it. Today every layer is a plain

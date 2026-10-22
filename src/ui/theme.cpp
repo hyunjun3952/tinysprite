@@ -535,6 +535,35 @@ bool actionButton(const char *label, const char *tooltip, float width, bool enab
     return clicked && enabled;
 }
 
+float ease_toward(float current, float target, float dt, float seconds)
+{
+    if (seconds <= 0.0f) {
+        return target;
+    }
+    float step = dt / seconds;
+    if (current < target) {
+        return std::min(current + step, target);
+    }
+    return std::max(current - step, target);
+}
+
+float animate(ImGuiID id, float target, float seconds)
+{
+    ImGuiStorage *storage = ImGui::GetStateStorage();
+    float value =
+        ease_toward(storage->GetFloat(id, target), target, ImGui::GetIO().DeltaTime, seconds);
+    storage->SetFloat(id, value);
+    return value;
+}
+
+ImU32 mix(unsigned from, unsigned to, float t)
+{
+    ImVec4 a = rgb(from);
+    ImVec4 b = rgb(to);
+    return ImGui::ColorConvertFloat4ToU32(
+        ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, 1.0f));
+}
+
 ImU32 workspaceColor()
 {
     return toU32(WORKSPACE);

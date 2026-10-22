@@ -44,6 +44,22 @@ TEST(fade_is_full_then_drops_to_zero_at_the_end)
     ASSERT_TRUE(toasts.alpha(Toasts::INFO_SECONDS + 1.0) == 0.0f);
 }
 
+TEST(a_toast_fades_in_and_rises_into_place)
+{
+    Toasts toasts;
+    toasts.push("x", false, 0.0);
+    ASSERT_TRUE(toasts.alpha(0.0) == 0.0f);
+    float mid = toasts.alpha(Toasts::ENTER_SECONDS / 2.0);
+    ASSERT_TRUE(mid > 0.0f && mid < 1.0f);
+    ASSERT_TRUE(toasts.alpha(Toasts::ENTER_SECONDS + 0.01) == 1.0f);
+    ASSERT_TRUE(toasts.rise(0.0) == 1.0f);
+    float part = toasts.rise(Toasts::ENTER_SECONDS / 2.0);
+    ASSERT_TRUE(part > 0.0f && part < 1.0f);
+    ASSERT_TRUE(toasts.rise(Toasts::ENTER_SECONDS + 0.01) == 0.0f);
+    ASSERT_TRUE(toasts.rise(Toasts::INFO_SECONDS - 0.1) ==
+                0.0f); /* it does not move on the way out */
+}
+
 TEST(extension_is_added_only_when_missing)
 {
     ASSERT_TRUE(with_default_extension("art", ".pxa") == "art.pxa");
@@ -171,6 +187,7 @@ int main()
     RUN(toast_shows_until_it_expires);
     RUN(error_toast_lasts_longer_and_a_new_one_replaces_the_old);
     RUN(fade_is_full_then_drops_to_zero_at_the_end);
+    RUN(a_toast_fades_in_and_rises_into_place);
     RUN(extension_is_added_only_when_missing);
     RUN(directory_of_and_join);
     RUN(a_required_extension_is_added_unless_the_name_already_ends_in_it);

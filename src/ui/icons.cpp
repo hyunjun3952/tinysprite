@@ -160,17 +160,23 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
 
 bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec2 size)
 {
-    if (selected) {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::rgb(theme::ACCENT));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::rgb(theme::ACCENT));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::rgb(theme::ACCENT_STRONG));
-    }
-    bool clicked = ImGui::Button(id, size);
-    if (selected) {
-        ImGui::PopStyleColor(3);
-    }
-    draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-         withAlpha(selected ? theme::ACCENT_TEXT : theme::INK, 1.0f));
+    bool clicked = ImGui::InvisibleButton(id, size);
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    /* The fill eases between the resting, hovered and selected looks instead of snapping. */
+    const ImGuiID key = ImGui::GetItemID();
+    float hover = theme::animate(key, ImGui::IsItemHovered() ? 1.0f : 0.0f);
+    float pick = theme::animate(key + 1, selected ? 1.0f : 0.0f);
+    const bool active = ImGui::IsItemActive();
+    ImDrawList *list = ImGui::GetWindowDrawList();
+    const float round = ImGui::GetStyle().FrameRounding;
+    list->AddRectFilled(min, max,
+                        active ? withAlpha(theme::PRESSED, 1.0f)
+                               : theme::mix(theme::CANVAS_SOFT, theme::HOVER, hover),
+                        round);
+    list->AddRectFilled(min, max, withAlpha(active ? theme::ACCENT_STRONG : theme::ACCENT, pick),
+                        round);
+    draw(list, icon, min, max, withAlpha(selected ? theme::ACCENT_TEXT : theme::INK, 1.0f));
     theme::tip(tooltip);
     return clicked;
 }
@@ -181,8 +187,9 @@ bool toggle(Icon on, Icon off, const char *id, const char *tooltip, bool state, 
     ImVec2 min = ImGui::GetItemRectMin();
     ImVec2 max = ImGui::GetItemRectMax();
     ImDrawList *list = ImGui::GetWindowDrawList();
-    if (ImGui::IsItemHovered()) {
-        list->AddRectFilled(min, max, withAlpha(theme::HOVER, 1.0f), ROUND);
+    float hover = theme::animate(ImGui::GetItemID(), ImGui::IsItemHovered() ? 1.0f : 0.0f);
+    if (hover > 0.0f) {
+        list->AddRectFilled(min, max, withAlpha(theme::HOVER, hover), ROUND);
     }
     draw(list, state ? on : off, min, max,
          state ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.7f));

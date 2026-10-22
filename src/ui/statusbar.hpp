@@ -14,6 +14,7 @@ class Toasts
     static constexpr double INFO_SECONDS = 2.5;
     static constexpr double ERROR_SECONDS = 5.0; /* a failure stays long enough to be read */
     static constexpr double FADE_SECONDS = 0.4;
+    static constexpr double ENTER_SECONDS = 0.15; /* it fades in while rising into place */
 
     struct Toast {
         std::string text;
@@ -26,8 +27,13 @@ class Toasts
     /* The message to show at `now`, nullptr once it has expired. */
     const Toast *current(double now) const;
 
-    /* 1 while it is fully shown, fading to 0 over its last FADE_SECONDS; 0 with no message. */
+    /* 1 while it is fully shown, fading in over ENTER_SECONDS and out over its last FADE_SECONDS;
+     * 0 with no message. */
     float alpha(double now) const;
+
+    /* How far below its place the message still is, 1 as it appears easing to 0 over
+     * ENTER_SECONDS; 0 after that and with no message. Multiply by the distance to travel. */
+    float rise(double now) const;
 
     /* Draws the message above the status bar, centered in the main viewport. */
     void draw(double now, float bottomMargin) const;
