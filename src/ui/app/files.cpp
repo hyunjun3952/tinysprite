@@ -64,6 +64,13 @@ void App::askForPath(FileAction action)
     std::snprintf(pathInput_, sizeof(pathInput_), "%s", start.c_str());
 }
 
+/* "Cannot write <path>" plus the reason the last file write gave, if it has one. */
+std::string App::cannotWrite(const std::string &path)
+{
+    std::string reason = file_write_error();
+    return "Cannot write " + path + (reason.empty() ? "" : ": " + reason);
+}
+
 bool App::overwriteAllowed(const std::string &path)
 {
     std::error_code error;
@@ -93,7 +100,7 @@ void App::save()
         askForPath(FileAction::SaveAs);
     } else if (!pxa_save(editor_->sprite(), filePath_)) {
         askForPath(FileAction::SaveAs);
-        fileError_ = "Cannot write " + filePath_;
+        fileError_ = cannotWrite(filePath_);
         toast(fileError_, true);
     } else {
         editor_->markSaved();
@@ -133,7 +140,7 @@ bool App::runOpen(const std::string &path)
 bool App::runSaveAs(const std::string &path)
 {
     if (!pxa_save(editor_->sprite(), path)) {
-        fileError_ = "Cannot write " + path;
+        fileError_ = cannotWrite(path);
         return false;
     }
     filePath_ = path;

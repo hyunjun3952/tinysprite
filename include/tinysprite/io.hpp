@@ -39,6 +39,10 @@ std::optional<Sprite> pxa_load(const std::string &path);
  * destroys an existing file. Returns false (leaving nothing behind) if it cannot be written. */
 bool file_write_atomic(const std::string &path, const std::string &data);
 
+/* Why the last file_write_atomic on this thread failed, as the system words it ("No such file or
+ * directory"); empty if it succeeded. */
+std::string file_write_error();
+
 /* Palette files. A .hex file has one color per line as RRGGBB or RRGGBBAA (an optional leading # is
  * accepted); a .gpl file is the GIMP palette format, which has no alpha: an export drops it. The
  * decoder tells the two apart by the "GIMP Palette" header, ignores blank lines and keeps the first

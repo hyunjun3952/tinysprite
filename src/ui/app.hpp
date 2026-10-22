@@ -155,6 +155,9 @@ class App
      * dialog (its own direction). */
     void exportRange(int &first, int &last, PlayMode &direction) const;
 
+    /* "Cannot write <path>" plus the OS reason of the last failed file write, if there is one. */
+    static std::string cannotWrite(const std::string &path);
+
     /* Opens a .pxa file or imports an image as the document; on failure sets fileError_. */
     bool openPath(const std::string &path);
 

@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -10,16 +12,39 @@
 #include "path_util.hpp"
 #include "tinysprite/io.hpp"
 
+namespace
+{
+
+std::string &last_write_error()
+{
+    thread_local std::string reason;
+    return reason;
+}
+
+} // namespace
+
+std::string file_write_error()
+{
+    return last_write_error();
+}
+
 bool file_write_atomic(const std::string &path, const std::string &data)
 {
     /* Write beside the target and rename, so a failed write never destroys an existing file. */
+    last_write_error().clear();
     std::string temp = path + ".tmp";
     {
+        errno = 0;
         std::ofstream file(temp, std::ios::binary);
+        if (!file) {
+            last_write_error() = errno != 0 ? std::strerror(errno) : "cannot create the file";
+            return false;
+        }
         file.write(data.data(), static_cast<std::streamsize>(data.size()));
         file.flush();
         file.close();
         if (file.fail()) {
+            last_write_error() = errno != 0 ? std::strerror(errno) : "cannot write the file";
             std::error_code ignored;
             std::filesystem::remove(temp, ignored);
             return false;
@@ -28,6 +53,7 @@ bool file_write_atomic(const std::string &path, const std::string &data)
     std::error_code error;
     std::filesystem::rename(temp, path, error);
     if (error) {
+        last_write_error() = error.message();
         std::filesystem::remove(temp, error);
         return false;
     }

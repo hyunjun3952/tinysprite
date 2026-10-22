@@ -47,7 +47,7 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 - Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
-- Not done: a file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
+- Not done: a file browser, HiDPI window flags, the OS reason for image exports (only `.pxa` saves show it, via `file_write_error`).
 - Left from the pattern survey: an `Editor` change observer, a `theme::labeledRow` helper, merging the tool tables,
   declarative settings bindings; also a guard helper for `if (stroking()) return;` (about forty times in `Editor`), one holder
   for `Slot` and `Membership`, and a `Playback` State if a fourth mode is added.
