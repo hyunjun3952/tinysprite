@@ -24,7 +24,8 @@ struct AppOptions {
     int width = 64;
     int height = 64;
     int maxFrames = 0;      /* >0: exit after this many frames (smoke runs without a display) */
-    std::string screenshot; /* with --frames: save the last frame to this .bmp before exiting */
+    std::string screenshot; /* with --frames: save the last frame to this image (.png, .bmp, .tga,
+                               .jpg) before exiting */
     std::string file;       /* a .pxa or image to open at start, "" for a blank sprite */
     float uiScale = 0.0f;   /* the UI scale to use instead of the saved / detected one; 0 = none */
     std::string configDir;  /* keep settings / autosave here (also in a --frames run); "" = the

@@ -71,6 +71,11 @@ bool image_export(const Sprite &sprite, int frame, const std::string &path, int 
  * as .jpg and not listed). */
 std::string image_write_formats();
 
+/* Writes width x height pixels (row-major) as .png, .bmp, .tga or .jpg by the extension of `path`;
+ * a jpg is flattened onto white in place. Returns false for another extension or an unwritable
+ * file. image_export and the sprite sheet export use it; the UI uses it for screenshots. */
+bool image_write_rgba(const std::string &path, int width, int height, std::vector<Rgba> &pixels);
+
 /* Animated GIF export. The frames first..last (last = -1 for the final frame) are written in the
  * order `direction` plays them (a ping-pong goes out and back, its ends shown once), each for its
  * own duration, rounded to 1/100 s and at least 2/100 s since viewers treat shorter delays as

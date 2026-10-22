@@ -33,6 +33,26 @@ TEST(export_then_import_round_trips_the_flattened_image)
     ASSERT_EQ_INT(0, b.layer(0)->cel(0)->get(1, 1).a); /* hidden layers are not exported */
 }
 
+TEST(write_rgba_saves_raw_pixels_as_png)
+{
+    std::vector<Rgba> pixels = {RED, BLUE, BLUE, RED, RED, BLUE};
+    std::string path = "test_image_write_rgba.png";
+    ASSERT_TRUE(image_write_rgba(path, 3, 2, pixels));
+    std::optional<Sprite> back = image_import(path);
+    std::remove(path.c_str());
+    if (!back) {
+        MT_FAIL("no sprite");
+        return;
+    }
+    ASSERT_EQ_INT(3, back->width());
+    ASSERT_EQ_INT(2, back->height());
+    ASSERT_TRUE(back->layer(0)->cel(0)->get(0, 0) == RED);
+    ASSERT_TRUE(back->layer(0)->cel(0)->get(1, 0) == BLUE);
+    ASSERT_TRUE(back->layer(0)->cel(0)->get(2, 1) == BLUE);
+    std::vector<Rgba> none = {RED};
+    ASSERT_TRUE(!image_write_rgba("test_image_write_rgba.xyz", 1, 1, none));
+}
+
 TEST(lossless_formats_round_trip)
 {
     for (const char *extension : {".bmp", ".tga"}) {
@@ -182,6 +202,7 @@ int main(void)
 {
     RUN(export_then_import_round_trips_the_flattened_image);
     RUN(lossless_formats_round_trip);
+    RUN(write_rgba_saves_raw_pixels_as_png);
     RUN(jpeg_keeps_the_size_and_shows_transparency_as_white);
     RUN(unknown_extension_is_refused);
     RUN(semi_transparent_pixels_survive);

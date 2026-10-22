@@ -1,8 +1,15 @@
-# cmake -DFILE=<path> -P check_file.cmake: fails unless the file exists and is not empty.
+# cmake -DFILE=<path> [-DPNG=ON] -P check_file.cmake: fails unless the file exists and is not empty
+# (with PNG=ON: and starts with the PNG signature).
 if(NOT EXISTS "${FILE}")
   message(FATAL_ERROR "${FILE} was not written")
 endif()
 file(SIZE "${FILE}" size)
 if(size EQUAL 0)
   message(FATAL_ERROR "${FILE} is empty")
+endif()
+if(PNG)
+  file(READ "${FILE}" signature LIMIT 8 HEX)
+  if(NOT signature STREQUAL "89504e470d0a1a0a")
+    message(FATAL_ERROR "${FILE} is not a PNG")
+  endif()
 endif()

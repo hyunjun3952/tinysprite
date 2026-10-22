@@ -2,7 +2,6 @@
 #include <cmath>
 
 #include "frame_range.h"
-#include "image_write.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/io.h"
 

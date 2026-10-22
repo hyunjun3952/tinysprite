@@ -6,7 +6,6 @@
 #include <utility>
 #include <vector>
 
-#include "image_write.h"
 #include "path_util.h"
 #include "stb_image.h"
 #include "stb_image_write.h"

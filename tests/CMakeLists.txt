@@ -35,6 +35,16 @@ if(TINYSPRITE_BUILD_UI)
   add_test(NAME ui_smoke COMMAND tinysprite 16 --frames 3)
   set_tests_properties(ui_smoke PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")
 
+  # --screenshot writes the last frame as an image (the extension picks the format).
+  set(SHOT ${CMAKE_CURRENT_BINARY_DIR}/ui_screenshot.png)
+  add_test(NAME ui_screenshot_run COMMAND ${CMAKE_COMMAND} -E remove ${SHOT})
+  add_test(NAME ui_screenshot_write COMMAND tinysprite 16 --frames 3 --screenshot ${SHOT})
+  add_test(NAME ui_screenshot_check
+    COMMAND ${CMAKE_COMMAND} -DFILE=${SHOT} -DPNG=ON -P ${CMAKE_CURRENT_SOURCE_DIR}/check_file.cmake)
+  set_tests_properties(ui_screenshot_run PROPERTIES FIXTURES_SETUP shot_clean)
+  set_tests_properties(ui_screenshot_write PROPERTIES FIXTURES_REQUIRED shot_clean FIXTURES_SETUP shot_written ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+  set_tests_properties(ui_screenshot_check PROPERTIES FIXTURES_REQUIRED shot_written)
+
   # A run with --config-dir leaves its settings behind on exit; the second test looks for them.
   set(PERSIST_DIR ${CMAKE_CURRENT_BINARY_DIR}/persist_config)
   add_test(NAME ui_persist_run

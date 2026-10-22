@@ -193,7 +193,7 @@ headless CLI export, optional Aseprite import.
   only the layer rows and layer buttons have icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
   as rects, so there is no font or generator: edit the rows to change one; `tests/ui/ui_icons.cpp` checks their shape). The
   Tool options section shows only what the active tool uses. ImGui's built-in font is still used (Inter / DM Mono are not
-  embedded yet). `tinysprite --frames N --screenshot out.bmp` saves the last frame, for checking the look without a
+  embedded yet). `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
   display; `ctest -R ui_smoke` runs three frames of the app.
 - Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
   `namespace sections`; the menu stays open while toggling; "Reset layout and sections" restores everything). View

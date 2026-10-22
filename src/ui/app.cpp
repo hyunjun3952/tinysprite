@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
@@ -246,8 +247,8 @@ void App::layersWindow(float height)
     panels_.end();
 }
 
-/* Reads the rendered frame back and writes it as a BMP (a development aid for checking the look
- * without a display). */
+/* Reads the rendered frame back and writes it as an image chosen by the extension of `path` (a
+ * development aid for checking the look without a display). */
 bool App::saveScreenshot(const std::string &path) const
 {
     int width = 0;
@@ -255,16 +256,18 @@ bool App::saveScreenshot(const std::string &path) const
     if (SDL_GetRendererOutputSize(renderer_, &width, &height) != 0) {
         return false;
     }
-    SDL_Surface *surface =
-        SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_ARGB8888);
-    if (!surface) {
+    std::vector<Uint32> argb(static_cast<size_t>(width) * static_cast<size_t>(height));
+    if (SDL_RenderReadPixels(renderer_, nullptr, SDL_PIXELFORMAT_ARGB8888, argb.data(),
+                             width * static_cast<int>(sizeof(Uint32))) != 0) {
         return false;
     }
-    bool ok = SDL_RenderReadPixels(renderer_, nullptr, SDL_PIXELFORMAT_ARGB8888, surface->pixels,
-                                   surface->pitch) == 0 &&
-              SDL_SaveBMP(surface, path.c_str()) == 0;
-    SDL_FreeSurface(surface);
-    return ok;
+    std::vector<Rgba> pixels;
+    pixels.reserve(argb.size());
+    for (Uint32 value : argb) {
+        pixels.push_back({static_cast<uint8_t>(value >> 16), static_cast<uint8_t>(value >> 8),
+                          static_cast<uint8_t>(value), 255});
+    }
+    return image_write_rgba(path, width, height, pixels);
 }
 
 /* Feeds the window's events to ImGui and handles the ones the app owns. */

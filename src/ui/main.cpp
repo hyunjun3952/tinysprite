@@ -22,7 +22,7 @@ bool parseNumber(const char *text, int min, int max, int &out)
 }
 
 constexpr const char *USAGE = "usage: %s [file | width [height]] [--frames N [--screenshot "
-                              "out.bmp]] [--config-dir DIR] [--scale S] [--help]\n";
+                              "out.png]] [--config-dir DIR] [--scale S] [--help]\n";
 
 /* The command line, one argument at a time; a flag takes the argument after it as its value. */
 class Args
