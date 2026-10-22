@@ -2,11 +2,11 @@
     // Run `cmake -S . -B build` once so clangd finds build/compile_commands.json.
     "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.configureOnOpen": false,
-    // Editor diagnostics must match CI: clangd and clang-format are the major in scripts/clang-version
-    // (scripts/install-deps.sh installs them), not the extension's own downloaded clangd.
+    // Editor diagnostics and formatting must match CI: clangd (with its built-in clang-tidy and
+    // clang-format) is the major in scripts/clang-version, which scripts/install-deps.sh installs,
+    // not the extension's own downloaded clangd.
     "clangd.path": "clangd-18",
     "clangd.checkUpdates": false,
-    "clang-format.executable": "clang-format-18",
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}/build",
         "--background-index",
@@ -21,11 +21,11 @@
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
     "[cpp]": {
-        "editor.defaultFormatter": "xaver.clang-format",
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
         "editor.formatOnSave": true
     },
     "[c]": {
-        "editor.defaultFormatter": "xaver.clang-format",
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
         "editor.formatOnSave": true
     },
     "files.exclude": {

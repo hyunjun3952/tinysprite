@@ -1,10 +1,7 @@
 {
     "recommendations": [
-        "ms-vscode.cmake-tools",
         "llvm-vs-code-extensions.vscode-clangd",
-        "xaver.clang-format",
-        "ms-vscode.cpptools",
-        "timonwong.shellcheck"
+        "ms-vscode.cpptools"
     ],
     "unwantedRecommendations": []
 }

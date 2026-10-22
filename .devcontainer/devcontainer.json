@@ -7,15 +7,11 @@
             // The same tool versions as CI (scripts/clang-version), installed by install-deps.sh.
             "settings": {
                 "clangd.path": "clangd-18",
-                "clangd.checkUpdates": false,
-                "clang-format.executable": "clang-format-18"
+                "clangd.checkUpdates": false
             },
             "extensions": [
-                "ms-vscode.cmake-tools",
                 "llvm-vs-code-extensions.vscode-clangd",
-                "xaver.clang-format",
-                "ms-vscode.cpptools",
-                "timonwong.shellcheck"
+                "ms-vscode.cpptools"
             ]
         }
     }
