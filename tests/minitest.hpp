@@ -22,7 +22,7 @@ static int mt_current_failed = 0;
         test_##name();                                                                             \
         if (mt_current_failed)                                                                     \
             mt_failures++;                                                                         \
-        printf("[%s] %s\n", mt_current_failed ? "FAIL" : " ok ", #name);                           \
+        printf("[%s] %s\n", mt_current_failed ? "fail" : "ok", #name);                             \
     } while (0)
 
 #define MT_FAIL(...)                                                                               \
