@@ -395,6 +395,101 @@ const std::array<std::array<const char *, SIZE>, ICON_COUNT> BITMAPS = {{
         "................",
         "................",
     }},
+    /* Pencil */
+    {{
+        "................",
+        "............XX..",
+        "..........XXXXX.",
+        ".........XXXXXX.",
+        "........XXXXX...",
+        ".......XXXXX....",
+        "......XXXXX.....",
+        ".....XXXXX......",
+        "....XXXXX.......",
+        "...XXXXX........",
+        "...XXXX.........",
+        "...XXX..........",
+        "..XXX...........",
+        ".XXX............",
+        ".XX.............",
+        "................",
+    }},
+    /* Eraser */
+    {{
+        "................",
+        "................",
+        "................",
+        "................",
+        "..XXXXXXXXXXXX..",
+        "..XXXXX......X..",
+        "..XXXXX......X..",
+        "..XXXXX......X..",
+        "..XXXXX......X..",
+        "..XXXXX......X..",
+        "..XXXXX......X..",
+        "..XXXXXXXXXXXX..",
+        "................",
+        "..XXXXXXXXXXXX..",
+        "................",
+        "................",
+    }},
+    /* Bucket */
+    {{
+        "................",
+        "................",
+        "................",
+        "......XXX.......",
+        ".....X...X......",
+        ".....X...X......",
+        "...XXXXXXXXX....",
+        "...XXXXXXXXX....",
+        "...XXXXXXXXX....",
+        "...XXXXXXXXX.X..",
+        "...X.......X.XX.",
+        "...X.......X.XX.",
+        "...X.......X.X..",
+        "...XXXXXXXXX....",
+        "................",
+        "................",
+    }},
+    /* Eyedropper */
+    {{
+        "...........XXX..",
+        "..........XXXXX.",
+        "..........XXXXX.",
+        "..........XXXXX.",
+        "..........XXXXX.",
+        ".........XXXXXX.",
+        "........XXX.....",
+        ".......XXX......",
+        "......XXX.......",
+        ".....XXX........",
+        "....XXX.........",
+        "...XXX..........",
+        "..XXX...........",
+        "..XX............",
+        ".XX.............",
+        "................",
+    }},
+    /* Select */
+    {{
+        "................",
+        "................",
+        "..XX.XX.XX.XX...",
+        "..X..........X..",
+        "..X..........X..",
+        "................",
+        "..X..........X..",
+        "..X..........X..",
+        "................",
+        "..X..........X..",
+        "..X..........X..",
+        "................",
+        "..X..........X..",
+        "..X.XX.XX.XX.X..",
+        "................",
+        "................",
+    }},
 }};
 
 constexpr float ROUND = 3.0f;
@@ -405,6 +500,11 @@ ImU32 withAlpha(unsigned hex, float alpha)
 }
 
 } // namespace
+
+int pixel_scale(float uiScale)
+{
+    return std::max(1, static_cast<int>(std::floor(uiScale + 0.5f)));
+}
 
 const std::array<const char *, SIZE> &bitmap(Icon icon)
 {
@@ -458,8 +558,11 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
     if (b.x1 < 0) {
         return;
     }
-    float originX = std::floor((min.x + max.x) / 2.0f - static_cast<float>(b.x0 + b.x1 + 1) / 2.0f);
-    float originY = std::floor((min.y + max.y) / 2.0f - static_cast<float>(b.y0 + b.y1 + 1) / 2.0f);
+    const auto k = static_cast<float>(pixel_scale(theme::scale()));
+    float originX =
+        std::floor((min.x + max.x) / 2.0f - k * static_cast<float>(b.x0 + b.x1 + 1) / 2.0f);
+    float originY =
+        std::floor((min.y + max.y) / 2.0f - k * static_cast<float>(b.y0 + b.y1 + 1) / 2.0f);
     for (int y = b.y0; y <= b.y1; y++) {
         const char *row = rows[static_cast<size_t>(y)];
         for (int x = b.x0; x <= b.x1; x++) {
@@ -468,8 +571,9 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
             }
             int end = runEnd(row, x, b.x1);
             list->AddRectFilled(
-                ImVec2(originX + static_cast<float>(x), originY + static_cast<float>(y)),
-                ImVec2(originX + static_cast<float>(end + 1), originY + static_cast<float>(y + 1)),
+                ImVec2(originX + k * static_cast<float>(x), originY + k * static_cast<float>(y)),
+                ImVec2(originX + k * static_cast<float>(end + 1),
+                       originY + k * static_cast<float>(y + 1)),
                 color);
             x = end;
         }

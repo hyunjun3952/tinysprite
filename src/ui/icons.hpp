@@ -7,7 +7,7 @@
 
 /* Pixel-art icons, drawn from 16x16 bitmaps kept in icons.cpp (an 'X' is a lit pixel). They are
  * used only where a picture reads faster than a word: the layer rows, the layer buttons and the
- * shape tools. No font or generator is involved: to change an icon, edit its rows. */
+ * tools. No font or generator is involved: to change an icon, edit its rows. */
 namespace icons
 {
 
@@ -32,6 +32,11 @@ enum class Icon {
     Reset,
     ArrowUp,
     ArrowDown,
+    Pencil,
+    Eraser,
+    Bucket,
+    Eyedropper,
+    Select,
     Count
 };
 
@@ -41,7 +46,13 @@ inline constexpr int SIZE = 16; /* the bitmaps' width and height */
  */
 const std::array<const char *, SIZE> &bitmap(Icon icon);
 
-/* Draws the icon centered in the rectangle [min, max], one screen pixel per bitmap pixel. */
+/* The whole number of screen pixels one bitmap pixel covers at a UI scale: the scale rounded, at
+ * least 1. Like the integer guiscale of Aseprite's ui library, so a lit pixel is always a square of
+ * the same size and the icons stay crisp at any scale. */
+int pixel_scale(float uiScale);
+
+/* Draws the icon centered in the rectangle [min, max], pixel_scale(theme::scale()) screen pixels
+ * per bitmap pixel. */
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
 
 /* A framed button with the icon centered, like the other buttons. `id` must be unique in the ID

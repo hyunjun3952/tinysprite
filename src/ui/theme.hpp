@@ -32,7 +32,15 @@ inline constexpr unsigned BODY_STRONG = 0xdad2c1;
 inline constexpr unsigned BODY = 0xc9c0ad;
 inline constexpr unsigned MUTE = 0xaea69c;
 
-/* The UI scale: 1 is the 13 px font and the sizes below as designed. Everything drawn in pixels
+/* The font size at scale 1, in pixels. */
+inline constexpr float FONT_SIZE = 14.0f;
+
+/* Adds the embedded UI font (Inter, a subset) to the current context's atlas and sets the base
+ * font size. Call it once after creating the context and before apply(). Returns false and leaves
+ * ImGui's built-in font in place if the font data cannot be read. */
+bool load_fonts();
+
+/* The UI scale: 1 is the FONT_SIZE font and the sizes below as designed. Everything drawn in pixels
  * (panel widths, cells, swatches) goes through px() so that it follows the scale. */
 inline constexpr float SCALE_MIN = 1.0f;
 inline constexpr float SCALE_MAX = 3.0f;

@@ -7,6 +7,8 @@
 
 /* The Tools window, in collapsible sections: the tools, the options of the active tool, symmetry,
  * selection transforms, the color pickers with the palette, and the recent colors. */
+struct ToolIcon; /* one entry of an icon row, in tools_panel.cpp */
+
 class ToolsPanel
 {
   public:
@@ -24,6 +26,7 @@ class ToolsPanel
     static ImGuiKey shortcutKey(ToolKind tool);
 
   private:
+    void iconRow(const ToolIcon *first, size_t count);
     void toolGrid();
     void shapeButtons();
     void toolOptions();

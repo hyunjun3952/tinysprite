@@ -457,6 +457,7 @@ class Editor
      * remove (refused if it would leave no layer; the layer under the removed ones becomes the
      * selection), duplicate (the copies become the selection), show / hide and lock / unlock. */
     void removeSelectedLayers();
+    bool canRemoveSelectedLayers() const; /* false if it would leave no layer, or while stroking */
     void duplicateSelectedLayers();
 
     /* Merge draws the selected layers (bottom to top, with their opacities) onto the lowest of

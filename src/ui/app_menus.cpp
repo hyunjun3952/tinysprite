@@ -35,6 +35,36 @@ void App::openRecentMenu(bool idle)
     }
 }
 
+/* The three ways out of the editor as pictures: one frame, the animation, a sheet for a game. */
+void App::exportMenu(bool idle)
+{
+    if (!ImGui::BeginMenu("Export")) {
+        return;
+    }
+    commandItem(CommandId::ExportImage);
+    if (ImGui::MenuItem("Animation (GIF)...", nullptr, false, idle)) {
+        askForPath(FileAction::ExportGif);
+    }
+    if (ImGui::MenuItem("Sprite sheet...", nullptr, false, idle)) {
+        askForPath(FileAction::ExportSheet);
+    }
+    ImGui::EndMenu();
+}
+
+void App::paletteMenu(bool idle)
+{
+    if (!ImGui::BeginMenu("Palette")) {
+        return;
+    }
+    if (ImGui::MenuItem("Import...", nullptr, false, idle)) {
+        askForPath(FileAction::ImportPalette);
+    }
+    if (ImGui::MenuItem("Export...", nullptr, false, idle)) {
+        askForPath(FileAction::ExportPalette);
+    }
+    ImGui::EndMenu();
+}
+
 void App::fileMenu()
 {
     if (!ImGui::BeginMenu("File")) {
@@ -44,25 +74,38 @@ void App::fileMenu()
     commandItem(CommandId::New);
     commandItem(CommandId::Open);
     openRecentMenu(idle);
+    ImGui::Separator();
     commandItem(CommandId::Save);
     commandItem(CommandId::SaveAs);
-    commandItem(CommandId::ExportImage);
-    if (ImGui::MenuItem("Export animation (GIF)...", nullptr, false, idle)) {
-        askForPath(FileAction::ExportGif);
-    }
-    if (ImGui::MenuItem("Export sprite sheet...", nullptr, false, idle)) {
-        askForPath(FileAction::ExportSheet);
-    }
     ImGui::Separator();
-    if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
-        askForPath(FileAction::ImportPalette);
-    }
-    if (ImGui::MenuItem("Export palette...", nullptr, false, idle)) {
-        askForPath(FileAction::ExportPalette);
-    }
+    exportMenu(idle);
+    paletteMenu(idle);
     ImGui::Separator();
     if (ImGui::MenuItem("Quit")) {
         guardUnsaved([this] { running_ = false; });
+    }
+    ImGui::EndMenu();
+}
+
+/* Flip and turn the selected pixels; the same actions as the buttons of the Tools panel. */
+void App::selectionMenu()
+{
+    bool enabled = editor_->hasSelection() && !editor_->stroking();
+    if (!ImGui::BeginMenu("Transform selection", enabled)) {
+        return;
+    }
+    if (ImGui::MenuItem("Flip horizontally")) {
+        editor_->flipSelection(true);
+    }
+    if (ImGui::MenuItem("Flip vertically")) {
+        editor_->flipSelection(false);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Rotate clockwise")) {
+        editor_->rotateSelection(true);
+    }
+    if (ImGui::MenuItem("Rotate counterclockwise")) {
+        editor_->rotateSelection(false);
     }
     ImGui::EndMenu();
 }
@@ -78,7 +121,70 @@ void App::editMenu()
     commandItem(CommandId::Cut);
     commandItem(CommandId::Copy);
     commandItem(CommandId::Paste);
+    ImGui::Separator();
     commandItem(CommandId::SelectAll);
+    bool selected = editor_->hasSelection() && !editor_->stroking();
+    if (ImGui::MenuItem("Deselect", "Esc", false, selected)) {
+        editor_->clearSelection();
+    }
+    if (ImGui::MenuItem("Clear", "Delete", false, selected)) {
+        editor_->deleteSelection();
+    }
+    selectionMenu();
+    ImGui::EndMenu();
+}
+
+/* Add, copy, remove and merge. */
+void App::layerEditItems(bool idle)
+{
+    if (ImGui::MenuItem("New layer", nullptr, false, idle)) {
+        editor_->addLayer();
+    }
+    if (ImGui::MenuItem("Duplicate layer", nullptr, false, idle)) {
+        editor_->duplicateSelectedLayers();
+    }
+    if (ImGui::MenuItem("Delete layer...", nullptr, false, editor_->canRemoveSelectedLayers())) {
+        layersPanel_->askToDelete();
+    }
+    ImGui::Separator();
+    bool several = editor_->selectedLayers().size() > 1;
+    if (ImGui::MenuItem(several ? "Merge layers" : "Merge down", nullptr, false,
+                        editor_->canMergeLayers())) {
+        editor_->mergeSelectedLayers();
+    }
+}
+
+/* Hide and lock follow the active layer: the label says what the click does to the selection. */
+void App::layerStateItems(bool idle)
+{
+    const Layer *active = editor_->sprite().layer(editor_->activeLayer());
+    if (active == nullptr) {
+        return;
+    }
+    if (ImGui::MenuItem(active->visible() ? "Hide layer" : "Show layer", nullptr, false, idle)) {
+        editor_->setSelectedLayersVisible(!active->visible());
+    }
+    if (ImGui::MenuItem(active->locked() ? "Unlock layer" : "Lock layer", nullptr, false, idle)) {
+        editor_->setSelectedLayersLocked(!active->locked());
+    }
+}
+
+/* The layer operations that were only in the Layers panel; they act on every selected layer. */
+void App::layerMenu()
+{
+    if (!ImGui::BeginMenu("Layer")) {
+        return;
+    }
+    layerEditItems(!editor_->stroking());
+    ImGui::Separator();
+    if (ImGui::MenuItem("Move up", nullptr, false, editor_->canMoveLayersUp())) {
+        editor_->moveSelectedLayersBy(1);
+    }
+    if (ImGui::MenuItem("Move down", nullptr, false, editor_->canMoveLayersDown())) {
+        editor_->moveSelectedLayersBy(-1);
+    }
+    ImGui::Separator();
+    layerStateItems(!editor_->stroking());
     ImGui::EndMenu();
 }
 
@@ -182,10 +288,12 @@ void App::viewMenu()
         editor_->setOnion(onion, editor_->onionSkin());
     }
     theme::tip("Show the neighbouring frames faintly under the current one.");
+    ImGui::Separator();
     ImGui::MenuItem("Timeline", nullptr, &editor_->overlays().timeline);
     theme::tip("The frames and playback strip along the bottom of the window.");
     ImGui::MenuItem("Status bar", nullptr, &editor_->overlays().status);
     theme::tip("The bar along the bottom with the size, tool, frame, zoom and hovered cel.");
+    ImGui::Separator();
     uiScaleMenu();
     ImGui::EndMenu();
 }
@@ -197,6 +305,7 @@ void App::menuBar()
     }
     fileMenu();
     editMenu();
+    layerMenu();
     frameMenu();
     viewMenu();
     panels_.windowMenu();

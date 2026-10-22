@@ -93,8 +93,14 @@ class App
 
     void menuBar();
     void fileMenu();
+    void exportMenu(bool idle);
+    void paletteMenu(bool idle);
     void openRecentMenu(bool idle);
     void editMenu();
+    void selectionMenu();
+    void layerMenu();
+    void layerEditItems(bool idle);
+    void layerStateItems(bool idle);
     void frameMenu();
     void frameEditItems(bool idle);
     void celLinkItems(bool idle);

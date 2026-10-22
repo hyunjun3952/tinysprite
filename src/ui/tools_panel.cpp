@@ -4,6 +4,7 @@
 #include <array>
 #include <cfloat>
 #include <cstdio>
+#include <iterator>
 
 #include "icons.hpp"
 #include "theme.hpp"
@@ -161,61 +162,60 @@ static bool isClosedShape(ToolKind tool)
     return isShapeTool(tool) && shape_has_fill(tool_traits(tool).shape);
 }
 
-void ToolsPanel::toolGrid()
+/* One tool as an icon button; its tooltip has the name, the shortcut and what it does. */
+struct ToolIcon {
+    ToolKind tool;
+    icons::Icon icon;
+    const char *id;
+};
+
+/* The tools as a row of icon buttons that wraps at the panel's width. A toolbar of pictures with
+ * the name and shortcut in the tooltip, as Aseprite does, takes a fraction of the room of a text
+ * button per tool. */
+void ToolsPanel::iconRow(const ToolIcon *first, size_t count)
 {
-    constexpr int COLUMNS = 2;
-    float width = theme::columnWidth(COLUMNS);
-    int shown = 0;
-    for (int tool = 0; tool < TOOL_COUNT; tool++) {
-        if (isShapeTool(static_cast<ToolKind>(tool))) {
-            continue; /* these live in the Shapes group */
-        }
-        if (shown++ % COLUMNS != 0) {
+    float side = ImGui::GetFrameHeight() + theme::px(8.0f);
+    float gap = ImGui::GetStyle().ItemSpacing.x;
+    int perRow =
+        std::max(1, static_cast<int>((ImGui::GetContentRegionAvail().x + gap) / (side + gap)));
+    for (size_t i = 0; i < count; i++) {
+        const ToolIcon &entry = first[i];
+        if (i % static_cast<size_t>(perRow) != 0) {
             ImGui::SameLine();
         }
-        ImGui::PushID(tool);
-        const ToolInfo &info = TOOLS[static_cast<size_t>(tool)];
-        if (theme::choiceButton(info.label, info.hint,
-                                editor_.tool() == static_cast<ToolKind>(tool), width)) {
-            editor_.selectTool(static_cast<ToolKind>(tool));
+        const ToolInfo &info = TOOLS[static_cast<size_t>(entry.tool)];
+        char tooltip[160];
+        std::snprintf(tooltip, sizeof(tooltip), "%s (%s)\n%s", info.label, info.hint, info.tooltip);
+        if (icons::choice(entry.icon, entry.id, tooltip, editor_.tool() == entry.tool,
+                          ImVec2(side, side))) {
+            editor_.selectTool(entry.tool);
         }
-        ImGui::PopID();
     }
 }
 
-/* The shape tools as a row of small icon buttons. */
+void ToolsPanel::toolGrid()
+{
+    static const ToolIcon TOOL_ICONS[] = {
+        {ToolKind::Pencil, icons::Icon::Pencil, "##tool_pencil"},
+        {ToolKind::Eraser, icons::Icon::Eraser, "##tool_eraser"},
+        {ToolKind::Bucket, icons::Icon::Bucket, "##tool_bucket"},
+        {ToolKind::Eyedropper, icons::Icon::Eyedropper, "##tool_eyedropper"},
+        {ToolKind::Select, icons::Icon::Select, "##tool_select"}};
+    iconRow(TOOL_ICONS, std::size(TOOL_ICONS));
+}
+
 void ToolsPanel::shapeButtons()
 {
-    struct Shape {
-        ToolKind tool;
-        icons::Icon icon;
-        const char *id;
-    };
-    static const Shape SHAPES[] = {{ToolKind::Line, icons::Icon::Line, "##shape_line"},
-                                   {ToolKind::Rect, icons::Icon::Rect, "##shape_rect"},
-                                   {ToolKind::Ellipse, icons::Icon::Ellipse, "##shape_ellipse"},
-                                   {ToolKind::Triangle, icons::Icon::Triangle, "##shape_triangle"},
-                                   {ToolKind::Diamond, icons::Icon::Diamond, "##shape_diamond"},
-                                   {ToolKind::Hexagon, icons::Icon::Hexagon, "##shape_hexagon"},
-                                   {ToolKind::Star, icons::Icon::Star, "##shape_star"},
-                                   {ToolKind::Cross, icons::Icon::Cross, "##shape_cross"}};
-    float side = ImGui::GetFrameHeight() + 8.0f;
-    float gap = ImGui::GetStyle().ItemSpacing.x;
-    /* As many buttons per row as fit the panel's width. */
-    int perRow =
-        std::max(1, static_cast<int>((ImGui::GetContentRegionAvail().x + gap) / (side + gap)));
-    for (const Shape &shape : SHAPES) {
-        if ((&shape - SHAPES) % perRow != 0) {
-            ImGui::SameLine();
-        }
-        const ToolInfo &info = TOOLS[static_cast<size_t>(shape.tool)];
-        char tooltip[160];
-        std::snprintf(tooltip, sizeof(tooltip), "%s (%s)\n%s", info.label, info.hint, info.tooltip);
-        if (icons::choice(shape.icon, shape.id, tooltip, editor_.tool() == shape.tool,
-                          ImVec2(side, side))) {
-            editor_.selectTool(shape.tool);
-        }
-    }
+    static const ToolIcon SHAPES[] = {
+        {ToolKind::Line, icons::Icon::Line, "##shape_line"},
+        {ToolKind::Rect, icons::Icon::Rect, "##shape_rect"},
+        {ToolKind::Ellipse, icons::Icon::Ellipse, "##shape_ellipse"},
+        {ToolKind::Triangle, icons::Icon::Triangle, "##shape_triangle"},
+        {ToolKind::Diamond, icons::Icon::Diamond, "##shape_diamond"},
+        {ToolKind::Hexagon, icons::Icon::Hexagon, "##shape_hexagon"},
+        {ToolKind::Star, icons::Icon::Star, "##shape_star"},
+        {ToolKind::Cross, icons::Icon::Cross, "##shape_cross"}};
+    iconRow(SHAPES, std::size(SHAPES));
 }
 
 /* Only what the active tool uses: the brush for the pencil and eraser, fill for the closed shapes.
@@ -315,7 +315,10 @@ void ToolsPanel::show(Panels &panels, float height)
     if (open(sections::SYMMETRY)) {
         symmetryOptions();
     }
-    if (open(sections::SELECTION)) {
+    /* Like Tool options, only while it is of use: the select tool is active or something is
+     * selected. The Edit menu has the same actions at any time. */
+    bool selecting = editor_.tool() == ToolKind::Select || editor_.hasSelection();
+    if (selecting && open(sections::SELECTION)) {
         selectionButtons();
     }
     if (open(sections::COLOR)) {

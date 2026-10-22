@@ -94,12 +94,17 @@ void Editor::mergeLayerDown(int index)
     markAllDirty();
 }
 
+bool Editor::canRemoveSelectedLayers() const
+{
+    return !stroking() && static_cast<int>(selectedLayers().size()) < sprite().layerCount();
+}
+
 void Editor::removeSelectedLayers()
 {
-    std::vector<int> selected = selectedLayers();
-    if (stroking() || static_cast<int>(selected.size()) >= sprite().layerCount()) {
+    if (!canRemoveSelectedLayers()) {
         return;
     }
+    std::vector<int> selected = selectedLayers();
     history().beginGroup();
     for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
         layer_op_remove(history(), sprite(), *it);
