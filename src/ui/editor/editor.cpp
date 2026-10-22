@@ -53,6 +53,10 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
     selectedTag_ = -1;
     playback_.stop();
     selection_.reset();
+    selectedSliceName_.clear();
+    slicePreview_.reset();
+    slicePreviewMove_.reset();
+    slicePreviewIndex_ = -1;
     paletteSelected_ = -1;
     modifiedOutsideHistory_ = false;
     view_ = ViewState{};
@@ -159,7 +163,9 @@ void Editor::drag(int cx, int cy, bool shift)
 void Editor::release()
 {
     if (drag_) {
+        finishingDrag_ = true;
         drag_->finish();
+        finishingDrag_ = false;
         drag_.reset();
         history_.setClip(std::nullopt);
     }

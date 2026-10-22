@@ -18,6 +18,7 @@ enum class ToolKind {
     Hexagon,
     Star,
     Cross,
+    Slice,
     Count,
 };
 
@@ -31,6 +32,7 @@ enum class ToolGroup {
     Pick,   /* eyedropper: samples a color while the button is held */
     Shape,  /* a shape dragged between two corners */
     Select, /* drags out a selection, or moves the pixels inside it */
+    Slice,  /* drags out a slice (a named rectangle for the game), or moves one */
     Count,
 };
 

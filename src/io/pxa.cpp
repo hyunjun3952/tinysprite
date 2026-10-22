@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -244,6 +245,41 @@ void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
     }
 }
 
+/* An SLCE payload: the count, then per slice its name, rectangle (four u32) and a flags byte (bit
+ * 0: a pivot follows as two u32, relative to the rectangle). */
+void readSlices(Reader &chunk, std::vector<Sprite::Slice> &slices)
+{
+    uint32_t count = chunk.u16();
+    for (uint32_t i = 0; i < count; i++) {
+        Sprite::Slice slice;
+        uint32_t nameLength = chunk.u8();
+        const uint8_t *name = chunk.take(nameLength);
+        slice.name.assign(name, name + nameLength);
+        uint32_t values[4];
+        for (uint32_t &value : values) {
+            value = chunk.u32();
+        }
+        uint32_t flags = chunk.u8();
+        if (flags > 1 || nameLength > SLICE_NAME_MAX ||
+            *std::max_element(values, values + 4) > INT32_MAX) {
+            throw std::out_of_range("pxa: bad slice");
+        }
+        slice.rect = Rect{static_cast<int>(values[0]), static_cast<int>(values[1]),
+                          static_cast<int>(values[2]), static_cast<int>(values[3])};
+        slice.hasPivot = flags == 1;
+        if (slice.hasPivot) {
+            uint32_t px = chunk.u32();
+            uint32_t py = chunk.u32();
+            if (px > INT32_MAX || py > INT32_MAX) {
+                throw std::out_of_range("pxa: bad slice pivot");
+            }
+            slice.pivotX = static_cast<int>(px);
+            slice.pivotY = static_cast<int>(py);
+        }
+        slices.push_back(std::move(slice));
+    }
+}
+
 /* What the chunks read so far add up to. The chunks that fill the sprite (FRAM, LINK, BLND, TAGS)
  * are kept aside and applied in finish(), once the frames and layers they refer to exist. */
 class Decoder
@@ -265,10 +301,24 @@ class Decoder
             !sprite_->setTags(std::move(tags_))) {
             return std::nullopt;
         }
+        keepValidSlices(*sprite_);
         return std::move(sprite_);
     }
 
   private:
+    /* Slices are metadata: one that does not fit the sprite (an empty name, a rectangle or pivot
+     * out of bounds) is dropped, so a bad one never costs the pixels. */
+    void keepValidSlices(Sprite &sprite)
+    {
+        std::vector<Sprite::Slice> valid;
+        for (Sprite::Slice &slice : slices_) {
+            if (sprite.sliceValid(slice)) {
+                valid.push_back(std::move(slice));
+            }
+        }
+        sprite.setSlices(std::move(valid));
+    }
+
     using Read = bool (Decoder::*)(Reader &chunk, uint32_t length);
     struct ChunkReader {
         const char *tag;
@@ -347,20 +397,27 @@ class Decoder
         return true;
     }
 
+    bool readSliceChunk(Reader &chunk, uint32_t /*unused*/)
+    {
+        readSlices(chunk, slices_);
+        return true;
+    }
+
     std::optional<Sprite> sprite_;
     int layers_ = 0;
     uint32_t frames_ = 1;
-    std::vector<uint32_t> durations_; /* from FRAM, applied once the frames exist */
-    std::vector<Sprite::Tag> tags_;   /* from TAGS, checked against the frames at the end */
-    std::vector<CelLink> links_;      /* from LINK, applied once the layers exist */
-    std::vector<LayerBlend> blends_;  /* from BLND, applied once the layers exist */
+    std::vector<uint32_t> durations_;   /* from FRAM, applied once the frames exist */
+    std::vector<Sprite::Tag> tags_;     /* from TAGS, checked against the frames at the end */
+    std::vector<Sprite::Slice> slices_; /* from SLCE, checked against the size at the end */
+    std::vector<CelLink> links_;        /* from LINK, applied once the layers exist */
+    std::vector<LayerBlend> blends_;    /* from BLND, applied once the layers exist */
 };
 
 const Decoder::ChunkReader Decoder::CHUNKS[] = {
     {"HEAD", &Decoder::readHead},         {"FRAM", &Decoder::readDurations},
     {"PALT", &Decoder::readPaletteChunk}, {"LAYR", &Decoder::readLayerChunk},
     {"LINK", &Decoder::readLinkChunk},    {"BLND", &Decoder::readBlendChunk},
-    {"TAGS", &Decoder::readTagChunk},
+    {"TAGS", &Decoder::readTagChunk},     {"SLCE", &Decoder::readSliceChunk},
 };
 
 bool Decoder::chunk(const uint8_t *tag, Reader &payload, uint32_t length)
@@ -519,6 +576,30 @@ void writeTags(std::vector<uint8_t> &out, const std::vector<Sprite::Tag> &tags)
     });
 }
 
+void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &slices)
+{
+    if (slices.empty()) {
+        return;
+    }
+    putChunk(out, "SLCE", [&](std::vector<uint8_t> &o) {
+        const size_t count = std::min<size_t>(slices.size(), UINT16_MAX); /* the count is a u16 */
+        putU16(o, static_cast<uint32_t>(count));
+        for (size_t i = 0; i < count; i++) {
+            const Sprite::Slice &slice = slices[i];
+            o.push_back(static_cast<uint8_t>(slice.name.size()));
+            o.insert(o.end(), slice.name.begin(), slice.name.end());
+            for (int value : {slice.rect.x, slice.rect.y, slice.rect.w, slice.rect.h}) {
+                putU32(o, static_cast<uint32_t>(value));
+            }
+            o.push_back(slice.hasPivot ? 1 : 0);
+            if (slice.hasPivot) {
+                putU32(o, static_cast<uint32_t>(slice.pivotX));
+                putU32(o, static_cast<uint32_t>(slice.pivotY));
+            }
+        }
+    });
+}
+
 } // namespace
 
 std::vector<uint8_t> pxa_encode(const Sprite &sprite)
@@ -534,6 +615,7 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
     writeLinks(out, sprite);
     writeBlends(out, sprite);
     writeTags(out, sprite.tags());
+    writeSlices(out, sprite.slices());
     return out;
 }
 

@@ -174,6 +174,21 @@ TEST(adopting_preferences_leaves_the_document_alone)
     delete b;
 }
 
+TEST(the_slices_overlay_is_on_by_default_and_is_a_saved_preference)
+{
+    Editor *a = make_editor();
+    ASSERT_TRUE(a->overlays().slices);
+    a->overlays().slices = false;
+    SettingsMap settings;
+    a->store(settings);
+    Editor *b = make_editor();
+    ASSERT_TRUE(b->overlays().slices);
+    b->load(settings);
+    ASSERT_TRUE(!b->overlays().slices);
+    delete a;
+    delete b;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -188,6 +203,7 @@ int main()
     RUN(loading_bad_preferences_keeps_the_defaults);
     RUN(adopting_preferences_copies_the_tool_colors_brush_overlays_and_clipboard);
     RUN(adopting_preferences_leaves_the_document_alone);
+    RUN(the_slices_overlay_is_on_by_default_and_is_a_saved_preference);
     ui_quit();
     return TEST_SUMMARY();
 }

@@ -276,6 +276,8 @@ void App::viewMenu()
     theme::tip("Outline the cel under the mouse, and the footprint of a big brush.");
     ImGui::MenuItem("Mirror axes", nullptr, &editor_->overlays().mirror_axes);
     theme::tip("Draw the center lines that Mirror X / Y reflect across.");
+    ImGui::MenuItem("Slices", nullptr, &editor_->overlays().slices);
+    theme::tip("Outline the slices on the canvas, with their names and pivots.");
     bool onion = editor_->onionEnabled();
     if (ImGui::MenuItem("Onion skin", nullptr, &onion)) {
         editor_->setOnion(onion, editor_->onionSkin());

@@ -65,9 +65,11 @@ void LayersPanel::setEditor(Editor &editor)
     renaming_ = -1;
     opacityBefore_.clear();
     openDelete_ = false;
+    slices_.setEditor(editor);
 }
 
-LayersPanel::LayersPanel(Editor &editor) : editor_(&editor), thumbs_(editor.renderer())
+LayersPanel::LayersPanel(Editor &editor)
+    : editor_(&editor), thumbs_(editor.renderer()), slices_(editor)
 {
 }
 
@@ -566,6 +568,10 @@ void LayersPanel::show(const Panels &panels)
         theme::section(sections::LAYERS)) {
         list();
         belowStart = ImGui::GetCursorPosY();
+    }
+    if (panels.sectionVisible(PanelId::Layers, sections::SLICES) &&
+        theme::section(sections::SLICES, false)) {
+        slices_.show();
     }
     if (panels.sectionVisible(PanelId::Layers, sections::PROPERTIES) &&
         theme::section(sections::PROPERTIES)) {

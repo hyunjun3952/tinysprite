@@ -322,6 +322,78 @@ static long find_chunk(const std::vector<uint8_t> &data, const char *tag)
     return -1;
 }
 
+TEST(slices_round_trip)
+{
+    Sprite s = animated();
+    Sprite::Slice hit;
+    hit.name = "hitbox";
+    hit.rect = Rect{1, 0, 2, 2};
+    hit.hasPivot = true;
+    hit.pivotX = 1;
+    hit.pivotY = 1;
+    Sprite::Slice head;
+    head.name = "\xe9\xa0\xad";
+    head.rect = Rect{0, 0, 1, 1};
+    ASSERT_TRUE(s.addSlice(hit));
+    ASSERT_TRUE(s.addSlice(head));
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
+    if (!back) {
+        return;
+    }
+    ASSERT_EQ_INT(2, static_cast<int>(back->slices().size()));
+    const Sprite::Slice &a = back->slices()[0];
+    ASSERT_TRUE(a.name == "hitbox");
+    ASSERT_EQ_INT(1, a.rect.x);
+    ASSERT_EQ_INT(2, a.rect.h);
+    ASSERT_TRUE(a.hasPivot);
+    ASSERT_EQ_INT(1, a.pivotX);
+    ASSERT_EQ_INT(1, a.pivotY);
+    ASSERT_TRUE(back->slices()[1].name == head.name);
+    ASSERT_TRUE(!back->slices()[1].hasPivot);
+}
+
+TEST(a_sprite_without_slices_writes_no_slice_chunk)
+{
+    ASSERT_EQ_INT(-1, find_chunk(pxa_encode(animated()), "SLCE"));
+}
+
+/* Slices are metadata: one that does not fit the sprite is dropped and the pixels still load. */
+TEST(a_slice_outside_the_sprite_is_dropped_and_the_file_still_opens)
+{
+    Sprite s = animated();
+    Sprite::Slice slice;
+    slice.name = "x";
+    slice.rect = Rect{0, 0, 1, 1};
+    s.addSlice(slice);
+    slice.name = "y";
+    s.addSlice(slice);
+    std::vector<uint8_t> data = pxa_encode(s);
+    /* the SLCE chunk is last; "y" is its last slice: ... x, y, w, h as u32, then the flags byte */
+    size_t h = data.size() - 1 - 4;
+    ASSERT_EQ_INT(1, data[h]);
+    data[h] = 200;
+    std::optional<Sprite> back = pxa_decode(data);
+    ASSERT_TRUE(back.has_value());
+    if (back) {
+        ASSERT_EQ_INT(1, static_cast<int>(back->slices().size()));
+        ASSERT_TRUE(back->slices()[0].name == "x");
+        ASSERT_EQ_INT(3, back->width());
+    }
+}
+
+TEST(a_truncated_slice_chunk_is_rejected)
+{
+    Sprite s = animated();
+    Sprite::Slice slice;
+    slice.name = "x";
+    slice.rect = Rect{0, 0, 1, 1};
+    s.addSlice(slice);
+    std::vector<uint8_t> data = pxa_encode(s);
+    data.resize(data.size() - 3);
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
 /* Three layers: Normal, Multiply and Difference, so only two need a BLND entry. */
 static Sprite blended()
 {
@@ -422,6 +494,10 @@ int main()
     RUN(a_tag_outside_the_frames_is_rejected);
     RUN(a_tag_with_an_unknown_direction_is_rejected);
     RUN(a_truncated_tag_chunk_is_rejected);
+    RUN(slices_round_trip);
+    RUN(a_sprite_without_slices_writes_no_slice_chunk);
+    RUN(a_slice_outside_the_sprite_is_dropped_and_the_file_still_opens);
+    RUN(a_truncated_slice_chunk_is_rejected);
     RUN(blend_modes_round_trip);
     RUN(a_sprite_without_blend_modes_writes_no_blend_chunk);
     RUN(a_reader_that_skips_the_blend_chunk_still_loads_the_layers);

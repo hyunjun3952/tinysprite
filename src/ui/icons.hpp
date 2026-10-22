@@ -39,6 +39,7 @@ enum class Icon {
     Select,
     Swap,
     Folder,
+    Slice,
     Count
 };
 
@@ -46,8 +47,8 @@ enum class Icon {
  * drawn with lines instead (see is_drawn). */
 unsigned codepoint(Icon icon);
 
-/* Whether `icon` is drawn with lines and has no glyph: the Diamond (the set has no plain rhombus)
- * and the Folder (its glyph is not in the font subset). */
+/* Whether `icon` is drawn with lines and has no glyph: the Diamond (the set has no plain rhombus),
+ * the Folder and the Slice (their glyphs are not in the font subset). */
 bool is_drawn(Icon icon);
 
 /* The pixel size an icon glyph is drawn at for a UI scale: 20 px at scale 1, whole pixels so the

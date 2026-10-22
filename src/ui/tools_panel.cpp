@@ -47,6 +47,9 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Hexagon", "H", ImGuiKey_H, "Drag to draw a hexagon (outline, or filled in Tool options)."},
     {"Star", "S", ImGuiKey_S, "Drag to draw a five-pointed star (outline, or filled)."},
     {"Cross", "C", ImGuiKey_C, "Drag to draw a plus sign (outline, or filled in Tool options)."},
+    {"Slice", "K", ImGuiKey_K,
+     "Drag to mark a named rectangle (a hitbox, a part) that the sprite sheet JSON lists.\n"
+     "Drag a slice to move it; edit its name, size and pivot in the Slices section."},
 }};
 
 constexpr float SWATCH_SIZE_BASE = 22.0f;
@@ -217,7 +220,8 @@ void ToolsPanel::toolGrid()
         {ToolKind::Eraser, icons::Icon::Eraser, "##tool_eraser"},
         {ToolKind::Bucket, icons::Icon::Bucket, "##tool_bucket"},
         {ToolKind::Eyedropper, icons::Icon::Eyedropper, "##tool_eyedropper"},
-        {ToolKind::Select, icons::Icon::Select, "##tool_select"}};
+        {ToolKind::Select, icons::Icon::Select, "##tool_select"},
+        {ToolKind::Slice, icons::Icon::Slice, "##tool_slice"}};
     iconRow(TOOL_ICONS, std::size(TOOL_ICONS));
 }
 
@@ -357,6 +361,11 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
             barBrush();
         } else if (group == ToolGroup::Shape) {
             barShape(tool);
+        } else if (group == ToolGroup::Slice) {
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "Drag to mark a slice, drag a slice to move it. Name, size and pivot are in "
+                "the Slices section.");
         } else if (tool == ToolKind::Select || editor_->hasSelection()) {
             barSelection();
         }
