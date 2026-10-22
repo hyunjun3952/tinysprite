@@ -255,7 +255,7 @@ namespace
 std::string keyPrefix(const char *title)
 {
     std::string key = "panel.";
-    for (const char *c = title; *c; c++) {
+    for (const char *c = title; *c != '\0'; c++) {
         key += static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
     }
     return key + ".";

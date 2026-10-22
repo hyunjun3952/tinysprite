@@ -132,7 +132,9 @@ static int ink_rows(Fixture &f, int x)
     int count = 0;
     for (int y = 40; y < 260; y++) {
         unsigned c = f.h.pixel(x, y);
-        count += c == 0xf7f5f0u;
+        if (c == 0xf7f5f0u) {
+            count++;
+        }
     }
     return count;
 }
@@ -331,7 +333,7 @@ static Hover hover_at(Fixture &f, float x, float y)
         f.h.frame(x, y, false);
     }
     ImGuiWindow *tip = ImGui::FindWindowByName("##Tooltip_00");
-    return Hover{ImGui::GetMouseCursor(), tip && tip->Active && !tip->Hidden};
+    return Hover{ImGui::GetMouseCursor(), tip != nullptr && tip->Active && !tip->Hidden};
 }
 
 TEST(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip)
@@ -373,7 +375,7 @@ TEST(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere)
     ASSERT_TRUE(!f.layers->focused());
 }
 
-int main(void)
+int main()
 {
     RUN(double_click_edits_the_name_in_place);
     RUN(escape_keeps_the_old_name_and_records_nothing);

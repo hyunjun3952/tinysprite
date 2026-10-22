@@ -133,9 +133,13 @@ void LayersPanel::rowSelectable(int index, const RowContext &ctx)
                           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap,
                           ImVec2(0.0f, ctx.rowHeight))) {
         const ImGuiIO &io = ImGui::GetIO();
-        editor_.pickLayer(index, io.KeyShift  ? LayerPick::Range
-                                 : io.KeyCtrl ? LayerPick::Toggle
-                                              : LayerPick::Only);
+        LayerPick pick = LayerPick::Only;
+        if (io.KeyShift) {
+            pick = LayerPick::Range;
+        } else if (io.KeyCtrl) {
+            pick = LayerPick::Toggle;
+        }
+        editor_.pickLayer(index, pick);
     }
     if (ctx.multiple && index == editor_.activeLayer()) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
@@ -264,7 +268,7 @@ void LayersPanel::nameCell(int index, Layer &layer, const RowContext &ctx)
     ImGui::AlignTextToFramePadding();
     const char *name = layer.name().c_str();
     ImGui::PushStyleColor(ImGuiCol_Text, theme::rgb(layer.visible() ? theme::INK : theme::MUTE));
-    ImGui::TextUnformatted(name[0] ? name : "(unnamed)");
+    ImGui::TextUnformatted(name[0] != '\0' ? name : "(unnamed)");
     ImGui::PopStyleColor();
 }
 
@@ -357,7 +361,7 @@ void LayersPanel::propertyBlend(const Layer &layer)
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
         for (int m = 0; m < BLEND_MODE_COUNT; m++) {
-            BlendMode mode = static_cast<BlendMode>(m);
+            auto mode = static_cast<BlendMode>(m);
             if (ImGui::Selectable(blend_mode_name(mode), !mixed && mode == layer.blendMode())) {
                 editor_.setSelectedLayersBlendMode(mode);
             }

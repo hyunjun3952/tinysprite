@@ -140,6 +140,8 @@ class LiveStroke
   public:
     LiveStroke(const LiveStroke &) = delete;
     LiveStroke &operator=(const LiveStroke &) = delete;
+    LiveStroke(LiveStroke &&) = delete;
+    LiveStroke &operator=(LiveStroke &&) = delete;
 
     /* Commits the stroke as one undo step, with `also` run along with it (see
      * History::endStroke). */

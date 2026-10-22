@@ -72,7 +72,7 @@ TEST(an_area_outside_the_surface_is_clipped_and_leaves_it_clean)
     ASSERT_TRUE(!surface->dirty());
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

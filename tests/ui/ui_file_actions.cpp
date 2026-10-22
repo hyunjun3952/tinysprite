@@ -62,7 +62,7 @@ TEST(only_the_exports_with_settings_have_dialog_fields)
     ASSERT_TRUE(App::fileInfo(Action::Open).options == nullptr);
 }
 
-int main(void)
+int main()
 {
     RUN(every_action_has_a_title_a_step_and_a_toast);
     RUN(none_has_nothing_to_run);

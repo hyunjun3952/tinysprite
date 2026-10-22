@@ -1,4 +1,4 @@
-#include <string.h>
+#include <cstring>
 
 #include "minitest.h"
 #include "tinysprite/raster.h"
@@ -7,18 +7,18 @@
 #define GRID_H 12
 
 /* Collects plotted pixels into a character grid so results compare against golden rows. */
-typedef struct Grid {
+using Grid = struct Grid {
     char px[GRID_H][GRID_W + 1];
     int plots;
     int repeats;
     int outside;
-} Grid;
+};
 
 static void grid_init(Grid *g)
 {
     memset(g, 0, sizeof(*g));
-    for (int y = 0; y < GRID_H; y++) {
-        memset(g->px[y], '.', GRID_W);
+    for (auto &y : g->px) {
+        memset(y, '.', GRID_W);
     }
 }
 
@@ -152,7 +152,7 @@ TEST(rect_outline)
 {
     Grid g;
     grid_init(&g);
-    raster_rect(1, 1, 5, 3, 0, grid_plot(g));
+    raster_rect(1, 1, 5, 3, false, grid_plot(g));
     const char *golden[] = {"", ".#####", ".#...#", ".#####"};
     expect_rows(&g, golden, 4);
     ASSERT_EQ_INT(12, g.plots);
@@ -163,7 +163,7 @@ TEST(rect_filled)
 {
     Grid g;
     grid_init(&g);
-    raster_rect(1, 1, 4, 3, 1, grid_plot(g));
+    raster_rect(1, 1, 4, 3, true, grid_plot(g));
     const char *golden[] = {"", ".####", ".####", ".####"};
     expect_rows(&g, golden, 4);
     ASSERT_EQ_INT(12, g.plots);
@@ -175,8 +175,8 @@ TEST(rect_corner_order_does_not_matter)
     Grid a, b;
     grid_init(&a);
     grid_init(&b);
-    raster_rect(5, 3, 1, 1, 0, grid_plot(a));
-    raster_rect(1, 1, 5, 3, 0, grid_plot(b));
+    raster_rect(5, 3, 1, 1, false, grid_plot(a));
+    raster_rect(1, 1, 5, 3, false, grid_plot(b));
     for (int y = 0; y < GRID_H; y++) {
         ASSERT_EQ_INT(0, strcmp(a.px[y], b.px[y]));
     }
@@ -187,21 +187,21 @@ TEST(rect_degenerate_shapes)
 {
     Grid g;
     grid_init(&g);
-    raster_rect(2, 2, 2, 2, 0, grid_plot(g));
+    raster_rect(2, 2, 2, 2, false, grid_plot(g));
     ASSERT_EQ_INT(1, g.plots);
 
     grid_init(&g);
-    raster_rect(1, 2, 4, 2, 0, grid_plot(g));
+    raster_rect(1, 2, 4, 2, false, grid_plot(g));
     ASSERT_EQ_INT(4, g.plots);
     ASSERT_EQ_INT(0, g.repeats);
 
     grid_init(&g);
-    raster_rect(3, 1, 3, 4, 0, grid_plot(g));
+    raster_rect(3, 1, 3, 4, false, grid_plot(g));
     ASSERT_EQ_INT(4, g.plots);
     ASSERT_EQ_INT(0, g.repeats);
 
     grid_init(&g);
-    raster_rect(1, 1, 2, 4, 0, grid_plot(g));
+    raster_rect(1, 1, 2, 4, false, grid_plot(g));
     ASSERT_EQ_INT(8, g.plots);
     ASSERT_EQ_INT(0, g.repeats);
 }
@@ -210,7 +210,7 @@ TEST(ellipse_circle_outline)
 {
     Grid g;
     grid_init(&g);
-    raster_ellipse(0, 0, 6, 6, 0, grid_plot(g));
+    raster_ellipse(0, 0, 6, 6, false, grid_plot(g));
     const char *golden[] = {"..###", ".#...#", "#.....#", "#.....#", "#.....#", ".#...#", "..###"};
     expect_rows(&g, golden, 7);
 }
@@ -219,7 +219,7 @@ TEST(ellipse_circle_filled)
 {
     Grid g;
     grid_init(&g);
-    raster_ellipse(0, 0, 6, 6, 1, grid_plot(g));
+    raster_ellipse(0, 0, 6, 6, true, grid_plot(g));
     const char *golden[] = {"..###", ".#####", "#######", "#######", "#######", ".#####", "..###"};
     expect_rows(&g, golden, 7);
 }
@@ -228,7 +228,7 @@ TEST(ellipse_wide_and_flat)
 {
     Grid g;
     grid_init(&g);
-    raster_ellipse(0, 0, 8, 2, 0, grid_plot(g));
+    raster_ellipse(0, 0, 8, 2, false, grid_plot(g));
     /* Every column of the box is covered and the shape touches all three rows. */
     for (int x = 0; x <= 8; x++) {
         ASSERT_TRUE(g.px[0][x] == '#' || g.px[1][x] == '#' || g.px[2][x] == '#');
@@ -247,11 +247,11 @@ TEST(ellipse_stays_inside_its_box_and_is_symmetric)
             for (int filled = 0; filled <= 1; filled++) {
                 Grid g;
                 grid_init(&g);
-                raster_ellipse(0, 0, w - 1, h - 1, filled, grid_plot(g));
+                raster_ellipse(0, 0, w - 1, h - 1, filled != 0, grid_plot(g));
                 int count = 0;
                 for (int y = 0; y < GRID_H; y++) {
                     for (int x = 0; x < GRID_W; x++) {
-                        int inside = x < w && y < h;
+                        bool inside = x < w && y < h;
                         if (g.px[y][x] == '#') {
                             count++;
                             if (!inside) {
@@ -276,7 +276,7 @@ TEST(ellipse_filled_has_no_gaps_inside)
         for (int h = 1; h <= 11; h++) {
             Grid g;
             grid_init(&g);
-            raster_ellipse(0, 0, w - 1, h - 1, 1, grid_plot(g));
+            raster_ellipse(0, 0, w - 1, h - 1, true, grid_plot(g));
             for (int y = 0; y < h; y++) {
                 int first = -1, last = -1;
                 for (int x = 0; x < w; x++) {
@@ -304,8 +304,8 @@ TEST(ellipse_corner_order_does_not_matter)
     Grid a, b;
     grid_init(&a);
     grid_init(&b);
-    raster_ellipse(8, 5, 1, 1, 0, grid_plot(a));
-    raster_ellipse(1, 1, 8, 5, 0, grid_plot(b));
+    raster_ellipse(8, 5, 1, 1, false, grid_plot(a));
+    raster_ellipse(1, 1, 8, 5, false, grid_plot(b));
     for (int y = 0; y < GRID_H; y++) {
         ASSERT_EQ_INT(0, strcmp(a.px[y], b.px[y]));
     }
@@ -465,7 +465,7 @@ TEST(filled_rasterizers_only_visit_the_clip_rect)
     ASSERT_EQ_INT(48, calls);
 }
 
-int main(void)
+int main()
 {
     RUN(line_single_point);
     RUN(line_horizontal_and_vertical);

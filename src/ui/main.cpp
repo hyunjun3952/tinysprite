@@ -12,7 +12,7 @@ namespace
 /* Parses a whole-string decimal number within [min, max]. */
 bool parseNumber(const char *text, int min, int max, int &out)
 {
-    char *end;
+    char *end = nullptr;
     long value = std::strtol(text, &end, 10);
     if (end == text || *end != '\0' || value < min || value > max) {
         return false;

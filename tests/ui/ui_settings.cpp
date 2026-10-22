@@ -71,6 +71,7 @@ TEST(config_dir_honors_the_override)
 #ifdef _WIN32
     _putenv_s("TINYSPRITE_CONFIG_DIR", "somewhere");
 #else
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): the test is single-threaded
     setenv("TINYSPRITE_CONFIG_DIR", "somewhere", 1);
 #endif
     ASSERT_TRUE(config_dir() == "somewhere");
@@ -169,7 +170,7 @@ TEST(recent_list_round_trips_through_the_settings_in_order)
     ASSERT_EQ_INT(1, settings_get_recent(s, 1).size());
 }
 
-int main(void)
+int main()
 {
     RUN(format_and_parse_round_trip);
     RUN(parse_ignores_comments_blank_lines_and_junk);

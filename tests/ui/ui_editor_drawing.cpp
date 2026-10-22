@@ -55,12 +55,12 @@ TEST(temp_pick_switches_to_the_picker_and_back)
 {
     Editor *e = make_editor();
     e->selectTool(ToolKind::Rect);
-    e->tempPick(1);
+    e->tempPick(true);
     ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool());
-    e->tempPick(1); /* held: stays on the picker, remembers the first tool */
-    e->tempPick(0);
+    e->tempPick(true); /* held: stays on the picker, remembers the first tool */
+    e->tempPick(false);
     ASSERT_EQ_INT(ToolKind::Rect, e->tool());
-    e->tempPick(0);
+    e->tempPick(false);
     ASSERT_EQ_INT(ToolKind::Rect, e->tool());
     delete e;
 }
@@ -69,8 +69,8 @@ TEST(temp_pick_keeps_the_picker_when_it_is_already_active)
 {
     Editor *e = make_editor();
     e->selectTool(ToolKind::Eyedropper);
-    e->tempPick(1);
-    e->tempPick(0);
+    e->tempPick(true);
+    e->tempPick(false);
     ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool());
     delete e;
 }
@@ -78,9 +78,9 @@ TEST(temp_pick_keeps_the_picker_when_it_is_already_active)
 TEST(selecting_a_tool_ends_a_temp_pick)
 {
     Editor *e = make_editor();
-    e->tempPick(1);
+    e->tempPick(true);
     e->selectTool(ToolKind::Bucket);
-    e->tempPick(0);
+    e->tempPick(false);
     ASSERT_EQ_INT(ToolKind::Bucket, e->tool());
     delete e;
 }
@@ -91,10 +91,10 @@ TEST(tool_changes_are_held_off_while_dragging)
     e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
     e->selectTool(ToolKind::Bucket);
-    e->tempPick(1);
+    e->tempPick(true);
     ASSERT_EQ_INT(ToolKind::Pencil, e->tool());
     e->release();
-    e->tempPick(1);
+    e->tempPick(true);
     ASSERT_EQ_INT(ToolKind::Eyedropper, e->tool());
     delete e;
 }
@@ -271,7 +271,7 @@ TEST(shift_snaps_a_dragged_line_and_can_be_let_go)
     delete e;
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

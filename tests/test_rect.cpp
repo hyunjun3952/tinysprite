@@ -1,4 +1,4 @@
-#include <limits.h>
+#include <climits>
 
 #include "minitest.h"
 #include "tinysprite/rect.h"
@@ -86,7 +86,7 @@ TEST(grow_adds_the_amount_on_every_side)
     ASSERT_EQ_INT(7, r.h);
 }
 
-int main(void)
+int main()
 {
     RUN(clip_keeps_a_rectangle_that_fits);
     RUN(clip_trims_every_side);

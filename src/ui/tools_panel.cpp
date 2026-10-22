@@ -69,7 +69,7 @@ int swatchesPerRow()
 
 ImVec4 toImVec4(const float color[4])
 {
-    return ImVec4(color[0], color[1], color[2], color[3]);
+    return {color[0], color[1], color[2], color[3]};
 }
 
 /* Draws one swatch and returns true when it was clicked. A selected swatch gets a border. */

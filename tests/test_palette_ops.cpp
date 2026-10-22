@@ -76,7 +76,7 @@ TEST(pixel_steps_and_palette_steps_interleave)
     ASSERT_EQ_INT(0, s.layer(0)->cel(0)->get(0, 0).a);
 }
 
-int main(void)
+int main()
 {
     RUN(palettes_compare_by_their_colors_in_order);
     RUN(replacing_the_palette_is_one_undo_step);

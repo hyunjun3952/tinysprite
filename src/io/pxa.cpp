@@ -33,7 +33,7 @@ template <class Fill> void putChunk(std::vector<uint8_t> &out, const char tag[4]
     size_t lengthAt = out.size();
     putU32(out, 0);
     fill(out);
-    uint32_t length = static_cast<uint32_t>(out.size() - lengthAt - 4);
+    auto length = static_cast<uint32_t>(out.size() - lengthAt - 4);
     for (size_t i = 0; i < 4; i++) {
         out[lengthAt + i] = static_cast<uint8_t>(length >> (8 * i));
     }
@@ -276,7 +276,7 @@ class Decoder
     };
     static const ChunkReader CHUNKS[];
 
-    bool readHead(Reader &chunk, uint32_t)
+    bool readHead(Reader &chunk, uint32_t /*unused*/)
     {
         uint32_t width = chunk.u32();
         uint32_t height = chunk.u32();
@@ -305,7 +305,7 @@ class Decoder
         return true;
     }
 
-    bool readPaletteChunk(Reader &chunk, uint32_t)
+    bool readPaletteChunk(Reader &chunk, uint32_t /*unused*/)
     {
         if (!sprite_) {
             return false;
@@ -329,19 +329,19 @@ class Decoder
         return true;
     }
 
-    bool readLinkChunk(Reader &chunk, uint32_t)
+    bool readLinkChunk(Reader &chunk, uint32_t /*unused*/)
     {
         readLinks(chunk, links_);
         return true;
     }
 
-    bool readBlendChunk(Reader &chunk, uint32_t)
+    bool readBlendChunk(Reader &chunk, uint32_t /*unused*/)
     {
         readBlends(chunk, blends_);
         return true;
     }
 
-    bool readTagChunk(Reader &chunk, uint32_t)
+    bool readTagChunk(Reader &chunk, uint32_t /*unused*/)
     {
         readTags(chunk, tags_);
         return true;
@@ -439,7 +439,7 @@ void writeLayer(std::vector<uint8_t> &out, const Layer &layer)
         o.push_back(layer.opacity());
         for (int frame = 0; frame < layer.frameCount(); frame++) {
             const Cel &cel = *layer.cel(frame);
-            auto bytes = reinterpret_cast<const uint8_t *>(cel.pixels());
+            const auto *bytes = reinterpret_cast<const uint8_t *>(cel.pixels());
             o.insert(o.end(), bytes, bytes + pixelBytes(cel));
         }
     });

@@ -399,7 +399,7 @@ TEST(a_blend_entry_for_a_missing_layer_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
-int main(void)
+int main()
 {
     RUN(round_trip_keeps_everything);
     RUN(round_trip_keeps_locked_and_hidden);

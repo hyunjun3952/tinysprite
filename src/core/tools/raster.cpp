@@ -259,7 +259,7 @@ class FloodRegion
 
     bool fillable(int x, int y) const
     {
-        return !seen_[cel_.indexOf(x, y)] && cel_.get(x, y) == target_;
+        return seen_[cel_.indexOf(x, y)] == 0 && cel_.get(x, y) == target_;
     }
     bool taken(int x, int y) const
     {

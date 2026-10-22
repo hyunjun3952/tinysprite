@@ -72,7 +72,7 @@ TEST(half_opacity_mixes_the_blended_color)
 TEST(transparent_backdrop_shows_the_source)
 {
     for (int m = 0; m < BLEND_MODE_COUNT; m++) {
-        BlendMode mode = static_cast<BlendMode>(m);
+        auto mode = static_cast<BlendMode>(m);
         ASSERT_TRUE(composite_blend(CLEAR, FRONT, 255, mode) == FRONT);
         ASSERT_RGBA(composite_blend(CLEAR, FRONT, 128, mode), 128, 255, 10, 128);
     }
@@ -81,7 +81,7 @@ TEST(transparent_backdrop_shows_the_source)
 TEST(transparent_source_leaves_the_backdrop)
 {
     for (int m = 0; m < BLEND_MODE_COUNT; m++) {
-        BlendMode mode = static_cast<BlendMode>(m);
+        auto mode = static_cast<BlendMode>(m);
         ASSERT_TRUE(composite_blend(BACK, CLEAR, 255, mode) == BACK);
         ASSERT_TRUE(composite_blend(BACK, FRONT, 0, mode) == BACK);
     }
@@ -137,7 +137,7 @@ TEST(onion_ghosts_stay_plain_over)
     ASSERT_TRUE(out[0].a > 0);
 }
 
-int main(void)
+int main()
 {
     RUN(layer_defaults_to_normal);
     RUN(blend_mode_names);

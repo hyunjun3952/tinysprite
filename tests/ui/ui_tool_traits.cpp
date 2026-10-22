@@ -45,13 +45,13 @@ TEST(tools_that_edit_pixels_are_the_ones_clipped_by_a_selection)
 TEST(only_the_pencil_and_eraser_are_brushes)
 {
     for (int i = 0; i < TOOL_COUNT; i++) {
-        ToolKind tool = static_cast<ToolKind>(i);
+        auto tool = static_cast<ToolKind>(i);
         bool brush = tool == ToolKind::Pencil || tool == ToolKind::Eraser;
         ASSERT_TRUE((tool_traits(tool).group == ToolGroup::Brush) == brush);
     }
 }
 
-int main(void)
+int main()
 {
     RUN(every_tool_has_a_row_in_enum_order);
     RUN(each_shape_belongs_to_exactly_one_shape_tool);

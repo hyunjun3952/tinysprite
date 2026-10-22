@@ -468,7 +468,7 @@ TEST(linking_is_held_off_while_stroking_and_stops_playback)
     delete e;
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

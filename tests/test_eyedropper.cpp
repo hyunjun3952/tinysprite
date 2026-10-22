@@ -42,7 +42,7 @@ TEST(pick_sprite_reads_the_flattened_image)
     ASSERT_TRUE(!eyedropper_pick_sprite(s, 3, 1, 1));
 }
 
-int main(void)
+int main()
 {
     RUN(pick_cel_reads_the_pixel);
     RUN(pick_cel_out_of_bounds_gives_nothing);

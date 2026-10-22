@@ -99,7 +99,7 @@ TEST(status_text_shows_the_selection_size)
     ASSERT_TRUE(text.find("Sel 5x3") != std::string::npos);
 }
 
-int main(void)
+int main()
 {
     RUN(toast_shows_until_it_expires);
     RUN(error_toast_lasts_longer_and_a_new_one_replaces_the_old);

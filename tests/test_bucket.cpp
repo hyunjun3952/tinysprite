@@ -1,4 +1,4 @@
-#include <string.h>
+#include <cstring>
 
 #include "minitest.h"
 #include "tinysprite/tools.h"
@@ -103,7 +103,7 @@ TEST(mirror_x_fills_the_reflected_region_too)
         c.set(2, y, BLUE);
         c.set(3, y, BLUE);
     }
-    Symmetry sym = Symmetry{1};
+    auto sym = Symmetry{true};
     ASSERT_TRUE(bucket_fill(h, c, 0, 0, RED, sym));
     const char *golden[H] = {"rrbbrr", "rrbbrr", "rrbbrr", "rrbbrr"};
     expect_rows(c, golden);
@@ -116,7 +116,7 @@ TEST(mirror_seed_on_the_axis_fills_once)
 {
     History h;
     Cel c(5, 4);
-    Symmetry sym = Symmetry{1, 1};
+    auto sym = Symmetry{true, true};
     ASSERT_TRUE(bucket_fill(h, c, 2, 1, RED, sym));
     ASSERT_EQ_INT(255, c.get(0, 0).a);
     ASSERT_TRUE(h.undo());
@@ -136,7 +136,7 @@ TEST(mirror_x_with_four_corners_fills_four_regions)
         c.set(2, y, BLUE);
         c.set(3, y, BLUE);
     }
-    Symmetry sym = Symmetry{1, 1};
+    auto sym = Symmetry{true, true};
     ASSERT_TRUE(bucket_fill(h, c, 0, 0, RED, sym));
     ASSERT_EQ_INT(255, c.get(0, 0).r);
     ASSERT_EQ_INT(255, c.get(5, 0).r);
@@ -144,7 +144,7 @@ TEST(mirror_x_with_four_corners_fills_four_regions)
     ASSERT_EQ_INT(255, c.get(5, 3).r);
 }
 
-int main(void)
+int main()
 {
     RUN(fills_the_connected_region_only);
     RUN(fill_is_one_undo_step);

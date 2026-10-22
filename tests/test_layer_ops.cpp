@@ -2,13 +2,13 @@
 #include "tinysprite/composite.h"
 #include "tinysprite/layer_ops.h"
 
-#include <string.h>
+#include <cstring>
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};
 
 /* Checks the layer names bottom to top; a nullptr name marks the end of the expected list. */
-static int names_are(Sprite &s, const char *a, const char *b, const char *c)
+static bool names_are(Sprite &s, const char *a, const char *b, const char *c)
 {
     const char *want[4] = {a, b, c, nullptr};
     int count = s.layerCount();
@@ -17,10 +17,10 @@ static int names_are(Sprite &s, const char *a, const char *b, const char *c)
             return i == count;
         }
         if (i >= count || strcmp(s.layer(i)->name().c_str(), want[i]) != 0) {
-            return 0;
+            return false;
         }
     }
-    return 0;
+    return false;
 }
 
 TEST(add_is_undoable)
@@ -220,7 +220,7 @@ TEST(duplicate_keeps_visibility_and_truncates_long_names)
     memset(name, 'n', LAYER_NAME_MAX);
     name[LAYER_NAME_MAX] = '\0';
     s.layer(0)->setName(name);
-    s.layer(0)->setVisible(0);
+    s.layer(0)->setVisible(false);
     Layer *copy = layer_op_duplicate(h, s, 0);
     ASSERT_TRUE(!copy->visible());
     ASSERT_TRUE(strlen(copy->name().c_str()) <= LAYER_NAME_MAX);
@@ -240,7 +240,7 @@ TEST(duplicate_rejects_bad_index_and_active_stroke)
 }
 
 /* Bottom layer: red at (0,0) and (1,0). Top layer: blue at (0,0) and (2,0). */
-static Sprite merge_fixture(void)
+static Sprite merge_fixture()
 {
     Sprite s(4, 2);
     Layer *top = &s.addLayer("Top");
@@ -339,12 +339,12 @@ TEST(merge_down_is_rejected_when_it_makes_no_sense)
     ASSERT_TRUE(!layer_op_merge_down(h, s, 0)); /* nothing below */
     ASSERT_TRUE(!layer_op_merge_down(h, s, 2));
     ASSERT_TRUE(!layer_op_merge_down(h, s, -1));
-    s.layer(1)->setVisible(0);
+    s.layer(1)->setVisible(false);
     ASSERT_TRUE(!layer_op_merge_down(h, s, 1));
-    s.layer(1)->setVisible(1);
-    s.layer(0)->setVisible(0);
+    s.layer(1)->setVisible(true);
+    s.layer(0)->setVisible(false);
     ASSERT_TRUE(!layer_op_merge_down(h, s, 1));
-    s.layer(0)->setVisible(1);
+    s.layer(0)->setVisible(true);
     h.beginStroke(*s.layer(0)->cel(0));
     ASSERT_TRUE(!layer_op_merge_down(h, s, 1));
     h.endStroke();
@@ -546,7 +546,7 @@ TEST(merge_down_with_a_blend_mode_looks_like_the_stack_when_allowed)
     ASSERT_TRUE(composite_pixel(s, 0, 1, 0) == before1);
 }
 
-int main(void)
+int main()
 {
     RUN(add_is_undoable);
     RUN(undone_add_is_freed_when_redo_is_discarded);

@@ -1,4 +1,4 @@
-#include <string.h>
+#include <cstring>
 
 #include "minitest.h"
 #include "tinysprite/raster.h"
@@ -14,7 +14,7 @@ static void expect_rows(const Cel &c, const char *const golden[H])
     for (int y = 0; y < H; y++) {
         char row[W + 1];
         for (int x = 0; x < W; x++) {
-            row[x] = c.get(x, y).a ? '#' : '.';
+            row[x] = c.get(x, y).a != 0 ? '#' : '.';
         }
         row[W] = '\0';
         if (strcmp(golden[y], row) != 0) {
@@ -47,12 +47,12 @@ TEST(rectangle_outline_and_filled)
 {
     History h;
     Cel c(W, H);
-    shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, 0, RED, Symmetry{}}, ToolPoint{1, 1},
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, false, RED, Symmetry{}}, ToolPoint{1, 1},
                  ToolPoint{4, 3});
     const char *outline[H] = {"........", ".####...", ".#..#...",
                               ".####...", "........", "........"};
     expect_rows(c, outline);
-    shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, 1, RED, Symmetry{}}, ToolPoint{1, 1},
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, true, RED, Symmetry{}}, ToolPoint{1, 1},
                  ToolPoint{4, 3});
     const char *filled[H] = {"........", ".####...", ".####...",
                              ".####...", "........", "........"};
@@ -63,7 +63,7 @@ TEST(corners_may_be_given_in_any_order)
 {
     History h;
     Cel c(W, H);
-    shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, 1, RED, Symmetry{}}, ToolPoint{4, 3},
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, true, RED, Symmetry{}}, ToolPoint{4, 3},
                  ToolPoint{1, 1});
     const char *golden[H] = {"........", ".####...", ".####...",
                              ".####...", "........", "........"};
@@ -76,7 +76,7 @@ TEST(ellipse_matches_the_rasterizer)
         History h;
         Cel c(W, H);
         char want[W * H] = {0};
-        raster_ellipse(1, 0, 6, 4, filled, mark(want));
+        raster_ellipse(1, 0, 6, 4, filled != 0, mark(want));
         ASSERT_TRUE(shape_stroke(h, c, ShapeStyle{ShapeKind::Ellipse, filled != 0, RED, Symmetry{}},
                                  ToolPoint{1, 0}, ToolPoint{6, 4}));
         for (int i = 0; i < W * H; i++) {
@@ -103,8 +103,8 @@ TEST(update_redraws_from_the_anchor)
     History h;
     Cel c(W, H);
     c.set(7, 5, RED); /* pre-existing pixel the preview must not destroy */
-    auto s =
-        ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Rect, 1, RED, Symmetry{}}, ToolPoint{1, 1});
+    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Rect, true, RED, Symmetry{}},
+                                ToolPoint{1, 1});
     s->update(7, 5);
     s->update(3, 2);
     ASSERT_TRUE(s->end());
@@ -117,7 +117,7 @@ TEST(begin_plots_the_anchor_pixel)
 {
     History h;
     Cel c(W, H);
-    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Ellipse, 0, RED, Symmetry{}},
+    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Ellipse, false, RED, Symmetry{}},
                                 ToolPoint{2, 3});
     ASSERT_EQ_INT(255, c.get(2, 3).a);
     ASSERT_TRUE(s->end());
@@ -127,8 +127,8 @@ TEST(whole_shape_is_one_undo_step)
 {
     History h;
     Cel c(W, H);
-    auto s =
-        ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Rect, 1, RED, Symmetry{}}, ToolPoint{0, 0});
+    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Rect, true, RED, Symmetry{}},
+                                ToolPoint{0, 0});
     s->update(3, 3);
     s->update(5, 2);
     s->end();
@@ -144,8 +144,8 @@ TEST(cancel_restores_pixels_and_records_nothing)
 {
     History h;
     Cel c(W, H);
-    auto s =
-        ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Rect, 1, RED, Symmetry{}}, ToolPoint{0, 0});
+    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Rect, true, RED, Symmetry{}},
+                                ToolPoint{0, 0});
     s->update(4, 4);
     s->cancel();
     ASSERT_EQ_INT(0, c.get(2, 2).a);
@@ -158,8 +158,8 @@ TEST(only_one_stroke_at_a_time)
 {
     History h;
     Cel c(W, H);
-    auto s =
-        ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Line, 0, RED, Symmetry{}}, ToolPoint{0, 0});
+    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Line, false, RED, Symmetry{}},
+                                ToolPoint{0, 0});
     ASSERT_TRUE(ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Line, 0, RED, Symmetry{}},
                                    ToolPoint{1, 1}) == nullptr);
     ASSERT_TRUE(!shape_stroke(h, c, ShapeStyle{ShapeKind::Line, 0, RED, Symmetry{}},
@@ -171,7 +171,7 @@ TEST(mirror_x_reflects_a_line)
 {
     History h;
     Cel c(W, H);
-    Symmetry sym = Symmetry{1};
+    auto sym = Symmetry{true};
     ASSERT_TRUE(shape_stroke(h, c, ShapeStyle{ShapeKind::Line, 0, RED, sym}, ToolPoint{0, 0},
                              ToolPoint{2, 2}));
     const char *golden[H] = {"#......#", ".#....#.", "..#..#..",
@@ -186,7 +186,7 @@ TEST(mirror_both_reflects_a_filled_rect_into_four_corners)
 {
     History h;
     Cel c(W, H);
-    Symmetry sym = Symmetry{1, 1};
+    auto sym = Symmetry{true, true};
     ASSERT_TRUE(shape_stroke(h, c, ShapeStyle{ShapeKind::Rect, 1, RED, sym}, ToolPoint{0, 0},
                              ToolPoint{1, 1}));
     const char *golden[H] = {"##....##", "##....##", "........",
@@ -200,8 +200,9 @@ TEST(live_mirrored_shape_redraws_both_halves)
 {
     History h;
     Cel c(W, H);
-    Symmetry sym = Symmetry{1};
-    auto s = ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Line, 0, RED, sym}, ToolPoint{0, 0});
+    auto sym = Symmetry{true};
+    auto s =
+        ShapeStroke::begin(h, c, ShapeStyle{ShapeKind::Line, false, RED, sym}, ToolPoint{0, 0});
     s->update(3, 0);
     s->update(1, 0);
     const char *golden[H] = {"##....##", "........", "........",
@@ -227,12 +228,12 @@ TEST(diamond_outline_and_filled)
 {
     History h;
     Cel c(W, H);
-    shape_stroke(h, c, ShapeStyle{ShapeKind::Diamond, 0, RED, Symmetry{}}, ToolPoint{0, 0},
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Diamond, false, RED, Symmetry{}}, ToolPoint{0, 0},
                  ToolPoint{4, 4});
     const char *outline[H] = {"..#.....", ".#.#....", "#...#...",
                               ".#.#....", "..#.....", "........"};
     expect_rows(c, outline);
-    shape_stroke(h, c, ShapeStyle{ShapeKind::Diamond, 1, RED, Symmetry{}}, ToolPoint{0, 0},
+    shape_stroke(h, c, ShapeStyle{ShapeKind::Diamond, true, RED, Symmetry{}}, ToolPoint{0, 0},
                  ToolPoint{4, 4});
     const char *filled[H] = {"..#.....", ".###....", "#####...",
                              ".###....", "..#.....", "........"};
@@ -250,7 +251,9 @@ TEST(every_shape_kind_draws_something)
                 ToolPoint{2, 2}, ToolPoint{12, 12}));
             int lit = 0;
             for (int i = 0; i < 16 * 16; i++) {
-                lit += c.pixels()[i].a != 0;
+                if (c.pixels()[i].a != 0) {
+                    lit++;
+                }
             }
             ASSERT_TRUE(lit > 0);
         }
@@ -272,7 +275,7 @@ TEST(an_out_of_range_kind_draws_nothing_and_has_no_fill)
 TEST(only_a_line_has_no_fill)
 {
     for (int k = 0; k < SHAPE_COUNT; k++) {
-        ShapeKind kind = static_cast<ShapeKind>(k);
+        auto kind = static_cast<ShapeKind>(k);
         ASSERT_TRUE(shape_has_fill(kind) == (kind != ShapeKind::Line));
     }
 }
@@ -309,15 +312,17 @@ TEST(filled_polygon_covers_its_outline_and_more)
     History h;
     Cel outline(16, 16);
     Cel filled(16, 16);
-    shape_stroke(h, outline, ShapeStyle{ShapeKind::Star, 0, RED, Symmetry{}}, ToolPoint{0, 0},
+    shape_stroke(h, outline, ShapeStyle{ShapeKind::Star, false, RED, Symmetry{}}, ToolPoint{0, 0},
                  ToolPoint{12, 12});
-    shape_stroke(h, filled, ShapeStyle{ShapeKind::Star, 1, RED, Symmetry{}}, ToolPoint{0, 0},
+    shape_stroke(h, filled, ShapeStyle{ShapeKind::Star, true, RED, Symmetry{}}, ToolPoint{0, 0},
                  ToolPoint{12, 12});
     int extra = 0;
     for (int y = 0; y < 16; y++) {
         for (int x = 0; x < 16; x++) {
             ASSERT_TRUE(outline.get(x, y).a == 0 || filled.get(x, y).a != 0);
-            extra += outline.get(x, y).a == 0 && filled.get(x, y).a != 0;
+            if (outline.get(x, y).a == 0 && filled.get(x, y).a != 0) {
+                extra++;
+            }
         }
     }
     ASSERT_TRUE(extra > 0);
@@ -331,7 +336,7 @@ TEST(shapes_work_when_dragged_up_and_left)
     History h;
     Cel a(W, H);
     Cel b(W, H);
-    ShapeStyle style{ShapeKind::Hexagon, 1, RED, Symmetry{}};
+    ShapeStyle style{ShapeKind::Hexagon, true, RED, Symmetry{}};
     shape_stroke(h, a, style, ToolPoint{0, 0}, ToolPoint{6, 4});
     shape_stroke(h, b, style, ToolPoint{6, 4}, ToolPoint{0, 0});
     for (int y = 0; y < H; y++) {
@@ -545,7 +550,7 @@ TEST(a_filled_shape_dragged_far_outside_the_cel_stays_cheap)
     }
 }
 
-int main(void)
+int main()
 {
     RUN(line_connects_the_corners);
     RUN(rectangle_outline_and_filled);

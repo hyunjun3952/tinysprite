@@ -1,11 +1,11 @@
-#include <math.h>
+#include <cmath>
 
 #include "minitest.h"
 #include "tinysprite/viewport.h"
 
 TEST(default_view_maps_origin_to_screen_origin)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     ASSERT_EQ_INT(0, v.screenToCelX(0.0f));
     ASSERT_EQ_INT(0, v.screenToCelY(0.0f));
     ASSERT_EQ_INT(5, v.screenToCelX(5.9f));
@@ -13,7 +13,7 @@ TEST(default_view_maps_origin_to_screen_origin)
 
 TEST(zoom_scales_cel_coordinates)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 4.0f;
     ASSERT_EQ_INT(0, v.screenToCelX(3.9f));
     ASSERT_EQ_INT(1, v.screenToCelX(4.0f));
@@ -22,7 +22,7 @@ TEST(zoom_scales_cel_coordinates)
 
 TEST(pan_offsets_cel_coordinates)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 2.0f;
     v.pan_x = 10.0f;
     v.pan_y = -4.0f;
@@ -33,7 +33,7 @@ TEST(pan_offsets_cel_coordinates)
 
 TEST(negative_screen_positions_floor_to_negative_cels)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 4.0f;
     ASSERT_EQ_INT(-1, v.screenToCelX(-0.5f));
     ASSERT_EQ_INT(-2, v.screenToCelX(-4.5f));
@@ -41,7 +41,7 @@ TEST(negative_screen_positions_floor_to_negative_cels)
 
 TEST(cel_to_screen_returns_top_left_corner)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 8.0f;
     v.pan_x = 3.0f;
     v.pan_y = 5.0f;
@@ -51,7 +51,7 @@ TEST(cel_to_screen_returns_top_left_corner)
 
 TEST(round_trip_hits_same_cel)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 6.0f;
     v.pan_x = 17.0f;
     v.pan_y = 9.0f;
@@ -63,7 +63,7 @@ TEST(round_trip_hits_same_cel)
 
 TEST(zoom_at_keeps_anchor_point_fixed)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 4.0f;
     v.pan_x = 20.0f;
     v.pan_y = 30.0f;
@@ -78,7 +78,7 @@ TEST(zoom_at_keeps_anchor_point_fixed)
 
 TEST(zoom_is_clamped)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoomAt(1000.0f, 0.0f, 0.0f);
     ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MAX);
     v.zoomAt(0.0f, 0.0f, 0.0f);
@@ -95,7 +95,7 @@ TEST(step_zoom_doubles_and_halves)
 
 TEST(fit_centers_sprite_in_area)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.fit(16, 16, 200.0f, 100.0f);
     /* Largest integer zoom that fits the shorter side: 100 / 16 -> 6. */
     ASSERT_TRUE(v.zoom == 6.0f);
@@ -105,14 +105,14 @@ TEST(fit_centers_sprite_in_area)
 
 TEST(fit_never_goes_below_minimum_zoom)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.fit(4096, 4096, 10.0f, 10.0f);
     ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MIN);
 }
 
 TEST(extreme_screen_positions_are_clamped)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 4.0f;
     ASSERT_EQ_INT(-VIEWPORT_CEL_LIMIT, v.screenToCelX(-3.4e38f));
     ASSERT_EQ_INT(VIEWPORT_CEL_LIMIT, v.screenToCelY(3.4e38f));
@@ -123,7 +123,7 @@ TEST(extreme_screen_positions_are_clamped)
 
 TEST(huge_pan_is_clamped)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.pan_x = 1e30f;
     v.pan_y = -1e30f;
     ASSERT_EQ_INT(-VIEWPORT_CEL_LIMIT, v.screenToCelX(0.0f));
@@ -132,7 +132,7 @@ TEST(huge_pan_is_clamped)
 
 TEST(nan_zoom_falls_back_to_minimum)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoomAt(NAN, 10.0f, 10.0f);
     ASSERT_TRUE(v.zoom == VIEWPORT_ZOOM_MIN);
     ASSERT_TRUE(Viewport::nextZoom(NAN, 1) == VIEWPORT_ZOOM_MIN);
@@ -140,7 +140,7 @@ TEST(nan_zoom_falls_back_to_minimum)
 
 TEST(fit_ignores_empty_sprite_or_area)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 3.0f;
     v.pan_x = 7.0f;
     v.fit(0, 16, 100.0f, 100.0f);
@@ -160,7 +160,7 @@ TEST(zoom_can_go_below_one)
 
 TEST(fractional_zoom_maps_many_cels_per_screen_pixel)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.zoom = 0.25f;
     ASSERT_EQ_INT(15, v.screenToCelX(3.9f));
     ASSERT_EQ_INT(4, v.screenToCelX(1.0f));
@@ -169,7 +169,7 @@ TEST(fractional_zoom_maps_many_cels_per_screen_pixel)
 
 TEST(fit_shrinks_to_a_power_of_two_for_large_sprites)
 {
-    Viewport v = Viewport{};
+    auto v = Viewport{};
     v.fit(4096, 4096, 512.0f, 600.0f);
     ASSERT_TRUE(v.zoom == 0.125f);
     ASSERT_TRUE(v.pan_x == 0.0f);
@@ -178,7 +178,7 @@ TEST(fit_shrinks_to_a_power_of_two_for_large_sprites)
     ASSERT_TRUE(v.zoom == 0.25f);
 }
 
-int main(void)
+int main()
 {
     RUN(default_view_maps_origin_to_screen_origin);
     RUN(zoom_scales_cel_coordinates);

@@ -12,7 +12,8 @@ namespace
 constexpr float ROUND_SMALL = 3.0f; /* buttons, inputs */
 constexpr float ROUND_CARD = 4.0f;  /* popups, child areas */
 
-float uiScale = 1.0f;
+/* The one UI scale, set at startup. */
+float uiScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 ImU32 toU32(unsigned hex, float alpha = 1.0f)
 {
@@ -172,7 +173,7 @@ bool choiceButton(const char *label, const char *hint, bool selected, float widt
     ImGui::PopStyleVar();
     ImVec2 min = ImGui::GetItemRectMin();
     ImVec2 max = ImGui::GetItemRectMax();
-    if (hint && hint[0]) {
+    if (hint != nullptr && hint[0] != '\0') {
         ImVec2 size = ImGui::CalcTextSize(hint);
         ImVec2 at(max.x - size.x - ImGui::GetStyle().FramePadding.x,
                   min.y + (max.y - min.y - size.y) / 2.0f);

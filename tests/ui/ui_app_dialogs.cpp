@@ -72,7 +72,7 @@ TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
     ASSERT_TRUE(editor.hasSelection());
 }
 
-int main(void)
+int main()
 {
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
     return TEST_SUMMARY();

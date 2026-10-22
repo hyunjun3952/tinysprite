@@ -79,7 +79,7 @@ void Viewport::fit(int sprite_w, int sprite_h, float area_w, float area_h)
     float fit_x = area_w / static_cast<float>(sprite_w);
     float fit_y = area_h / static_cast<float>(sprite_h);
     float fit = fit_x < fit_y ? fit_x : fit_y;
-    float next;
+    float next = 0.0f;
     if (fit >= 1.0f) {
         next = clamp_zoom(std::floor(fit));
     } else {

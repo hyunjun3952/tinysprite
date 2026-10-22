@@ -137,7 +137,7 @@ TEST(layers_added_later_get_a_cel_per_frame)
     ASSERT_EQ_INT(2, top.frameCount());
 }
 
-int main(void)
+int main()
 {
     RUN(new_sprite_has_one_frame_with_default_duration);
     RUN(duration_is_limited);

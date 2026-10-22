@@ -123,7 +123,7 @@ TEST(loading_bad_preferences_keeps_the_defaults)
     delete e;
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

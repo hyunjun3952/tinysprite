@@ -189,7 +189,7 @@ TEST(many_strokes_grow_storage)
     Cel c(64, 64);
     for (int i = 0; i < 1000; i++) {
         h.beginStroke(c);
-        h.setPixel(i % 64, (i / 64) % 64, (i & 1) ? RED : BLUE);
+        h.setPixel(i % 64, (i / 64) % 64, (i & 1) != 0 ? RED : BLUE);
         h.endStroke();
     }
     for (int i = 0; i < 1000; i++) {
@@ -691,7 +691,7 @@ TEST(ending_without_a_stroke_fails_and_drops_the_action)
     ASSERT_EQ_INT(1, static_cast<int>(token.use_count()));
 }
 
-int main(void)
+int main()
 {
     RUN(starts_empty);
     RUN(set_pixel_needs_active_stroke);

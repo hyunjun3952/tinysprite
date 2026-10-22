@@ -71,7 +71,7 @@ TEST(index_of_is_row_major)
     ASSERT_EQ_INT(255, c.pixels()[c.indexOf(2, 1)].g);
 }
 
-int main(void)
+int main()
 {
     RUN(create_is_transparent);
     RUN(create_rejects_invalid_size);

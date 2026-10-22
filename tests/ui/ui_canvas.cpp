@@ -156,7 +156,7 @@ TEST(a_short_middle_click_neither_picks_nor_pans)
     ASSERT_TRUE(f.editor->foreground() == before);
 }
 
-int main(void)
+int main()
 {
     RUN(the_wheel_zooms_at_the_cursor);
     RUN(right_drag_pans_the_view);

@@ -145,7 +145,7 @@ TEST(reset_goes_back_to_the_first_layer)
     ASSERT_TRUE(is(sel.indexes(s), {0}));
 }
 
-int main(void)
+int main()
 {
     RUN(a_plain_pick_selects_only_that_layer);
     RUN(picking_a_missing_layer_changes_nothing);

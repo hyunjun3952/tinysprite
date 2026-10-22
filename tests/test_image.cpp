@@ -245,7 +245,7 @@ TEST(an_oversized_image_is_refused_before_it_is_decoded)
 }
 #endif
 
-int main(void)
+int main()
 {
     RUN(export_then_import_round_trips_the_flattened_image);
     RUN(lossless_formats_round_trip);

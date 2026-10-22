@@ -7,7 +7,7 @@
 bool LayerSelection::contains(const Sprite &sprite, int index) const
 {
     const Layer *layer = sprite.layer(index);
-    return layer &&
+    return layer != nullptr &&
            (index == active_ || std::find(picked_.begin(), picked_.end(), layer) != picked_.end());
 }
 

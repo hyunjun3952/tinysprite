@@ -116,11 +116,12 @@ void App::celLinkItems(bool idle)
     int layer = editor_->activeLayer();
     const Layer *active = editor_->sprite().layer(layer);
     if (ImGui::MenuItem("Link cel to previous frame", nullptr, false,
-                        idle && frame > 0 && active && !active->locked())) {
+                        idle && frame > 0 && active != nullptr && !active->locked())) {
         editor_->linkCelToPrevious();
     }
     if (ImGui::MenuItem("Unlink cel", nullptr, false,
-                        idle && active && !active->locked() && active->celLinked(frame))) {
+                        idle && active != nullptr && !active->locked() &&
+                            active->celLinked(frame))) {
         editor_->unlinkCel(layer, frame);
     }
 }

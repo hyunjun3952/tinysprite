@@ -146,7 +146,7 @@ TEST(symmetry_section_is_hidden_until_switched_on)
     ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
 }
 
-int main(void)
+int main()
 {
     RUN(docked_panel_floats_when_its_title_bar_is_dragged);
     RUN(a_click_on_the_title_bar_does_not_float_the_panel);

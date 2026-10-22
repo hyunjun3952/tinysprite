@@ -1,5 +1,6 @@
 /* The command table behind the menus and the Ctrl shortcuts: one place for each command's label,
  * keys and hint. No window or ImGui context is needed. */
+#include <algorithm>
 #include <string>
 
 #include "commands.h"
@@ -22,12 +23,7 @@ static const Command *run(bool shift, std::initializer_list<ImGuiKey> keys)
     return find_command(
         shift,
         [&](ImGuiKey key, bool) {
-            for (ImGuiKey k : keys) {
-                if (k == key) {
-                    return true;
-                }
-            }
-            return false;
+            return std::any_of(keys.begin(), keys.end(), [key](ImGuiKey k) { return k == key; });
         },
         [](CommandId) { return true; });
 }
@@ -38,7 +34,9 @@ TEST(every_command_id_has_one_row)
     for (int i = 0; i < COMMAND_COUNT; i++) {
         int found = 0;
         for (const Command &c : COMMANDS) {
-            found += static_cast<int>(c.id) == i;
+            if (static_cast<int>(c.id) == i) {
+                found++;
+            }
         }
         ASSERT_EQ_INT(1, found);
         rows++;
@@ -132,7 +130,7 @@ TEST(only_undo_redo_and_zoom_repeat_while_held)
     }
 }
 
-int main(void)
+int main()
 {
     RUN(every_command_id_has_one_row);
     RUN(rows_are_in_id_order_so_command_of_can_index);

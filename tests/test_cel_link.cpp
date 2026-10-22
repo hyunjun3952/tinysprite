@@ -243,7 +243,7 @@ TEST(a_link_for_a_missing_layer_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
-int main(void)
+int main()
 {
     RUN(cels_start_unlinked);
     RUN(linking_makes_two_frames_share_one_cel);

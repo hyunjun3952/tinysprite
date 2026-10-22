@@ -153,7 +153,7 @@ TEST(formats_list_the_extensions_that_save_and_load_accept)
     ASSERT_TRUE(!palette_save(p, "test_palette_formats.txt"));
 }
 
-int main(void)
+int main()
 {
     RUN(hex_round_trips_with_alpha);
     RUN(hex_accepts_hash_blank_lines_crlf_and_case);

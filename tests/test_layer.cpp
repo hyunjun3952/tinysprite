@@ -4,7 +4,7 @@
 #include "minitest.h"
 #include "tinysprite/layer.h"
 
-#include <string.h>
+#include <cstring>
 
 TEST(create_defaults)
 {
@@ -62,7 +62,7 @@ TEST(long_name_is_truncated)
 TEST(setters_update_state)
 {
     auto l = std::make_unique<Layer>("L", 4, 4, 1);
-    l->setVisible(0);
+    l->setVisible(false);
     l->setOpacity(128);
     ASSERT_TRUE(!l->visible());
     ASSERT_EQ_INT(128, l->opacity());
@@ -96,7 +96,7 @@ TEST(layer_starts_unlocked_and_can_be_locked)
     ASSERT_TRUE(l.locked());
 }
 
-int main(void)
+int main()
 {
     RUN(create_defaults);
     RUN(each_frame_has_a_blank_cel_of_layer_size);

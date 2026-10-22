@@ -75,7 +75,8 @@ Points hexagonCorners(int x0, int y0, int x1, int y1)
 }
 
 /* How each kind of shape is drawn inside the box spanned by a and b (both inclusive). */
-void drawLine(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool, const Rect &)
+void drawLine(const RasterPlotFn &plot, ToolPoint a, ToolPoint b, bool /*unused*/,
+              const Rect & /*unused*/)
 {
     raster_line(a.x, a.y, b.x, b.y, plot);
 }

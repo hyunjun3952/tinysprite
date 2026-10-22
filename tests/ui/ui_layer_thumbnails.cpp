@@ -12,10 +12,17 @@ struct Renderer {
     SDL_Window *window;
     SDL_Renderer *renderer;
     Renderer()
+        : window(initWindow()), renderer(SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE))
+    {
+    }
+    Renderer(const Renderer &) = delete;
+    Renderer &operator=(const Renderer &) = delete;
+    Renderer(Renderer &&) = delete;
+    Renderer &operator=(Renderer &&) = delete;
+    static SDL_Window *initWindow()
     {
         SDL_Init(SDL_INIT_VIDEO);
-        window = SDL_CreateWindow("test", 0, 0, 100, 100, 0);
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+        return SDL_CreateWindow("test", 0, 0, 100, 100, 0);
     }
     ~Renderer()
     {
@@ -76,7 +83,7 @@ TEST(a_missing_frame_gives_no_thumbnail)
     ASSERT_EQ_INT(0, static_cast<int>(thumbs.size()));
 }
 
-int main(void)
+int main()
 {
     RUN(thumbnail_has_the_fitted_size);
     RUN(thumbnail_is_kept_until_the_revision_changes);

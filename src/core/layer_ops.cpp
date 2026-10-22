@@ -120,7 +120,7 @@ struct Merge {
     std::vector<std::shared_ptr<Cel>> linked;   /* the lower layer's cels as they were */
     std::vector<std::shared_ptr<Cel>> separate; /* ... and with every frame holding its own */
 
-    void write(const std::vector<Rgba> &snapshot)
+    void write(const std::vector<Rgba> &snapshot) const
     {
         for (int frame = 0; frame < lower->frameCount(); frame++) {
             auto first = snapshot.begin() + static_cast<std::ptrdiff_t>(frame * pixels);

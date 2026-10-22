@@ -133,7 +133,7 @@ class PencilDrag : public StrokeDrag<PencilStroke>
     }
 
   protected:
-    void onFinish(bool) override
+    void onFinish(bool /*unused*/) override
     {
         editor_.setLastDrawPoint(lastX_, lastY_);
     }
@@ -283,12 +283,12 @@ class SelectDrag : public Drag
     bool outside_; /* pressed beside the sprite: a plain click there selects nothing */
 };
 
-std::unique_ptr<Drag> beginPick(Editor &editor, Cel *, int cx, int cy)
+std::unique_ptr<Drag> beginPick(Editor &editor, Cel * /*unused*/, int cx, int cy)
 {
     return std::make_unique<PickDrag>(editor, cx, cy);
 }
 
-std::unique_ptr<Drag> beginSelect(Editor &editor, Cel *, int cx, int cy)
+std::unique_ptr<Drag> beginSelect(Editor &editor, Cel * /*unused*/, int cx, int cy)
 {
     if (editor.hasSelection() && rect_contains(editor.selection(), cx, cy)) {
         /* On a locked or hidden layer the pixels cannot move: drag out a new selection instead. */

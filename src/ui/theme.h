@@ -12,9 +12,9 @@ namespace theme
 
 constexpr ImVec4 rgb(unsigned hex, float alpha = 1.0f)
 {
-    return ImVec4(static_cast<float>((hex >> 16) & 0xff) / 255.0f,
-                  static_cast<float>((hex >> 8) & 0xff) / 255.0f,
-                  static_cast<float>(hex & 0xff) / 255.0f, alpha);
+    return {static_cast<float>((hex >> 16) & 0xff) / 255.0f,
+            static_cast<float>((hex >> 8) & 0xff) / 255.0f, static_cast<float>(hex & 0xff) / 255.0f,
+            alpha};
 }
 
 /* Surfaces. */

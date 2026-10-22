@@ -114,7 +114,7 @@ void composite_sprite(const Sprite &sprite, int frame, Rect region, Rgba *out)
     if (!out || frame < 0 || frame >= sprite.frameCount()) {
         return;
     }
-    size_t width = static_cast<size_t>(sprite.width());
+    auto width = static_cast<size_t>(sprite.width());
     Rect r = rect_clip(region, sprite.width(), sprite.height());
     auto dstAt = [&](int x, int y) -> Rgba & {
         return out[static_cast<size_t>(y) * width + static_cast<size_t>(x)];
@@ -184,7 +184,7 @@ void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rec
     if (!out || frame < 0 || frame >= sprite.frameCount()) {
         return;
     }
-    size_t width = static_cast<size_t>(sprite.width());
+    auto width = static_cast<size_t>(sprite.width());
     Rect r = rect_clip(region, sprite.width(), sprite.height());
     /* Ghosts beyond the animation do not exist, so the count is what can actually be drawn. */
     OnionPlan plan{skin, std::clamp(skin.before, 0, frame),

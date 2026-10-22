@@ -65,7 +65,7 @@ TEST(hidden_layer_is_skipped)
     Layer *top = &s.addLayer("top");
     s.layer(0)->cel(0)->set(0, 0, BLUE);
     top->cel(0)->set(0, 0, RED);
-    top->setVisible(0);
+    top->setVisible(false);
     std::vector<Rgba> out = make_out(s, CLEAR);
     composite_sprite(s, 0, Rect{0, 0, 2, 2}, out.data());
     ASSERT_TRUE(same(at(s, out, 0, 0), BLUE));
@@ -174,7 +174,7 @@ TEST(composite_over_scales_by_opacity)
     ASSERT_EQ_INT(0, composite_over(CLEAR, white, 0).a);
 }
 
-int main(void)
+int main()
 {
     RUN(blank_sprite_composites_to_transparent);
     RUN(opaque_pixel_is_copied);

@@ -38,7 +38,7 @@ class Canvas
      * choice is made by whichever comes first, a long press or movement. */
     enum class Middle { Idle, Pending, Panning, Picking };
     Middle middle_ = Middle::Idle;
-    ImVec2 middlePress_ = {};
+    ImVec2 middlePress_;
     double middleTime_ = 0.0;
 
     Editor &editor_;

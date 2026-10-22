@@ -209,7 +209,7 @@ TEST(a_big_flat_image_compresses_and_decodes)
     Sprite s(300, 300);
     for (int y = 0; y < 300; y++) {
         for (int x = 0; x < 300; x++) {
-            s.layer(0)->cel(0)->set(x, y, (x / 10 + y / 10) % 2 ? RED : BLUE);
+            s.layer(0)->cel(0)->set(x, y, (x / 10 + y / 10) % 2 != 0 ? RED : BLUE);
         }
     }
     std::vector<uint8_t> data = gif_encode(s, GifOptions{});
@@ -344,7 +344,7 @@ TEST(a_broken_gif_is_refused)
     }
 }
 
-int main(void)
+int main()
 {
     RUN(a_gif_has_the_header_and_all_frames);
     RUN(frame_durations_become_delays);

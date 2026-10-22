@@ -1,4 +1,4 @@
-#include <string.h>
+#include <cstring>
 
 #include "minitest.h"
 #include "tinysprite/tools.h"
@@ -13,7 +13,7 @@ static void render(const Cel &c, char out[H][W + 1])
 {
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
-            out[y][x] = c.get(x, y).a ? '#' : '.';
+            out[y][x] = c.get(x, y).a != 0 ? '#' : '.';
         }
         out[y][W] = '\0';
     }
@@ -207,7 +207,7 @@ TEST(live_stroke_cancel_rolls_back)
     ASSERT_TRUE(h.endStroke());
 }
 
-int main(void)
+int main()
 {
     RUN(single_point_plots_one_pixel);
     RUN(points_are_joined_by_lines);

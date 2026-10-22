@@ -143,7 +143,7 @@ void PencilStroke::paint(int x, int y, const std::vector<ToolPoint> &cels)
                 continue;
             }
             unsigned char &done = painted_[cel_.indexOf(at.x, at.y)];
-            if (!done) {
+            if (done == 0) {
                 done = 1;
                 history_.setPixel(at.x, at.y, color_);
             }

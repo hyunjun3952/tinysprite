@@ -221,7 +221,7 @@ TEST(set_palette_replaces_it_as_an_undoable_unsaved_change)
     delete e;
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

@@ -1,4 +1,4 @@
-#include <string.h>
+#include <cstring>
 
 #include "minitest.h"
 #include "tinysprite/selection.h"
@@ -31,7 +31,7 @@ static void expect_rows(const Cel &c, const char *const golden[H])
 }
 
 /* A 2x2 red block at (1,1)-(2,2). */
-static Cel block(void)
+static Cel block()
 {
     Cel c(W, H);
     for (int y = 1; y <= 2; y++) {
@@ -194,7 +194,7 @@ TEST(invalid_arguments_fail)
     m->cancel();
 }
 
-int main(void)
+int main()
 {
     RUN(moves_the_selection_and_clears_the_source);
     RUN(overlapping_move_keeps_the_pixels_that_stay_covered);

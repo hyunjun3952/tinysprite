@@ -170,7 +170,7 @@ TEST(stop_ends_playback)
     ASSERT_EQ_INT(-1, p.advance(s, 1000));
 }
 
-int main(void)
+int main()
 {
     RUN(play_order_lists_the_frames_in_the_direction_played);
     RUN(idle_playback_does_not_move);

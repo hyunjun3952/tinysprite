@@ -171,7 +171,7 @@ TEST(frame_ops_keep_tags_in_step_and_undo_restores_them)
     ASSERT_EQ_INT(1, s.tags()[0].from);
 }
 
-int main(void)
+int main()
 {
     RUN(a_tag_is_a_named_range_with_a_direction);
     RUN(bad_tags_are_refused);

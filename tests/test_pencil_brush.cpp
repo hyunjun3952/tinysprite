@@ -1,4 +1,4 @@
-#include <string.h>
+#include <cstring>
 
 #include <vector>
 
@@ -16,7 +16,7 @@ static void expect_rows(const Cel &c, const char *const golden[H])
     for (int y = 0; y < H; y++) {
         char row[W + 1];
         for (int x = 0; x < W; x++) {
-            row[x] = c.get(x, y).a ? '#' : '.';
+            row[x] = c.get(x, y).a != 0 ? '#' : '.';
         }
         row[W] = '\0';
         if (strcmp(golden[y], row) != 0) {
@@ -154,7 +154,7 @@ TEST(brush_helpers_describe_the_footprint)
     ASSERT_EQ_INT(1, (PencilOptions{}).brushSize());
     ASSERT_EQ_INT(5, (PencilOptions{false, Symmetry{}, 5}).brushSize());
     ASSERT_EQ_INT(PENCIL_BRUSH_MAX, (PencilOptions{false, Symmetry{}, 9999}).brushSize());
-    PencilOptions round = PencilOptions{false, Symmetry{}, 3, true};
+    auto round = PencilOptions{false, Symmetry{}, 3, true};
     ASSERT_TRUE(!round.brushContains(0, 0));
     ASSERT_TRUE(round.brushContains(1, 0));
     ASSERT_TRUE(round.brushContains(1, 1));
@@ -204,7 +204,7 @@ TEST(big_brush_stroke_equals_stamping_every_point)
     }
 }
 
-int main(void)
+int main()
 {
     RUN(brush_helpers_describe_the_footprint);
     RUN(size_zero_and_one_are_a_single_pixel);

@@ -149,8 +149,8 @@ std::optional<Sprite> importAnimatedGif(const std::string &path)
     int headerWidth = 0;
     int headerHeight = 0;
     int headerChannels = 0;
-    if (!stbi_info_from_memory(data.data(), static_cast<int>(data.size()), &headerWidth,
-                               &headerHeight, &headerChannels) ||
+    if (stbi_info_from_memory(data.data(), static_cast<int>(data.size()), &headerWidth,
+                              &headerHeight, &headerChannels) == 0 ||
         !fitsCel(headerWidth, headerHeight)) {
         return std::nullopt;
     }
@@ -193,7 +193,7 @@ std::optional<Sprite> image_import(const std::string &path)
     int width = 0;
     int height = 0;
     int channels = 0;
-    if (!stbi_info(path.c_str(), &width, &height, &channels) || !fitsCel(width, height)) {
+    if (stbi_info(path.c_str(), &width, &height, &channels) == 0 || !fitsCel(width, height)) {
         return std::nullopt;
     }
     std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(

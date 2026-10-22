@@ -1,5 +1,6 @@
 ---
 # The tests keep the root checks except the cognitive complexity limit: ASSERT_* and RUN expand to
-# branches, so a test function (and every main) scores far above what its code reads like.
+# branches, so a test function (and every main) scores far above what its code reads like. Likewise
+# ASSERT_TRUE(a && b) expands to !(a && b), which simplify-boolean-expr wants rewritten.
 InheritParentConfig: true
-Checks: '-readability-function-cognitive-complexity'
+Checks: '-readability-function-cognitive-complexity,-readability-simplify-boolean-expr'

@@ -32,8 +32,9 @@ const std::string *find(const SettingsMap &settings, const std::string &key)
 
 std::string env(const char *name)
 {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe): read once at startup, before any thread exists
     const char *value = std::getenv(name);
-    return value ? value : "";
+    return value != nullptr ? value : "";
 }
 
 } // namespace
@@ -105,6 +106,7 @@ bool settings_get_float(const SettingsMap &settings, const std::string &key, flo
     char *end = nullptr;
     float number = std::strtof(value->c_str(), &end);
     /* Written so that NaN is rejected too. */
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     if (*end != '\0' || !(number >= min && number <= max)) {
         return false;
     }

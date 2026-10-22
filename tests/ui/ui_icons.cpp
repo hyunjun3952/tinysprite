@@ -14,7 +14,9 @@ TEST(every_bitmap_is_well_formed)
             ASSERT_EQ_INT(icons::SIZE, static_cast<int>(std::strlen(row)));
             for (int x = 0; x < icons::SIZE; x++) {
                 ASSERT_TRUE(row[x] == 'X' || row[x] == '.');
-                lit += row[x] == 'X';
+                if (row[x] == 'X') {
+                    lit++;
+                }
             }
         }
         ASSERT_TRUE(lit > 0);
@@ -37,7 +39,7 @@ TEST(icons_differ_from_each_other)
     }
 }
 
-int main(void)
+int main()
 {
     RUN(every_bitmap_is_well_formed);
     RUN(icons_differ_from_each_other);

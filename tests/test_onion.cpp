@@ -137,7 +137,7 @@ TEST(huge_ghost_counts_are_harmless)
     ASSERT_TRUE(out[0].a > 0);
 }
 
-int main(void)
+int main()
 {
     RUN(without_ghosts_it_is_the_plain_frame);
     RUN(a_previous_frame_shows_tinted_and_faint);

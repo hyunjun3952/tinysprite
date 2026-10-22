@@ -77,7 +77,7 @@ TEST(pixels_keep_transparency)
     }
 }
 
-int main(void)
+int main()
 {
     RUN(size_scales_a_small_image_up_by_a_whole_factor);
     RUN(size_scales_a_large_image_down_keeping_the_aspect_ratio);

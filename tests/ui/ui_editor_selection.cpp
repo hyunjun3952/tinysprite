@@ -83,7 +83,7 @@ TEST(copy_and_paste_at_the_hovered_cel)
     dot(e, 2, 1);
     select_rect(e, 1, 1, 2, 1);
     ASSERT_TRUE(e->copySelection());
-    e->setHover(4, 3, 1);
+    e->setHover(4, 3, true);
     e->paste();
     ASSERT_EQ_INT(255, alpha(e, 4, 3));
     ASSERT_EQ_INT(255, alpha(e, 5, 3));
@@ -132,7 +132,7 @@ TEST(cut_clears_the_selection_and_can_be_pasted_elsewhere)
     select_rect(e, 2, 2, 3, 3);
     ASSERT_TRUE(e->cutSelection());
     ASSERT_EQ_INT(0, alpha(e, 2, 2));
-    e->setHover(6, 0, 1);
+    e->setHover(6, 0, true);
     e->paste();
     ASSERT_EQ_INT(255, alpha(e, 6, 0));
     e->undo();
@@ -147,11 +147,11 @@ TEST(paste_and_cut_ignore_a_hidden_layer)
     dot(e, 1, 1);
     select_rect(e, 1, 1, 1, 1);
     e->copySelection();
-    e->setLayerVisible(0, 0);
+    e->setLayerVisible(0, false);
     ASSERT_TRUE(!e->cutSelection());
     e->paste();
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
-    e->setLayerVisible(0, 1);
+    e->setLayerVisible(0, true);
     delete e;
 }
 
@@ -161,11 +161,11 @@ TEST(flip_selection_mirrors_only_inside_the_selection)
     dot(e, 1, 1);
     dot(e, 5, 1); /* outside the selection */
     select_rect(e, 1, 1, 3, 2);
-    e->flipSelection(1);
+    e->flipSelection(true);
     ASSERT_EQ_INT(0, alpha(e, 1, 1));
     ASSERT_EQ_INT(255, alpha(e, 3, 1));
     ASSERT_EQ_INT(255, alpha(e, 5, 1));
-    e->flipSelection(0);
+    e->flipSelection(false);
     ASSERT_EQ_INT(255, alpha(e, 3, 2));
     ASSERT_EQ_INT(0, alpha(e, 3, 1));
     e->undo();
@@ -180,7 +180,7 @@ TEST(rotate_selection_turns_it_around_its_center)
     Editor *e = make_editor();
     dot(e, 1, 2);
     select_rect(e, 1, 2, 3, 2); /* a 3 x 1 strip with the pixel at its left end */
-    e->rotateSelection(1);
+    e->rotateSelection(true);
     ASSERT_EQ_INT(1, e->selection().w);
     ASSERT_EQ_INT(3, e->selection().h);
     ASSERT_EQ_INT(2, e->selection().x);
@@ -200,7 +200,7 @@ TEST(rotate_selection_near_the_edge_keeps_what_fits)
     dot(e, 1, 0);
     dot(e, 2, 0);
     select_rect(e, 0, 0, 2, 0);
-    e->rotateSelection(1);
+    e->rotateSelection(true);
     ASSERT_TRUE(e->hasSelection());
     ASSERT_EQ_INT(0, e->selection().y);
     ASSERT_EQ_INT(2, e->selection().h); /* the top row of the turned strip fell off the sprite */
@@ -216,8 +216,8 @@ TEST(selection_transforms_are_held_off_while_dragging)
     select_rect(e, 1, 1, 2, 2);
     e->selectTool(ToolKind::Pencil);
     e->press(6, 5);
-    e->flipSelection(1);
-    e->rotateSelection(1);
+    e->flipSelection(true);
+    e->rotateSelection(true);
     ASSERT_TRUE(!e->copySelection());
     ASSERT_EQ_INT(255, alpha(e, 1, 1));
     e->release();
@@ -343,7 +343,7 @@ TEST(a_click_that_moves_nothing_adds_no_undo_step)
     delete e;
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

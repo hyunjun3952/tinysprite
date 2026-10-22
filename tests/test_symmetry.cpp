@@ -53,7 +53,7 @@ TEST(points_skips_reflections_that_land_on_an_earlier_copy)
     ASSERT_EQ_INT(1, out[0].y);
 }
 
-int main(void)
+int main()
 {
     RUN(copy_count_follows_the_enabled_axes);
     RUN(copy_zero_is_the_point_itself);

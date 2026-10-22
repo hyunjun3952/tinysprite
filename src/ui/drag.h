@@ -17,6 +17,8 @@ class Drag
     virtual ~Drag() = default;
     Drag(const Drag &) = delete;
     Drag &operator=(const Drag &) = delete;
+    Drag(Drag &&) = delete;
+    Drag &operator=(Drag &&) = delete;
 
     /* Whether Shift is held, set before each update: a shape then keeps even proportions. */
     void setShift(bool shift)

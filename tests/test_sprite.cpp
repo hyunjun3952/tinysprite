@@ -1,9 +1,9 @@
 #include "minitest.h"
 #include "tinysprite/sprite.h"
 
+#include <cstring>
 #include <memory>
 #include <stdexcept>
-#include <string.h>
 #include <utility>
 
 TEST(create_has_one_frame_and_one_layer)
@@ -139,7 +139,7 @@ TEST(detach_and_insert_reject_bad_arguments)
     ASSERT_TRUE(s.layer(2) == raw);
 }
 
-int main(void)
+int main()
 {
     RUN(create_has_one_frame_and_one_layer);
     RUN(create_rejects_invalid_size);

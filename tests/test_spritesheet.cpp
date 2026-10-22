@@ -209,7 +209,7 @@ TEST(export_writes_an_image_that_reads_back)
     ASSERT_TRUE(!spritesheet_export(frames(3), "no_such_dir/x.png", SheetOptions{}));
 }
 
-int main(void)
+int main()
 {
     RUN(horizontal_puts_the_frames_side_by_side);
     RUN(vertical_stacks_them);

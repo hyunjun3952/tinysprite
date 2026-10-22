@@ -3,22 +3,39 @@ Checks: >
   -*,
   bugprone-*,
   clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-prefer-member-initializer,
+  cppcoreguidelines-rvalue-reference-param-not-moved,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-avoid-non-const-global-variables,
   misc-*,
+  modernize-*,
   performance-*,
   portability-*,
-  readability-braces-around-statements,
-  readability-function-cognitive-complexity,
-  readability-misleading-indentation,
-  readability-non-const-parameter,
+  readability-*,
   -bugprone-easily-swappable-parameters,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   -misc-include-cleaner,
   -misc-const-correctness,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
-  -performance-enum-size
+  -modernize-avoid-c-arrays,
+  -modernize-macro-to-enum,
+  -modernize-use-nodiscard,
+  -modernize-use-trailing-return-type,
+  -performance-enum-size,
+  -readability-identifier-length,
+  -readability-identifier-naming,
+  -readability-magic-numbers,
+  -readability-function-size,
+  -readability-isolate-declaration,
+  -readability-uppercase-literal-suffix,
+  -readability-convert-member-functions-to-static
 WarningsAsErrors: '*'
 CheckOptions:
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
   - key: readability-function-cognitive-complexity.Threshold
     value: '15'
 # DeprecatedOrUnsafeBufferHandling is disabled: it demands C11 Annex K (*_s) functions,

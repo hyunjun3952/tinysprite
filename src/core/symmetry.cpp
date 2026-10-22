@@ -11,8 +11,8 @@ ToolPoint symmetry_copy(Symmetry symmetry, int width, int height, ToolPoint poin
 {
     /* The bits of `index` select which enabled axes this copy flips. */
     int bit = 0;
-    bool flipX = symmetry.mirror_x && ((index >> bit++) & 1);
-    bool flipY = symmetry.mirror_y && ((index >> bit) & 1);
+    bool flipX = symmetry.mirror_x && ((index >> bit++) & 1) != 0;
+    bool flipY = symmetry.mirror_y && ((index >> bit) & 1) != 0;
     return ToolPoint{flipX ? width - 1 - point.x : point.x, flipY ? height - 1 - point.y : point.y};
 }
 

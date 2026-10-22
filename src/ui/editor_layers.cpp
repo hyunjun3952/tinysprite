@@ -38,7 +38,8 @@ void Editor::addLayer()
     if (stroking()) {
         return;
     }
-    if (layer_op_add(history(), sprite(), "Layer " + std::to_string(sprite().layerCount() + 1))) {
+    if (layer_op_add(history(), sprite(), "Layer " + std::to_string(sprite().layerCount() + 1)) !=
+        nullptr) {
         pickLayer(sprite().layerCount() - 1, LayerPick::Only);
     }
 }

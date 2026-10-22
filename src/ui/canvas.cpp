@@ -71,7 +71,7 @@ ImVec2 loupePosition(ImVec2 mouse, ImVec2 origin, ImVec2 avail)
     y = std::clamp(
         y, origin.y + LOUPE_PAD,
         std::max(origin.y + avail.y - LOUPE_SIZE - LOUPE_LABEL - LOUPE_PAD, origin.y + LOUPE_PAD));
-    return ImVec2(x, y);
+    return {x, y};
 }
 
 } // namespace

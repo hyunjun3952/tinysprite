@@ -19,7 +19,7 @@ const char *blend_mode_name(BlendMode mode)
 {
     static const char *const names[BLEND_MODE_COUNT] = {
         "Normal", "Multiply", "Screen", "Overlay", "Darken", "Lighten", "Add", "Difference"};
-    size_t i = static_cast<size_t>(mode);
+    auto i = static_cast<size_t>(mode);
     return i < BLEND_MODE_COUNT ? names[i] : names[0];
 }
 
@@ -92,9 +92,9 @@ bool Layer::moveCel(int from, int to)
 bool Layer::celLinked(int frame) const
 {
     const Cel *cel = this->cel(frame);
-    return cel && std::count_if(cels_.begin(), cels_.end(), [cel](const std::shared_ptr<Cel> &c) {
-                      return c.get() == cel;
-                  }) > 1;
+    return cel != nullptr &&
+           std::count_if(cels_.begin(), cels_.end(),
+                         [cel](const std::shared_ptr<Cel> &c) { return c.get() == cel; }) > 1;
 }
 
 bool Layer::setCelList(std::vector<std::shared_ptr<Cel>> cels)

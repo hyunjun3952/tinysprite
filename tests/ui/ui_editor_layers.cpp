@@ -41,7 +41,7 @@ static std::string selection(Editor *e)
 
 /* Layers 1..4 (index 0..3), each with one dot in its own column so a merge shows where it came
  * from. */
-static Editor *editor_with_dots(void)
+static Editor *editor_with_dots()
 {
     Editor *e = editor_with_layers(4);
     for (int i = 0; i < 4; i++) {
@@ -86,7 +86,7 @@ TEST(layer_add_remove_move_undo_redo)
 TEST(visibility_toggle_is_undoable)
 {
     Editor *e = make_editor();
-    e->setLayerVisible(0, 0);
+    e->setLayerVisible(0, false);
     ASSERT_TRUE(!e->sprite().layer(0)->visible());
     e->undo();
     ASSERT_TRUE(e->sprite().layer(0)->visible());
@@ -131,7 +131,7 @@ TEST(layer_edits_are_held_off_while_dragging)
     e->selectTool(ToolKind::Pencil);
     e->press(0, 0);
     e->addLayer();
-    e->setLayerVisible(0, 0);
+    e->setLayerVisible(0, false);
     ASSERT_EQ_INT(1, e->sprite().layerCount());
     ASSERT_TRUE(e->sprite().layer(0)->visible());
     e->release();
@@ -142,7 +142,7 @@ TEST(tools_ignore_a_hidden_layer)
 {
     Editor *e = make_editor();
     e->selectTool(ToolKind::Pencil);
-    e->setLayerVisible(0, 0);
+    e->setLayerVisible(0, false);
     click(e, 2, 2);
     ASSERT_EQ_INT(0, alpha(e, 2, 2));
     delete e;
@@ -450,7 +450,7 @@ TEST(duplicate_and_merge_are_held_off_while_dragging_or_invalid)
     e->mergeLayerDown(1);
     ASSERT_EQ_INT(2, e->sprite().layerCount());
     e->release();
-    e->setLayerVisible(1, 0);
+    e->setLayerVisible(1, false);
     e->mergeLayerDown(1); /* hidden layers do not merge */
     ASSERT_EQ_INT(2, e->sprite().layerCount());
     delete e;
@@ -684,7 +684,7 @@ TEST(moving_layers_is_held_off_while_stroking)
     delete e;
 }
 
-int main(void)
+int main()
 {
     if (!ui_init()) {
         return 1;

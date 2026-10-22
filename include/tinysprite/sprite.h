@@ -84,12 +84,12 @@ class Sprite
     /* A blank frame with the default duration, and a deep copy of `frame` (null cels if it is out
      * of range), both shaped for this sprite's layers. */
     Frame makeFrame() const;
-    Frame copyFrame(int frame) const;
+    Frame copyFrame(int index) const;
 
     /* Inserts `frame` so it ends up at `index`, shifting the later frames up. Returns false (and
      * leaves `frame` untouched) if index is outside 0..frameCount, or frame has no cel per layer
      * or an invalid duration. */
-    bool insertFrame(int index, Frame &&frame);
+    bool insertFrame(int index, Frame frame);
 
     /* Takes the frame at `index` out and hands it to the caller (its cels stay valid). Nothing if
      * index is out of range or it is the only frame. */

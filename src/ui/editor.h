@@ -42,6 +42,8 @@ class Editor
     bool setSprite(Sprite sprite);
     Editor(const Editor &) = delete;
     Editor &operator=(const Editor &) = delete;
+    Editor(Editor &&) = delete;
+    Editor &operator=(Editor &&) = delete;
 
     Sprite &sprite()
     {
@@ -314,7 +316,7 @@ class Editor
     void setMoveOffset(int dx, int dy);
 
     Rgba foreground() const;
-    void setForeground(Rgba color);
+    void setForeground(Rgba rgba);
 
     /* Sprite palette helpers (each edit is one undo step). Add puts the foreground color in
      * the palette unless it is already there and returns its index, or -1 if the palette is full.

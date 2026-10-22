@@ -159,7 +159,7 @@ TEST(a_removed_layer_comes_back_with_the_frames_it_had)
     ASSERT_EQ_INT(2, s.layer(1)->frameCount());
 }
 
-int main(void)
+int main()
 {
     RUN(add_is_undoable);
     RUN(add_rejects_a_bad_index_or_an_open_stroke);

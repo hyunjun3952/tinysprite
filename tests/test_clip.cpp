@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include <string.h>
+#include <cstring>
 
 #include "minitest.h"
 #include "tinysprite/selection.h"
@@ -9,7 +9,7 @@
 static void fill(Cel &cel, int x0, int y0, int rows, const char *const *golden)
 {
     for (int y = 0; y < rows; y++) {
-        for (int x = 0; golden[y][x]; x++) {
+        for (int x = 0; golden[y][x] != '\0'; x++) {
             char c = golden[y][x];
             (void)cel.set(x0 + x, y0 + y,
                           c == '.' ? Rgba{0, 0, 0, 0} : Rgba{(uint8_t)c, 0, 0, 255});
@@ -20,7 +20,7 @@ static void fill(Cel &cel, int x0, int y0, int rows, const char *const *golden)
 static char letter(Rgba color)
 {
     static const char LETTERS[] = "abcdefghijklmnopqrstuvwxyz";
-    if (!color.a) {
+    if (color.a == 0) {
         return '.';
     }
     return LETTERS[color.r - 'a'];
@@ -190,7 +190,7 @@ TEST(replace_to_another_place_moves_the_pixels)
     expect_cel(cel, 2, 2, 2, moved);
 }
 
-int main(void)
+int main()
 {
     RUN(copy_captures_the_region);
     RUN(copy_is_a_snapshot);

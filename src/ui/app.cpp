@@ -127,7 +127,7 @@ static void initialWindowSize(const SettingsMap &settings, int &width, int &heig
     height = WINDOW_HEIGHT;
     settings_get_int(settings, "window.width", 320, 16384, width);
     settings_get_int(settings, "window.height", 240, 16384, height);
-    if (!settings.count("window.width")) {
+    if (settings.count("window.width") == 0) {
         width = static_cast<int>(theme::px(static_cast<float>(width)));
         height = static_cast<int>(theme::px(static_cast<float>(height)));
     }
@@ -141,7 +141,11 @@ bool App::init(const AppOptions &options)
     }
     /* Smoke runs (--frames) neither read nor write the user's settings and autosave. */
     persist_ = options.maxFrames == 0 || !options.configDir.empty();
-    configDir_ = !options.configDir.empty() ? options.configDir : persist_ ? config_dir() : "";
+    if (!options.configDir.empty()) {
+        configDir_ = options.configDir;
+    } else if (persist_) {
+        configDir_ = config_dir();
+    }
     SettingsMap settings = settings_load(configDir_);
     theme::setScale(initialScale(options, settings));
     int windowWidth = 0;
@@ -274,7 +278,7 @@ bool App::saveScreenshot(const std::string &path) const
 void App::pollEvents()
 {
     SDL_Event event;
-    while (SDL_PollEvent(&event)) {
+    while (SDL_PollEvent(&event) != 0) {
         ImGui_ImplSDL2_ProcessEvent(&event);
         if (event.type == SDL_QUIT) {
             guardUnsaved([this] { running_ = false; });

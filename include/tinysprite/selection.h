@@ -42,8 +42,10 @@ class Clip
     {
     }
 
-    friend bool clip_paste(History &, Cel &, const Clip &, int, int, HistoryAction);
-    friend bool clip_replace(History &, Cel &, Rect, const Clip &, int, int, HistoryAction);
+    friend bool clip_paste(History &history, Cel &cel, const Clip &clip, int x, int y,
+                           HistoryAction also);
+    friend bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, int x,
+                             int y, HistoryAction also);
 
     /* Draws the opaque pixels with their top-left corner at (x, y); those landing outside the cel
      * are skipped. */

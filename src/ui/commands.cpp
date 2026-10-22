@@ -23,10 +23,12 @@ namespace
 std::string keyLabel(ImGuiKey key)
 {
     if (key >= ImGuiKey_A && key <= ImGuiKey_Z) {
-        return std::string(1, static_cast<char>('A' + (key - ImGuiKey_A)));
+        char letter = static_cast<char>('A' + (key - ImGuiKey_A));
+        return {letter};
     }
     if (key >= ImGuiKey_0 && key <= ImGuiKey_9) {
-        return std::string(1, static_cast<char>('0' + (key - ImGuiKey_0)));
+        char digit = static_cast<char>('0' + (key - ImGuiKey_0));
+        return {digit};
     }
     switch (key) {
     case ImGuiKey_Equal:

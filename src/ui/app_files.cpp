@@ -366,10 +366,11 @@ void App::fileDialog()
     bool enter = pathField();
     /* A name typed without an extension gets the one the dialog writes. */
     const std::string typed = pathInput_;
-    const std::string path = !info.writes() ? typed
-                             : fileAction_ == FileAction::SaveAs
-                                 ? with_required_extension(typed, info.extension)
-                                 : with_default_extension(typed, info.extension);
+    std::string path = typed;
+    if (info.writes()) {
+        path = fileAction_ == FileAction::SaveAs ? with_required_extension(typed, info.extension)
+                                                 : with_default_extension(typed, info.extension);
+    }
     if (path != overwritePath_) {
         overwritePath_.clear(); /* the warning was for another name */
     }

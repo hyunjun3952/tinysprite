@@ -28,7 +28,7 @@ struct Fixture {
 
     static ImVec2 center(TimelinePanel::Rect r)
     {
-        return ImVec2((r.min.x + r.max.x) / 2.0f, (r.min.y + r.max.y) / 2.0f);
+        return {(r.min.x + r.max.x) / 2.0f, (r.min.y + r.max.y) / 2.0f};
     }
     void click(ImVec2 at)
     {
@@ -150,7 +150,7 @@ TEST(the_edit_row_draws_for_a_selected_tag)
     f.h.frame(0.0f, 0.0f, false); /* the edit row is drawn for the selected tag without asserting */
 }
 
-int main(void)
+int main()
 {
     RUN(the_grid_has_a_cel_per_layer_and_frame);
     RUN(clicking_a_cel_selects_its_frame_and_layer);

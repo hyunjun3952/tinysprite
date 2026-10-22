@@ -41,10 +41,10 @@ std::string trim(const std::string &text)
 {
     size_t first = 0;
     size_t last = text.size();
-    while (first < last && std::isspace(static_cast<unsigned char>(text[first]))) {
+    while (first < last && std::isspace(static_cast<unsigned char>(text[first])) != 0) {
         first++;
     }
-    while (last > first && std::isspace(static_cast<unsigned char>(text[last - 1]))) {
+    while (last > first && std::isspace(static_cast<unsigned char>(text[last - 1])) != 0) {
         last--;
     }
     return text.substr(first, last - first);
@@ -80,9 +80,9 @@ bool parseHexColor(const std::string &line, Rgba &out)
 bool parseGplColor(const std::string &line, Rgba &out)
 {
     std::istringstream in(line);
-    int r;
-    int g;
-    int b;
+    int r = 0;
+    int g = 0;
+    int b = 0;
     if (!(in >> r >> g >> b) || std::min({r, g, b}) < 0 || std::max({r, g, b}) > 255) {
         return false;
     }
@@ -167,7 +167,7 @@ struct PaletteFormat {
     std::string (*encode)(const Palette &palette, const std::string &name);
 };
 
-std::string encodeHex(const Palette &palette, const std::string &)
+std::string encodeHex(const Palette &palette, const std::string & /*unused*/)
 {
     return palette_encode_hex(palette);
 }

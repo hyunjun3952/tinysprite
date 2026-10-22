@@ -154,7 +154,7 @@ TEST(the_oldest_color_drops_when_full)
     ASSERT_EQ_INT(4, recent[RECENT_COLORS_MAX - 1].r);
 }
 
-int main(void)
+int main()
 {
     RUN(create_is_empty);
     RUN(add_returns_sequential_indices);
