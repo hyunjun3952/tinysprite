@@ -181,6 +181,10 @@ void TimelinePanel::toolbar()
         ImGui::IsItemDeactivatedAfterEdit()) {
         editor_.setFrameDuration(current, std::clamp(ms, 1, FRAME_DURATION_MAX));
     }
+    if (ImGui::IsItemActivated()) {
+        editor_
+            .stopPlayback(); /* the field belongs to the frame shown now: keep it from moving on */
+    }
     theme::tip("How long this frame is shown, in milliseconds.");
 
     ImGui::SameLine();

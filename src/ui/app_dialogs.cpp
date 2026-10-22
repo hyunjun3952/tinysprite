@@ -46,7 +46,8 @@ void App::confirmDialog()
         ImGui::OpenPopup(TITLE);
         openConfirm_ = false;
     }
-    if (!ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    confirmShown_ = ImGui::BeginPopupModal(TITLE, nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    if (!confirmShown_) {
         return;
     }
     ImGui::TextUnformatted("The sprite has changes that are not saved.");

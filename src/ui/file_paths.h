@@ -9,6 +9,9 @@
 /* `path` with `extension` (".png") appended when its file name has none; "" stays "". */
 std::string with_default_extension(const std::string &path, const std::string &extension);
 
+/* `path` with `extension` appended unless it already ends with it (ignoring case); "" stays "". */
+std::string with_required_extension(const std::string &path, const std::string &extension);
+
 /* Everything before the last separator ("" for a bare name, "/" for a file in the root). */
 std::string directory_of(const std::string &path);
 

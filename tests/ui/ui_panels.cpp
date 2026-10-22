@@ -1,6 +1,7 @@
 /* Drives the side panels with synthetic mouse input: dragging a docked panel's title bar pulls it
  * out, and dragging it to a window edge docks it again. Runs under SDL_VIDEODRIVER=dummy. */
 #include "minitest.h"
+#include "theme.h"
 #include "ui_harness.h"
 
 using test_ui::Harness;
@@ -117,6 +118,25 @@ TEST(reset_shows_every_section_again)
     ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::LAYERS));
 }
 
+TEST(reset_keeps_the_widths_at_the_current_ui_scale)
+{
+    Harness h;
+    h.frame(0.0f, 0.0f, false);
+    float before = 0.0f;
+    float right = 0.0f;
+    h.panels.layout(before, right);
+    theme::setScale(2.0f);
+    h.panels.rescale(2.0f);
+    float scaled = 0.0f;
+    h.panels.layout(scaled, right);
+    h.panels.reset();
+    float afterReset = 0.0f;
+    h.panels.layout(afterReset, right);
+    theme::setScale(1.0f);
+    ASSERT_TRUE(scaled > before);
+    ASSERT_TRUE(afterReset == scaled);
+}
+
 TEST(symmetry_section_is_hidden_until_switched_on)
 {
     Harness h;
@@ -136,6 +156,7 @@ int main(void)
     RUN(sections_are_visible_until_hidden);
     RUN(a_name_that_is_not_a_section_counts_as_visible);
     RUN(reset_shows_every_section_again);
+    RUN(reset_keeps_the_widths_at_the_current_ui_scale);
     RUN(closing_a_floating_panel_hides_it);
     RUN(symmetry_section_is_hidden_until_switched_on);
     RUN(layers_panel_has_a_properties_section_that_can_be_hidden);

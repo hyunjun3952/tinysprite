@@ -38,7 +38,7 @@ void Panels::reset()
                    std::initializer_list<const char *> sectionNames) {
         Panel panel{};
         panel.title = title;
-        panel.width = width;
+        panel.width = theme::px(width); /* at the current UI scale */
         panel.side = side;
         panel.home = side;
         for (const char *name : sectionNames) {

@@ -52,6 +52,15 @@ TEST(extension_is_added_only_when_missing)
     ASSERT_TRUE(with_default_extension("art.", ".pxa") == "art.");
 }
 
+TEST(a_required_extension_is_added_unless_the_name_already_ends_in_it)
+{
+    ASSERT_TRUE(with_required_extension("art", ".pxa") == "art.pxa");
+    ASSERT_TRUE(with_required_extension("art.png", ".pxa") == "art.png.pxa");
+    ASSERT_TRUE(with_required_extension("art.pxa", ".pxa") == "art.pxa");
+    ASSERT_TRUE(with_required_extension("ART.PXA", ".pxa") == "ART.PXA");
+    ASSERT_TRUE(with_required_extension("", ".pxa").empty());
+}
+
 TEST(directory_of_and_join)
 {
     ASSERT_TRUE(directory_of("/a/b/c.pxa") == "/a/b");
@@ -97,6 +106,7 @@ int main(void)
     RUN(fade_is_full_then_drops_to_zero_at_the_end);
     RUN(extension_is_added_only_when_missing);
     RUN(directory_of_and_join);
+    RUN(a_required_extension_is_added_unless_the_name_already_ends_in_it);
     RUN(file_name_of_is_the_last_component);
     RUN(status_text_names_tool_frame_zoom_and_hover);
     RUN(status_text_shows_the_selection_size);

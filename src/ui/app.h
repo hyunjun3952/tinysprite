@@ -73,6 +73,7 @@ class App
     static const FileActionInfo &fileInfo(FileAction action);
 
   private:
+    friend struct AppTestAccess;             /* tests/ui drive whole frames */
     static constexpr size_t RECENT_MAX = 10; /* entries kept in the recent files list */
 
     bool createWindow(int width, int height);
@@ -211,6 +212,7 @@ class App
     bool openNew_ = false;
     bool newShown_ = false;     /* the New sprite dialog is open (set while it is drawn) */
     bool recoverShown_ = false; /* ... and the recovery question */
+    bool confirmShown_ = false; /* ... and the unsaved-changes question */
     bool imguiContext_ = false;
     bool backends_ = false;
     bool running_ = true;

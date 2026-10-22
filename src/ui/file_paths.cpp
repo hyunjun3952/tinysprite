@@ -1,5 +1,8 @@
 #include "file_paths.h"
 
+#include <algorithm>
+#include <cctype>
+
 namespace
 {
 
@@ -26,6 +29,15 @@ std::string with_default_extension(const std::string &path, const std::string &e
         return path;
     }
     return path + extension;
+}
+
+std::string with_required_extension(const std::string &path, const std::string &extension)
+{
+    bool ends = path.size() >= extension.size() &&
+                std::equal(extension.rbegin(), extension.rend(), path.rbegin(), [](char a, char b) {
+                    return a == std::tolower(static_cast<unsigned char>(b));
+                });
+    return path.empty() || ends ? path : path + extension;
 }
 
 std::string directory_of(const std::string &path)

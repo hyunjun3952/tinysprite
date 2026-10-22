@@ -57,7 +57,7 @@ void App::fileMenu()
     if (ImGui::MenuItem("Import palette...", nullptr, false, idle)) {
         askForPath(FileAction::ImportPalette);
     }
-    if (ImGui::MenuItem("Export palette...")) {
+    if (ImGui::MenuItem("Export palette...", nullptr, false, idle)) {
         askForPath(FileAction::ExportPalette);
     }
     ImGui::Separator();

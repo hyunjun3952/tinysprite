@@ -53,8 +53,8 @@ void App::plainShortcuts()
 /* The file / unsaved-changes dialogs are modal: nothing behind them may react. */
 bool App::modalOpen() const
 {
-    return fileAction_ != FileAction::None || ImGui::IsPopupOpen("Unsaved changes") ||
-           openConfirm_ || openNew_ || openRecover_ || newShown_ || recoverShown_;
+    return fileAction_ != FileAction::None || confirmShown_ || openConfirm_ || openNew_ ||
+           openRecover_ || newShown_ || recoverShown_;
 }
 
 /* Ctrl+key shortcuts: the commands of commands.h (file, zoom, undo / redo, the clipboard). */
