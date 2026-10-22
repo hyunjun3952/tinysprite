@@ -183,6 +183,40 @@ bool applyLinks(Sprite &sprite, const std::vector<CelLink> &links)
     return true;
 }
 
+/* A layer's blend mode from a BLND chunk. */
+struct LayerBlend {
+    uint32_t layer;
+    BlendMode mode;
+};
+
+/* A BLND payload: the count, then per layer that is not Normal its index and mode byte. A mode
+ * this version does not know reads as Normal. */
+void readBlends(Reader &chunk, std::vector<LayerBlend> &blends)
+{
+    uint32_t count = chunk.u32();
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t layer = chunk.u32();
+        uint32_t mode = chunk.u8();
+        blends.push_back(LayerBlend{layer, mode < BLEND_MODE_COUNT ? static_cast<BlendMode>(mode)
+                                                                   : BlendMode::Normal});
+    }
+}
+
+/* False if an entry names a layer the sprite does not have. */
+bool applyBlends(Sprite &sprite, const std::vector<LayerBlend> &blends)
+{
+    for (const LayerBlend &blend : blends) {
+        Layer *layer = blend.layer < static_cast<uint32_t>(sprite.layerCount())
+                           ? sprite.layer(static_cast<int>(blend.layer))
+                           : nullptr;
+        if (!layer) {
+            return false;
+        }
+        layer->setBlendMode(blend.mode);
+    }
+    return true;
+}
+
 /* A TAGS payload: the count, then per tag its name, first and last frame and direction. */
 void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
 {
@@ -219,6 +253,7 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     std::vector<uint32_t> durations; /* from FRAM, applied once the frames exist */
     std::vector<Sprite::Tag> tags;   /* from TAGS, checked against the frames at the end */
     std::vector<CelLink> links;      /* from LINK, applied once the layers exist */
+    std::vector<LayerBlend> blends;  /* from BLND, applied once the layers exist */
     while (!file.atEnd()) {
         const uint8_t *tag = file.take(4);
         uint32_t length = file.u32();
@@ -249,6 +284,8 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
             }
         } else if (isTag(tag, "LINK")) {
             readLinks(chunk, links);
+        } else if (isTag(tag, "BLND")) {
+            readBlends(chunk, blends);
         } else if (isTag(tag, "TAGS")) {
             readTags(chunk, tags);
         } else if (isTag(tag, "PALT") || isTag(tag, "LAYR")) {
@@ -274,7 +311,8 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
     for (size_t i = 0; i < durations.size(); i++) {
         sprite->setFrameDuration(static_cast<int>(i), static_cast<int>(durations[i]));
     }
-    if (!applyLinks(*sprite, links) || !sprite->setTags(std::move(tags))) {
+    if (!applyLinks(*sprite, links) || !applyBlends(*sprite, blends) ||
+        !sprite->setTags(std::move(tags))) {
         return std::nullopt;
     }
     return sprite;
@@ -345,6 +383,22 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
                 }
             });
         }
+    }
+    std::vector<std::pair<uint32_t, uint8_t>> blends; /* the layers that are not Normal */
+    for (int i = 0; i < sprite.layerCount(); i++) {
+        BlendMode mode = sprite.layer(i)->blendMode();
+        if (mode != BlendMode::Normal) {
+            blends.emplace_back(static_cast<uint32_t>(i), static_cast<uint8_t>(mode));
+        }
+    }
+    if (!blends.empty()) {
+        putChunk(out, "BLND", [&](std::vector<uint8_t> &o) {
+            putU32(o, static_cast<uint32_t>(blends.size()));
+            for (const auto &entry : blends) {
+                putU32(o, entry.first);
+                o.push_back(entry.second);
+            }
+        });
     }
     if (!sprite.tags().empty()) {
         putChunk(out, "TAGS", [&](std::vector<uint8_t> &o) {

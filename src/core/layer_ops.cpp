@@ -92,6 +92,7 @@ Layer *layer_op_duplicate(History &history, Sprite &sprite, int index)
         std::make_unique<Layer>(name, sprite.width(), sprite.height(), source->frameCount());
     copy->setVisible(source->visible());
     copy->setOpacity(source->opacity());
+    copy->setBlendMode(source->blendMode());
     /* Frames that share a cel in the source share the copy of it too. */
     std::vector<std::shared_ptr<Cel>> cels;
     for (int frame = 0; frame < source->frameCount(); frame++) {
@@ -177,7 +178,8 @@ bool layer_op_merge_down(History &history, Sprite &sprite, int index)
         const Rgba *up = upper->cel(frame)->pixels();
         for (size_t i = 0; i < m->pixels; i++) {
             m->before.push_back(low[i]);
-            m->after.push_back(composite_over(low[i], up[i], upper->opacity()));
+            m->after.push_back(
+                composite_blend(low[i], up[i], upper->opacity(), upper->blendMode()));
         }
     }
     return record(history,
@@ -268,6 +270,12 @@ bool layer_op_set_opacity(History &history, Layer &layer, uint8_t opacity)
 {
     return changeValue<uint8_t>(
         history, layer.opacity(), opacity, [&layer](uint8_t v) { layer.setOpacity(v); }, true);
+}
+
+bool layer_op_set_blend_mode(History &history, Layer &layer, BlendMode mode)
+{
+    return changeValue<BlendMode>(
+        history, layer.blendMode(), mode, [&layer](BlendMode v) { layer.setBlendMode(v); }, true);
 }
 
 bool layer_op_record_opacity(History &history, Layer &layer, uint8_t before)

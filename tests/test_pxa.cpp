@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <string>
 
@@ -37,7 +38,8 @@ static bool same(const Sprite &a, const Sprite &b)
         const Layer &la = *a.layer(i);
         const Layer &lb = *b.layer(i);
         if (la.name() != lb.name() || la.visible() != lb.visible() ||
-            la.opacity() != lb.opacity() || la.locked() != lb.locked()) {
+            la.opacity() != lb.opacity() || la.locked() != lb.locked() ||
+            la.blendMode() != lb.blendMode()) {
             return false;
         }
         for (int y = 0; y < a.height(); y++) {
@@ -309,6 +311,93 @@ TEST(a_truncated_tag_chunk_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
+/* Where the 4-byte chunk tag `tag` starts in `data`, or -1. */
+static long find_chunk(const std::vector<uint8_t> &data, const char *tag)
+{
+    for (size_t i = 0; i + 4 <= data.size(); i++) {
+        if (std::memcmp(&data[i], tag, 4) == 0) {
+            return static_cast<long>(i);
+        }
+    }
+    return -1;
+}
+
+/* Three layers: Normal, Multiply and Difference, so only two need a BLND entry. */
+static Sprite blended()
+{
+    Sprite s = sample();
+    Layer &top = s.addLayer("Shade");
+    top.setBlendMode(BlendMode::Difference);
+    s.layer(1)->setBlendMode(BlendMode::Multiply);
+    return s;
+}
+
+TEST(blend_modes_round_trip)
+{
+    Sprite s(2, 2);
+    for (int m = 1; m < BLEND_MODE_COUNT; m++) {
+        s.addLayer("L").setBlendMode(static_cast<BlendMode>(m));
+    }
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    if (!back) {
+        MT_FAIL("no sprite");
+        return;
+    }
+    ASSERT_EQ_INT(BLEND_MODE_COUNT, back->layerCount());
+    for (int i = 0; i < BLEND_MODE_COUNT; i++) {
+        ASSERT_EQ_INT(i, static_cast<int>(back->layer(i)->blendMode()));
+    }
+}
+
+TEST(a_sprite_without_blend_modes_writes_no_blend_chunk)
+{
+    ASSERT_EQ_INT(-1, static_cast<int>(find_chunk(pxa_encode(sample()), "BLND")));
+    ASSERT_TRUE(find_chunk(pxa_encode(blended()), "BLND") >= 0);
+}
+
+TEST(a_reader_that_skips_the_blend_chunk_still_loads_the_layers)
+{
+    std::vector<uint8_t> data = pxa_encode(blended());
+    long at = find_chunk(data, "BLND");
+    ASSERT_TRUE(at >= 0);
+    data[static_cast<size_t>(at)] = 'X'; /* an old reader sees an unknown chunk */
+    std::optional<Sprite> back = pxa_decode(data);
+    if (!back) {
+        MT_FAIL("no sprite");
+        return;
+    }
+    ASSERT_EQ_INT(3, back->layerCount());
+    for (int i = 0; i < 3; i++) {
+        ASSERT_EQ_INT(0, static_cast<int>(back->layer(i)->blendMode()));
+    }
+}
+
+TEST(an_unknown_blend_mode_reads_as_normal)
+{
+    std::vector<uint8_t> data = pxa_encode(blended());
+    long at = find_chunk(data, "BLND");
+    ASSERT_TRUE(at >= 0);
+    /* tag, length, count, then (layer u32, mode u8) pairs: the first mode byte */
+    data[static_cast<size_t>(at) + 8 + 4 + 4] = 200;
+    std::optional<Sprite> back = pxa_decode(data);
+    if (!back) {
+        MT_FAIL("no sprite");
+        return;
+    }
+    ASSERT_EQ_INT(0, static_cast<int>(back->layer(1)->blendMode()));
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Difference),
+                  static_cast<int>(back->layer(2)->blendMode()));
+}
+
+TEST(a_blend_entry_for_a_missing_layer_is_rejected)
+{
+    std::vector<uint8_t> data = pxa_encode(blended());
+    long at = find_chunk(data, "BLND");
+    ASSERT_TRUE(at >= 0);
+    data[static_cast<size_t>(at) + 8 + 4] = 9; /* layer index 9 of 3 */
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
 int main(void)
 {
     RUN(round_trip_keeps_everything);
@@ -332,5 +421,10 @@ int main(void)
     RUN(a_tag_outside_the_frames_is_rejected);
     RUN(a_tag_with_an_unknown_direction_is_rejected);
     RUN(a_truncated_tag_chunk_is_rejected);
+    RUN(blend_modes_round_trip);
+    RUN(a_sprite_without_blend_modes_writes_no_blend_chunk);
+    RUN(a_reader_that_skips_the_blend_chunk_still_loads_the_layers);
+    RUN(an_unknown_blend_mode_reads_as_normal);
+    RUN(a_blend_entry_for_a_missing_layer_is_rejected);
     return TEST_SUMMARY();
 }

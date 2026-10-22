@@ -48,10 +48,42 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 - Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
-- Not done: blend modes (a core change for its own branch), a TTF font (the 13 px bitmap font is only scaled), a
+- Not done: a TTF font (the 13 px bitmap font is only scaled), a
   file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
 - Left from the pattern survey: an `Editor` change observer or an `applyOp` helper, a `theme::labeledRow` helper,
   merging the tool tables, declarative settings bindings.
+
+## Phase 2b: layer blend modes (branch `feat/blend-modes`)
+
+A blend mode decides how a layer's color combines with what is under it. Today every layer is a plain
+straight-alpha "over" scaled by its opacity (`composite_over`); a mode replaces the color mix and keeps the alpha
+rules: Multiply darkens (pixel x backdrop), Screen lightens, Overlay does both by contrast, Add / Linear dodge sums,
+Darken / Lighten keep the darker / lighter channel, Difference subtracts. Pixel artists use them for shading and
+lighting layers (a Multiply shadow layer, an Add glow) without repainting the base.
+
+Scope: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add, Difference (W3C compositing formulas, straight alpha:
+`Cs' = (1 - ab) * Cs + ab * B(Cb, Cs)`, then "over" with the layer alpha x opacity). Not in scope: layer groups,
+per-cel modes, color tags, cel offsets.
+
+TDD, one step per commit; the UI part comes last.
+
+- [x] **15. Core model + compositing** — `BlendMode` enum and `Layer::blendMode()` / `setBlendMode()` in
+      `layer.h`; `composite_blend(dst, src, opacity, mode)` in `composite.h` (Normal must equal `composite_over`);
+      `composite_sprite` / `composite_pixel` use it per layer. Golden-pixel tests per mode (opaque, half alpha,
+      transparent backdrop). Onion skin ghosts stay plain "over".
+- [x] **16. Undoable edit** — `layer_ops` step for a mode change (as opacity), `Editor::setSelectedLayersBlendMode`
+      applying to every selected layer in one step; duplicate keeps the mode; decide and test what "merge down" does
+      (bake the upper layer's mode into the pixels: composite with its mode, result Normal).
+- [x] **17. `.pxa`** — an optional `BLND` chunk after the layers (layer index + mode byte, only for layers that are
+      not Normal), so version stays 1 and a file without blend modes is byte-identical; an unknown mode value reads
+      as Normal. Round-trip and old-reader (skips the chunk) tests. Also check `recovery` (autosave) keeps modes.
+- [x] **18. UI** — a "Blend" combo in the Layers panel's Properties section (applies to all selected layers, one
+      undo step), a small marker on rows whose mode is not Normal, and the row tooltip names it. The exports (PNG,
+      GIF, sheet) already go through `composite_sprite`, so they follow; add a test that an export differs by mode.
+
+Gotchas to settle first: rounding of the 0..255 channel math (use the same rounding as `composite_over`), what the
+canvas dirty-rect re-composite needs (nothing new: the mode is read per layer), and the Properties section now has
+only Opacity, size and link info, so Blend is its first mode-like control.
 
 ## Phase 3: game pipeline
 Spritesheet packing + JSON metadata, slices/pivots/hitboxes, tilemap editor, filters,
@@ -61,10 +93,10 @@ headless CLI export, optional Aseprite import.
 - Frames (phase 2): a `Layer` holds its cels as `shared_ptr<Cel>`, in frame order. `Sprite::insertFrame` /
   `detachFrame` / `moveFrame` keep every layer, the durations and the tags in step; a removed frame (or one added and
   then undone) is kept alive by the history step so pixel steps on its cels stay valid, like removed layers.
-- `.pxa` stays version 1: `FRAM`, `LINK` and `TAGS` are optional chunks a reader of this version skips when it does not
+- `.pxa` stays version 1: `FRAM`, `LINK`, `BLND` and `TAGS` are optional chunks a reader of this version skips when it does not
   know them, and a plain one-frame sprite writes none of them (the file is byte-identical to before). The decoder grows
   the frames only after checking that the first `LAYR` chunk holds their pixels, so a lying header cannot make it
-  allocate more than the file is big. `FRAM` has to precede the layers; `LINK` and `TAGS` come after them.
+  allocate more than the file is big. `FRAM` has to precede the layers; `LINK`, `BLND` and `TAGS` come after them.
 - Tags shift with their frames: insert before / inside, remove before / inside, a tag vanishes with its last frame.
   Moving a frame keeps tags by position. A frame step records the tag list before and after so undo brings back a tag
   that vanished.

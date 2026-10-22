@@ -9,6 +9,23 @@
 
 inline constexpr int LAYER_NAME_MAX = 63;
 
+/* How a layer's color combines with what is under it (the alpha rules stay "over"). The values are
+ * stored in .pxa files, so never reorder them. */
+enum class BlendMode : uint8_t {
+    Normal,
+    Multiply,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    Add,
+    Difference,
+};
+inline constexpr int BLEND_MODE_COUNT = 8;
+
+/* The display name of `mode` ("Normal" for a value outside the enum). */
+const char *blend_mode_name(BlendMode mode);
+
 /* `name` cut to at most `maxBytes` bytes without splitting a UTF-8 character. */
 std::string layer_name_truncate(const std::string &name, size_t maxBytes = LAYER_NAME_MAX);
 
@@ -57,6 +74,15 @@ class Layer
         opacity_ = opacity;
     }
 
+    BlendMode blendMode() const
+    {
+        return blendMode_;
+    }
+    void setBlendMode(BlendMode mode)
+    {
+        blendMode_ = mode;
+    }
+
     int frameCount() const
     {
         return static_cast<int>(cels_.size());
@@ -96,6 +122,7 @@ class Layer
     bool visible_ = true;
     bool locked_ = false;
     uint8_t opacity_ = 255;
+    BlendMode blendMode_ = BlendMode::Normal;
     std::vector<std::shared_ptr<Cel>> cels_;
 };
 

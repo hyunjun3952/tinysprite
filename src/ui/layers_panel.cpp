@@ -12,7 +12,23 @@
 namespace
 {
 
-constexpr float OPACITY_COLUMN = 42.0f;
+constexpr float OPACITY_COLUMN = 76.0f;
+
+/* What each BlendMode does, for the tooltips of the Blend combo and the layer rows. */
+constexpr const char *BLEND_HINTS[BLEND_MODE_COUNT] = {
+    "Covers the layers under it.",
+    "Darkens: colors multiply with the ones under. White changes nothing. Good for shadows.",
+    "Lightens: the opposite of Multiply. Black changes nothing.",
+    "Multiply on dark backdrops, Screen on light ones: raises contrast.",
+    "Keeps the darker of each color channel.",
+    "Keeps the lighter of each color channel.",
+    "Adds the colors up (linear dodge). Good for glows and light.",
+    "Subtracts the colors: the bigger minus the smaller channel.",
+};
+
+/* A three letter tag for the layer rows (Normal shows none). */
+constexpr const char *BLEND_TAGS[BLEND_MODE_COUNT] = {"",    "Mul", "Scr", "Ovr",
+                                                      "Drk", "Lgt", "Add", "Dif"};
 constexpr float EDGE_MARGIN = 8.0f; /* keeps the eye and the lock off the panel edges */
 constexpr int THUMB_WIDTH = 36;     /* the box a layer's thumbnail is fitted into */
 constexpr int THUMB_HEIGHT = 24;
@@ -166,11 +182,15 @@ void LayersPanel::rowDragDrop(int index, const Layer &layer, const RowContext &c
 /* The row's tooltip, and the double click that starts renaming. */
 void LayersPanel::rowHintAndRename(int index, const Layer &layer)
 {
-    char hint[LAYER_NAME_MAX + 128];
+    char hint[LAYER_NAME_MAX + 192];
+    char blend[48] = "";
+    if (layer.blendMode() != BlendMode::Normal) {
+        std::snprintf(blend, sizeof(blend), "Blend: %s\n", blend_mode_name(layer.blendMode()));
+    }
     std::snprintf(hint, sizeof(hint),
-                  "%s\nClick to make this the active layer (the one the tools draw on).\n"
+                  "%s\n%sClick to make this the active layer (the one the tools draw on).\n"
                   "Double-click to rename it.",
-                  layer.name().c_str());
+                  layer.name().c_str(), blend);
     theme::tip(hint);
     /* A double click renames, unless Ctrl / Shift are held: those clicks change the selection,
      * and two quick ones on the same row must not collapse it. */
@@ -262,10 +282,16 @@ void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
     nameCell(index, layer, ctx);
 
     ImGui::TableSetColumnIndex(3);
-    if (layer.opacity() != 255) {
+    if (layer.opacity() != 255 || layer.blendMode() != BlendMode::Normal) {
         centerInRow(ctx.rowHeight, ctx.frameHeight);
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%d%%", (layer.opacity() * 100 + 127) / 255);
+        if (layer.blendMode() != BlendMode::Normal) {
+            ImGui::TextDisabled("%s", BLEND_TAGS[static_cast<int>(layer.blendMode())]);
+            ImGui::SameLine(0.0f, 4.0f);
+        }
+        if (layer.opacity() != 255) {
+            ImGui::TextDisabled("%d%%", (layer.opacity() * 100 + 127) / 255);
+        }
     }
 
     ImGui::TableSetColumnIndex(4);
@@ -310,6 +336,31 @@ void LayersPanel::rows()
             editor_.pickLayer(drop.to, LayerPick::Only);
         }
     }
+}
+
+/* The blend mode of the selected layers. The combo shows the active layer's mode, or "Mixed" when
+ * the selection holds different ones; picking a mode sets it on all of them as one undo step. */
+void LayersPanel::propertyBlend(const Layer &layer)
+{
+    bool mixed = false;
+    for (int i : editor_.selectedLayers()) {
+        mixed = mixed || editor_.sprite().layer(i)->blendMode() != layer.blendMode();
+    }
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Blend");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
+        for (int m = 0; m < BLEND_MODE_COUNT; m++) {
+            BlendMode mode = static_cast<BlendMode>(m);
+            if (ImGui::Selectable(blend_mode_name(mode), !mixed && mode == layer.blendMode())) {
+                editor_.setSelectedLayersBlendMode(mode);
+            }
+            theme::tip(BLEND_HINTS[m]);
+        }
+        ImGui::EndCombo();
+    }
+    theme::tip("How the layer's colors combine with the layers under it. Normal just covers them.");
 }
 
 /* The opacity edits the layer live while the slider is active and records one undo step when it is
@@ -360,9 +411,10 @@ void LayersPanel::properties()
         return;
     }
     if (editor_.selectedLayers().size() > 1) {
-        ImGui::TextDisabled("%d layers selected: opacity applies to all",
+        ImGui::TextDisabled("%d layers selected: opacity and blend apply to all",
                             static_cast<int>(editor_.selectedLayers().size()));
     }
+    propertyBlend(*layer);
     propertyOpacity(*layer);
     propertyInfo(*layer);
 }

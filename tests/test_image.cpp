@@ -155,6 +155,29 @@ TEST(write_formats_list_what_export_accepts)
     }
 }
 
+TEST(an_export_follows_the_layer_blend_mode)
+{
+    Sprite s(1, 1);
+    s.layer(0)->cel(0)->set(0, 0, Rgba{200, 100, 50, 255});
+    Layer &shade = s.addLayer("shade");
+    shade.cel(0)->set(0, 0, Rgba{128, 255, 10, 255});
+
+    auto exported = [&](BlendMode mode) {
+        shade.setBlendMode(mode);
+        std::string path = "test_image_blend.png";
+        bool ok = image_export(s, 0, path);
+        std::optional<Sprite> back = ok ? image_import(path) : std::nullopt;
+        std::remove(path.c_str());
+        return back ? back->layer(0)->cel(0)->get(0, 0) : Rgba{};
+    };
+    Rgba normal = exported(BlendMode::Normal);
+    Rgba multiply = exported(BlendMode::Multiply);
+    ASSERT_EQ_INT(128, normal.r);
+    ASSERT_EQ_INT(100, multiply.r);
+    ASSERT_EQ_INT(2, multiply.b);
+    ASSERT_TRUE(!(normal == multiply));
+}
+
 int main(void)
 {
     RUN(export_then_import_round_trips_the_flattened_image);
@@ -167,5 +190,6 @@ int main(void)
     RUN(export_can_enlarge_by_whole_pixels);
     RUN(export_rejects_a_bad_scale);
     RUN(write_formats_list_what_export_accepts);
+    RUN(an_export_follows_the_layer_blend_mode);
     return TEST_SUMMARY();
 }

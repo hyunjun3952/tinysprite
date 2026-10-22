@@ -544,6 +544,51 @@ TEST(a_shared_opacity_edit_is_held_off_while_stroking)
     delete e;
 }
 
+TEST(blend_mode_applies_to_every_selected_layer_as_one_step)
+{
+    Editor *e = editor_with_layers(3);
+    e->sprite().layer(2)->setBlendMode(BlendMode::Add);
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Toggle);
+    e->setSelectedLayersBlendMode(BlendMode::Multiply);
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply),
+                  static_cast<int>(e->sprite().layer(0)->blendMode()));
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Normal),
+                  static_cast<int>(e->sprite().layer(1)->blendMode()));
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply),
+                  static_cast<int>(e->sprite().layer(2)->blendMode()));
+    e->undo();
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Normal),
+                  static_cast<int>(e->sprite().layer(0)->blendMode()));
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Add),
+                  static_cast<int>(e->sprite().layer(2)->blendMode()));
+    e->redo();
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply),
+                  static_cast<int>(e->sprite().layer(2)->blendMode()));
+    delete e;
+}
+
+TEST(an_unchanged_blend_mode_records_nothing)
+{
+    Editor *e = editor_with_layers(2);
+    e->setSelectedLayersBlendMode(BlendMode::Normal);
+    e->undo(); /* undoes the last layer that was added, not a blend step */
+    ASSERT_EQ_INT(1, e->sprite().layerCount());
+    delete e;
+}
+
+TEST(a_blend_mode_edit_is_held_off_while_stroking)
+{
+    Editor *e = editor_with_layers(2);
+    e->selectTool(ToolKind::Pencil);
+    e->press(1, 1);
+    e->setSelectedLayersBlendMode(BlendMode::Screen);
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Normal),
+                  static_cast<int>(e->sprite().layer(1)->blendMode()));
+    e->release();
+    delete e;
+}
+
 TEST(move_up_and_down_shift_the_active_layer_by_one)
 {
     Editor *e = editor_with_layers(3);
@@ -659,6 +704,9 @@ int main(void)
     RUN(moving_a_selection_moves_it_as_a_block_one_step_and_one_undo);
     RUN(a_selection_with_a_gap_moves_by_its_edge_layers);
     RUN(moving_layers_is_held_off_while_stroking);
+    RUN(blend_mode_applies_to_every_selected_layer_as_one_step);
+    RUN(an_unchanged_blend_mode_records_nothing);
+    RUN(a_blend_mode_edit_is_held_off_while_stroking);
     ui_quit();
     return TEST_SUMMARY();
 }

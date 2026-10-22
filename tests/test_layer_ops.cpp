@@ -1,4 +1,5 @@
 #include "minitest.h"
+#include "tinysprite/composite.h"
 #include "tinysprite/layer_ops.h"
 
 #include <string.h>
@@ -448,6 +449,59 @@ TEST(duplicate_is_not_locked)
     ASSERT_TRUE(copy && !copy->locked());
 }
 
+TEST(blend_mode_change_is_undoable)
+{
+    Sprite s(4, 4);
+    History h;
+    Layer *l = s.layer(0);
+    ASSERT_TRUE(layer_op_set_blend_mode(h, *l, BlendMode::Multiply));
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply), static_cast<int>(l->blendMode()));
+    h.undo();
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Normal), static_cast<int>(l->blendMode()));
+    h.redo();
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply), static_cast<int>(l->blendMode()));
+}
+
+TEST(blend_mode_unchanged_records_nothing_and_is_refused_while_stroking)
+{
+    Sprite s(4, 4);
+    History h;
+    Layer *l = s.layer(0);
+    ASSERT_TRUE(layer_op_set_blend_mode(h, *l, BlendMode::Normal));
+    ASSERT_TRUE(!h.canUndo());
+    h.beginStroke(*l->cel(0));
+    ASSERT_TRUE(!layer_op_set_blend_mode(h, *l, BlendMode::Add));
+}
+
+TEST(duplicate_keeps_the_blend_mode)
+{
+    Sprite s(4, 4);
+    History h;
+    s.layer(0)->setBlendMode(BlendMode::Screen);
+    Layer *copy = layer_op_duplicate(h, s, 0);
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Screen), static_cast<int>(copy->blendMode()));
+}
+
+TEST(merge_down_bakes_the_upper_blend_mode_into_the_pixels)
+{
+    Sprite s(1, 1);
+    Layer *top = &s.addLayer("Top");
+    Rgba back{200, 100, 50, 255};
+    Rgba front{128, 255, 10, 255};
+    s.layer(0)->cel(0)->set(0, 0, back);
+    top->cel(0)->set(0, 0, front);
+    top->setBlendMode(BlendMode::Multiply);
+    top->setOpacity(200);
+    Rgba expected = composite_blend(back, front, 200, BlendMode::Multiply);
+    History h;
+    ASSERT_TRUE(layer_op_merge_down(h, s, 1));
+    ASSERT_TRUE(s.layer(0)->cel(0)->get(0, 0) == expected);
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Normal), static_cast<int>(s.layer(0)->blendMode()));
+    h.undo();
+    ASSERT_TRUE(s.layer(0)->cel(0)->get(0, 0) == back);
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply), static_cast<int>(s.layer(1)->blendMode()));
+}
+
 int main(void)
 {
     RUN(add_is_undoable);
@@ -478,5 +532,9 @@ int main(void)
     RUN(record_opacity_logs_an_edit_the_layer_already_holds);
     RUN(record_records_nothing_when_the_value_is_unchanged);
     RUN(record_is_rejected_during_a_stroke);
+    RUN(blend_mode_change_is_undoable);
+    RUN(blend_mode_unchanged_records_nothing_and_is_refused_while_stroking);
+    RUN(duplicate_keeps_the_blend_mode);
+    RUN(merge_down_bakes_the_upper_blend_mode_into_the_pixels);
     return TEST_SUMMARY();
 }

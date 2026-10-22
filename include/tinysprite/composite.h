@@ -1,13 +1,14 @@
 #ifndef TINYSPRITE_COMPOSITE_H
 #define TINYSPRITE_COMPOSITE_H
 
+#include "tinysprite/layer.h"
 #include "tinysprite/rect.h"
 #include "tinysprite/sprite.h"
 
-/* Flattens the visible layers of `frame` (bottom to top, straight-alpha "over", scaled by layer
- * opacity) into `out`, a sprite.width() x sprite.height() row-major buffer. Only the pixels inside
- * `region` (clipped to the sprite) are written, so callers can re-composite a dirty rect. Does
- * nothing if out is null or the frame is out of range. */
+/* Flattens the visible layers of `frame` (bottom to top, each blended with its layer's blend mode
+ * and scaled by layer opacity) into `out`, a sprite.width() x sprite.height() row-major buffer.
+ * Only the pixels inside `region` (clipped to the sprite) are written, so callers can re-composite
+ * a dirty rect. Does nothing if out is null or the frame is out of range. */
 void composite_sprite(const Sprite &sprite, int frame, Rect region, Rgba *out);
 
 /* The flattened color at (x, y) of `frame`, computed like composite_sprite. Returns transparent
@@ -36,7 +37,13 @@ void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rec
                      Rgba *out);
 
 /* Straight-alpha "over": `src`, its alpha scaled by `opacity` (0..255), drawn onto `dst`. This is
- * the blend composite_sprite uses for every layer. */
+ * how the onion skin ghosts are drawn, and BlendMode::Normal. */
 Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity);
+
+/* Like composite_over, but the source color is first mixed with `mode` applied to the backdrop,
+ * weighted by the backdrop's alpha (W3C compositing: Cs' = (1 - ab) * Cs + ab * B(Cb, Cs)). Where
+ * the backdrop is transparent the source shows unchanged, and Normal equals composite_over. This
+ * is what composite_sprite uses for every layer. */
+Rgba composite_blend(Rgba dst, Rgba src, uint8_t opacity, BlendMode mode);
 
 #endif
