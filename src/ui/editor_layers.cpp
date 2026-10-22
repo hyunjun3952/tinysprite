@@ -146,15 +146,21 @@ bool Editor::canMergeLayers() const
 {
     std::vector<int> selected = selectedLayers();
     if (selected.size() == 1) {
-        const Layer *upper = sprite().layer(selected.front());
-        const Layer *lower = sprite().layer(selected.front() - 1);
-        return upper && lower && layer_can_merge(*upper, *lower);
+        return layer_can_merge_down(sprite(), selected.front());
     }
-    /* Each selected layer is folded into the one selected below it. */
+    /* Each selected layer is folded into the one selected below it. Once gathered, only the
+     * lowest one can have nothing visible under it. */
+    bool visibleBelow = false;
+    for (int i = 0; i < selected.front(); i++) {
+        visibleBelow = visibleBelow || sprite().layer(i)->visible();
+    }
     for (size_t k = 1; k < selected.size(); k++) {
-        if (!layer_can_merge(*sprite().layer(selected[k]), *sprite().layer(selected[k - 1]))) {
+        const Layer &upper = *sprite().layer(selected[k]);
+        const Layer &lower = *sprite().layer(selected[k - 1]);
+        if (!layer_can_merge(upper, lower) || !layer_merge_keeps_look(upper, lower, visibleBelow)) {
             return false;
         }
+        visibleBelow = true;
     }
     return true;
 }

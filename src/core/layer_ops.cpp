@@ -149,13 +149,33 @@ bool layer_can_merge(const Layer &upper, const Layer &lower)
     return upper.visible() && lower.visible() && !lower.locked();
 }
 
-bool layer_op_merge_down(History &history, Sprite &sprite, int index)
+bool layer_merge_keeps_look(const Layer &upper, const Layer &lower, bool visibleBelow)
 {
-    Layer *upper = sprite.layer(index);
-    Layer *lower = sprite.layer(index - 1);
-    if (!upper || !lower || history.strokeActive() || !layer_can_merge(*upper, *lower)) {
+    bool plain = upper.blendMode() == BlendMode::Normal && lower.blendMode() == BlendMode::Normal;
+    return plain || !visibleBelow;
+}
+
+bool layer_can_merge_down(const Sprite &sprite, int index)
+{
+    const Layer *upper = sprite.layer(index);
+    const Layer *lower = sprite.layer(index - 1);
+    if (!upper || !lower || !layer_can_merge(*upper, *lower)) {
         return false;
     }
+    bool visibleBelow = false;
+    for (int i = 0; i < index - 1; i++) {
+        visibleBelow = visibleBelow || sprite.layer(i)->visible();
+    }
+    return layer_merge_keeps_look(*upper, *lower, visibleBelow);
+}
+
+bool layer_op_merge_down(History &history, Sprite &sprite, int index)
+{
+    if (history.strokeActive() || !layer_can_merge_down(sprite, index)) {
+        return false;
+    }
+    Layer *upper = sprite.layer(index);
+    Layer *lower = sprite.layer(index - 1);
     auto m = std::make_shared<Merge>(Merge{Membership{sprite, upper, index, {}},
                                            lower,
                                            static_cast<size_t>(sprite.width()) * sprite.height(),

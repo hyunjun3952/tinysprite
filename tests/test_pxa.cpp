@@ -339,13 +339,14 @@ TEST(blend_modes_round_trip)
         s.addLayer("L").setBlendMode(static_cast<BlendMode>(m));
     }
     std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
     if (!back) {
-        MT_FAIL("no sprite");
         return;
     }
-    ASSERT_EQ_INT(BLEND_MODE_COUNT, back->layerCount());
+    const Sprite &decoded = *back;
+    ASSERT_EQ_INT(BLEND_MODE_COUNT, decoded.layerCount());
     for (int i = 0; i < BLEND_MODE_COUNT; i++) {
-        ASSERT_EQ_INT(i, static_cast<int>(back->layer(i)->blendMode()));
+        ASSERT_EQ_INT(i, static_cast<int>(decoded.layer(i)->blendMode()));
     }
 }
 

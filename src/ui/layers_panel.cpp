@@ -455,9 +455,10 @@ void LayersPanel::buttons()
     if (icons::button(Icon::Merge, "##merge",
                       selected > 1
                           ? "Merge the selected layers into the lowest one (all visible, the "
-                            "lowest unlocked)"
+                            "lowest unlocked; blend modes only with nothing visible under)"
                           : "Merge into the layer below (both visible, the lower one "
-                            "unlocked)",
+                            "unlocked; a blend mode only with nothing visible under the lower "
+                            "one)",
                       size, editor_.canMergeLayers())) {
         editor_.mergeSelectedLayers();
     }

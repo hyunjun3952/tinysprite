@@ -32,10 +32,20 @@ Layer *layer_op_duplicate(History &history, Sprite &sprite, int index);
  * only read). The rule behind layer_op_merge_down, for callers that ask first. */
 bool layer_can_merge(const Layer &upper, const Layer &lower);
 
+/* Whether merging `upper` into `lower` leaves the flattened image as it was. Blend modes see
+ * everything under a layer, a merge only sees `lower`, so it is exact when both are Normal (plain
+ * "over" nests) or when no visible layer lies under `lower` (`visibleBelow` false). */
+bool layer_merge_keeps_look(const Layer &upper, const Layer &lower, bool visibleBelow);
+
+/* Whether layer_op_merge_down(index) would go through: a layer below, layer_can_merge and
+ * layer_merge_keeps_look. For callers that ask first. */
+bool layer_can_merge_down(const Sprite &sprite, int index);
+
 /* Draws the layer at `index` onto the layer below it (every frame, with the upper layer's blend
  * mode and opacity applied to its pixels) and removes it; the lower layer keeps its own name and
  * properties. The pixel change and the removal are one undo step. Returns false if there is no
- * layer below, either layer is hidden, the lower layer is locked, or a stroke is active. */
+ * layer below, either layer is hidden, the lower layer is locked, the merge would change how the
+ * stack looks (see layer_merge_keeps_look), or a stroke is active. */
 bool layer_op_merge_down(History &history, Sprite &sprite, int index);
 
 bool layer_op_set_name(History &history, Layer &layer, const std::string &name);
