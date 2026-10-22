@@ -97,6 +97,21 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   is already selected) and opens the menu. `New...` is now Ctrl+N without Shift.
 - Numbers show their unit (`theme::int_format` / `theme::input_int`): `100 ms`, `16 px`, `2×`, `1 frame`, and the status
   bar says `48×48 px`.
+- Menu bar titles open when the mouse rests on them (`theme::begin_menu`: ImGui only opens a title on a click; submenus
+  already open on hover).
+- A double click on a docked panel's inner edge restores its default width (`Panel::defaultWidth`), like the timeline's
+  edge; the tool bar has a fixed width so it has no edge to drag.
+- The status bar is a row of items (`StatusItem`: tool, frame, layer, zoom, selection, cel; the size is in Properties) kept in
+  `Editor::Overlays::status_items` (saved as `view.status_items`). A right click on an item offers "Hide <item>"; a
+  right click anywhere on the bar opens a menu that switches every item and hides the bar (View > Status bar shows it
+  again).
+- Dialogs: the popup color is the panel color, not the control color, so a dialog's buttons and fields are visible (they
+  had the same fill as the dialog and vanished). `theme::dialog_buttons` puts the buttons under a hairline,
+  right-aligned, 88 px at least with a gap, the main one in the accent (red for Delete / Overwrite / Reset); six
+  dialogs use it.
+- Units stay while a number is typed: the unit is drawn over the right end of the field (before the - / + buttons), not
+  made part of the text. The color picker's RGB / HSV / Hex row is replaced by `theme::hex_field` (a preview, "#" and
+  RGB / RRGGBB / RRGGBBAA, checked on Enter).
 - A round button (`icons::round_button`) for small secondary actions; the foreground / background swap uses it.
 - Looked at and not taken: `PopupWindow` hot regions and `AnimatedWidget` easing (ImGui popups already close on an
   outside click, and the UI is immediate-mode), a separate "small" font (one more atlas size for little gain now).

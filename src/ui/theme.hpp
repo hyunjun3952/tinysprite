@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_UI_THEME_HPP
 #define TINYSPRITE_UI_THEME_HPP
 
+#include <initializer_list>
 #include <string>
 
 #include "imgui.h"
@@ -32,6 +33,10 @@ inline constexpr unsigned WORKSPACE = 0x08090a; /* behind the sprite, darker tha
 inline constexpr unsigned ACCENT = 0x6c78e6;
 inline constexpr unsigned ACCENT_STRONG = 0x5865d0; /* the pressed accent */
 inline constexpr unsigned ACCENT_TEXT = 0xffffff;
+
+/* A button that destroys something (delete, discard, reset): the accent's red counterpart. */
+inline constexpr unsigned DANGER = 0xd2524f;
+inline constexpr unsigned DANGER_STRONG = 0xb3403d;
 
 /* Text. */
 inline constexpr unsigned INK = 0xf7f8f8;
@@ -67,14 +72,49 @@ void apply();
  * content goes under `if (theme::section("Name")) { ... }`. */
 bool section(const char *label, bool openByDefault = true);
 
+/* ImGui::BeginMenu for a title of the menu bar, but the menu also opens when the mouse rests on the
+ * title, without a click (while another menu is open ImGui already moves between titles). Use it
+ * for the menu bar's titles; submenus inside a menu already open on hover. */
+bool begin_menu(const char *label);
+
 /* The printf format of a whole number followed by `unit` ("%d ms" for " ms"; a "%" in the unit is
  * escaped), for the number fields and sliders that should show what they count. */
 std::string int_format(const char *unit);
 
-/* ImGui::InputInt with a unit after the number: "100 ms" while the field is not being edited. The
- * unit text is ignored when a value is typed. */
+/* Where to draw a unit's text so that it sits at the right end of a field [min, max], vertically
+ * centered, `padding` from the edge. */
+ImVec2 unit_origin(ImVec2 min, ImVec2 max, float textWidth, float textHeight, float padding);
+
+/* ImGui::InputInt with a unit after the number ("100 ms"). The unit is drawn over the right end of
+ * the field, so it stays while the number is typed (ImGui itself shows only the digits then). */
 bool input_int(const char *id, int *value, int step, int stepFast, const char *unit,
                ImGuiInputTextFlags flags = 0);
+
+/* The width of a dialog button with a label `textWidth` wide: at least 88 px, else the text with 16
+ * px at each side. */
+float dialog_button_width(float textWidth);
+
+/* The buttons at the foot of a dialog: under a hairline, right-aligned, each as wide as
+ * dialog_button_width with a gap between, so they read as separate buttons. The one at index
+ * `primary` is filled with the accent (red when `danger`: a button that destroys something); a
+ * negative `primary` fills none. A set bit `i` of `disabled` greys out button `i`. Returns the
+ * index of the button clicked this frame, or -1. */
+int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool danger = false,
+                   unsigned disabled = 0);
+
+/* A color as hex text for the picker: RRGGBB, with AA after it only when the color is translucent.
+ * `rgba` are four floats in 0..1. */
+std::string color_hex(const float *rgba);
+
+/* Reads #RGB, #RRGGBB or #RRGGBBAA (the # is optional, any case) into `rgba`. Returns false and
+ * leaves `rgba` alone for anything else. */
+bool parse_color_hex(const char *text, float *rgba);
+
+/* The hex field of a color picker: a rounded preview of the color, a "#" and the digits to edit.
+ * `buffer` holds the text while it is typed (the caller keeps it between frames). Returns true when
+ * a valid entry changed `rgba`. */
+inline constexpr size_t HEX_BUFFER_SIZE = 10;
+bool hex_field(const char *id, float *rgba, char (&buffer)[HEX_BUFFER_SIZE]);
 
 /* Shows `text` as a tooltip when the last item has been hovered a moment (never while it is
  * disabled). Call right after the item. */

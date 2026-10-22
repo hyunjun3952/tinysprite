@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include "geist_regular_subset.hpp"
+#include "imgui_internal.h"
 #include "material_symbols_outlined_subset.hpp"
 
 namespace theme
@@ -12,6 +14,11 @@ namespace theme
 
 namespace
 {
+
+constexpr float DIALOG_BUTTON_MIN_WIDTH = 88.0f;
+constexpr float DIALOG_BUTTON_PADDING = 16.0f; /* at each side of the label */
+constexpr float DIALOG_BUTTON_GAP = 8.0f;
+constexpr float HEX_HASH_SCALE = 1.4f; /* the # of the hex field, times the text size */
 
 constexpr float ROUND_SMALL = 6.0f; /* buttons, inputs */
 constexpr float ROUND_CARD = 8.0f;  /* popups, child areas */
@@ -121,7 +128,7 @@ void apply()
     c[ImGuiCol_TextDisabled] = rgb(MUTE);
     c[ImGuiCol_WindowBg] = rgb(CANVAS);
     c[ImGuiCol_ChildBg] = rgb(CANVAS);
-    c[ImGuiCol_PopupBg] = rgb(CANVAS_SOFT);
+    c[ImGuiCol_PopupBg] = rgb(CANVAS); /* the fields and buttons in a popup are CANVAS_SOFT */
     c[ImGuiCol_Border] = rgb(HAIRLINE);
     c[ImGuiCol_BorderShadow] = rgb(0x000000, 0.0f);
     c[ImGuiCol_FrameBg] = rgb(CANVAS_SOFT);
@@ -195,6 +202,16 @@ float columnWidth(int count)
     return std::max(width, 1.0f);
 }
 
+bool begin_menu(const char *label)
+{
+    const bool open = ImGui::BeginMenu(label);
+    if (!open && ImGui::IsItemHovered() &&
+        !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+        ImGui::OpenPopup(label);
+    }
+    return open;
+}
+
 std::string int_format(const char *unit)
 {
     std::string format = "%d";
@@ -207,12 +224,198 @@ std::string int_format(const char *unit)
     return format;
 }
 
+ImVec2 unit_origin(ImVec2 min, ImVec2 max, float textWidth, float textHeight, float padding)
+{
+    return {max.x - padding - textWidth, std::floor((min.y + max.y - textHeight) / 2.0f)};
+}
+
 bool input_int(const char *id, int *value, int step, int stepFast, const char *unit,
                ImGuiInputTextFlags flags)
 {
-    const std::string format = int_format(unit);
-    return ImGui::InputScalar(id, ImGuiDataType_S32, value, step > 0 ? &step : nullptr,
-                              stepFast > 0 ? &stepFast : nullptr, format.c_str(), flags);
+    const bool changed =
+        ImGui::InputScalar(id, ImGuiDataType_S32, value, step > 0 ? &step : nullptr,
+                           stepFast > 0 ? &stepFast : nullptr, "%d", flags);
+    while (*unit == ' ') {
+        unit++; /* the gap is the field's padding, not a space */
+    }
+    /* the - and + buttons of a stepped field are part of the item: the unit ends before them */
+    const float buttons =
+        step > 0 ? 2.0f * (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x) : 0.0f;
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max(ImGui::GetItemRectMax().x - buttons, ImGui::GetItemRectMax().y);
+    const ImVec2 size = ImGui::CalcTextSize(unit);
+    ImGui::GetWindowDrawList()->AddText(unit_origin(min, max, size.x, size.y, px(8.0f)),
+                                        ImGui::ColorConvertFloat4ToU32(rgb(MUTE)), unit);
+    return changed;
+}
+
+float dialog_button_width(float textWidth)
+{
+    return std::max(px(DIALOG_BUTTON_MIN_WIDTH), textWidth + px(2.0f * DIALOG_BUTTON_PADDING));
+}
+
+namespace
+{
+
+/* One button of a dialog's row; `filled` colors it as the main one (accent, or red for `danger`).
+ */
+bool dialogButton(const char *label, bool filled, bool danger, bool disabled)
+{
+    if (filled) {
+        const unsigned fill = danger ? DANGER : ACCENT;
+        const unsigned strong = danger ? DANGER_STRONG : ACCENT_STRONG;
+        ImGui::PushStyleColor(ImGuiCol_Button, rgb(fill));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(fill, 0.85f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, rgb(strong));
+        ImGui::PushStyleColor(ImGuiCol_Text, rgb(ACCENT_TEXT));
+    }
+    ImGui::BeginDisabled(disabled);
+    const bool clicked =
+        ImGui::Button(label, ImVec2(dialog_button_width(ImGui::CalcTextSize(label).x), 0.0f));
+    ImGui::EndDisabled();
+    if (filled) {
+        ImGui::PopStyleColor(4);
+    }
+    return clicked;
+}
+
+/* The width of the whole row, gaps included. */
+float dialogRowWidth(std::initializer_list<const char *> labels)
+{
+    float total = px(DIALOG_BUTTON_GAP) * static_cast<float>(labels.size() - 1);
+    for (const char *label : labels) {
+        total += dialog_button_width(ImGui::CalcTextSize(label).x);
+    }
+    return total;
+}
+
+} // namespace
+
+int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool danger,
+                   unsigned disabled)
+{
+    ImGui::Dummy(ImVec2(0.0f, px(4.0f)));
+    ImGui::Separator();
+    ImGui::Dummy(ImVec2(0.0f, px(2.0f)));
+    const float spare = ImGui::GetContentRegionAvail().x - dialogRowWidth(labels);
+    if (spare > 0.0f) {
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + spare); /* right-aligned */
+    }
+    int clicked = -1;
+    int index = 0;
+    for (const char *label : labels) {
+        if (index > 0) {
+            ImGui::SameLine(0.0f, px(DIALOG_BUTTON_GAP));
+        }
+        const bool off = (disabled & (1u << static_cast<unsigned>(index))) != 0;
+        if (dialogButton(label, index == primary, danger, off)) {
+            clicked = index;
+        }
+        index++;
+    }
+    return clicked;
+}
+
+std::string color_hex(const float *rgba)
+{
+    auto byte = [](float v) {
+        return static_cast<unsigned>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f));
+    };
+    char text[16];
+    const unsigned alpha = byte(rgba[3]);
+    if (alpha == 255) {
+        std::snprintf(text, sizeof text, "%02X%02X%02X", byte(rgba[0]), byte(rgba[1]),
+                      byte(rgba[2]));
+    } else {
+        std::snprintf(text, sizeof text, "%02X%02X%02X%02X", byte(rgba[0]), byte(rgba[1]),
+                      byte(rgba[2]), alpha);
+    }
+    return text;
+}
+
+namespace
+{
+
+/* The value of one hex digit, or -1. */
+int hexDigit(char c)
+{
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    }
+    return -1;
+}
+
+} // namespace
+
+bool parse_color_hex(const char *text, float *rgba)
+{
+    if (*text == '#') {
+        text++;
+    }
+    const size_t length = std::strlen(text);
+    if (length != 3 && length != 6 && length != 8) {
+        return false;
+    }
+    int digits[8];
+    for (size_t i = 0; i < length; i++) {
+        digits[i] = hexDigit(text[i]);
+        if (digits[i] < 0) {
+            return false;
+        }
+    }
+    float parsed[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    if (length == 3) {
+        for (size_t i = 0; i < 3; i++) {
+            parsed[i] = static_cast<float>(digits[i] * 17) / 255.0f; /* F -> FF */
+        }
+    } else {
+        for (size_t i = 0; i < length / 2; i++) {
+            parsed[i] = static_cast<float>(digits[i * 2] * 16 + digits[i * 2 + 1]) / 255.0f;
+        }
+    }
+    std::copy(parsed, parsed + 4, rgba);
+    return true;
+}
+
+bool hex_field(const char *id, float *rgba, char (&buffer)[HEX_BUFFER_SIZE])
+{
+    ImGui::PushID(id);
+    const float side = ImGui::GetFrameHeight() + px(6.0f);
+    ImGui::ColorButton("##preview", ImVec4(rgba[0], rgba[1], rgba[2], rgba[3]),
+                       ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip |
+                           ImGuiColorEditFlags_NoInputs,
+                       ImVec2(side, side));
+    ImGui::SameLine();
+    /* the # is a prefix to read at a glance, not a hint: larger than the text, in the body color */
+    ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * HEX_HASH_SCALE);
+    ImGui::PushStyleColor(ImGuiCol_Text, rgb(BODY));
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("#");
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SameLine(0.0f, px(4.0f));
+    ImGui::SetNextItemWidth(px(112.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
+                        ImVec2(px(10.0f), (side - ImGui::GetFontSize()) / 2.0f));
+    /* while the field is not being typed in, it follows the color (the wheel, the other picker) */
+    if (ImGui::GetActiveID() != ImGui::GetID("##hex")) {
+        std::snprintf(buffer, HEX_BUFFER_SIZE, "%s", color_hex(rgba).c_str());
+    }
+    constexpr ImGuiInputTextFlags FLAGS =
+        ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_CharsUppercase |
+        ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue;
+    bool entered = ImGui::InputText("##hex", buffer, HEX_BUFFER_SIZE, FLAGS);
+    entered = entered || ImGui::IsItemDeactivatedAfterEdit();
+    ImGui::PopStyleVar();
+    tip("Type a color as RGB, RRGGBB or RRGGBBAA, then press Enter.");
+    ImGui::PopID();
+    return entered && parse_color_hex(buffer, rgba);
 }
 
 void tip(const char *text)

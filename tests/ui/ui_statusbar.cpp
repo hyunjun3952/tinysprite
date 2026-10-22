@@ -5,6 +5,7 @@
 
 #include "editor.hpp"
 #include "file_paths.hpp"
+#include "imgui_internal.h"
 #include "minitest.hpp"
 #include "statusbar.hpp"
 #include "ui_harness.hpp"
@@ -82,8 +83,6 @@ TEST(status_text_names_tool_frame_zoom_and_hover)
     Harness h;
     std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
     std::string text = status_text(*editor);
-    ASSERT_TRUE(text.find("16\xC3\x97"
-                          "8 px") != std::string::npos);
     ASSERT_TRUE(text.find("Pencil") != std::string::npos);
     ASSERT_TRUE(text.find("Frame 1/1") != std::string::npos);
     ASSERT_TRUE(text.find("Layer 1") != std::string::npos);
@@ -101,6 +100,72 @@ TEST(status_text_shows_the_selection_size)
                           "3 px") != std::string::npos);
 }
 
+/* The status bar is a row of items that can each be hidden (and put back) from its context menu.
+ * The sprite's size is not one of them: the Properties section of the Inspector shows it. */
+TEST(the_sprite_size_is_not_on_the_status_bar)
+{
+    Harness h;
+    std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
+    ASSERT_TRUE(status_text(*editor).find("16\xC3\x97"
+                                          "8") == std::string::npos);
+}
+
+TEST(status_items_have_names_for_the_menu)
+{
+    ASSERT_TRUE(std::string(status_item_name(StatusItem::Tool)) == "Tool");
+    ASSERT_TRUE(std::string(status_item_name(StatusItem::Zoom)) == "Zoom");
+    ASSERT_TRUE(std::string(status_item_name(StatusItem::Selection)) == "Selection");
+    ASSERT_TRUE(std::string(status_item_name(StatusItem::Cell)) == "Cel under the mouse");
+}
+
+TEST(a_hidden_item_is_left_out_of_the_text)
+{
+    Harness h;
+    std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
+    unsigned items = STATUS_ALL & ~status_item_bit(StatusItem::Zoom);
+    std::string text = status_text(*editor, items);
+    ASSERT_TRUE(text.find("Zoom") == std::string::npos);
+    ASSERT_TRUE(text.find("Pencil") != std::string::npos);
+    ASSERT_TRUE(text.find("Frame 1/1") != std::string::npos);
+}
+
+TEST(only_the_chosen_items_make_the_text)
+{
+    Harness h;
+    std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
+    ASSERT_TRUE(status_text(*editor, status_item_bit(StatusItem::Tool)) == "Pencil");
+    ASSERT_TRUE(status_text(*editor, 0).empty());
+}
+
+TEST(the_selection_item_is_empty_without_a_selection_and_a_hidden_one_stays_out)
+{
+    Harness h;
+    std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
+    ASSERT_TRUE(status_item_text(*editor, StatusItem::Selection).empty());
+    ASSERT_TRUE(status_item_text(*editor, StatusItem::Cell).empty());
+    editor->setSelection(Rect{2, 1, 5, 3});
+    ASSERT_TRUE(!status_item_text(*editor, StatusItem::Selection).empty());
+    unsigned items = STATUS_ALL & ~status_item_bit(StatusItem::Selection);
+    ASSERT_TRUE(status_text(*editor, items).find("Sel") == std::string::npos);
+}
+
+/* A right click on the bar opens its menu, where the items are switched and the bar is hidden. */
+TEST(a_right_click_on_the_status_bar_opens_its_menu)
+{
+    Harness h;
+    std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
+    h.body = [&editor] { status_bar_show(*editor, 0.0f, 660.0f, 1000.0f); };
+    h.frame(900, 676, false);
+    h.frame(900, 676, false);
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    h.button = 1;
+    h.frame(900, 676, true);
+    h.frame(900, 676, false);
+    h.frame(900, 676, false);
+    h.button = 0;
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+}
+
 int main()
 {
     RUN(toast_shows_until_it_expires);
@@ -112,5 +177,11 @@ int main()
     RUN(file_name_of_is_the_last_component);
     RUN(status_text_names_tool_frame_zoom_and_hover);
     RUN(status_text_shows_the_selection_size);
+    RUN(the_sprite_size_is_not_on_the_status_bar);
+    RUN(status_items_have_names_for_the_menu);
+    RUN(a_hidden_item_is_left_out_of_the_text);
+    RUN(only_the_chosen_items_make_the_text);
+    RUN(the_selection_item_is_empty_without_a_selection_and_a_hidden_one_stays_out);
+    RUN(a_right_click_on_the_status_bar_opens_its_menu);
     return TEST_SUMMARY();
 }

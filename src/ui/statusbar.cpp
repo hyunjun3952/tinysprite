@@ -99,25 +99,75 @@ void Toasts::draw(double now, float bottomMargin) const
                   toast->text.c_str());
 }
 
-std::string status_text(const Editor &editor)
+const char *status_item_name(StatusItem item)
+{
+    switch (item) {
+    case StatusItem::Tool:
+        return "Tool";
+    case StatusItem::Frame:
+        return "Frame";
+    case StatusItem::Layer:
+        return "Layer";
+    case StatusItem::Zoom:
+        return "Zoom";
+    case StatusItem::Selection:
+        return "Selection";
+    case StatusItem::Cell:
+        break;
+    }
+    return "Cel under the mouse";
+}
+
+std::string status_item_text(const Editor &editor, StatusItem item)
 {
     const Sprite &sprite = editor.sprite();
-    const Layer *layer = sprite.layer(editor.activeLayer());
-    char text[256];
-    int len = std::snprintf(
-        text, sizeof(text), "%d\xC3\x97%d px   %s   Frame %d/%d   Layer: %s   Zoom: %g%%",
-        sprite.width(), sprite.height(), toolLabel(editor.tool()), editor.frame() + 1,
-        sprite.frameCount(), layer ? layer->name().c_str() : "-",
-        static_cast<double>(editor.view().viewport.zoom) * 100.0);
-    std::string out = len > 0 ? text : "";
-    if (editor.hasSelection()) {
-        Rect r = editor.selection();
-        std::snprintf(text, sizeof(text), "   Sel %d\xC3\x97%d px at %d, %d", r.w, r.h, r.x, r.y);
-        out += text;
+    char text[160];
+    switch (item) {
+    case StatusItem::Tool:
+        std::snprintf(text, sizeof(text), "%s", toolLabel(editor.tool()));
+        break;
+    case StatusItem::Frame:
+        std::snprintf(text, sizeof(text), "Frame %d/%d", editor.frame() + 1, sprite.frameCount());
+        break;
+    case StatusItem::Layer: {
+        const Layer *layer = sprite.layer(editor.activeLayer());
+        std::snprintf(text, sizeof(text), "Layer: %s", layer ? layer->name().c_str() : "-");
+        break;
     }
-    if (editor.hoverInSprite()) {
-        std::snprintf(text, sizeof(text), "   Cel: %d, %d", editor.hoverX(), editor.hoverY());
-        out += text;
+    case StatusItem::Zoom:
+        std::snprintf(text, sizeof(text), "Zoom: %g%%",
+                      static_cast<double>(editor.view().viewport.zoom) * 100.0);
+        break;
+    case StatusItem::Selection: {
+        if (!editor.hasSelection()) {
+            return "";
+        }
+        Rect r = editor.selection();
+        std::snprintf(text, sizeof(text), "Sel %d\xC3\x97%d px at %d, %d", r.w, r.h, r.x, r.y);
+        break;
+    }
+    case StatusItem::Cell:
+        if (!editor.hoverInSprite()) {
+            return "";
+        }
+        std::snprintf(text, sizeof(text), "Cel: %d, %d", editor.hoverX(), editor.hoverY());
+        break;
+    case StatusItem::Count:
+        return "";
+    }
+    return text;
+}
+
+std::string status_text(const Editor &editor, unsigned items)
+{
+    std::string out;
+    for (unsigned i = 0; i < static_cast<unsigned>(StatusItem::Count); i++) {
+        auto item = static_cast<StatusItem>(i);
+        std::string text =
+            (items & status_item_bit(item)) != 0 ? status_item_text(editor, item) : "";
+        if (!text.empty()) {
+            out += out.empty() ? text : "   " + text;
+        }
     }
     return out;
 }
@@ -127,7 +177,65 @@ float status_bar_height()
     return theme::px(BAR_HEIGHT);
 }
 
-void status_bar_show(const Editor &editor, float x, float y, float width)
+namespace
+{
+
+constexpr float ITEM_GAP = 16.0f;
+
+/* The items, each its own text so that a right click can tell which one it was on. Returns the
+ * item that was right-clicked, or -1. */
+int drawItems(const Editor &editor, unsigned items)
+{
+    int clicked = -1;
+    bool first = true;
+    for (unsigned i = 0; i < static_cast<unsigned>(StatusItem::Count); i++) {
+        auto item = static_cast<StatusItem>(i);
+        std::string text =
+            (items & status_item_bit(item)) != 0 ? status_item_text(editor, item) : "";
+        if (text.empty()) {
+            continue;
+        }
+        if (!first) {
+            ImGui::SameLine(0.0f, theme::px(ITEM_GAP));
+        }
+        first = false;
+        ImGui::TextUnformatted(text.c_str());
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+            clicked = static_cast<int>(i);
+        }
+    }
+    return clicked;
+}
+
+/* What the menu was opened on: an item's index, or -1 for the bar itself. */
+constexpr const char *MENU_ID = "##status_menu";
+
+void drawMenu(Editor &editor, int item)
+{
+    Editor::Overlays &overlays = editor.overlays();
+    if (item >= 0) {
+        std::string label = std::string("Hide ") + status_item_name(static_cast<StatusItem>(item));
+        if (ImGui::MenuItem(label.c_str())) {
+            overlays.status_items &= ~status_item_bit(static_cast<StatusItem>(item));
+        }
+        ImGui::Separator();
+    }
+    for (unsigned i = 0; i < static_cast<unsigned>(StatusItem::Count); i++) {
+        auto entry = static_cast<StatusItem>(i);
+        bool on = (overlays.status_items & status_item_bit(entry)) != 0;
+        if (ImGui::MenuItem(status_item_name(entry), nullptr, &on)) {
+            overlays.status_items ^= status_item_bit(entry);
+        }
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Hide status bar")) {
+        overlays.status = false;
+    }
+}
+
+} // namespace
+
+void status_bar_show(Editor &editor, float x, float y, float width)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
     ImGui::SetNextWindowSize(ImVec2(width, status_bar_height()));
@@ -137,9 +245,21 @@ void status_bar_show(const Editor &editor, float x, float y, float width)
         ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus |
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav;
     if (ImGui::Begin("##statusbar", nullptr, FLAGS)) {
+        ImGuiStorage *storage = ImGui::GetStateStorage();
+        const ImGuiID menuItem = ImGui::GetID("menu_item");
         ImGui::PushStyleColor(ImGuiCol_Text, theme::rgb(theme::BODY));
-        ImGui::TextUnformatted(status_text(editor).c_str());
+        int clicked = drawItems(editor, editor.overlays().status_items);
         ImGui::PopStyleColor();
+        /* a right click on an item, or else on the bar anywhere (the gaps, the empty end) */
+        if (clicked >= 0 ||
+            (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+            storage->SetInt(menuItem, clicked);
+            ImGui::OpenPopup(MENU_ID);
+        }
+        if (ImGui::BeginPopup(MENU_ID)) {
+            drawMenu(editor, storage->GetInt(menuItem, -1));
+            ImGui::EndPopup();
+        }
     }
     ImGui::End();
     ImGui::PopStyleVar();

@@ -42,6 +42,7 @@ void Panels::reset()
         Panel panel{};
         panel.key = key;
         panel.title = title;
+        panel.defaultWidth = width;
         panel.minWidth = minWidth;
         panel.maxWidth = maxWidth;
         panel.width = theme::px(width); /* at the current UI scale */
@@ -194,6 +195,12 @@ void Panels::resizeEdge(Panel &panel)
     ImVec2 mouse = ImGui::GetMousePos();
     float edge = panel.side == DockSide::Left ? panel.dockX + panel.width : panel.dockX;
     bool hovered = onGrabStrip(panel.side == DockSide::Left, edge);
+    if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        /* the first click started a drag: end it, so the held button does not undo the reset */
+        panel.width = theme::px(panel.defaultWidth);
+        panel.resizing = false;
+        return;
+    }
     if (hovered && !ImGui::IsAnyItemActive()) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         panel.resizing = panel.resizing || ImGui::IsMouseClicked(ImGuiMouseButton_Left, false);
@@ -367,7 +374,7 @@ void Panels::panelMenu(Panel &panel)
 
 void Panels::windowMenu()
 {
-    if (!ImGui::BeginMenu("Window")) {
+    if (!theme::begin_menu("Window")) {
         return;
     }
     for (Panel &panel : panels_) {

@@ -53,19 +53,17 @@ void App::confirmDialog()
     }
     ImGui::TextUnformatted("The sprite has changes that are not saved.");
     bool close = false;
-    if (ImGui::Button("Save")) {
+    const int clicked = theme::dialog_buttons({"Discard", "Cancel", "Save"}, 2);
+    if (clicked == 2) {
         close = true;
         saveAndProceed();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Discard")) {
+    } else if (clicked == 0) {
         close = true;
         std::function<void()> proceed = std::move(pending_);
         pending_ = nullptr;
         proceed();
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;
     }
     if (close) {
@@ -135,14 +133,14 @@ void App::newDialog()
     }
     newSizeFields();
     bool close = false;
-    if (ImGui::Button("Create") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    const int clicked = theme::dialog_buttons({"Cancel", "Create"}, 1);
+    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         if (editor_->newDocument(newWidth_, newHeight_)) {
             filePath_.clear();
             close = true;
         }
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;
     }
     if (close) {
@@ -169,15 +167,14 @@ void App::recoverDialog()
                     recovered_->path.empty() ? "an untitled sprite" : recovered_->path.c_str());
     }
     bool close = false;
-    if (ImGui::Button("Recover")) {
+    const int clicked = theme::dialog_buttons({"Discard", "Recover"}, 1);
+    if (clicked == 1) {
         if (recovered_ && editor_->setSprite(std::move(recovered_->sprite))) {
             filePath_ = recovered_->path;
             editor_->markModified();
         }
         close = true;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Discard")) {
+    } else if (clicked == 0) {
         close = true;
     }
     if (close) {

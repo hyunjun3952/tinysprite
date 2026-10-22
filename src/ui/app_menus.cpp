@@ -67,7 +67,7 @@ void App::paletteMenu(bool idle)
 
 void App::fileMenu()
 {
-    if (!ImGui::BeginMenu("File")) {
+    if (!theme::begin_menu("File")) {
         return;
     }
     bool idle = !editor_->stroking();
@@ -112,7 +112,7 @@ void App::selectionMenu()
 
 void App::editMenu()
 {
-    if (!ImGui::BeginMenu("Edit")) {
+    if (!theme::begin_menu("Edit")) {
         return;
     }
     commandItem(CommandId::Undo);
@@ -177,7 +177,7 @@ void App::layerMenuItems()
 
 void App::layerMenu()
 {
-    if (!ImGui::BeginMenu("Layer")) {
+    if (!theme::begin_menu("Layer")) {
         return;
     }
     layerMenuItems();
@@ -186,7 +186,7 @@ void App::layerMenu()
 
 void App::frameMenu()
 {
-    if (!ImGui::BeginMenu("Frame")) {
+    if (!theme::begin_menu("Frame")) {
         return;
     }
     bool idle = !editor_->stroking();
@@ -264,7 +264,7 @@ void App::uiScaleMenu()
 
 void App::viewMenu()
 {
-    if (!ImGui::BeginMenu("View")) {
+    if (!theme::begin_menu("View")) {
         return;
     }
     commandItem(CommandId::ZoomIn);
@@ -307,7 +307,7 @@ void App::menuBar()
     frameMenu();
     viewMenu();
     panels_.windowMenu();
-    if (ImGui::BeginMenu("Help")) {
+    if (theme::begin_menu("Help")) {
         ImGui::MenuItem("Keyboard shortcuts", "F1", &showHelp_);
         ImGui::EndMenu();
     }

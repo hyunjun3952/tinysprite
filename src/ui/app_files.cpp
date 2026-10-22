@@ -382,12 +382,12 @@ void App::fileDialog()
         (this->*info.options)();
     }
     fileDialogMessages(path);
-    ImGui::BeginDisabled(path.empty());
-    bool confirm = ImGui::Button(overwritePath_.empty() ? "OK" : "Overwrite");
-    ImGui::EndDisabled();
-    bool done = (confirm || enter) && runFileAction(info, path);
-    ImGui::SameLine();
-    bool cancel = ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape);
+    /* overwriting a file is the one thing here that destroys something: its button is red */
+    const bool overwriting = !overwritePath_.empty();
+    const int clicked = theme::dialog_buttons({"Cancel", overwriting ? "Overwrite" : "OK"}, 1,
+                                              overwriting, path.empty() ? 2u : 0u);
+    bool done = (clicked == 1 || enter) && runFileAction(info, path);
+    bool cancel = clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape);
     if (done || cancel) {
         closeFileDialog();
     }

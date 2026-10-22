@@ -4,6 +4,7 @@
 #include "editor.hpp"
 #include "imgui.h"
 #include "panels.hpp"
+#include "theme.hpp"
 
 /* The tool bar (the narrow Tools panel: the tools and the shapes as one column of icon buttons),
  * the options bar above the canvas (the options of the active tool: brush, shape, selection
@@ -48,6 +49,8 @@ class ToolsPanel
     Editor &editor_;
     bool openReset_ = false; /* the confirmation still has to be opened */
     bool dialogOpen_ = false;
+    char fgHex_[theme::HEX_BUFFER_SIZE] = ""; /* what is typed in the picker's hex field */
+    char bgHex_[theme::HEX_BUFFER_SIZE] = "";
 };
 
 #endif

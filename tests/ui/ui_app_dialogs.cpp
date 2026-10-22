@@ -88,6 +88,18 @@ struct AppTestAccess {
         }
         frame();
     }
+    /* Move the mouse to (x, y) and let a few frames pass. */
+    void hover(float x, float y)
+    {
+        ImGui::GetIO().AddMousePosEvent(x, y);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    static int openPopups()
+    {
+        return ImGui::GetCurrentContext()->OpenPopupStack.Size;
+    }
     /* Ctrl (+ Shift) and one key, held for a frame. */
     void pressChord(ImGuiKey key, bool shift)
     {
@@ -206,9 +218,31 @@ TEST(the_layer_chords_add_duplicate_and_move_layers)
     ASSERT_EQ_INT(2, editor.sprite().layerCount()); /* the duplicate went; then the two moves */
 }
 
+/* A menu of the menu bar opens when the mouse rests on its title, without a click, and the next
+ * title the mouse crosses takes over. */
+TEST(hovering_a_menu_title_opens_the_menu)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.hover(300.0f, 300.0f); /* away from the bar */
+    ASSERT_EQ_INT(0, AppTestAccess::openPopups());
+    t.hover(20.0f, 10.0f); /* the File title */
+    ASSERT_TRUE(AppTestAccess::openPopups() > 0);
+    if (AppTestAccess::openPopups() == 0) {
+        return;
+    }
+    ImGuiID file = ImGui::GetCurrentContext()->OpenPopupStack[0].PopupId;
+    t.hover(58.0f, 10.0f); /* the Edit title: another menu */
+    ASSERT_TRUE(AppTestAccess::openPopups() > 0);
+    if (AppTestAccess::openPopups() > 0) {
+        ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack[0].PopupId != file);
+    }
+}
+
 int main()
 {
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
+    RUN(hovering_a_menu_title_opens_the_menu);
     RUN(the_layer_chords_add_duplicate_and_move_layers);
     RUN(double_clicking_the_timeline_edge_restores_its_default_height);
     RUN(dragging_the_timeline_edge_resizes_folds_and_unfolds_it);

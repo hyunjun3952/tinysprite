@@ -496,12 +496,12 @@ void LayersPanel::deleteDialog()
     }
     ImGui::TextDisabled("Ctrl+Z brings it back.");
     bool close = false;
-    if (ImGui::Button("Delete") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    const int clicked = theme::dialog_buttons({"Cancel", "Delete"}, 1, true);
+    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         editor_.removeSelectedLayers();
         close = true;
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;
     }
     if (close) {

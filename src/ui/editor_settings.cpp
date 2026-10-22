@@ -2,6 +2,7 @@
 
 #include "editor.hpp"
 
+#include <climits>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -49,6 +50,7 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_set_bool(settings, "view.timeline", overlays_.timeline);
     settings_set_bool(settings, "view.options_bar", overlays_.options_bar);
+    settings_set_int(settings, "view.status_items", static_cast<int>(overlays_.status_items));
     settings_set_float(settings, "view.timeline_height", overlays_.timeline_height);
     settings_set_bool(settings, "onion.on", onionOn_);
     settings_set_int(settings, "onion.before", onion_.before);
@@ -74,6 +76,10 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_get_bool(settings, "view.timeline", overlays_.timeline);
     settings_get_bool(settings, "view.options_bar", overlays_.options_bar);
+    int statusItems = 0;
+    if (settings_get_int(settings, "view.status_items", 0, INT_MAX, statusItems)) {
+        overlays_.status_items = static_cast<unsigned>(statusItems);
+    }
     settings_get_float(settings, "view.timeline_height", TIMELINE_HEIGHT_MIN, TIMELINE_HEIGHT_MAX,
                        overlays_.timeline_height);
     bool onionOn = onionOn_;

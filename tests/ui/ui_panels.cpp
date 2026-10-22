@@ -178,6 +178,29 @@ TEST(the_inspector_stays_between_its_minimum_and_maximum_width)
     ASSERT_TRUE(wide <= 480.0f && wide > narrow);
 }
 
+/* Like the timeline's edge: two quick clicks on a panel's inner edge put it back at its default
+ * width. */
+TEST(double_clicking_a_panel_edge_restores_its_default_width)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    const float start = ImGui::FindWindowByName("Inspector")->Size.x;
+    float left = ImGui::FindWindowByName("Inspector")->Pos.x;
+    const float narrow = width_after_edge_drag(h, "Inspector", left + 1.0f, left + 60.0f);
+    ASSERT_TRUE(narrow < start);
+    left = ImGui::FindWindowByName("Inspector")->Pos.x;
+    h.frame(left + 1.0f, 300, false);
+    h.frame(left + 1.0f, 300, false);
+    for (int i = 0; i < 2; i++) {
+        h.frame(left + 1.0f, 300, true);
+        h.frame(left + 1.0f, 300, false);
+    }
+    h.frame(left + 1.0f, 300, false);
+    h.frame(left + 1.0f, 300, false);
+    ASSERT_TRUE(ImGui::FindWindowByName("Inspector")->Size.x == start);
+}
+
 TEST(the_right_panel_is_named_for_what_it_holds)
 {
     Harness h;
@@ -199,6 +222,7 @@ int main()
     RUN(closing_a_floating_panel_hides_it);
     RUN(the_tool_bar_has_a_fixed_width);
     RUN(the_inspector_stays_between_its_minimum_and_maximum_width);
+    RUN(double_clicking_a_panel_edge_restores_its_default_width);
     RUN(the_right_panel_is_named_for_what_it_holds);
     RUN(layers_panel_has_a_properties_section_that_can_be_hidden);
     return TEST_SUMMARY();

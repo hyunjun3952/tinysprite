@@ -39,14 +39,32 @@ class Toasts
     Toast toast_{"", false, 0.0};
 };
 
-/* One line for the status bar: sprite size, tool, frame, layer, zoom, the selection size when there
- * is one and the cel under the mouse. */
-std::string status_text(const Editor &editor);
+/* What the status bar can show, each as an item that is switched on or off from the bar's context
+ * menu. Selection and Cell only have text while something is selected / the mouse is over a cel. */
+enum class StatusItem { Tool, Frame, Layer, Zoom, Selection, Cell, Count };
+
+constexpr unsigned status_item_bit(StatusItem item)
+{
+    return 1u << static_cast<unsigned>(item);
+}
+inline constexpr unsigned STATUS_ALL = (1u << static_cast<unsigned>(StatusItem::Count)) - 1;
+
+/* The name of an item in the menu. */
+const char *status_item_name(StatusItem item);
+
+/* The text of one item, or an empty string when it has nothing to say now (no selection, the mouse
+ * not over the sprite). */
+std::string status_item_text(const Editor &editor, StatusItem item);
+
+/* The text of the items in the bit set `items` that have something to say, three spaces apart. */
+std::string status_text(const Editor &editor, unsigned items = STATUS_ALL);
 
 /* Height of the bar at the current UI scale. */
 float status_bar_height();
 
-/* The bar along the bottom edge of the main viewport, `width` wide from `x`. */
-void status_bar_show(const Editor &editor, float x, float y, float width);
+/* The bar along the bottom edge of the main viewport, `width` wide from `x`. A right click on an
+ * item offers to hide it; a right click anywhere on the bar opens the menu that switches every
+ * item and hides the bar (`editor.overlays()` holds the choices). */
+void status_bar_show(Editor &editor, float x, float y, float width);
 
 #endif

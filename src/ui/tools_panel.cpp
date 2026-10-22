@@ -114,8 +114,10 @@ void ToolsPanel::colorWidget()
 {
     ImGuiColorEditFlags buttonFlags =
         ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip;
+    /* ImGui's own RGB / HSV / Hex input row is replaced by theme::hex_field under the wheel. */
     ImGuiColorEditFlags pickerFlags = ImGuiColorEditFlags_PickerHueWheel |
-                                      ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_DisplayHex;
+                                      ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs |
+                                      ImGuiColorEditFlags_NoSidePreview;
     ImVec2 start = ImGui::GetCursorPos();
     /* The sizes follow the UI scale, like the palette swatches under them. */
     const float swatch = theme::px(COLOR_SWATCH_BASE);
@@ -148,11 +150,15 @@ void ToolsPanel::colorWidget()
     if (ImGui::BeginPopup("fg_picker")) {
         ImGui::Text("Foreground");
         ImGui::ColorPicker4("##fg_picker", editor_.foregroundFloats(), pickerFlags);
+        ImGui::Spacing();
+        theme::hex_field("fg_hex", editor_.foregroundFloats(), fgHex_);
         ImGui::EndPopup();
     }
     if (ImGui::BeginPopup("bg_picker")) {
         ImGui::Text("Background");
         ImGui::ColorPicker4("##bg_picker", editor_.backgroundFloats(), pickerFlags);
+        ImGui::Spacing();
+        theme::hex_field("bg_hex", editor_.backgroundFloats(), bgHex_);
         ImGui::EndPopup();
     }
 }
@@ -410,12 +416,13 @@ void ToolsPanel::resetDialog()
     ImGui::TextUnformatted("Reset the palette to the default colors?");
     ImGui::TextDisabled("Colors you added are lost. This cannot be undone.");
     bool close = false;
-    if (ImGui::Button("Reset")) {
+    /* Cancel is drawn last, so it is the button that gets the keyboard focus below */
+    const int clicked = theme::dialog_buttons({"Reset", "Cancel"}, 0, true);
+    if (clicked == 0) {
         editor_.paletteReset();
         close = true;
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;
     }
     if (ImGui::IsWindowAppearing()) {
