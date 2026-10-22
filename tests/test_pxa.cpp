@@ -358,19 +358,28 @@ TEST(a_sprite_without_slices_writes_no_slice_chunk)
     ASSERT_EQ_INT(-1, find_chunk(pxa_encode(animated()), "SLCE"));
 }
 
-TEST(a_slice_outside_the_sprite_is_rejected)
+/* Slices are metadata: one that does not fit the sprite is dropped and the pixels still load. */
+TEST(a_slice_outside_the_sprite_is_dropped_and_the_file_still_opens)
 {
     Sprite s = animated();
     Sprite::Slice slice;
     slice.name = "x";
     slice.rect = Rect{0, 0, 1, 1};
     s.addSlice(slice);
+    slice.name = "y";
+    s.addSlice(slice);
     std::vector<uint8_t> data = pxa_encode(s);
-    /* the SLCE chunk is last: ... x, y, w, h as u32, then the flags byte */
+    /* the SLCE chunk is last; "y" is its last slice: ... x, y, w, h as u32, then the flags byte */
     size_t h = data.size() - 1 - 4;
     ASSERT_EQ_INT(1, data[h]);
     data[h] = 200;
-    ASSERT_TRUE(!pxa_decode(data));
+    std::optional<Sprite> back = pxa_decode(data);
+    ASSERT_TRUE(back.has_value());
+    if (back) {
+        ASSERT_EQ_INT(1, static_cast<int>(back->slices().size()));
+        ASSERT_TRUE(back->slices()[0].name == "x");
+        ASSERT_EQ_INT(3, back->width());
+    }
 }
 
 TEST(a_truncated_slice_chunk_is_rejected)
@@ -487,7 +496,7 @@ int main()
     RUN(a_truncated_tag_chunk_is_rejected);
     RUN(slices_round_trip);
     RUN(a_sprite_without_slices_writes_no_slice_chunk);
-    RUN(a_slice_outside_the_sprite_is_rejected);
+    RUN(a_slice_outside_the_sprite_is_dropped_and_the_file_still_opens);
     RUN(a_truncated_slice_chunk_is_rejected);
     RUN(blend_modes_round_trip);
     RUN(a_sprite_without_blend_modes_writes_no_blend_chunk);

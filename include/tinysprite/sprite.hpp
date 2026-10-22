@@ -32,8 +32,8 @@ class Sprite
     };
 
     /* A named rectangle of the sprite (the same on every frame), such as a "hitbox" or a "head",
-     * with an optional pivot given relative to the rectangle's top-left cel. Games read slices from
-     * the JSON export. */
+     * with an optional pivot: a point on the rectangle's grid, in cels from its top-left corner (so
+     * 0..width and 0..height, the far edges included). Games read slices from the JSON export. */
     struct Slice {
         std::string name;
         Rect rect = {0, 0, 1, 1};
@@ -100,8 +100,8 @@ class Sprite
         return slices_;
     }
 
-    /* Whether `slice` has a name, lies fully inside the sprite and has its pivot (if any) inside
-     * its own rectangle. */
+    /* Whether `slice` has a name, lies fully inside the sprite and has its pivot (if any) on or
+     * inside the edges of its own rectangle. */
     bool sliceValid(const Slice &slice) const;
 
     /* Return false (changing nothing) for an invalid slice or an index out of range. Names longer

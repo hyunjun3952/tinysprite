@@ -298,13 +298,27 @@ class Decoder
             sprite_->setFrameDuration(static_cast<int>(i), static_cast<int>(durations_[i]));
         }
         if (!applyLinks(*sprite_, links_) || !applyBlends(*sprite_, blends_) ||
-            !sprite_->setTags(std::move(tags_)) || !sprite_->setSlices(std::move(slices_))) {
+            !sprite_->setTags(std::move(tags_))) {
             return std::nullopt;
         }
+        keepValidSlices(*sprite_);
         return std::move(sprite_);
     }
 
   private:
+    /* Slices are metadata: one that does not fit the sprite (an empty name, a rectangle or pivot
+     * out of bounds) is dropped, so a bad one never costs the pixels. */
+    void keepValidSlices(Sprite &sprite)
+    {
+        std::vector<Sprite::Slice> valid;
+        for (Sprite::Slice &slice : slices_) {
+            if (sprite.sliceValid(slice)) {
+                valid.push_back(std::move(slice));
+            }
+        }
+        sprite.setSlices(std::move(valid));
+    }
+
     using Read = bool (Decoder::*)(Reader &chunk, uint32_t length);
     struct ChunkReader {
         const char *tag;
@@ -568,8 +582,10 @@ void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &sl
         return;
     }
     putChunk(out, "SLCE", [&](std::vector<uint8_t> &o) {
-        putU16(o, static_cast<uint32_t>(slices.size()));
-        for (const Sprite::Slice &slice : slices) {
+        const size_t count = std::min<size_t>(slices.size(), UINT16_MAX); /* the count is a u16 */
+        putU16(o, static_cast<uint32_t>(count));
+        for (size_t i = 0; i < count; i++) {
+            const Sprite::Slice &slice = slices[i];
             o.push_back(static_cast<uint8_t>(slice.name.size()));
             o.insert(o.end(), slice.name.begin(), slice.name.end());
             for (int value : {slice.rect.x, slice.rect.y, slice.rect.w, slice.rect.h}) {

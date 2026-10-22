@@ -230,8 +230,9 @@ bool Sprite::sliceValid(const Slice &slice) const
     const Rect &r = slice.rect;
     bool inside =
         r.x >= 0 && r.y >= 0 && r.w >= 1 && r.h >= 1 && r.w <= width_ - r.x && r.h <= height_ - r.y;
-    bool pivotInside = !slice.hasPivot || (slice.pivotX >= 0 && slice.pivotX < r.w &&
-                                           slice.pivotY >= 0 && slice.pivotY < r.h);
+    /* a pivot is a point on the slice's grid, so it may sit on the far edge too */
+    bool pivotInside = !slice.hasPivot || (slice.pivotX >= 0 && slice.pivotX <= r.w &&
+                                           slice.pivotY >= 0 && slice.pivotY <= r.h);
     return !slice.name.empty() && inside && pivotInside;
 }
 

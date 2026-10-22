@@ -29,7 +29,7 @@ TEST(a_pivot_is_kept_inside_its_slice)
     slice.pivotX = 9;
     slice.pivotY = -2;
     slice_pivot_fit(slice);
-    ASSERT_EQ_INT(3, slice.pivotX);
+    ASSERT_EQ_INT(4, slice.pivotX); /* the far edge is a valid pivot */
     ASSERT_EQ_INT(0, slice.pivotY);
 }
 

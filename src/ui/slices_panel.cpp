@@ -47,8 +47,8 @@ Rect slice_rect_fit(Rect wanted, int spriteWidth, int spriteHeight)
 void slice_pivot_fit(Sprite::Slice &slice)
 {
     if (slice.hasPivot) {
-        slice.pivotX = std::clamp(slice.pivotX, 0, slice.rect.w - 1);
-        slice.pivotY = std::clamp(slice.pivotY, 0, slice.rect.h - 1);
+        slice.pivotX = std::clamp(slice.pivotX, 0, slice.rect.w);
+        slice.pivotY = std::clamp(slice.pivotY, 0, slice.rect.h);
     }
 }
 

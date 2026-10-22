@@ -315,7 +315,8 @@ class SliceCreateDrag : public Drag
     }
 };
 
-/* Moving a slice: it follows the mouse (kept inside the sprite) and the move is one undo step. */
+/* Moving a slice: it is shown following the mouse (kept inside the sprite) and the move is one undo
+ * step when the button is released. */
 class SliceMoveDrag : public Drag
 {
   public:
@@ -329,29 +330,31 @@ class SliceMoveDrag : public Drag
     void update(int cx, int cy) override
     {
         const Rect &r = original_.rect;
-        Sprite::Slice moved = original_;
-        moved.rect.x = std::clamp(r.x + cx - anchorX_, 0, editor_.sprite().width() - r.w);
-        moved.rect.y = std::clamp(r.y + cy - anchorY_, 0, editor_.sprite().height() - r.h);
-        editor_.previewSlice(index_, moved);
+        moved_ = r;
+        moved_.x = std::clamp(r.x + cx - anchorX_, 0, editor_.sprite().width() - r.w);
+        moved_.y = std::clamp(r.y + cy - anchorY_, 0, editor_.sprite().height() - r.h);
+        editor_.setSliceMovePreview(index_, moved_);
     }
 
     void finish() override
     {
-        const Sprite::Slice moved = editor_.sprite().slices()[static_cast<size_t>(index_)];
-        editor_.previewSlice(index_, original_); /* so the undo step goes from where it began */
-        if (moved.rect.x != original_.rect.x || moved.rect.y != original_.rect.y) {
+        editor_.setSliceMovePreview(index_, std::nullopt);
+        if (moved_.x != original_.rect.x || moved_.y != original_.rect.y) {
+            Sprite::Slice moved = original_;
+            moved.rect = moved_;
             editor_.updateSlice(index_, moved);
         }
     }
 
     void cancel() override
     {
-        editor_.previewSlice(index_, original_);
+        editor_.setSliceMovePreview(index_, std::nullopt);
     }
 
   private:
     int index_;
     Sprite::Slice original_;
+    Rect moved_ = {0, 0, 0, 0};
 };
 
 std::unique_ptr<Drag> beginSlice(Editor &editor, Cel * /*unused*/, int cx, int cy)

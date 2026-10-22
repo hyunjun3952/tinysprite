@@ -12,7 +12,8 @@
  * moved (not shrunk) so it lies inside it. */
 Rect slice_rect_fit(Rect wanted, int spriteWidth, int spriteHeight);
 
-/* The slice's pivot (if it has one) moved inside its rectangle. */
+/* The slice's pivot (if it has one) moved onto its rectangle: 0..width and 0..height cels from its
+ * top-left corner. */
 void slice_pivot_fit(Sprite::Slice &slice);
 
 /* Gives the slice a pivot at the middle of its rectangle. */

@@ -135,9 +135,11 @@ bool spritesheet_export(const Sprite &sprite, const std::string &path, const She
 
 /* The metadata a game loads next to the sheet image, as JSON: "meta" (app, the image's file name
  * `image`, the sheet's size, the size of one frame as drawn, the scale), "frames" (one entry per
- * exported frame: its rect in the sheet and its duration in milliseconds) and "tags" (name, first
- * and last frame, direction "forward" / "reverse" / "pingpong"). Frame numbers count from the
- * first exported frame; a tag is clamped to the exported range and dropped when it is outside. */
+ * exported frame: its rect in the sheet and its duration in milliseconds), "tags" (name, first
+ * and last frame, direction "forward" / "reverse" / "pingpong") and "slices" (name, "bounds" in the
+ * frame as drawn, and an optional "pivot": a point in pixels from the slice's top-left corner, both
+ * multiplied by the scale). Frame numbers count from the first exported frame; a tag is clamped to
+ * the exported range and dropped when it is outside. */
 std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &options,
                                       const SpriteSheet &sheet, const std::string &image);
 

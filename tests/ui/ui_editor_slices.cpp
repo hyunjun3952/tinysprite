@@ -159,8 +159,7 @@ TEST(pressing_on_a_slice_selects_it_and_dragging_moves_it)
     e->selectTool(ToolKind::Slice);
     e->press(4, 1);
     ASSERT_EQ_INT(1, e->selectedSlice());
-    e->drag(5, 2);                                    /* one right, one down */
-    ASSERT_EQ_INT(4, e->sprite().slices()[1].rect.x); /* shows while dragging */
+    e->drag(5, 2); /* one right, one down */
     e->release();
     ASSERT_EQ_INT(4, e->sprite().slices()[1].rect.x);
     ASSERT_EQ_INT(2, e->sprite().slices()[1].rect.y);
@@ -217,6 +216,64 @@ TEST(cancelling_a_slice_drag_leaves_everything_as_it_was)
     delete e;
 }
 
+/* The live part of a move is only shown: the sprite itself changes in the one undo step at the end.
+ */
+TEST(a_slice_being_moved_is_not_changed_in_the_sprite_until_it_is_released)
+{
+    Editor *e = make_editor();
+    e->addSlice(Rect{3, 1, 3, 2});
+    e->selectTool(ToolKind::Slice);
+    e->press(4, 1);
+    e->drag(6, 3);
+    ASSERT_EQ_INT(3, e->sprite().slices()[0].rect.x);
+    const std::optional<Rect> shown = e->sliceMovePreview(0);
+    ASSERT_TRUE(shown.has_value());
+    ASSERT_EQ_INT(5, shown ? shown->x : -1);
+    ASSERT_TRUE(!e->sliceMovePreview(1).has_value());
+    e->release();
+    ASSERT_EQ_INT(5, e->sprite().slices()[0].rect.x);
+    ASSERT_TRUE(!e->sliceMovePreview(0).has_value());
+    delete e;
+}
+
+/* The selection follows the slice itself, not its place in the list. */
+TEST(the_selection_stays_on_the_same_slice_through_undo_and_redo)
+{
+    Editor *e = make_editor();
+    e->addSlice(Rect{0, 0, 1, 1}); /* Slice 1 */
+    e->addSlice(Rect{1, 0, 1, 1}); /* Slice 2 */
+    e->addSlice(Rect{2, 0, 1, 1}); /* Slice 3 */
+    e->removeSlice(0);
+    e->selectSlice(1); /* Slice 3 */
+    e->undo();         /* Slice 1 is back at index 0: Slice 3 moved to index 2 */
+    ASSERT_EQ_INT(2, e->selectedSlice());
+    ASSERT_TRUE(e->sprite().slices()[2].name == "Slice 3");
+    e->redo();
+    ASSERT_EQ_INT(1, e->selectedSlice());
+    delete e;
+}
+
+TEST(a_renamed_slice_stays_selected_and_names_stay_unique)
+{
+    Editor *e = make_editor();
+    e->addSlice(Rect{0, 0, 1, 1});
+    e->addSlice(Rect{1, 0, 1, 1});
+    e->selectSlice(0);
+    Sprite::Slice renamed = e->sprite().slices()[0];
+    renamed.name = "hitbox";
+    ASSERT_TRUE(e->updateSlice(0, renamed));
+    ASSERT_EQ_INT(0, e->selectedSlice());
+    Sprite::Slice clash = e->sprite().slices()[1];
+    clash.name = "hitbox"; /* taken by the first one */
+    ASSERT_TRUE(e->updateSlice(1, clash));
+    ASSERT_TRUE(e->sprite().slices()[1].name == "hitbox 2");
+    ASSERT_TRUE(e->sprite().slices()[0].name == "hitbox");
+    Sprite::Slice same = e->sprite().slices()[1];
+    ASSERT_TRUE(e->updateSlice(1, same)); /* keeping its own name is not a clash */
+    ASSERT_TRUE(e->sprite().slices()[1].name == "hitbox 2");
+    delete e;
+}
+
 TEST(the_slice_tool_works_on_a_hidden_layer)
 {
     Editor *e = make_editor();
@@ -247,6 +304,9 @@ int main()
     RUN(a_dragged_slice_stays_inside_the_sprite);
     RUN(the_topmost_slice_wins_where_slices_overlap_and_a_move_that_goes_nowhere_adds_no_step);
     RUN(cancelling_a_slice_drag_leaves_everything_as_it_was);
+    RUN(a_slice_being_moved_is_not_changed_in_the_sprite_until_it_is_released);
+    RUN(the_selection_stays_on_the_same_slice_through_undo_and_redo);
+    RUN(a_renamed_slice_stays_selected_and_names_stay_unique);
     RUN(the_slice_tool_works_on_a_hidden_layer);
     ui_quit();
     return TEST_SUMMARY();

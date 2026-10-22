@@ -132,7 +132,8 @@ version is still 1), and rejects other versions and truncated data.
 | `LAYR` | name (u8 length + bytes), visible (u8), opacity (u8), then the pixels of every frame; one chunk per layer, bottom to top |
 | `LINK` | optional, per layer with links: layer index, count, then (frame, earlier frame it shares its cel with) pairs |
 | `BLND` | optional, after the layers: count, then (layer index, blend mode byte) for each layer that is not Normal; an unknown mode reads as Normal |
-| `TAGS` | optional: count, then per tag a name, first and last frame and a direction |
+| `TAGS` | optional: count (u16), then per tag a name, first and last frame and a direction |
+| `SLCE` | optional, after `TAGS`: count (u16), then per slice a name (u8 length + bytes), x, y, width, height (u32 each), a flags byte (bit 0: a pivot follows as two u32, in cels from the slice's top-left corner). A slice that does not fit the sprite is dropped on reading; the pixels still load |
 
 Every writer goes through `file_write_atomic` (temporary file plus rename), so a failed write never destroys an
 existing file. The authoritative description is the comment in `include/tinysprite/io.hpp`.

@@ -53,8 +53,10 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
     selectedTag_ = -1;
     playback_.stop();
     selection_.reset();
-    selectedSlice_ = -1;
+    selectedSliceName_.clear();
     slicePreview_.reset();
+    slicePreviewMove_.reset();
+    slicePreviewIndex_ = -1;
     paletteSelected_ = -1;
     modifiedOutsideHistory_ = false;
     view_ = ViewState{};

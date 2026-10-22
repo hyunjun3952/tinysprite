@@ -32,8 +32,12 @@ TEST(bad_slices_are_refused)
     ASSERT_TRUE(!s.addSlice(slice("a", Rect{7, 7, 2, 2})));
     Sprite::Slice pivot = slice("a", Rect{0, 0, 2, 2});
     pivot.hasPivot = true;
-    pivot.pivotX = 2; /* the pivot has to be inside the slice */
+    pivot.pivotX =
+        3; /* the pivot is a point on the slice's grid: 0..width, the far edge included */
     ASSERT_TRUE(!s.addSlice(pivot));
+    pivot.pivotX = 2;
+    ASSERT_TRUE(s.addSlice(pivot));
+    ASSERT_TRUE(s.removeSlice(0));
     ASSERT_TRUE(!s.addSlice(slice("", Rect{0, 0, 1, 1})));
     ASSERT_EQ_INT(0, static_cast<int>(s.slices().size()));
     ASSERT_TRUE(s.addSlice(slice("ok", Rect{6, 6, 2, 2})));

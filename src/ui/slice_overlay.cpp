@@ -48,13 +48,16 @@ void label(ImDrawList *draw, const ScreenBox &box, const std::string &name, ImU3
     draw->AddText(ImVec2(at.x + 1.0f, at.y), color, name.c_str());
 }
 
-/* A plus sign centered on the pivot cel. */
-void pivot(ImDrawList *draw, ImVec2 origin, const Editor &editor, const Sprite::Slice &slice)
+/* A plus sign on the pivot: the grid point `pivotX`, `pivotY` cels from the slice's top-left
+ * corner, which is the point the sheet JSON gives (times the export scale). `at` is where the slice
+ * is drawn (it differs from its rectangle while it is being moved). */
+void pivot(ImDrawList *draw, ImVec2 origin, const Editor &editor, const Sprite::Slice &slice,
+           Rect at)
 {
     const Viewport &view = editor.view().viewport;
     const float half = std::max(4.0f, view.zoom * 0.5f);
-    const float cx = origin.x + view.celToScreenX(slice.rect.x + slice.pivotX) + view.zoom / 2.0f;
-    const float cy = origin.y + view.celToScreenY(slice.rect.y + slice.pivotY) + view.zoom / 2.0f;
+    const float cx = origin.x + view.celToScreenX(at.x + slice.pivotX);
+    const float cy = origin.y + view.celToScreenY(at.y + slice.pivotY);
     draw->AddLine(ImVec2(cx - half, cy), ImVec2(cx + half, cy), COLOR_SHADOW, 3.0f);
     draw->AddLine(ImVec2(cx, cy - half), ImVec2(cx, cy + half), COLOR_SHADOW, 3.0f);
     draw->AddLine(ImVec2(cx - half, cy), ImVec2(cx + half, cy), COLOR_PIVOT, 1.0f);
@@ -70,14 +73,16 @@ void draw_slices(ImDrawList *draw, ImVec2 origin, const Editor &editor)
         const Sprite::Slice &slice = slices[static_cast<size_t>(i)];
         const bool selected = i == editor.selectedSlice();
         const ImU32 color = selected ? COLOR_SELECTED : COLOR_SLICE;
-        const ScreenBox box = boxOf(editor, origin, slice.rect);
+        /* a slice that is being moved is drawn where the drag has it */
+        const Rect at = editor.sliceMovePreview(i).value_or(slice.rect);
+        const ScreenBox box = boxOf(editor, origin, at);
         if (selected) {
             draw->AddRectFilled(box.min, box.max, IM_COL32(255, 183, 3, 34));
         }
         outline(draw, box, color, selected ? 2.0f : 1.0f);
         label(draw, box, slice.name, color);
         if (slice.hasPivot) {
-            pivot(draw, origin, editor, slice);
+            pivot(draw, origin, editor, slice, at);
         }
     }
     if (const std::optional<Rect> preview = editor.slicePreview()) {

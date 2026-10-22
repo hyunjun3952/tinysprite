@@ -547,9 +547,13 @@ class Editor
     {
         slicePreview_ = rect;
     }
-    /* Changes a slice without an undo step, for the live part of a drag; the drag records the step
-     * with updateSlice when it ends. */
-    bool previewSlice(int index, Sprite::Slice slice);
+    /* While a slice is being moved: where it is shown (the sprite keeps it where it was until the
+     * drag ends and records the move as one undo step). */
+    std::optional<Rect> sliceMovePreview(int index) const
+    {
+        return slicePreviewIndex_ == index ? slicePreviewMove_ : std::nullopt;
+    }
+    void setSliceMovePreview(int index, std::optional<Rect> rect);
     bool sliceEditsBlocked() const
     {
         return stroking() && !finishingDrag_;
@@ -633,9 +637,11 @@ class Editor
     int hoverY_ = 0;
     bool hovering_ = false;
     std::optional<Rect> selection_;
-    bool finishingDrag_ = false; /* release() is running the drag's finish: it may edit slices */
-    int selectedSlice_ = -1;
+    bool finishingDrag_ = false;    /* release() is running the drag's finish: it may edit slices */
+    std::string selectedSliceName_; /* the selected slice, by name: indexes shift on undo / redo */
     std::optional<Rect> slicePreview_;
+    int slicePreviewIndex_ = -1;
+    std::optional<Rect> slicePreviewMove_;
     int moveDx_ = 0;
     int moveDy_ = 0;
 
