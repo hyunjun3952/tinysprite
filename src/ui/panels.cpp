@@ -12,12 +12,15 @@
 namespace
 {
 
-constexpr float TOOLS_PANEL_WIDTH = 52.0f; /* one column of icon buttons */
-constexpr float LAYERS_PANEL_WIDTH = 280.0f;
+/* The tool bar is one column of icon buttons and has one width. The Inspector can be resized, but
+ * not narrower than its controls need (the palette, the six layer buttons, the properties grid). */
+constexpr float TOOLS_PANEL_WIDTH = 52.0f;
+constexpr float INSPECTOR_WIDTH = 280.0f;
+constexpr float INSPECTOR_MIN_WIDTH =
+    250.0f; /* a layer name still shows beside the fixed columns */
+constexpr float INSPECTOR_MAX_WIDTH = 480.0f;
 constexpr float FLOAT_OFFSET = 40.0f;
 constexpr float RESIZE_GRAB = 4.0f;
-constexpr float PANEL_MIN_WIDTH = 48.0f;
-constexpr float PANEL_MAX_WIDTH = 480.0f;
 constexpr float DOCK_ZONE =
     60.0f; /* mouse distance from a window edge that docks a dragged panel */
 constexpr float TITLE_DRAG_DISTANCE = 4.0f; /* mouse travel that turns a title press into a drag */
@@ -34,11 +37,13 @@ Panels::Panels()
 
 void Panels::reset()
 {
-    auto make = [](const char *key, const char *title, float width, DockSide side,
-                   std::initializer_list<const char *> sectionNames) {
+    auto make = [](const char *key, const char *title, float width, float minWidth, float maxWidth,
+                   DockSide side, std::initializer_list<const char *> sectionNames) {
         Panel panel{};
         panel.key = key;
         panel.title = title;
+        panel.minWidth = minWidth;
+        panel.maxWidth = maxWidth;
         panel.width = theme::px(width); /* at the current UI scale */
         panel.side = side;
         panel.home = side;
@@ -47,11 +52,12 @@ void Panels::reset()
         }
         return panel;
     };
-    panels_[static_cast<size_t>(PanelId::Tools)] = make(
-        "tools", "Tools", TOOLS_PANEL_WIDTH, DockSide::Left, {sections::TOOLS, sections::SHAPES});
+    panels_[static_cast<size_t>(PanelId::Tools)] =
+        make("tools", "Tools", TOOLS_PANEL_WIDTH, TOOLS_PANEL_WIDTH, TOOLS_PANEL_WIDTH,
+             DockSide::Left, {sections::TOOLS, sections::SHAPES});
     panels_[static_cast<size_t>(PanelId::Layers)] =
-        make("layers", "Inspector", LAYERS_PANEL_WIDTH, DockSide::Right,
-             {sections::COLOR, sections::LAYERS, sections::PROPERTIES});
+        make("layers", "Inspector", INSPECTOR_WIDTH, INSPECTOR_MIN_WIDTH, INSPECTOR_MAX_WIDTH,
+             DockSide::Right, {sections::COLOR, sections::LAYERS, sections::PROPERTIES});
 }
 
 bool Panels::sectionVisible(PanelId id, const char *name) const
@@ -181,6 +187,9 @@ static bool onGrabStrip(bool leftDocked, float edge)
 /* Drag the inner edge of a docked panel to change its width. */
 void Panels::resizeEdge(Panel &panel)
 {
+    if (!panel.resizable()) {
+        return;
+    }
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 mouse = ImGui::GetMousePos();
     float edge = panel.side == DockSide::Left ? panel.dockX + panel.width : panel.dockX;
@@ -194,7 +203,7 @@ void Panels::resizeEdge(Panel &panel)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         float width = panel.side == DockSide::Left ? mouse.x - panel.dockX
                                                    : panel.dockX + panel.width - mouse.x;
-        panel.width = std::clamp(width, theme::px(PANEL_MIN_WIDTH), theme::px(PANEL_MAX_WIDTH));
+        panel.width = std::clamp(width, theme::px(panel.minWidth), theme::px(panel.maxWidth));
     }
     if (hovered || panel.resizing) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
@@ -283,8 +292,8 @@ void Panels::load(const SettingsMap &settings)
         if (settings_get_int(settings, prefix + "home", 0, 1, home)) {
             panel.home = static_cast<DockSide>(home);
         }
-        settings_get_float(settings, prefix + "width", theme::px(PANEL_MIN_WIDTH),
-                           theme::px(PANEL_MAX_WIDTH), panel.width);
+        settings_get_float(settings, prefix + "width", theme::px(panel.minWidth),
+                           theme::px(panel.maxWidth), panel.width);
         for (Section &section : panel.sections) {
             settings_get_bool(settings, prefix + "section." + section.name, section.visible);
         }
@@ -295,7 +304,7 @@ void Panels::rescale(float ratio)
 {
     for (Panel &panel : panels_) {
         panel.width =
-            std::clamp(panel.width * ratio, theme::px(PANEL_MIN_WIDTH), theme::px(PANEL_MAX_WIDTH));
+            std::clamp(panel.width * ratio, theme::px(panel.minWidth), theme::px(panel.maxWidth));
     }
 }
 

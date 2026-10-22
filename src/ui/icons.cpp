@@ -42,8 +42,6 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0xe3b8, /* Eyedropper: colorize */
     0xef52, /* Select: highlight_alt */
     0xe8d4, /* Swap: swap_horiz */
-    0xe5ce, /* ChevronUp: expand_less */
-    0xe5cf, /* ChevronDown: expand_more */
 };
 
 constexpr float ROUND = 6.0f;

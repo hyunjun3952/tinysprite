@@ -139,6 +139,45 @@ TEST(reset_keeps_the_widths_at_the_current_ui_scale)
     ASSERT_TRUE(afterReset == scaled);
 }
 
+/* The width of a docked panel's window, after dragging its inner edge from (x, 300) to (toX, 300).
+ */
+static float width_after_edge_drag(Harness &h, const char *window, float x, float toX)
+{
+    h.frame(x, 300, false);
+    h.frame(x, 300, false);
+    h.drag(x, 300, toX, 300);
+    h.frame(toX, 300, false);
+    h.frame(toX, 300, false);
+    return ImGui::FindWindowByName(window)->Size.x;
+}
+
+TEST(the_tool_bar_has_a_fixed_width)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    float before = ImGui::FindWindowByName("Tools")->Size.x;
+    /* its inner edge is at the window's right side; dragging it changes nothing */
+    float after = width_after_edge_drag(h, "Tools", before - 1.0f, before + 200.0f);
+    ASSERT_TRUE(after == before);
+}
+
+TEST(the_inspector_stays_between_its_minimum_and_maximum_width)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    float start = ImGui::FindWindowByName("Inspector")->Size.x;
+    float left = ImGui::FindWindowByName("Inspector")->Pos.x;
+    /* its inner edge is its left side: dragging it right narrows it, but only down to the minimum
+     * (below which the controls no longer fit) */
+    float narrow = width_after_edge_drag(h, "Inspector", left + 1.0f, left + start);
+    ASSERT_TRUE(narrow == 250.0f && narrow < start); /* the minimum */
+    float left2 = ImGui::FindWindowByName("Inspector")->Pos.x;
+    float wide = width_after_edge_drag(h, "Inspector", left2 + 1.0f, 0.0f);
+    ASSERT_TRUE(wide <= 480.0f && wide > narrow);
+}
+
 TEST(the_right_panel_is_named_for_what_it_holds)
 {
     Harness h;
@@ -158,6 +197,8 @@ int main()
     RUN(reset_shows_every_section_again);
     RUN(reset_keeps_the_widths_at_the_current_ui_scale);
     RUN(closing_a_floating_panel_hides_it);
+    RUN(the_tool_bar_has_a_fixed_width);
+    RUN(the_inspector_stays_between_its_minimum_and_maximum_width);
     RUN(the_right_panel_is_named_for_what_it_holds);
     RUN(layers_panel_has_a_properties_section_that_can_be_hidden);
     return TEST_SUMMARY();

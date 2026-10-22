@@ -86,6 +86,12 @@ class Panels
         const char *key; /* settings keys: panel.<key>.*; never changes, unlike the title */
         const char *title;
         float width;
+        float minWidth; /* the limits of a resize, at UI scale 1; equal for a fixed width */
+        float maxWidth;
+        bool resizable() const
+        {
+            return minWidth < maxWidth;
+        }
         bool visible = true;
         DockSide side;
         DockSide home;      /* where "dock" puts the panel back */

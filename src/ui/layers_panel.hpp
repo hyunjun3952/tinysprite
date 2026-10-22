@@ -2,6 +2,7 @@
 #define TINYSPRITE_UI_LAYERS_PANEL_HPP
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +22,13 @@ class LayersPanel
     explicit LayersPanel(Editor &editor);
 
     void show(const Panels &panels);
+
+    /* What the right-click menu of the list holds: `body` draws its menu items (the App passes the
+     * items of its Layer menu, so the two cannot differ). With none set there is no menu. */
+    void setContextMenu(std::function<void()> body)
+    {
+        contextMenu_ = std::move(body);
+    }
 
     /* True while the Layers window has the keyboard focus, so a Delete key press means "delete the
      * layer" rather than "clear the selection". Only meaningful in the frame it was drawn. */
@@ -47,6 +55,7 @@ class LayersPanel
     };
 
     void list();
+    void emptyListHint();
     void rows();
     void row(int index, const RowContext &ctx, Drop &drop);
     void rowSelectable(int index, const RowContext &ctx);
@@ -69,7 +78,6 @@ class LayersPanel
     void propertyInfo(const Layer &layer);
     void propertyLabel(const char *name);
     void propertyValue(const char *name, const std::string &value);
-    void buttons();
 
     Editor &editor_;
     LayerThumbnails thumbs_;
@@ -80,6 +88,7 @@ class LayersPanel
     std::string renameBefore_;
     bool renameFocus_ = false;
 
+    std::function<void()> contextMenu_;
     float below_ = 160.0f;    /* the height under the list (the properties), last frame */
     int focusFrame_ = -1;     /* the ImGui frame in which the window had the focus */
     bool openDelete_ = false; /* the dialog still has to be opened */

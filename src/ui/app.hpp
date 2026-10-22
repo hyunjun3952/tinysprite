@@ -99,7 +99,8 @@ class App
     void editMenu();
     void selectionMenu();
     void layerMenu();
-    void layerEditItems(bool idle);
+    void layerMenuItems();
+    void layerEditItems();
     void layerStateItems(bool idle);
     void frameMenu();
     void frameEditItems(bool idle);
@@ -114,14 +115,18 @@ class App
     static const CommandAction &commandAction(CommandId id);
     void runCommand(CommandId id);
     bool commandEnabled(CommandId id) const;
-    void commandItem(CommandId id, bool checked = false);
+    /* A menu item for a command; `label` replaces the command's own when the item says something
+     * more exact for the moment (e.g. "Merge layers" for a selection of several). */
+    void commandItem(CommandId id, bool checked = false, const char *label = nullptr);
     void plainShortcuts();
     void ctrlShortcuts();
     void escapeShortcut();
     bool modalOpen() const;
     void handleShortcuts();
     void layersWindow(float height);
-    void timelineHandle(float x, float width, float edgeY);
+    void timelineSash(float x, float width, float bottomY, float maxHeight);
+    float sashStartHeight_ = 0.0f; /* the timeline height when the current sash drag began */
+    bool sashIgnoreDrag_ = false;  /* a double click just reset the height: ignore the drag */
 
     void askForPath(FileAction action);
     /* True when the dialog may write `path`: it is new, it is the document's own file, or the user

@@ -143,6 +143,11 @@ void LayersPanel::rowSelectable(int index, const RowContext &ctx)
         }
         editor_.pickLayer(index, pick);
     }
+    /* A right click acts on the row under it, as in a file manager: it becomes the selection unless
+     * it is already part of it (then the actions apply to the whole selection). */
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && !editor_.layerSelected(index)) {
+        editor_.pickLayer(index, LayerPick::Only);
+    }
     if (ctx.multiple && index == editor_.activeLayer()) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImGui::GetItemRectMin(),
@@ -456,50 +461,6 @@ void LayersPanel::properties()
     ImGui::EndTable();
 }
 
-/* Layer actions under the list: one icon button each, evenly spread (the tooltips name them).
- * Layers are reordered by dragging their rows or with the up / down buttons. */
-void LayersPanel::buttons()
-{
-    using icons::Icon;
-    constexpr int COUNT = 6;
-    ImVec2 size(theme::columnWidth(COUNT), ImGui::GetFrameHeight() + 6.0f);
-    int selected = static_cast<int>(editor_.selectedLayers().size());
-
-    if (icons::button(Icon::Plus, "##new", "New layer on top", size)) {
-        editor_.addLayer();
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::ArrowUp, "##up", "Move the selected layers up", size,
-                      editor_.canMoveLayersUp())) {
-        editor_.moveSelectedLayersBy(1);
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::ArrowDown, "##down", "Move the selected layers down", size,
-                      editor_.canMoveLayersDown())) {
-        editor_.moveSelectedLayersBy(-1);
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::Copy, "##copy", "Duplicate the selected layers", size)) {
-        editor_.duplicateSelectedLayers();
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::Trash, "##delete", "Delete the selected layers (Delete key)", size,
-                      editor_.canRemoveSelectedLayers())) {
-        askToDelete();
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::Merge, "##merge",
-                      selected > 1
-                          ? "Merge the selected layers into the lowest one (all visible, the "
-                            "lowest unlocked; blend modes only with nothing visible under)"
-                          : "Merge into the layer below (both visible, the lower one "
-                            "unlocked; a blend mode only with nothing visible under the lower "
-                            "one)",
-                      size, editor_.canMergeLayers())) {
-        editor_.mergeSelectedLayers();
-    }
-}
-
 bool LayersPanel::focused() const
 {
     return focusFrame_ == ImGui::GetFrameCount();
@@ -549,6 +510,20 @@ void LayersPanel::deleteDialog()
     ImGui::EndPopup();
 }
 
+/* The actions have no buttons: say where they are, in the room under the last row. */
+void LayersPanel::emptyListHint()
+{
+    const char *text = "Right-click for layer actions";
+    const float line = ImGui::GetTextLineHeightWithSpacing();
+    const float y = ImGui::GetWindowHeight() - line * 1.6f;
+    if (y < ImGui::GetCursorPosY() + line) {
+        return; /* the rows fill the list */
+    }
+    const float width = ImGui::CalcTextSize(text).x;
+    ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - width) / 2.0f, y));
+    ImGui::TextDisabled("%s", text);
+}
+
 /* The rows in a scrolling area that takes all the height the properties below leave, so the list
  * grows with the window and the properties sit at the bottom of the panel. */
 void LayersPanel::list()
@@ -559,6 +534,12 @@ void LayersPanel::list()
     ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::rgb(theme::WORKSPACE, 0.55f));
     if (ImGui::BeginChild("##layer_list", ImVec2(0.0f, height), ImGuiChildFlags_None)) {
         rows();
+        emptyListHint();
+        if (contextMenu_ &&
+            ImGui::BeginPopupContextWindow("##layer_menu", ImGuiPopupFlags_MouseButtonRight)) {
+            contextMenu_();
+            ImGui::EndPopup();
+        }
     }
     ImGui::EndChild();
     ImGui::PopStyleColor();
@@ -574,7 +555,6 @@ void LayersPanel::show(const Panels &panels)
     float belowStart = 0.0f;
     if (panels.sectionVisible(PanelId::Layers, sections::LAYERS) &&
         theme::section(sections::LAYERS)) {
-        buttons();
         list();
         belowStart = ImGui::GetCursorPosY();
     }

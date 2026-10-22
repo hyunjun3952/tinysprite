@@ -71,9 +71,11 @@ App            window, ImGui context, main loop, menus, shortcuts, file and conf
 
 The window is laid out as: a narrow **tool bar** on the left (`ToolsPanel::show`: the tools and the shapes as one
 column of icon buttons), an **options bar** above the canvas (`ToolsPanel::contextBar`: the options of the active tool,
-drawn as its own window over the canvas area), the **canvas** with the **timeline** under it (hidden with Ctrl+T or the
-tab on its edge, `App::timelineHandle`), and the right panel titled **Inspector** (`PanelId::Layers`: Color via
-`ToolsPanel::colorBlock`, then Layers, then Properties). The layer list is a scrolling child that takes the height the
+drawn as its own window over the canvas area), the **canvas** with the **timeline** under it (its top edge is a sash,
+`App::timelineSash`: drag to resize or fold it, double click to reset; Ctrl+T toggles it), and the right panel titled
+**Inspector** (`PanelId::Layers`: Color via `ToolsPanel::colorBlock`, then Layers, then Properties). The layer actions
+are the items of `App::layerMenuItems`, shown in the Layer menu and in the right-click menu of the list
+(`LayersPanel::setContextMenu`). The layer list is a scrolling child that takes the height the
 properties leave (`LayersPanel::list`), so the properties stay at the bottom. Panel settings keys come from a fixed key
 (`panel.tools.*`, `panel.layers.*`), not from the title.
 

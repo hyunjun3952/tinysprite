@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "imgui.h"
+#include "theme.hpp"
 
 void App::guardUnsaved(std::function<void()> proceed)
 {
@@ -112,11 +113,11 @@ void App::newSizeFields()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Width ");
     ImGui::SameLine();
-    ImGui::InputInt("##new_width", &newWidth_, 1, 16);
+    theme::input_int("##new_width", &newWidth_, 1, 16, " px");
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Height");
     ImGui::SameLine();
-    ImGui::InputInt("##new_height", &newHeight_, 1, 16);
+    theme::input_int("##new_height", &newHeight_, 1, 16, " px");
     newWidth_ = std::clamp(newWidth_, 1, CEL_MAX_DIMENSION);
     newHeight_ = std::clamp(newHeight_, 1, CEL_MAX_DIMENSION);
 }

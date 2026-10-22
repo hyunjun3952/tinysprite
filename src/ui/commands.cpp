@@ -1,7 +1,7 @@
 #include "commands.hpp"
 
 const Command COMMANDS[COMMAND_COUNT] = {
-    {"New...", nullptr, CommandId::New, {{ImGuiKey_N}}, false},
+    {"New...", nullptr, CommandId::New, {{ImGuiKey_N, ShiftRule::NotHeld}}, false},
     {"Open...", nullptr, CommandId::Open, {{ImGuiKey_O}}, false},
     {"Save", nullptr, CommandId::Save, {{ImGuiKey_S, ShiftRule::NotHeld}}, false},
     {"Save as...", nullptr, CommandId::SaveAs, {{ImGuiKey_S, ShiftRule::Held}}, false},
@@ -16,6 +16,11 @@ const Command COMMANDS[COMMAND_COUNT] = {
     {"Zoom out", nullptr, CommandId::ZoomOut, {{ImGuiKey_Minus}, {ImGuiKey_KeypadSubtract}}, true},
     {"Fit", "F, Ctrl+0", CommandId::Fit, {{ImGuiKey_0}, {ImGuiKey_Keypad0}}, false},
     {"Timeline", nullptr, CommandId::ToggleTimeline, {{ImGuiKey_T}}, false},
+    {"New layer", nullptr, CommandId::NewLayer, {{ImGuiKey_N, ShiftRule::Held}}, false},
+    {"Duplicate layer", nullptr, CommandId::DuplicateLayer, {{ImGuiKey_D, ShiftRule::Held}}, false},
+    {"Merge down", nullptr, CommandId::MergeLayerDown, {{ImGuiKey_M, ShiftRule::Held}}, false},
+    {"Move layer up", nullptr, CommandId::MoveLayerUp, {{ImGuiKey_RightBracket}}, false},
+    {"Move layer down", nullptr, CommandId::MoveLayerDown, {{ImGuiKey_LeftBracket}}, false},
 };
 
 namespace
@@ -36,6 +41,10 @@ std::string keyLabel(ImGuiKey key)
         return "=";
     case ImGuiKey_Minus:
         return "-";
+    case ImGuiKey_LeftBracket:
+        return "[";
+    case ImGuiKey_RightBracket:
+        return "]";
     default:
         return "?";
     }

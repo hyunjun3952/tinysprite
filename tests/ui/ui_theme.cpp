@@ -54,10 +54,23 @@ TEST(a_control_fill_is_visibly_lighter_than_the_panel)
     ImGui::DestroyContext();
 }
 
+/* A number is shown with its unit ("100 ms", "16 px") so it does not have to be guessed from the
+ * label. The unit goes into an ImGui printf format, so a "%" in it must not be read as a
+ * conversion. */
+TEST(an_int_format_appends_the_unit_and_escapes_percent)
+{
+    ASSERT_TRUE(theme::int_format("") == "%d");
+    ASSERT_TRUE(theme::int_format(" ms") == "%d ms");
+    ASSERT_TRUE(theme::int_format(" px") == "%d px");
+    ASSERT_TRUE(theme::int_format("%") == "%d%%");
+    ASSERT_TRUE(theme::int_format("\xC3\x97") == "%d\xC3\x97"); /* the multiplication sign */
+}
+
 int main()
 {
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
     RUN(a_control_fill_is_visibly_lighter_than_the_panel);
+    RUN(an_int_format_appends_the_unit_and_escapes_percent);
     return TEST_SUMMARY();
 }

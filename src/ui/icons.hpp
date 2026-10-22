@@ -38,8 +38,6 @@ enum class Icon {
     Eyedropper,
     Select,
     Swap,
-    ChevronUp,
-    ChevronDown,
     Count
 };
 

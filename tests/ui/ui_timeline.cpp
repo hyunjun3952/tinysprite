@@ -21,7 +21,7 @@ struct Fixture {
     {
         editor = Editor::create(h.renderer, 8, 8);
         timeline = std::make_unique<TimelinePanel>(*editor);
-        h.body = [this] { timeline->show(0.0f, 500.0f, 900.0f); };
+        h.body = [this] { timeline->show(0.0f, 500.0f, 900.0f, TimelinePanel::BASE_HEIGHT); };
         h.frame(0.0f, 0.0f, false);
         h.frame(0.0f, 0.0f, false);
     }
@@ -150,8 +150,41 @@ TEST(the_edit_row_draws_for_a_selected_tag)
     f.h.frame(0.0f, 0.0f, false); /* the edit row is drawn for the selected tag without asserting */
 }
 
+/* Dragging the timeline's top edge, like a VS Code panel: the distance from the mouse to the bottom
+ * of the canvas area is the height asked for; it is kept within the limits, and below `hideBelow`
+ * the timeline folds away (its last height is remembered for when it comes back). */
+TEST(a_drag_sets_the_height_within_the_limits)
+{
+    TimelineSize s = timeline_drag(200.0f, 246.0f, 96.0f, 400.0f, 60.0f);
+    ASSERT_TRUE(s.visible);
+    ASSERT_TRUE(s.height == 200.0f);
+    s = timeline_drag(900.0f, 246.0f, 96.0f, 400.0f, 60.0f);
+    ASSERT_TRUE(s.visible && s.height == 400.0f);
+    s = timeline_drag(80.0f, 246.0f, 96.0f, 400.0f, 60.0f); /* between hide and minimum */
+    ASSERT_TRUE(s.visible && s.height == 96.0f);
+}
+
+TEST(a_drag_below_the_hide_limit_folds_the_timeline_and_keeps_its_height)
+{
+    TimelineSize s = timeline_drag(59.0f, 246.0f, 96.0f, 400.0f, 60.0f);
+    ASSERT_TRUE(!s.visible);
+    ASSERT_TRUE(s.height == 246.0f);
+    ASSERT_TRUE(timeline_drag(60.0f, 246.0f, 96.0f, 400.0f, 60.0f).visible); /* the limit itself */
+    ASSERT_TRUE(!timeline_drag(-30.0f, 246.0f, 96.0f, 400.0f, 60.0f).visible); /* past the bottom */
+}
+
+TEST(a_window_too_short_for_the_minimum_gets_the_largest_height_that_fits)
+{
+    TimelineSize s = timeline_drag(150.0f, 246.0f, 96.0f, 70.0f, 60.0f);
+    ASSERT_TRUE(s.visible);
+    ASSERT_TRUE(s.height == 96.0f); /* the minimum wins over a maximum below it */
+}
+
 int main()
 {
+    RUN(a_drag_sets_the_height_within_the_limits);
+    RUN(a_drag_below_the_hide_limit_folds_the_timeline_and_keeps_its_height);
+    RUN(a_window_too_short_for_the_minimum_gets_the_largest_height_that_fits);
     RUN(the_grid_has_a_cel_per_layer_and_frame);
     RUN(clicking_a_cel_selects_its_frame_and_layer);
     RUN(clicking_a_frame_number_selects_the_frame);

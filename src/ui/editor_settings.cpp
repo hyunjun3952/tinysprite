@@ -12,6 +12,11 @@
 namespace
 {
 
+/* The range a saved timeline height may have, at UI scale 1 (a hand-edited file cannot make it
+ * absurd). */
+constexpr float TIMELINE_HEIGHT_MIN = 60.0f;
+constexpr float TIMELINE_HEIGHT_MAX = 4000.0f;
+
 std::string colorText(Rgba color)
 {
     char text[16];
@@ -44,6 +49,7 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_set_bool(settings, "view.timeline", overlays_.timeline);
     settings_set_bool(settings, "view.options_bar", overlays_.options_bar);
+    settings_set_float(settings, "view.timeline_height", overlays_.timeline_height);
     settings_set_bool(settings, "onion.on", onionOn_);
     settings_set_int(settings, "onion.before", onion_.before);
     settings_set_int(settings, "onion.after", onion_.after);
@@ -68,6 +74,8 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_get_bool(settings, "view.timeline", overlays_.timeline);
     settings_get_bool(settings, "view.options_bar", overlays_.options_bar);
+    settings_get_float(settings, "view.timeline_height", TIMELINE_HEIGHT_MIN, TIMELINE_HEIGHT_MAX,
+                       overlays_.timeline_height);
     bool onionOn = onionOn_;
     OnionSkin onion = onion_;
     int value = 0;

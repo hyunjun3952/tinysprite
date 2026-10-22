@@ -82,7 +82,8 @@ TEST(status_text_names_tool_frame_zoom_and_hover)
     Harness h;
     std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
     std::string text = status_text(*editor);
-    ASSERT_TRUE(text.find("16x8") != std::string::npos);
+    ASSERT_TRUE(text.find("16\xC3\x97"
+                          "8 px") != std::string::npos);
     ASSERT_TRUE(text.find("Pencil") != std::string::npos);
     ASSERT_TRUE(text.find("Frame 1/1") != std::string::npos);
     ASSERT_TRUE(text.find("Layer 1") != std::string::npos);
@@ -96,7 +97,8 @@ TEST(status_text_shows_the_selection_size)
     std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
     editor->setSelection(Rect{2, 1, 5, 3});
     std::string text = status_text(*editor);
-    ASSERT_TRUE(text.find("Sel 5x3") != std::string::npos);
+    ASSERT_TRUE(text.find("Sel 5\xC3\x97"
+                          "3 px") != std::string::npos);
 }
 
 int main()

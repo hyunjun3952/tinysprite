@@ -176,8 +176,8 @@ void TimelinePanel::toolbar()
     ImGui::TextUnformatted("Duration");
     ImGui::SameLine();
     int ms = sprite.frameDuration(current);
-    ImGui::SetNextItemWidth(theme::px(80.0f));
-    if (ImGui::InputInt("##ms", &ms, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue) ||
+    ImGui::SetNextItemWidth(theme::px(88.0f));
+    if (theme::input_int("##ms", &ms, 0, 0, " ms", ImGuiInputTextFlags_EnterReturnsTrue) ||
         ImGui::IsItemDeactivatedAfterEdit()) {
         editor_.setFrameDuration(current, std::clamp(ms, 1, FRAME_DURATION_MAX));
     }
@@ -208,15 +208,17 @@ void TimelinePanel::onionControls()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Before");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(theme::px(60.0f));
-    changed |= ImGui::DragInt("##before", &skin.before, 0.1f, 0, ONION_MAX_FRAMES);
+    ImGui::SetNextItemWidth(theme::px(78.0f));
+    changed |= ImGui::DragInt("##before", &skin.before, 0.1f, 0, ONION_MAX_FRAMES,
+                              theme::int_format(skin.before == 1 ? " frame" : " frames").c_str());
     theme::tip("Previous frames shown, tinted red.");
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("After");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(theme::px(60.0f));
-    changed |= ImGui::DragInt("##after", &skin.after, 0.1f, 0, ONION_MAX_FRAMES);
+    ImGui::SetNextItemWidth(theme::px(78.0f));
+    changed |= ImGui::DragInt("##after", &skin.after, 0.1f, 0, ONION_MAX_FRAMES,
+                              theme::int_format(skin.after == 1 ? " frame" : " frames").c_str());
     theme::tip("Following frames shown, tinted blue.");
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
@@ -513,18 +515,25 @@ void TimelinePanel::grid()
     }
 }
 
-float TimelinePanel::height()
+TimelineSize timeline_drag(float requested, float previous, float minHeight, float maxHeight,
+                           float hideBelow)
 {
-    return theme::px(BASE_HEIGHT);
+    if (requested < hideBelow) {
+        return {false, previous};
+    }
+    return {true, std::clamp(requested, minHeight, std::max(minHeight, maxHeight))};
 }
 
-void TimelinePanel::show(float x, float y, float width)
+void TimelinePanel::show(float x, float y, float width, float height)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
-    ImGui::SetNextWindowSize(ImVec2(width, height()));
+    ImGui::SetNextWindowSize(ImVec2(width, height));
+    /* NoFocusOnAppearing: the strip appears under the mouse while its edge is being dragged, and a
+     * window that takes the focus then ends that drag. */
     constexpr ImGuiWindowFlags FLAGS = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
                                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
-                                       ImGuiWindowFlags_NoSavedSettings;
+                                       ImGuiWindowFlags_NoSavedSettings |
+                                       ImGuiWindowFlags_NoFocusOnAppearing;
     if (ImGui::Begin("Timeline", nullptr, FLAGS)) {
         ImGui::BeginDisabled(editor_.stroking());
         toolbar();

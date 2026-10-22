@@ -195,6 +195,26 @@ float columnWidth(int count)
     return std::max(width, 1.0f);
 }
 
+std::string int_format(const char *unit)
+{
+    std::string format = "%d";
+    for (const char *c = unit; *c != '\0'; c++) {
+        format += *c;
+        if (*c == '%') {
+            format += '%';
+        }
+    }
+    return format;
+}
+
+bool input_int(const char *id, int *value, int step, int stepFast, const char *unit,
+               ImGuiInputTextFlags flags)
+{
+    const std::string format = int_format(unit);
+    return ImGui::InputScalar(id, ImGuiDataType_S32, value, step > 0 ? &step : nullptr,
+                              stepFast > 0 ? &stepFast : nullptr, format.c_str(), flags);
+}
+
 void tip(const char *text)
 {
     /* Without AllowWhenDisabled a disabled item is never hovered, so it gets no tooltip. */

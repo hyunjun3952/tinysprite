@@ -1,6 +1,8 @@
 #ifndef TINYSPRITE_UI_THEME_HPP
 #define TINYSPRITE_UI_THEME_HPP
 
+#include <string>
+
 #include "imgui.h"
 
 /* The look of the UI: a neutral near-black with a short ladder of lifted surfaces, no borders on
@@ -64,6 +66,15 @@ void apply();
 /* A group header like Photoshop's panel sections: click to fold. Returns true while open, so the
  * content goes under `if (theme::section("Name")) { ... }`. */
 bool section(const char *label, bool openByDefault = true);
+
+/* The printf format of a whole number followed by `unit` ("%d ms" for " ms"; a "%" in the unit is
+ * escaped), for the number fields and sliders that should show what they count. */
+std::string int_format(const char *unit);
+
+/* ImGui::InputInt with a unit after the number: "100 ms" while the field is not being edited. The
+ * unit text is ignored when a value is typed. */
+bool input_int(const char *id, int *value, int step, int stepFast, const char *unit,
+               ImGuiInputTextFlags flags = 0);
 
 /* Shows `text` as a tooltip when the last item has been hovered a moment (never while it is
  * disabled). Call right after the item. */

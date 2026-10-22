@@ -82,11 +82,21 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   prototyping three variants side by side (tidy the old structure / move Color to the right / Aseprite's context bar):
   a 52 px vertical tool bar on the left (tools and shapes, no headers), an options bar above the canvas (brush, shape,
   selection transforms, mirror X / Y; View > Tool options hides it), and a right panel "Inspector" with Color (and the
-  recent colors under the palette), Layers (buttons above the list, the list fills the free height) and Properties
-  (a two-column grid: blend, opacity, then size, frames, palette) pinned to the bottom. The sections Tool options,
+  recent colors under the palette), Layers (no buttons: a right-click menu, shared with the Layer menu, and key
+  chords; the list fills the free height) and Properties (a two-column grid: blend, opacity, then size, frames,
+  palette) pinned to the bottom. The tool bar has one width; the Inspector can be resized between 250 and 480 px. The sections Tool options,
   Symmetry, Selection and Recent no longer exist as dock sections.
-- The timeline is shown or hidden with Ctrl+T (a `CommandId`, so the View menu item and the key cannot drift) or the
-  small tab on its edge (`App::timelineHandle`); `view.timeline` and the new `view.options_bar` are saved.
+- The timeline works like a VS Code panel: drag its top edge to resize it (`timeline_drag`: between 96 px and 70% of
+  the canvas area), drag it below 60 px to fold it away, and drag the top of the status bar up to bring it back; a
+  double click on the edge restores the default height; Ctrl+T (a `CommandId`, so the View menu item and the key cannot
+  drift) does the same as folding. `view.timeline`, `view.timeline_height` and `view.options_bar` are saved. (A first
+  version had a small tab on the edge; the drag edge replaced it. Gotchas: ImGui windows are never smaller than 32 px
+  unless `WindowMinSize` is lowered, and a window that appears under the mouse takes the focus and ends a drag.)
+- Layer actions have key chords as `CommandId`s (Ctrl+Shift+N new, Ctrl+Shift+D duplicate, Ctrl+Shift+M merge down,
+  Ctrl+] / Ctrl+[ move up / down; Delete with the list focused deletes); a right click on a row selects it (unless it
+  is already selected) and opens the menu. `New...` is now Ctrl+N without Shift.
+- Numbers show their unit (`theme::int_format` / `theme::input_int`): `100 ms`, `16 px`, `2×`, `1 frame`, and the status
+  bar says `48×48 px`.
 - A round button (`icons::round_button`) for small secondary actions; the foreground / background swap uses it.
 - Looked at and not taken: `PopupWindow` hot regions and `AnimatedWidget` easing (ImGui popups already close on an
   outside click, and the UI is immediate-mode), a separate "small" font (one more atlas size for little gain now).

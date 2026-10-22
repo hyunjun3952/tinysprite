@@ -83,6 +83,22 @@ TEST(the_hint_is_derived_from_the_first_shortcut)
     ASSERT_TRUE(command_hint(command(CommandId::Redo)) == "Ctrl+Y");
 }
 
+/* The layer actions have keys now that the panel has no buttons for them. */
+TEST(the_layer_commands_have_their_own_chords)
+{
+    ASSERT_TRUE(command_hint(command(CommandId::NewLayer)) == "Ctrl+Shift+N");
+    ASSERT_TRUE(command_hint(command(CommandId::DuplicateLayer)) == "Ctrl+Shift+D");
+    ASSERT_TRUE(command_hint(command(CommandId::MergeLayerDown)) == "Ctrl+Shift+M");
+    ASSERT_TRUE(command_hint(command(CommandId::MoveLayerUp)) == "Ctrl+]");
+    ASSERT_TRUE(command_hint(command(CommandId::MoveLayerDown)) == "Ctrl+[");
+    /* Shift tells a new layer from a new document, as it tells Save from Save as */
+    ASSERT_TRUE(run(false, {ImGuiKey_N})->id == CommandId::New);
+    ASSERT_TRUE(run(true, {ImGuiKey_N})->id == CommandId::NewLayer);
+    ASSERT_TRUE(run(true, {ImGuiKey_D})->id == CommandId::DuplicateLayer);
+    ASSERT_TRUE(run(false, {ImGuiKey_RightBracket})->id == CommandId::MoveLayerUp);
+    ASSERT_TRUE(run(false, {ImGuiKey_LeftBracket})->id == CommandId::MoveLayerDown);
+}
+
 TEST(a_hint_can_be_spelled_out)
 {
     ASSERT_TRUE(command_hint(command(CommandId::ZoomIn)) == "Ctrl++");
@@ -101,7 +117,7 @@ TEST(shift_tells_save_from_save_as_and_undo_from_redo)
 
 TEST(shift_is_ignored_where_a_command_does_not_care)
 {
-    ASSERT_TRUE(run(true, {ImGuiKey_N})->id == CommandId::New);
+    ASSERT_TRUE(run(true, {ImGuiKey_O})->id == CommandId::Open);
     ASSERT_TRUE(run(true, {ImGuiKey_Equal})->id == CommandId::ZoomIn);
     ASSERT_TRUE(run(false, {ImGuiKey_KeypadAdd})->id == CommandId::ZoomIn);
     ASSERT_TRUE(run(false, {ImGuiKey_Keypad0})->id == CommandId::Fit);
@@ -144,6 +160,7 @@ int main()
     RUN(rows_are_in_id_order_so_command_of_can_index);
     RUN(no_two_commands_claim_the_same_keys);
     RUN(the_hint_is_derived_from_the_first_shortcut);
+    RUN(the_layer_commands_have_their_own_chords);
     RUN(a_hint_can_be_spelled_out);
     RUN(shift_tells_save_from_save_as_and_undo_from_redo);
     RUN(shift_is_ignored_where_a_command_does_not_care);

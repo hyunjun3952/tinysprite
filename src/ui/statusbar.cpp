@@ -104,15 +104,15 @@ std::string status_text(const Editor &editor)
     const Sprite &sprite = editor.sprite();
     const Layer *layer = sprite.layer(editor.activeLayer());
     char text[256];
-    int len =
-        std::snprintf(text, sizeof(text), "%dx%d   %s   Frame %d/%d   Layer: %s   Zoom: %g%%",
-                      sprite.width(), sprite.height(), toolLabel(editor.tool()), editor.frame() + 1,
-                      sprite.frameCount(), layer ? layer->name().c_str() : "-",
-                      static_cast<double>(editor.view().viewport.zoom) * 100.0);
+    int len = std::snprintf(
+        text, sizeof(text), "%d\xC3\x97%d px   %s   Frame %d/%d   Layer: %s   Zoom: %g%%",
+        sprite.width(), sprite.height(), toolLabel(editor.tool()), editor.frame() + 1,
+        sprite.frameCount(), layer ? layer->name().c_str() : "-",
+        static_cast<double>(editor.view().viewport.zoom) * 100.0);
     std::string out = len > 0 ? text : "";
     if (editor.hasSelection()) {
         Rect r = editor.selection();
-        std::snprintf(text, sizeof(text), "   Sel %dx%d at %d, %d", r.w, r.h, r.x, r.y);
+        std::snprintf(text, sizeof(text), "   Sel %d\xC3\x97%d px at %d, %d", r.w, r.h, r.x, r.y);
         out += text;
     }
     if (editor.hoverInSprite()) {

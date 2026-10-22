@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -19,6 +20,8 @@ constexpr int WINDOW_WIDTH = 1100;
 constexpr int WINDOW_HEIGHT = 720;
 constexpr Uint32 AUTOSAVE_INTERVAL_MS = 30000;
 constexpr float OPTIONS_BAR_HEIGHT = 40.0f; /* at scale 1 */
+constexpr float SASH_THICKNESS = 8.0f;      /* the grab area on the timeline's edge */
+constexpr float TIMELINE_MAX_SHARE = 0.7f;  /* of the canvas area, the timeline's largest height */
 
 } // namespace
 
@@ -168,6 +171,7 @@ bool App::init(const AppOptions &options)
     canvas_ = std::make_unique<Canvas>(*editor_);
     toolsPanel_ = std::make_unique<ToolsPanel>(*editor_);
     layersPanel_ = std::make_unique<LayersPanel>(*editor_);
+    layersPanel_->setContextMenu([this] { layerMenuItems(); });
     timelinePanel_ = std::make_unique<TimelinePanel>(*editor_);
     lastTick_ = SDL_GetTicks();
     if (!options.file.empty() && !openPath(options.file)) {
@@ -294,29 +298,60 @@ void App::pollEvents()
 }
 
 /* Lays out and builds every panel and dialog of one UI frame. */
-/* A small tab on the edge between the canvas and the timeline (or the bottom of the canvas while
- * the timeline is hidden) that shows or hides the timeline, as Ctrl+T does. */
-void App::timelineHandle(float x, float width, float edgeY)
+/* The edge of the timeline, like the edge of a VS Code panel: drag it up or down to resize the
+ * timeline, drag it below the minimum to fold it away; while it is folded the same edge sits on
+ * top of the status bar and dragging it up brings the timeline back. `bottomY` is where the
+ * timeline ends (the top of the status bar), `maxHeight` how tall it may become. */
+void App::timelineSash(float x, float width, float bottomY, float maxHeight)
 {
-    const ImVec2 size(theme::px(48.0f), theme::px(18.0f));
-    ImGui::SetNextWindowPos(ImVec2(x + (width - size.x) / 2.0f, edgeY - size.y));
-    ImGui::SetNextWindowSize(size);
-    constexpr ImGuiWindowFlags FLAGS =
-        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBackground;
+    Editor::Overlays &overlays = editor_->overlays();
+    const float scale = theme::scale();
+    const float edgeY = bottomY - (overlays.timeline ? theme::px(overlays.timeline_height) : 0.0f);
+    const float thickness = theme::px(SASH_THICKNESS);
+    ImGui::SetNextWindowPos(ImVec2(x, edgeY - thickness / 2.0f));
+    ImGui::SetNextWindowSize(ImVec2(width, thickness));
+    constexpr ImGuiWindowFlags FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                       ImGuiWindowFlags_NoSavedSettings |
+                                       ImGuiWindowFlags_NoFocusOnAppearing |
+                                       ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNav;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    if (ImGui::Begin("##timeline_handle", nullptr, FLAGS)) {
-        const bool shown = editor_->overlays().timeline;
-        const std::string tip = std::string(shown ? "Hide" : "Show") + " the timeline (" +
-                                command_hint(command_of(CommandId::ToggleTimeline)) + ")";
-        if (icons::button(shown ? icons::Icon::ChevronDown : icons::Icon::ChevronUp,
-                          "##toggle_timeline", tip.c_str(), size)) {
-            runCommand(CommandId::ToggleTimeline);
+    /* without this a window is never smaller than 32 px: it would cover the timeline's top edge */
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1.0f, 1.0f));
+    if (ImGui::Begin("##timeline_sash", nullptr, FLAGS)) {
+        ImGui::InvisibleButton("##sash", ImVec2(width, thickness));
+        if (ImGui::IsItemActivated()) {
+            sashStartHeight_ = overlays.timeline_height; /* what folding must not lose */
+        }
+        /* Two quick clicks restore the default height (and show the timeline if it is folded). The
+         * first click already started a drag, which must not undo the reset while the button is
+         * still held. */
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+            overlays.timeline = true;
+            overlays.timeline_height = TimelinePanel::BASE_HEIGHT;
+            sashIgnoreDrag_ = true;
+        }
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            sashIgnoreDrag_ = false;
+        }
+        const bool active = ImGui::IsItemActive() && !sashIgnoreDrag_;
+        if (active || ImGui::IsItemHovered()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+            ImGui::GetForegroundDrawList()->AddLine(
+                ImVec2(x, edgeY), ImVec2(x + width, edgeY),
+                ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), theme::px(2.0f));
+        }
+        if (active) {
+            /* the limits and the stored height are at UI scale 1 */
+            const TimelineSize size = timeline_drag((bottomY - ImGui::GetMousePos().y) / scale,
+                                                    sashStartHeight_, TimelinePanel::MIN_HEIGHT,
+                                                    maxHeight / scale, TimelinePanel::HIDE_BELOW);
+            overlays.timeline = size.visible;
+            overlays.timeline_height = size.height;
         }
     }
     ImGui::End();
-    ImGui::PopStyleVar(2);
+    ImGui::PopStyleVar(3);
 }
 
 void App::buildUi()
@@ -333,24 +368,29 @@ void App::buildUi()
     Uint32 now = SDL_GetTicks();
     editor_->tick(static_cast<int>(now - lastTick_));
     lastTick_ = now;
-    float timeline = editor_->overlays().timeline ? TimelinePanel::height() : 0.0f;
+    const float bar = editor_->overlays().options_bar ? theme::px(OPTIONS_BAR_HEIGHT) : 0.0f;
+    const float maxTimeline = (body - bar) * TIMELINE_MAX_SHARE;
+    float timeline = editor_->overlays().timeline
+                         ? std::min(theme::px(editor_->overlays().timeline_height), maxTimeline)
+                         : 0.0f;
     if (timeline > 0.0f) {
         timelinePanel_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + body - timeline,
-                             viewport->WorkSize.x - left - right);
+                             viewport->WorkSize.x - left - right, timeline);
     }
-    const float bar = editor_->overlays().options_bar ? theme::px(OPTIONS_BAR_HEIGHT) : 0.0f;
     if (bar > 0.0f) {
         toolsPanel_->contextBar(viewport->WorkPos.x + left, viewport->WorkPos.y,
                                 viewport->WorkSize.x - left - right, bar);
     }
     canvas_->show(viewport->WorkPos.x + left, viewport->WorkPos.y + bar,
                   viewport->WorkSize.x - left - right, body - timeline - bar);
-    timelineHandle(viewport->WorkPos.x + left, viewport->WorkSize.x - left - right,
-                   viewport->WorkPos.y + body - timeline);
+
     if (status > 0.0f) {
         status_bar_show(*editor_, viewport->WorkPos.x, viewport->WorkPos.y + body,
                         viewport->WorkSize.x);
     }
+    /* after the windows it overlaps, so it is the one under the mouse on the edge */
+    timelineSash(viewport->WorkPos.x + left, viewport->WorkSize.x - left - right,
+                 viewport->WorkPos.y + body, maxTimeline);
     toasts_.draw(ImGui::GetTime(), status + theme::px(16.0f));
     fileDialog();
     confirmDialog();

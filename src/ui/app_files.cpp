@@ -14,6 +14,7 @@
 
 #include "file_paths.hpp"
 #include "imgui.h"
+#include "theme.hpp"
 #include "tinysprite/io.hpp"
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
@@ -221,7 +222,7 @@ void App::imageOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Scale");
     ImGui::SameLine();
-    ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
+    theme::input_int("##export_scale", &exportScale_, 1, 2, "\xC3\x97");
     exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
     ImGui::SameLine();
     ImGui::TextDisabled("%d x %d px", editor_->sprite().width() * exportScale_,
@@ -257,7 +258,7 @@ void App::animationOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Scale");
     ImGui::SameLine();
-    ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
+    theme::input_int("##export_scale", &exportScale_, 1, 2, "\xC3\x97");
     exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
 }
 
@@ -295,7 +296,7 @@ void App::sheetOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Spacing");
     ImGui::SameLine();
-    ImGui::InputInt("##sheet_spacing", &export_.spacing, 1, 4);
+    theme::input_int("##sheet_spacing", &export_.spacing, 1, 4, " px");
     export_.spacing = std::clamp(export_.spacing, 0, 256);
 }
 

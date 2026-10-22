@@ -338,47 +338,56 @@ TEST(dragging_a_selected_row_moves_the_whole_selection)
     ASSERT_TRUE(names(f) == "Layer 1,Layer 4,Layer 2,Layer 3"); /* the block keeps its order */
 }
 
-/* Hovers (x, y) for a few frames and reports the cursor shape and whether a tooltip is showing. */
-struct Hover {
-    int cursor;
-    bool tooltip;
-};
-
-static Hover hover_at(Fixture &f, float x, float y)
+/* The layer actions are in a context menu (the App fills it with the same items as its Layer menu),
+ * opened by a right click on a row or on the empty part of the list. */
+static void right_click(Fixture &f, float x, float y)
 {
-    for (int i = 0; i < 4; i++) {
-        f.h.frame(x, y, false);
-    }
-    ImGuiWindow *tip = ImGui::FindWindowByName("##Tooltip_00");
-    return Hover{ImGui::GetMouseCursor(), tip != nullptr && tip->Active && !tip->Hidden};
+    f.h.button = 1;
+    f.h.frame(x, y, false);
+    f.h.frame(x, y, true);
+    f.h.frame(x, y, false);
+    f.h.frame(x, y, false);
+    f.h.button = 0;
 }
 
-TEST(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip)
+TEST(right_click_on_a_row_selects_it_and_opens_the_context_menu)
 {
     Fixture f;
-    /* Show tooltips at once: the test frames take far less than the usual hover delays. */
-    ImGui::GetStyle().HoverDelayShort = 0.0f;
-    ImGui::GetStyle().HoverDelayNormal = 0.0f;
-    ImGui::GetStyle().HoverStationaryDelay = 0.0f;
-    /* A single layer: the buttons row has New and Copy enabled, Up, Down, Delete and Merge
-     * disabled. Sweep the panel to find the row and the buttons. */
-    bool sawEnabledTip = false;
-    bool sawBlockedCursor = false;
-    bool tipOnBlocked = false;
-    /* The buttons sit right above the list. */
-    const int bottom = static_cast<int>(list_top());
-    for (int row = bottom - 40; row < bottom; row += 4) {
-        for (int x = 745; x < 1000; x += 8) {
-            Hover h = hover_at(f, static_cast<float>(x), static_cast<float>(row));
-            bool blocked = h.cursor == ImGuiMouseCursor_NotAllowed;
-            sawEnabledTip = sawEnabledTip || (!blocked && h.tooltip);
-            sawBlockedCursor = sawBlockedCursor || blocked;
-            tipOnBlocked = tipOnBlocked || (blocked && h.tooltip);
-        }
-    }
-    ASSERT_TRUE(sawEnabledTip);    /* an enabled button still explains itself */
-    ASSERT_TRUE(sawBlockedCursor); /* a disabled one says "not allowed" ... */
-    ASSERT_TRUE(!tipOnBlocked);    /* ... instead of showing a tooltip */
+    add_layers(f, 3);
+    int opened = 0;
+    f.layers->setContextMenu([&opened] {
+        opened++;
+        ImGui::MenuItem("Anything");
+    });
+    right_click(f, ROW_X, row_y(1)); /* the middle row: layer 1 */
+    ASSERT_TRUE(opened > 0);
+    ASSERT_EQ_INT(1, f.editor->activeLayer());
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->selectedLayers().size()));
+}
+
+TEST(right_click_on_a_row_of_the_selection_keeps_the_whole_selection)
+{
+    Fixture f;
+    add_layers(f, 3);
+    f.layers->setContextMenu([] { ImGui::MenuItem("Anything"); });
+    f.editor->pickLayer(0, LayerPick::Only);
+    f.editor->pickLayer(2, LayerPick::Range);
+    ASSERT_EQ_INT(3, static_cast<int>(f.editor->selectedLayers().size()));
+    right_click(f, ROW_X, row_y(1)); /* a selected row: the actions apply to all three */
+    ASSERT_EQ_INT(3, static_cast<int>(f.editor->selectedLayers().size()));
+}
+
+TEST(right_click_on_the_empty_part_of_the_list_opens_the_menu_too)
+{
+    Fixture f;
+    add_layers(f, 2);
+    int opened = 0;
+    f.layers->setContextMenu([&opened] {
+        opened++;
+        ImGui::MenuItem("Anything");
+    });
+    right_click(f, ROW_X, row_y(5)); /* well under the two rows */
+    ASSERT_TRUE(opened > 0);
 }
 
 TEST(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere)
@@ -411,7 +420,9 @@ int main()
     RUN(deleting_a_selection_asks_once_and_is_one_undo_step);
     RUN(selecting_every_layer_blocks_the_delete);
     RUN(dragging_a_selected_row_moves_the_whole_selection);
-    RUN(a_disabled_button_shows_a_blocked_cursor_and_no_tooltip);
+    RUN(right_click_on_a_row_selects_it_and_opens_the_context_menu);
+    RUN(right_click_on_a_row_of_the_selection_keeps_the_whole_selection);
+    RUN(right_click_on_the_empty_part_of_the_list_opens_the_menu_too);
     RUN(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere);
     return TEST_SUMMARY();
 }

@@ -5,8 +5,10 @@
 
 #include "icons.hpp"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "minitest.hpp"
 #include "theme.hpp"
+#include "ui_harness.hpp"
 
 /* Material Symbols has no plain rhombus (its "diamond" is a gem), so that one icon is drawn with
  * lines and has no codepoint; every other icon is a glyph. */
@@ -68,6 +70,41 @@ TEST(a_round_button_draws_its_glyph_smaller)
     ASSERT_TRUE(icons::round_glyph_size(1.5f) < icons::glyph_size(1.5f));
 }
 
+/* A disabled icon button shows the "not allowed" cursor and no tooltip; an enabled one explains
+ * itself. (The layer panel used to cover this through its buttons.) */
+TEST(a_disabled_icon_button_shows_a_blocked_cursor_and_no_tooltip)
+{
+    test_ui::Harness h;
+    h.body = [] {
+        ImGui::SetNextWindowPos(ImVec2(100, 100));
+        ImGui::SetNextWindowSize(ImVec2(300, 80));
+        ImGui::Begin("icons", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
+        icons::button(icons::Icon::Trash, "##off", "Disabled tip", ImVec2(60, 40), false);
+        ImGui::SameLine();
+        icons::button(icons::Icon::Plus, "##on", "Enabled tip", ImVec2(60, 40), true);
+        ImGui::End();
+    };
+    ImGui::GetStyle().HoverDelayShort = 0.0f;
+    ImGui::GetStyle().HoverDelayNormal = 0.0f;
+    ImGui::GetStyle().HoverStationaryDelay = 0.0f;
+    auto hover = [&h](float x, float y, int &cursor, bool &tooltip) {
+        for (int i = 0; i < 4; i++) {
+            h.frame(x, y, false);
+        }
+        cursor = ImGui::GetMouseCursor();
+        ImGuiWindow *tip = ImGui::FindWindowByName("##Tooltip_00");
+        tooltip = tip != nullptr && tip->Active && !tip->Hidden;
+    };
+    int cursor = 0;
+    bool tooltip = false;
+    hover(130.0f, 120.0f, cursor, tooltip); /* the disabled one */
+    ASSERT_TRUE(cursor == ImGuiMouseCursor_NotAllowed);
+    ASSERT_TRUE(!tooltip);
+    hover(200.0f, 120.0f, cursor, tooltip); /* the enabled one */
+    ASSERT_TRUE(cursor != ImGuiMouseCursor_NotAllowed);
+    ASSERT_TRUE(tooltip);
+}
+
 int main()
 {
     RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_diamond);
@@ -75,5 +112,6 @@ int main()
     RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);
     RUN(the_glyph_size_follows_the_ui_scale_in_whole_pixels);
     RUN(a_round_button_draws_its_glyph_smaller);
+    RUN(a_disabled_icon_button_shows_a_blocked_cursor_and_no_tooltip);
     return TEST_SUMMARY();
 }
