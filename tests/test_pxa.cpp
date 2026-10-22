@@ -339,8 +339,8 @@ TEST(blend_modes_round_trip)
         s.addLayer("L").setBlendMode(static_cast<BlendMode>(m));
     }
     std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
     if (!back) {
-        MT_FAIL("no sprite");
         return;
     }
     ASSERT_EQ_INT(BLEND_MODE_COUNT, back->layerCount());
