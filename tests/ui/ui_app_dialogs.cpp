@@ -354,9 +354,8 @@ TEST(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name)
     ASSERT_TRUE(slashes(t.path()) == slashes((root / "alpha" / "inner" / "sprite.pxa").string()));
     t.click(t.listRow(3)); /* note.pxa: a file replaces the name */
     ASSERT_TRUE(slashes(t.path()) == slashes((root / "alpha" / "note.pxa").string()));
-    t.click(t.listRow(0)); /* ../ : the tree starts one level up */
-    ASSERT_TRUE(slashes(t.path()) == slashes((root.parent_path() / "note.pxa").string()) ||
-                slashes(t.path()) == slashes((root.parent_path() / "sprite.pxa").string()));
+    t.click(t.listRow(0)); /* ../ : the tree starts one level up, the file name stays as it was */
+    ASSERT_TRUE(slashes(t.path()) == slashes((root.parent_path() / "note.pxa").string()));
     std::error_code ignored;
     fs::remove_all(root, ignored);
 }
