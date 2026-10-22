@@ -2,6 +2,7 @@
 
 #include "editor.hpp"
 
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -146,4 +147,26 @@ void Editor::rotateSelection(bool clockwise)
         markDirty(turned);
         setSelectionClipped(turned);
     }
+}
+
+bool Editor::nudgeSelection(int dx, int dy)
+{
+    Cel *cel = editableCel();
+    if (!cel || !selection_ || (dx == 0 && dy == 0)) {
+        return false;
+    }
+    Rect before = *selection_;
+    Rect moved = {before.x + dx, before.y + dy, before.w, before.h};
+    std::unique_ptr<MoveStroke> stroke = MoveStroke::begin(history(), *cel, before);
+    if (!stroke) {
+        return false;
+    }
+    stroke->update(dx, dy);
+    if (!stroke->end(selectionAction(before, clippedSelection(moved)))) {
+        return false;
+    }
+    markDirty(before);
+    markDirty(moved);
+    setSelectionClipped(moved);
+    return true;
 }

@@ -14,6 +14,27 @@ static bool anyPressed(std::initializer_list<ImGuiKey> keys, bool repeat = true)
                        [repeat](ImGuiKey key) { return ImGui::IsKeyPressed(key, repeat); });
 }
 
+/* The arrow keys move the selected pixels by 1 px (8 px with Shift); they repeat while held. */
+void App::nudgeShortcut()
+{
+    const int step = ImGui::GetIO().KeyShift ? 8 : 1;
+    int dx = 0;
+    int dy = 0;
+    if (anyPressed({ImGuiKey_LeftArrow})) {
+        dx -= step;
+    }
+    if (anyPressed({ImGuiKey_RightArrow})) {
+        dx += step;
+    }
+    if (anyPressed({ImGuiKey_UpArrow})) {
+        dy -= step;
+    }
+    if (anyPressed({ImGuiKey_DownArrow})) {
+        dy += step;
+    }
+    editor_->nudgeSelection(dx, dy);
+}
+
 /* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size) and F
  * (fit), , . and Enter
  * (frames and playback). */
@@ -45,6 +66,7 @@ void App::plainShortcuts()
     if (anyPressed({ImGuiKey_Period})) {
         editor_->setFrame(editor_->frame() + 1);
     }
+    nudgeShortcut();
     if (anyPressed({ImGuiKey_Enter, ImGuiKey_KeypadEnter}, false)) {
         editor_->togglePlayback();
     }

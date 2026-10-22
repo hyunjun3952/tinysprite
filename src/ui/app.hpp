@@ -119,6 +119,7 @@ class App
      * more exact for the moment (e.g. "Merge layers" for a selection of several). */
     void commandItem(CommandId id, bool checked = false, const char *label = nullptr);
     void plainShortcuts();
+    void nudgeShortcut();
     void ctrlShortcuts();
     void escapeShortcut();
     bool modalOpen() const;

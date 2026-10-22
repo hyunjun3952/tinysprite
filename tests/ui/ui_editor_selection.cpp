@@ -343,6 +343,43 @@ TEST(a_click_that_moves_nothing_adds_no_undo_step)
     delete e;
 }
 
+TEST(nudge_moves_the_selected_pixels_and_the_selection_in_one_undo_step)
+{
+    Editor *e = make_editor();
+    dot(e, 1, 1);
+    select_rect(e, 1, 1, 2, 2);
+    ASSERT_TRUE(e->nudgeSelection(1, 2));
+    ASSERT_EQ_INT(0, alpha(e, 1, 1));
+    ASSERT_EQ_INT(255, alpha(e, 2, 3));
+    ASSERT_EQ_INT(2, e->selection().x);
+    ASSERT_EQ_INT(3, e->selection().y);
+    e->undo();
+    ASSERT_EQ_INT(255, alpha(e, 1, 1));
+    ASSERT_EQ_INT(1, e->selection().x);
+    ASSERT_EQ_INT(1, e->selection().y);
+    delete e;
+}
+
+TEST(nudge_needs_a_selection_and_an_editable_layer)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(!e->nudgeSelection(1, 0));
+    select_rect(e, 1, 1, 2, 2);
+    ASSERT_TRUE(!e->nudgeSelection(0, 0));
+    ASSERT_TRUE(!e->history().canUndo());
+    delete e;
+}
+
+TEST(nudge_off_the_sprite_clips_the_selection)
+{
+    Editor *e = make_editor();
+    select_rect(e, 6, 0, 7, 1);
+    ASSERT_TRUE(e->nudgeSelection(1, 0));
+    ASSERT_EQ_INT(7, e->selection().x);
+    ASSERT_EQ_INT(1, e->selection().w);
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -369,6 +406,9 @@ int main()
     RUN(undoing_a_paste_restores_the_previous_selection);
     RUN(undoing_a_move_puts_the_selection_back);
     RUN(a_click_that_moves_nothing_adds_no_undo_step);
+    RUN(nudge_moves_the_selected_pixels_and_the_selection_in_one_undo_step);
+    RUN(nudge_needs_a_selection_and_an_editable_layer);
+    RUN(nudge_off_the_sprite_clips_the_selection);
     ui_quit();
     return TEST_SUMMARY();
 }

@@ -335,6 +335,7 @@ void App::helpWindow()
         {"Mouse wheel, F", "Zoom at the cursor, fit the sprite"},
         {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
         {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
+        {"Arrow keys (Shift: 8 px)", "Move the selected pixels"},
         {"Click / Ctrl+click / Shift+click on layers",
          "Select one layer, add or remove one, select a range"},
         {"Delete (layer list focused)", "Delete the selected layers, after asking"},
