@@ -78,16 +78,6 @@ float Toasts::alpha(double now) const
     return static_cast<float>(std::min(std::clamp(left / FADE_SECONDS, 0.0, 1.0), entered));
 }
 
-float Toasts::rise(double now) const
-{
-    const Toast *toast = current(now);
-    if (!toast) {
-        return 0.0f;
-    }
-    double left = 1.0 - std::clamp((now - toast->start) / ENTER_SECONDS, 0.0, 1.0);
-    return static_cast<float>(left * left);
-}
-
 void Toasts::draw(double now, float bottomMargin) const
 {
     const Toast *toast = current(now);
@@ -100,14 +90,13 @@ void Toasts::draw(double now, float bottomMargin) const
     ImVec2 size = ImGui::CalcTextSize(toast->text.c_str());
     float pad = theme::px(10.0f);
     ImVec2 min(viewport->WorkPos.x + (viewport->WorkSize.x - size.x) / 2.0f - pad,
-               viewport->WorkPos.y + viewport->WorkSize.y - bottomMargin - size.y - pad * 2.0f +
-                   rise(now) * theme::px(8.0f));
+               viewport->WorkPos.y + viewport->WorkSize.y - bottomMargin - size.y - pad * 2.0f);
     ImVec2 max(min.x + size.x + pad * 2.0f, min.y + size.y + pad * 2.0f);
-    ImVec4 border = toast->error ? ImVec4(0.9f, 0.35f, 0.35f, fade) : theme::rgb(theme::MUTE, fade);
+    ImVec4 border = theme::rgb(toast->error ? theme::INK : theme::MUTE, fade);
     draw->AddRectFilled(min, max,
-                        ImGui::ColorConvertFloat4ToU32(theme::rgb(0x1a1715, 0.95f * fade)),
-                        theme::px(4.0f));
-    draw->AddRect(min, max, ImGui::ColorConvertFloat4ToU32(border), theme::px(4.0f));
+                        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::CANVAS, 0.95f * fade)),
+                        theme::px(6.0f));
+    draw->AddRect(min, max, ImGui::ColorConvertFloat4ToU32(border), theme::px(6.0f));
     draw->AddText(ImVec2(min.x + pad, min.y + pad),
                   ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK, fade)),
                   toast->text.c_str());

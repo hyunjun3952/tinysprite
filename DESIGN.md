@@ -188,6 +188,7 @@ The interface has exactly one voice of emphasis: the **off-white accent** (`{col
 ### Rules for color
 - A new color needs a new row in `theme.hpp` first. Panels never inline a hex value.
 - Text on any surface must keep a contrast ratio of at least 4.5:1 for text and 3:1 for icons. Control boundaries are told by fill alone and are exempt (canvas-soft on canvas is 1.14:1 by design); state is never carried by the boundary, a selected control is inverted. `{colors.mute}` on `{colors.canvas-soft}` is the tightest pair in the system; check it before using mute for anything that must be read.
+- Tag bands (`theme::TAG_COLORS`) are user data and the only hue besides the artwork; the dock-drop highlight is `theme::PANEL_DROP`. Errors and warnings are plain ink text, never red or amber (red is for destroying data).
 - Color never carries meaning alone. A selected control is also inverted, a disabled one also has the "not allowed" cursor and no tooltip behavior change.
 
 ## Typography

@@ -31,10 +31,6 @@ class Toasts
      * 0 with no message. */
     float alpha(double now) const;
 
-    /* How far below its place the message still is, 1 as it appears easing to 0 over
-     * ENTER_SECONDS; 0 after that and with no message. Multiply by the distance to travel. */
-    float rise(double now) const;
-
     /* Draws the message above the status bar, centered in the main viewport. */
     void draw(double now, float bottomMargin) const;
 

@@ -36,10 +36,6 @@ float dotRadius()
 
 const char *const MODE_NAMES[] = {"Forward", "Reverse", "Ping-pong"};
 
-/* Muted band colors for the tags, cycled by index (ABGR). */
-constexpr ImU32 TAG_COLORS[] = {0xff5a78c8U, 0xff6aa860U, 0xffc08a50U,
-                                0xff5aaac0U, 0xffa069b8U, 0xff6e8ec0U};
-
 /* A combo of the play modes; true when `mode` was changed. */
 bool modeCombo(const char *id, PlayMode &mode, float width)
 {
@@ -341,7 +337,7 @@ void TimelinePanel::tagControls()
 void TimelinePanel::tagBand(int frame, int shown, ImVec2 min, ImVec2 max)
 {
     const Sprite::Tag &tag = editor_->sprite().tags()[static_cast<size_t>(shown)];
-    ImU32 color = TAG_COLORS[static_cast<size_t>(shown) % std::size(TAG_COLORS)];
+    ImU32 color = theme::TAG_COLORS[static_cast<size_t>(shown) % std::size(theme::TAG_COLORS)];
     float gap = 2.0f * ImGui::GetStyle().CellPadding.x; /* between two columns */
     ImDrawList *draw = ImGui::GetWindowDrawList();
     /* extend the band over the column gap so it reads as one piece */
@@ -351,9 +347,10 @@ void TimelinePanel::tagBand(int frame, int shown, ImVec2 min, ImVec2 max)
         draw->AddRect(min, ImVec2(right, max.y), ImGui::GetColorU32(theme::rgb(theme::INK)));
     }
     if (frame == tag.from) {
-        float width = static_cast<float>(tag.to - tag.from) * (cellWidth() + gap);
-        draw->PushClipRect(min, ImVec2(max.x + width, max.y), true);
-        draw->AddText(ImVec2(min.x + 3.0f, min.y + 1.0f), 0xff1f1b19U, tag.name.c_str());
+        /* the table clips drawing to the cell, so the name has to fit the first one */
+        draw->PushClipRect(min, max, true);
+        std::string label = theme::ellipsize(tag.name, max.x - min.x - 3.0f);
+        draw->AddText(ImVec2(min.x + 3.0f, min.y + 1.0f), theme::TAG_TEXT, label.c_str());
         draw->PopClipRect();
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
@@ -454,10 +451,14 @@ void TimelinePanel::layerRow(int l, int frames)
     ImGui::TableNextRow(0, cellHeight());
     ImGui::TableSetColumnIndex(0);
     ImGui::AlignTextToFramePadding();
+    std::string shown = theme::ellipsize(layer.name(), ImGui::GetContentRegionAvail().x);
     if (layer.visible()) {
-        ImGui::TextUnformatted(layer.name().c_str());
+        ImGui::TextUnformatted(shown.c_str());
     } else {
-        ImGui::TextColored(theme::rgb(theme::MUTE), "%s", layer.name().c_str());
+        ImGui::TextColored(theme::rgb(theme::MUTE), "%s", shown.c_str());
+    }
+    if (shown != layer.name()) {
+        theme::tip(layer.name().c_str());
     }
     for (int f = 0; f < frames; f++) {
         ImGui::TableSetColumnIndex(f + 1);

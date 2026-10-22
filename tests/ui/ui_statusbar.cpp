@@ -52,12 +52,6 @@ TEST(a_toast_fades_in_and_rises_into_place)
     float mid = toasts.alpha(Toasts::ENTER_SECONDS / 2.0);
     ASSERT_TRUE(mid > 0.0f && mid < 1.0f);
     ASSERT_TRUE(toasts.alpha(Toasts::ENTER_SECONDS + 0.01) == 1.0f);
-    ASSERT_TRUE(toasts.rise(0.0) == 1.0f);
-    float part = toasts.rise(Toasts::ENTER_SECONDS / 2.0);
-    ASSERT_TRUE(part > 0.0f && part < 1.0f);
-    ASSERT_TRUE(toasts.rise(Toasts::ENTER_SECONDS + 0.01) == 0.0f);
-    ASSERT_TRUE(toasts.rise(Toasts::INFO_SECONDS - 0.1) ==
-                0.0f); /* it does not move on the way out */
 }
 
 TEST(the_extension_is_swapped_for_another)

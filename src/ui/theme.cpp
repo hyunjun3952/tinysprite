@@ -560,6 +560,25 @@ void tip(const char *text)
     }
 }
 
+std::string ellipsize(const std::string &text, float maxWidth)
+{
+    if (ImGui::CalcTextSize(text.c_str()).x <= maxWidth) {
+        return text;
+    }
+    size_t end = text.size();
+    while (end > 0) {
+        end--;
+        while (end > 0 && (static_cast<unsigned char>(text[end]) & 0xc0) == 0x80) {
+            end--; /* back to the first byte of the character */
+        }
+        std::string cut = text.substr(0, end) + "...";
+        if (end == 0 || ImGui::CalcTextSize(cut.c_str()).x <= maxWidth) {
+            return cut;
+        }
+    }
+    return "...";
+}
+
 void hint(const char *tooltip, bool enabled)
 {
     if (enabled) {

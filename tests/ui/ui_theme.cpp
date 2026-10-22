@@ -197,6 +197,13 @@ TEST(a_closed_chevron_points_right_and_an_open_one_points_down)
     }
 }
 
+TEST(a_hidden_layer_name_on_a_selected_row_stays_readable)
+{
+    /* mute is too dim on the pressed fill, so a selected hidden row uses body */
+    ASSERT_TRUE(contrast(theme::MUTE, theme::PRESSED) < 4.5);
+    ASSERT_TRUE(contrast(theme::BODY, theme::PRESSED) >= 4.5);
+}
+
 int main()
 {
     RUN(a_closed_chevron_points_right_and_an_open_one_points_down);
@@ -212,5 +219,6 @@ int main()
     RUN(hex_text_parses_in_three_six_and_eight_digit_forms);
     RUN(bad_hex_text_is_refused_and_changes_nothing);
     RUN(dialog_buttons_have_a_minimum_width_and_grow_with_their_label);
+    RUN(a_hidden_layer_name_on_a_selected_row_stays_readable);
     return TEST_SUMMARY();
 }

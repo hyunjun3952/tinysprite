@@ -3,6 +3,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <string>
 #include <vector>
 
 #include "icons.hpp"
@@ -12,7 +13,6 @@
 namespace
 {
 
-constexpr float OPACITY_COLUMN = 76.0f;
 constexpr float PROPERTY_NAME_COLUMN = 72.0f; /* the names in the properties grid */
 constexpr float LIST_MIN_HEIGHT = 96.0f;      /* the layer list never gets shorter than this */
 
@@ -54,6 +54,19 @@ void drawDropLine(ImVec2 rowMin, ImVec2 rowMax, bool fromBelow)
     ImGui::GetForegroundDrawList()->AddLine(
         ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
         ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), DROP_LINE_THICKNESS);
+}
+
+/* The blend tag and the opacity of a layer, shown after its name; empty for a plain layer. */
+std::string opacityTag(const Layer &layer)
+{
+    std::string tag;
+    if (layer.blendMode() != BlendMode::Normal) {
+        tag = BLEND_TAGS[static_cast<int>(layer.blendMode())];
+    }
+    if (layer.opacity() != 255) {
+        tag += (tag.empty() ? "" : " ") + std::to_string((layer.opacity() * 100 + 127) / 255) + "%";
+    }
+    return tag;
 }
 
 } // namespace
@@ -284,10 +297,23 @@ void LayersPanel::nameCell(int index, Layer &layer, const RowContext &ctx)
         return;
     }
     ImGui::AlignTextToFramePadding();
-    const char *name = layer.name().c_str();
-    ImGui::PushStyleColor(ImGuiCol_Text, theme::rgb(layer.visible() ? theme::INK : theme::MUTE));
-    ImGui::TextUnformatted(name[0] != '\0' ? name : "(unnamed)");
+    std::string tag = opacityTag(layer);
+    float tagWidth = tag.empty() ? 0.0f : ImGui::CalcTextSize(tag.c_str()).x + theme::px(8.0f);
+    std::string name = layer.name().empty() ? "(unnamed)" : layer.name();
+    unsigned color = theme::INK;
+    if (!layer.visible()) {
+        color =
+            editor_->layerSelected(index) ? theme::BODY : theme::MUTE; /* mute is dim on pressed */
+    }
+    ImGui::PushStyleColor(ImGuiCol_Text, theme::rgb(color));
+    ImGui::TextUnformatted(
+        theme::ellipsize(name, ImGui::GetContentRegionAvail().x - tagWidth).c_str());
     ImGui::PopStyleColor();
+    if (!tag.empty()) {
+        ImGui::SameLine(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - tagWidth +
+                        theme::px(8.0f));
+        ImGui::TextDisabled("%s", tag.c_str());
+    }
 }
 
 void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
@@ -309,19 +335,6 @@ void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
     nameCell(index, layer, ctx);
 
     ImGui::TableSetColumnIndex(3);
-    if (layer.opacity() != 255 || layer.blendMode() != BlendMode::Normal) {
-        centerInRow(ctx.rowHeight, ctx.frameHeight);
-        ImGui::AlignTextToFramePadding();
-        if (layer.blendMode() != BlendMode::Normal) {
-            ImGui::TextDisabled("%s", BLEND_TAGS[static_cast<int>(layer.blendMode())]);
-            ImGui::SameLine(0.0f, 4.0f);
-        }
-        if (layer.opacity() != 255) {
-            ImGui::TextDisabled("%d%%", (layer.opacity() * 100 + 127) / 255);
-        }
-    }
-
-    ImGui::TableSetColumnIndex(4);
     lockToggle(index, layer, ctx);
     ImGui::PopID();
 }
@@ -332,7 +345,7 @@ void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
 void LayersPanel::rows()
 {
     constexpr ImGuiTableFlags FLAGS = ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
-    if (!ImGui::BeginTable("layers", 5, FLAGS)) {
+    if (!ImGui::BeginTable("layers", 4, FLAGS)) {
         return;
     }
     if (renaming_ >= editor_->sprite().layerCount()) {
@@ -347,7 +360,6 @@ void LayersPanel::rows()
                             ctx.frameHeight + EDGE_MARGIN);
     ImGui::TableSetupColumn("##thumbnail", ImGuiTableColumnFlags_WidthFixed, THUMB_COLUMN);
     ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("##opacity", ImGuiTableColumnFlags_WidthFixed, OPACITY_COLUMN);
     ImGui::TableSetupColumn("##lock", ImGuiTableColumnFlags_WidthFixed,
                             ctx.frameHeight + EDGE_MARGIN);
     Drop drop; /* applied after the loop: the list must not change under it */

@@ -137,6 +137,10 @@ void tip(const char *text);
  * while it is disabled no tooltip but the "not allowed" mouse cursor. */
 void hint(const char *tooltip, bool enabled);
 
+/* `text` cut at a UTF-8 character boundary and ended with "..." so that it is at most `maxWidth`
+ * wide (as drawn by the current font); text that fits comes back unchanged. */
+std::string ellipsize(const std::string &text, float maxWidth);
+
 /* Width of one of `count` equal columns that fill the available width. */
 float columnWidth(int count);
 
@@ -150,6 +154,14 @@ bool actionButton(const char *label, const char *tooltip, float width, bool enab
 
 /* Colors for the canvas area, as ImU32. */
 ImU32 workspaceColor();
+
+/* Tag bands of the timeline, ABGR (user data: the only hue besides the artwork), and the dark text
+ * drawn on them. */
+inline constexpr ImU32 TAG_COLORS[] = {0xff5a78c8U, 0xff6aa860U, 0xffc08a50U,
+                                       0xff5aaac0U, 0xffa069b8U, 0xff6e8ec0U};
+inline constexpr ImU32 TAG_TEXT = 0xff1f1b19U;
+/* The translucent off-white that marks where a dragged panel will dock, ABGR. */
+inline constexpr ImU32 PANEL_DROP = 0x66f0f5f7U;
 
 /* Colors drawn on and around the artwork (not chrome): they must read on light and dark art, so
  * they are fixed values and do not follow the surface ladder. */

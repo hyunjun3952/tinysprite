@@ -25,9 +25,6 @@ constexpr float DOCK_ZONE =
     60.0f; /* mouse distance from a window edge that docks a dragged panel */
 constexpr float TITLE_DRAG_DISTANCE = 4.0f; /* mouse travel that turns a title press into a drag */
 
-/* Translucent off-white, ABGR. */
-constexpr ImU32 COL32_PANEL_DROP = 0x66f0f5f7U;
-
 } // namespace
 
 Panels::Panels()
@@ -196,7 +193,8 @@ void Panels::dragToDock(Panel &panel)
         float x0 = side == DockSide::Left ? leftEdge : rightEdge - panel.shown;
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImVec2(x0, viewport->WorkPos.y),
-            ImVec2(x0 + panel.shown, viewport->WorkPos.y + viewport->WorkSize.y), COL32_PANEL_DROP);
+            ImVec2(x0 + panel.shown, viewport->WorkPos.y + viewport->WorkSize.y),
+            theme::PANEL_DROP);
     }
 }
 
@@ -242,7 +240,7 @@ void Panels::resizeEdge(Panel &panel)
     if (hovered || panel.resizing) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImVec2(edge - 1.0f, viewport->WorkPos.y),
-            ImVec2(edge + 1.0f, viewport->WorkPos.y + viewport->WorkSize.y), COL32_PANEL_DROP);
+            ImVec2(edge + 1.0f, viewport->WorkPos.y + viewport->WorkSize.y), theme::PANEL_DROP);
     }
 }
 

@@ -289,7 +289,7 @@ void App::animationOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Frames");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(200.0f);
+    ImGui::SetNextItemWidth(theme::px(200.0f));
     std::string current =
         export_.tag < 0 ? "All frames" : tags[static_cast<size_t>(export_.tag)].name;
     if (theme::begin_combo("##export_range", current.c_str())) {
@@ -326,7 +326,7 @@ void App::sheetOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Layout");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(200.0f);
+    ImGui::SetNextItemWidth(theme::px(200.0f));
     if (theme::begin_combo("##sheet_layout", LAYOUTS[export_.layout])) {
         for (int i = 0; i < static_cast<int>(std::size(LAYOUTS)); i++) {
             if (ImGui::Selectable(LAYOUTS[i], i == export_.layout)) {
@@ -358,11 +358,10 @@ void App::sheetOptions()
 void App::fileDialogMessages()
 {
     if (!fileError_.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());
+        ImGui::TextUnformatted(fileError_.c_str());
     }
     if (!overwritePath_.empty()) { /* overwriteName_ is the image or, for a sheet, its .json */
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "%s already exists.",
-                           overwriteName_.c_str());
+        ImGui::TextUnformatted((overwriteName_ + " already exists.").c_str());
     }
 }
 
