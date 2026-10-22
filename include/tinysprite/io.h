@@ -129,6 +129,19 @@ std::optional<SpriteSheet> spritesheet_render(const Sprite &sprite, const SheetO
  * Returns false for a bad option, another extension or an unwritable file. */
 bool spritesheet_export(const Sprite &sprite, const std::string &path, const SheetOptions &options);
 
+/* The metadata a game loads next to the sheet image, as JSON: "meta" (app, the image's file name
+ * `image`, the sheet's size, the size of one frame as drawn, the scale), "frames" (one entry per
+ * exported frame: its rect in the sheet and its duration in milliseconds) and "tags" (name, first
+ * and last frame, direction "forward" / "reverse" / "pingpong"). Frame numbers count from the
+ * first exported frame; a tag is clamped to the exported range and dropped when it is outside. */
+std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &options,
+                                      const SpriteSheet &sheet, const std::string &image);
+
+/* spritesheet_export plus the metadata written to `jsonPath` (its "image" is the file name of
+ * `path`). Returns false if either file cannot be written; the image is written first. */
+bool spritesheet_export_with_json(const Sprite &sprite, const std::string &path,
+                                  const std::string &jsonPath, const SheetOptions &options);
+
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
  * image as its single layer and an empty palette. An animated GIF becomes one frame per GIF frame
  * (each with its delay as the duration). Returns nothing if the file is not a readable

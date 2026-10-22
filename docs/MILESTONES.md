@@ -96,10 +96,11 @@ only Opacity, size and link info, so Blend is its first mode-like control.
 Ordered by value for a game developer and by risk (smallest, most self-contained first). Each is its own
 branch and PR.
 
-- [ ] **19. Sheet metadata + headless CLI** — `spritesheet_metadata_json` (frame rects, durations, tags, sheet
-      size; Aseprite-like "frames" / "meta" layout), `spritesheet_export` writes it next to the image, and
-      `tinysprite export <file> --sheet out.png [--json out.json] [--columns N] [--scale N]` runs without a window
-      (no SDL video init), so a build script can export.
+- [x] **19. Sheet metadata + headless CLI** — `spritesheet_metadata_json` (`meta` / `frames` / `tags`; tags are
+      renumbered from the first exported frame and clamped to the range) and `spritesheet_export_with_json`;
+      `tinysprite export <input> --sheet|--image|--gif out [--json f] [--layout] [--columns] [--spacing] [--scale]
+      [--first] [--last] [--frame]` runs in `src/io/cli.cpp` before any SDL init, so it needs no display
+      (exit 0 / 1 unreadable or unwritable / 2 bad command line). `--columns` alone means a grid.
 - [ ] **20. Slices, pivots, hitboxes** — named rects with an optional pivot per sprite (`slice_ops.h`, `SLCE`
       chunk, JSON `slices`), a slice tool and panel.
 - [ ] **21. Sheet packing** — trim transparent borders and pack frames (skyline), with the trim offsets in the JSON.

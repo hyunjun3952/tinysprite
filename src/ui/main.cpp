@@ -5,6 +5,7 @@
 
 #include "app.h"
 #include "tinysprite/cel.h"
+#include "tinysprite/cli.h"
 
 namespace
 {
@@ -21,8 +22,10 @@ bool parseNumber(const char *text, int min, int max, int &out)
     return true;
 }
 
-constexpr const char *USAGE = "usage: %s [file | width [height]] [--frames N [--screenshot "
-                              "out.png]] [--config-dir DIR] [--scale S] [--help]\n";
+constexpr const char *USAGE =
+    "usage: %s [file | width [height]] [--frames N [--screenshot "
+    "out.png]] [--config-dir DIR] [--scale S] [--help]\n"
+    "       %s export <input> --sheet|--image|--gif out [...]  (no window)\n";
 
 /* The command line, one argument at a time; a flag takes the argument after it as its value. */
 class Args
@@ -132,15 +135,18 @@ bool parseOptions(int argc, char **argv, AppOptions &options)
 
 int main(int argc, char **argv)
 {
+    if (argc > 1 && std::strcmp(argv[1], "export") == 0) {
+        return cli_export(argc, argv); /* headless: before any SDL init */
+    }
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
-            std::printf(USAGE, argv[0]);
+            std::printf(USAGE, argv[0], argv[0]);
             return 0;
         }
     }
     AppOptions options;
     if (!parseOptions(argc, argv, options)) {
-        std::fprintf(stderr, USAGE, argv[0]);
+        std::fprintf(stderr, USAGE, argv[0], argv[0]);
         return 2;
     }
     App app;
