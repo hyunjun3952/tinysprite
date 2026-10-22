@@ -1,11 +1,22 @@
 name: ci
 
+# Runs only when code, tests, scripts or the build definition change; docs and skills do not need it.
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md']
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - 'scripts/**'
   pull_request:
-    paths-ignore: ['**.md']
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - 'scripts/**'
 
 permissions:
   contents: read
