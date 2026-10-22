@@ -8,7 +8,7 @@ Technique names are from the refactoring.guru catalog.
 | Smell | In this codebase look for | Usual technique |
 |---|---|---|
 | Long Method | Function over about 40 lines or cognitive complexity 12+ | Extract Function; split by what the branches decide (see `Decoder` in `pxa.cpp`) |
-| Large Class | Class with unrelated field groups or many unrelated methods. `Editor` is a deliberate Facade (see DESIGN_PATTERNS.md): flag it only when a method does work instead of delegating | Extract Class, Move Method |
+| Large Class | Class with unrelated field groups or many unrelated methods. `Editor` is a deliberate Facade: flag it only when a method does work instead of delegating | Extract Class, Move Method |
 | Primitive Obsession | Several `int`s meaning width/height/x/y, color as `uint32_t` passed around raw, magic ints for modes | Introduce a small struct or enum class (like `Spread`, `Grid`) |
 | Long Parameter List | 4+ parameters, especially same-typed neighbours | Introduce Parameter Object (like `OnionPlan`, `PencilOptions`) |
 | Data Clumps | The same 3-4 values passed together in many signatures | Extract Class / struct |
@@ -53,6 +53,6 @@ Technique names are from the refactoring.guru catalog.
 
 ## Do not report
 
-- The Facade, table-driven, Command and Memento shapes already listed under "In use" in `docs/DESIGN_PATTERNS.md`.
+- The deliberate shapes: `Editor` as a Facade, table-driven dispatch (`ToolTraits`, `Decoder::CHUNKS`), Command (`History` actions, `*_ops.h`) and Memento (cel / tag / palette snapshots).
 - `thirdparty/` code.
 - Test code for complexity (`ASSERT_*` expands to branches), but duplicated setup in tests can still be extracted.

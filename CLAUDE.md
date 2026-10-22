@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-tinysprite is a pixel art / 2D sprite animation editor written in C++17 (core, I/O and UI; SDL2 + Dear ImGui for the frontend). The project is built incrementally by milestone; progress, remaining steps and known gotchas are tracked in `docs/MILESTONES.md` (update it when a milestone finishes). A map of the modules and data flow is in `docs/ARCHITECTURE.md`. Planned scope: drawing tools first, then animation (timeline, onion skin, GIF/spritesheet export), then game pipeline features (tilemaps, JSON export, headless CLI).
+tinysprite is a pixel art / 2D sprite animation editor written in C++17 (core, I/O and UI; SDL2 + Dear ImGui for the frontend). The project is built incrementally by milestone; progress, remaining steps and known gotchas are tracked in `docs/MILESTONES.md` (update it when a milestone finishes). A map of the modules and data flow is in `docs/ARCHITECTURE.md`. Phases 1 (drawing tools) and 2 (animation) are done; the game pipeline (tilemaps, JSON export, headless CLI) is phase 3.
 
 ## Commands
 
@@ -25,23 +25,22 @@ scripts/lint.sh --changed   # only .cpp files that differ from main (and those i
 scripts/setup-hooks.sh      # once per clone: pre-commit = format check, pre-push = format + lint --changed
 ```
 
-CI (`.github/workflows/ci.yml`) has three separate jobs: `lint` (shellcheck, format check, clang-tidy), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The clang tools are pinned to the version in `scripts/clang-version` (the one CI installs; `scripts/install-deps.sh` installs it locally, and the scripts refuse to run without it; the editor uses `clangd-18` (diagnostics and formatting) via `.vscode/settings.json` and `.devcontainer/`, kept in step by `scripts/check-clang-version.sh` in the `lint` job). Run format and lint before committing; `thirdparty/` is excluded from both.
+CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, or `scripts/` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (shellcheck, format check, clang-tidy), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The clang tools are pinned to the version in `scripts/clang-version` (the one CI installs; `scripts/install-deps.sh` installs it locally, and the scripts refuse to run without it; the editor uses clangd of that same version (diagnostics and formatting) via `.vscode/settings.json` and `.devcontainer/`, kept in step by `scripts/check-clang-version.sh` in the `lint` job). Run format and lint before committing; `thirdparty/` is excluded from both.
 
 ## Architecture
 
-- **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + ImGui) → executable. `tests/test_*.cpp` link only core/io; UI tests (`tests/ui/ui_*.cpp`, only when the UI is built) link `tinysprite_ui` and run under `SDL_VIDEODRIVER=dummy`. Never include SDL/ImGui headers from `src/core` or `src/io`.
-- **Public headers** live in `include/tinysprite/` (core and io only); internal headers stay next to sources in `src/`.
-- **Document model**: `Sprite → Layers × Frames → Cel` (pixel buffer), with a Palette, frame durations and tags. Cels are shared (`shared_ptr`) when frames are linked, and removed frames / layers live on inside history steps; do not flatten this structure.
-- **Undo/Redo**: every edit goes through the history module. One undo step = one user stroke; storage is a pixel delta (index, old, new). Edits that are not pixels (layers, frames, tags, links, palette) are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path.
-- **Rendering** is CPU compositing into one texture with nearest sampling, re-composited by dirty rect.
-- File format `.pxa` is versioned and chunked (length-prefixed) for forward compatibility.
+Module map, data flow, document model, undo, rendering, UI and the `.pxa` format: `docs/ARCHITECTURE.md`. Hard rules:
+
+- **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + ImGui) → executable. Never include SDL/ImGui headers from `src/core` or `src/io`. Public headers live in `include/tinysprite/` (core and io only), internal ones next to sources.
+- **Document model**: `Sprite → Layers × Frames → Cel`; cels are shared (`shared_ptr`) when frames are linked, and removed frames / layers live on inside history steps. Do not flatten this structure.
+- **Undo/Redo**: every edit goes through the history module, one undo step per user stroke; non-pixel edits are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path.
+- File format `.pxa` is versioned and chunked (length-prefixed): see `docs/ARCHITECTURE.md#file-format`.
 
 ## Conventions
 
-- **TDD**: write the failing test first (`tests/test_<feature>.cpp`, one file per feature, using `tests/minitest.h`: `TEST`, `RUN`, `ASSERT_*`), then implement. New `test_*.cpp` files are picked up automatically by CMake globbing (re-run cmake).
-- Tool/raster behavior is tested by feeding point lists and comparing golden pixel arrays.
-- Keep every function in `src/` at a cognitive complexity of 15 or less (`readability-function-cognitive-complexity`, checked by `scripts/lint.sh`; not applied to `tests/`). Split by what the branches decide. Patterns in use and candidates: `docs/DESIGN_PATTERNS.md`.
-- C++17, no raw owning pointers: document types (`Cel`, `Layer`, `Sprite`, `Palette`, `History`, `Clip`) are RAII classes, live strokes (`PencilStroke`, `ShapeStroke`, `MoveStroke`) are created by a static `begin()` that returns a `std::unique_ptr` (null if the history already has an open stroke) and cancel themselves when destroyed unfinished. Invalid sizes throw `std::invalid_argument`; operations that can be refused (stroke already active, index out of range) return `bool` or null instead of throwing. Rasterizers report pixels through a `std::function`. Tests run under ASan/UBSan. UI code uses classes where state and behavior go together (`Editor`, `Drag` subclasses per tool, panels, `Canvas`, `App`).
+- **TDD**: write the failing test first (`tests/test_<feature>.cpp`, one file per feature, using `tests/minitest.h`: `TEST`, `RUN`, `ASSERT_*`), then implement. New `test_*.cpp` files are picked up by CMake globbing (re-run cmake). Test layout (core/io tests, `tests/ui/ui_*.cpp` under `SDL_VIDEODRIVER=dummy`, golden pixel arrays): `docs/ARCHITECTURE.md#testing`.
+- Keep every function in `src/` at a cognitive complexity of 15 or less (checked by `scripts/lint.sh`; not applied to `tests/`). Split by what the branches decide, not by line count (examples: `pxa.cpp`'s `Decoder`, `timeline_panel.cpp`'s `grid`).
+- C++17, no raw owning pointers: document types are RAII classes; live strokes are created by a static `begin()` returning a `std::unique_ptr` (null if the history already has an open stroke) and cancel themselves when destroyed unfinished. Invalid sizes throw `std::invalid_argument`; refusable operations return `bool` or null. Details: `docs/ARCHITECTURE.md`. Tests run under ASan/UBSan.
 - Commits: English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
 - Record dependency name, pinned version and license in `thirdparty/README.md` when adding anything to `thirdparty/`.
 

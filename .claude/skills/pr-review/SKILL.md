@@ -48,7 +48,7 @@ gh pr checks N
 This repo has three CI jobs: `lint`, `linux`, `windows`. All three must have really run and passed.
 
 - "no checks reported" can mean CI has not registered yet: re-check later, do not read it as a pass.
-- CI ignores `**.md` changes (`paths-ignore`), so a docs-only PR legitimately has no checks. Say that instead of calling it a failure.
+- CI runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, or `scripts/` change (`paths` in `ci.yml`), so a PR that touches none of them legitimately has no checks. Say that instead of calling it a failure.
 - A failed job: read its log (`gh run view RUN_ID --log-failed`), name the failing step and the cause. Review can continue,
   but the verdict cannot be approve.
 - A green CI is not proof of correctness: CI uses a different clang-tidy version than a local run, and tests only cover what they cover.
@@ -84,7 +84,7 @@ For every non-trivial change or finding, compare the PR's approach with at least
 
 Cost means review effort plus future maintenance plus regression risk, not only lines of code.
 Prefer the lower-cost option when the result is the same: reuse an existing helper, a table row instead of a new
-branch (see `docs/DESIGN_PATTERNS.md`), a smaller diff, a dependency-free solution.
+branch, a smaller diff, a dependency-free solution.
 If the PR's approach is already the cheapest, say so in one line and skip the table. Do not invent alternatives.
 Keep functions in `src/` at cognitive complexity 15 or less; a PR that crosses it must split the function.
 

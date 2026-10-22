@@ -51,4 +51,4 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 
 - Style that `clang-format` fixes by itself.
 - Personal preference with no cost difference.
-- Candidate patterns listed under "Candidates, not done" in `docs/DESIGN_PATTERNS.md`, unless the PR is the case that makes them worth it.
+- Candidates listed under "Left from the pattern survey" in `docs/MILESTONES.md`, unless the PR is the case that makes them worth it.

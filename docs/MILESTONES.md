@@ -51,7 +51,8 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 - Not done: a TTF font (the 13 px bitmap font is only scaled), a
   file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
 - Left from the pattern survey: an `Editor` change observer, a `theme::labeledRow` helper, merging the tool tables,
-  declarative settings bindings. The reasoning and the other candidates are in [DESIGN_PATTERNS.md](DESIGN_PATTERNS.md).
+  declarative settings bindings; also a guard helper for `if (stroking()) return;` (about forty times in `Editor`), one holder
+  for `Slot` and `Membership`, and a `Playback` State if a fourth mode is added.
 - Cleanup pass: `History::perform` (record + run redo) replaced six hand-written copies; dead `History::grouping`,
   `Editor::duplicateLayer` and `commitLayerOpacity` removed; every function in `src/` is at most 12 cognitive complexity
   (`pxa` encode / decode, timeline grid, GIF palette, dialogs and shortcuts were split), and clang-tidy now fails a function

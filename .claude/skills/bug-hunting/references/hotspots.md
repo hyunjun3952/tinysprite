@@ -56,4 +56,4 @@ Load this in Step 0. These come from the architecture rules in CLAUDE.md and `do
 
 - Behavior documented in `docs/ARCHITECTURE.md` or `docs/MILESTONES.md` as intended (for example Cel is RGBA only, 256 colors max).
 - Throwing `std::invalid_argument` for invalid sizes: the convention.
-- Code in `thirdparty/`, and anything outside the target files fixed in SKILL.md Step 0 (docs, CMake, CI config; `scripts/` is in scope).
+- Code in `thirdparty/`, and anything outside the target files in SKILL.md Step 0.

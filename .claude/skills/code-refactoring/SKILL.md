@@ -47,7 +47,7 @@ Run these five lenses on the scope. The reference file of each lens has the deta
 
 Rank by **pain x change frequency**: complexity or smell score of the code, times how often it changes
 (`git log --format= --name-only -- PATH | sort | uniq -c | sort -rn | head`). A messy file nobody touches ranks below a mildly messy file edited every week.
-Check `docs/DESIGN_PATTERNS.md` first: a pattern or limit it already explains is intended, and its "Candidates, not done" entries state when they become worth doing; do not report those before that condition holds.
+A shape that `docs/ARCHITECTURE.md` or the "Left from the pattern survey" list in `docs/MILESTONES.md` describes is intended or deliberately postponed; do not report it unless the change makes it worth doing.
 
 ## Step 2: Evaluate each finding
 
@@ -75,7 +75,7 @@ One finding at a time, in a loop:
 6. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
 
 Branch policy from CLAUDE.md: a small refactoring inside one module goes straight to `main`. Changes across layers, public headers, or anything hard to revert get a `refactor/...` branch and a PR.
-When a refactoring changes structure other docs describe, update `docs/ARCHITECTURE.md` and `docs/DESIGN_PATTERNS.md` in the same commit.
+When a refactoring changes structure other docs describe, update `docs/ARCHITECTURE.md` in the same commit.
 
 ## Step 4: Report
 

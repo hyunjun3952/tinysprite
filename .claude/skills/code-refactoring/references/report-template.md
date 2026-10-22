@@ -23,13 +23,13 @@ Lens: smell (name) | anti-pattern | magic number | complexity | performance | SO
 |---|---|---|---|---|
 
 ## Left out (보류)
-- R4: reason (no measurable gain / waits for a condition in DESIGN_PATTERNS.md / taste only)
+- R4: reason (no measurable gain / waits for a condition / taste only)
 
 ## Found on the way (not refactoring)
 - Suspected bug at file:line, handed to bug-hunting.
 
 ## Docs updated
-ARCHITECTURE.md / DESIGN_PATTERNS.md / MILESTONES.md changes, or "none needed".
+ARCHITECTURE.md / MILESTONES.md changes, or "none needed".
 
 ## Next
 Proposed order for the remaining findings.

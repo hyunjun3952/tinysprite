@@ -35,7 +35,7 @@ Say the scope back in one line. A big scope is split by module and done one at a
 - Scripts: `scripts/*` (shell and any other script there, for example `format.sh`, `lint.sh`, `setup-hooks.sh`, `install-deps.sh`, `check-clang-version.sh`).
 
 Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `.devcontainer/`, `.vscode/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
-Open those only to learn how to build or run something (for example the test command), never to report a finding in them.
+Open those for context only (how to build or run, known gotchas and intended behavior in `docs/`), never to report a finding in them.
 If a suspicion points outside the target (for example a CI workflow), mention it in one line under "not checked" in the report instead of hunting it.
 Findings in test code are about the test being wrong: asserts that cannot fail, golden data that encodes a bug, missing cases, order dependence, leaks between tests.
 Findings in scripts are about wrong exit codes (a pipe hiding a failure), unquoted paths, unchecked tool versions, and behavior that differs from what CLAUDE.md says the script does.
@@ -96,7 +96,7 @@ Never weaken or delete an existing assertion to make a test pass; that hides the
 Only when the symptom is on screen. Screenshots are taken **only for UI defects**: never for core/io/script/test findings,
 and never "to be thorough" when the code-level evidence is already enough. If Step 1-3 found no UI defect, skip this step entirely.
 
-The app already has a screenshot option that writes a PNG; use it first (no extra tool needed, works headless; Read opens the PNG):
+The app has a screenshot option that writes a PNG; use it first (no extra tool needed, works headless; Read opens the PNG):
 
 ```sh
 SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --frames 3 --screenshot OUT.png --config-dir TMPDIR
