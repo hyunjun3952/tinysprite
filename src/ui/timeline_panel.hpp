@@ -13,18 +13,32 @@
  * first). Clicking a cel selects its frame and layer; a dot marks a cel with something painted on
  * it, and dragging a frame number onto another one moves the frame there. A row above the frame
  * numbers shows the tags as colored bands; clicking one selects it for editing and for playback. */
+/* What dragging the timeline's top edge means (like a VS Code panel). `requested` is the distance
+ * from the mouse to the bottom of the canvas area; it is kept between `minHeight` and `maxHeight`
+ * (the minimum wins if the window is too short for it), and below `hideBelow` the timeline folds
+ * away: the result is not visible and keeps `previous`, the height it comes back at. All in pixels
+ * at UI scale 1. */
+struct TimelineSize {
+    bool visible;
+    float height;
+};
+TimelineSize timeline_drag(float requested, float previous, float minHeight, float maxHeight,
+                           float hideBelow);
+
 class TimelinePanel
 {
   public:
+    /* The height a new window starts with, the smallest height a drag leaves it, and the height
+     * below which a drag folds it away; at UI scale 1. */
     static constexpr float BASE_HEIGHT = 246.0f;
-    /* The strip's height at the current UI scale. */
-    static float height();
+    static constexpr float MIN_HEIGHT = 96.0f;
+    static constexpr float HIDE_BELOW = 60.0f;
 
     explicit TimelinePanel(Editor &editor);
 
-    /* Places the strip with its top-left corner at (x, y), `width` wide and HEIGHT tall, and draws
-     * it. */
-    void show(float x, float y, float width);
+    /* Places the strip with its top-left corner at (x, y), `width` wide and `height` tall, and
+     * draws it. */
+    void show(float x, float y, float width, float height);
 
     /* Where the cel of (layer, frame) was drawn in the last show(), for tests; a zero rectangle if
      * it was not drawn. */

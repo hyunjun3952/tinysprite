@@ -1,4 +1,4 @@
-/* The UI font is embedded (a subset of Inter, SIL OFL), so the text looks the same on every
+/* The UI font is embedded (a subset of Geist, SIL OFL), so the text looks the same on every
  * machine and scales as vector outlines instead of stretching a 13 px bitmap. */
 #include <cstring>
 
@@ -12,7 +12,12 @@ TEST(load_fonts_adds_the_embedded_font_at_the_base_size)
     ASSERT_TRUE(theme::load_fonts());
     ImGuiIO &io = ImGui::GetIO();
     ASSERT_EQ_INT(1, io.Fonts->Fonts.Size);
-    ASSERT_TRUE(std::strstr(io.Fonts->Sources[0].Name, "Inter") != nullptr);
+    ASSERT_TRUE(std::strstr(io.Fonts->Sources[0].Name, "Geist") != nullptr);
+    /* The glyphs are rasterized without hinting, so each one is placed on a whole pixel and not
+     * oversampled: that keeps the letter spacing and the stems even at 14 px. */
+    ASSERT_TRUE(io.Fonts->Sources[0].PixelSnapH);
+    ASSERT_EQ_INT(1, static_cast<int>(io.Fonts->Sources[0].OversampleH));
+    ASSERT_EQ_INT(1, static_cast<int>(io.Fonts->Sources[0].OversampleV));
     theme::apply();
     ASSERT_TRUE(ImGui::GetStyle().FontSizeBase == theme::FONT_SIZE);
     ImGui::DestroyContext();
@@ -31,9 +36,106 @@ TEST(apply_keeps_the_font_size_across_a_scale_change)
     ImGui::DestroyContext();
 }
 
+/* A control with no border is told apart from the panel by its fill alone, so the fill has to be
+ * visibly lighter than the panel: a checkbox that vanishes into the background is unusable. */
+static float luminance(const ImVec4 &c)
+{
+    return 0.2126f * c.x + 0.7152f * c.y + 0.0722f * c.z;
+}
+
+TEST(a_control_fill_is_visibly_lighter_than_the_panel)
+{
+    ImGui::CreateContext();
+    theme::apply();
+    const ImVec4 *c = ImGui::GetStyle().Colors;
+    float panel = luminance(c[ImGuiCol_WindowBg]);
+    ASSERT_TRUE(luminance(c[ImGuiCol_FrameBg]) - panel >= 0.02f);
+    ASSERT_TRUE(luminance(c[ImGuiCol_Button]) - panel >= 0.02f);
+    /* The same inside the menus, the color picker and the dialogs, which draw on the popup color:
+     * their fields and buttons must not vanish into it. */
+    float popup = luminance(c[ImGuiCol_PopupBg]);
+    ASSERT_TRUE(luminance(c[ImGuiCol_FrameBg]) - popup >= 0.02f);
+    ASSERT_TRUE(luminance(c[ImGuiCol_Button]) - popup >= 0.02f);
+    ImGui::DestroyContext();
+}
+
+/* A number is shown with its unit ("100 ms", "16 px") so it does not have to be guessed from the
+ * label. The unit goes into an ImGui printf format, so a "%" in it must not be read as a
+ * conversion. */
+TEST(an_int_format_appends_the_unit_and_escapes_percent)
+{
+    ASSERT_TRUE(theme::int_format("") == "%d");
+    ASSERT_TRUE(theme::int_format(" ms") == "%d ms");
+    ASSERT_TRUE(theme::int_format(" px") == "%d px");
+    ASSERT_TRUE(theme::int_format("%") == "%d%%");
+    ASSERT_TRUE(theme::int_format("\xC3\x97") == "%d\xC3\x97"); /* the multiplication sign */
+}
+
+/* The unit stays visible while a number is typed: it is drawn over the right end of the field, not
+ * made part of the text (which ImGui shows without it while editing). */
+TEST(the_unit_sits_at_the_right_end_of_the_field_centered_vertically)
+{
+    ImVec2 at = theme::unit_origin(ImVec2(0, 0), ImVec2(100, 24), 20.0f, 14.0f, 8.0f);
+    ASSERT_TRUE(at.x == 72.0f); /* 100 - 8 - 20 */
+    ASSERT_TRUE(at.y == 5.0f);  /* (24 - 14) / 2 */
+    at = theme::unit_origin(ImVec2(50, 10), ImVec2(150, 33), 21.0f, 14.0f, 6.0f);
+    ASSERT_TRUE(at.x == 123.0f);
+    ASSERT_TRUE(at.y == 14.0f); /* floor(10 + 4.5) */
+}
+
+/* The hex field of the color picker. */
+TEST(a_color_shows_as_hex_with_alpha_only_when_translucent)
+{
+    const float red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+    ASSERT_TRUE(theme::color_hex(red) == "FF0000");
+    const float teal[4] = {0.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f};
+    ASSERT_TRUE(theme::color_hex(teal) == "008080");
+    const float half[4] = {1.0f, 1.0f, 1.0f, 128.0f / 255.0f};
+    ASSERT_TRUE(theme::color_hex(half) == "FFFFFF80");
+}
+
+TEST(hex_text_parses_in_three_six_and_eight_digit_forms)
+{
+    float c[4] = {0, 0, 0, 0};
+    ASSERT_TRUE(theme::parse_color_hex("#ff8000", c));
+    ASSERT_TRUE(c[0] == 1.0f && c[2] == 0.0f && c[3] == 1.0f);
+    ASSERT_TRUE(c[1] > 0.50f && c[1] < 0.51f);
+    ASSERT_TRUE(theme::parse_color_hex("F80", c)); /* shorthand: F8 88 00 */
+    ASSERT_TRUE(c[0] == 1.0f && c[2] == 0.0f);
+    ASSERT_TRUE(c[1] > 0.53f && c[1] < 0.54f);
+    ASSERT_TRUE(theme::parse_color_hex("11223380", c));
+    ASSERT_TRUE(c[3] > 0.50f && c[3] < 0.51f);
+}
+
+TEST(bad_hex_text_is_refused_and_changes_nothing)
+{
+    float c[4] = {0.25f, 0.5f, 0.75f, 1.0f};
+    ASSERT_TRUE(!theme::parse_color_hex("", c));
+    ASSERT_TRUE(!theme::parse_color_hex("12", c));
+    ASSERT_TRUE(!theme::parse_color_hex("GG0000", c));
+    ASSERT_TRUE(!theme::parse_color_hex("1234567", c));
+    ASSERT_TRUE(c[0] == 0.25f && c[1] == 0.5f && c[2] == 0.75f && c[3] == 1.0f);
+}
+
+/* The buttons of a dialog are told apart by their width and the gap between them: a short label
+ * such as "OK" still gets a button as wide as "Cancel". */
+TEST(dialog_buttons_have_a_minimum_width_and_grow_with_their_label)
+{
+    ASSERT_TRUE(theme::dialog_button_width(20.0f) == 88.0f);
+    ASSERT_TRUE(theme::dialog_button_width(56.0f) == 88.0f);  /* 56 + 32 = 88: the boundary */
+    ASSERT_TRUE(theme::dialog_button_width(90.0f) == 122.0f); /* 90 + 32 */
+}
+
 int main()
 {
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
+    RUN(a_control_fill_is_visibly_lighter_than_the_panel);
+    RUN(an_int_format_appends_the_unit_and_escapes_percent);
+    RUN(the_unit_sits_at_the_right_end_of_the_field_centered_vertically);
+    RUN(a_color_shows_as_hex_with_alpha_only_when_translucent);
+    RUN(hex_text_parses_in_three_six_and_eight_digit_forms);
+    RUN(bad_hex_text_is_refused_and_changes_nothing);
+    RUN(dialog_buttons_have_a_minimum_width_and_grow_with_their_label);
     return TEST_SUMMARY();
 }

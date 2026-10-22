@@ -24,6 +24,12 @@ enum class CommandId {
     ZoomIn,
     ZoomOut,
     Fit,
+    ToggleTimeline,
+    NewLayer,
+    DuplicateLayer,
+    MergeLayerDown,
+    MoveLayerUp,
+    MoveLayerDown,
     Count,
 };
 

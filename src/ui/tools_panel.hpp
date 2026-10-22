@@ -4,9 +4,12 @@
 #include "editor.hpp"
 #include "imgui.h"
 #include "panels.hpp"
+#include "theme.hpp"
 
-/* The Tools window, in collapsible sections: the tools, the options of the active tool, symmetry,
- * selection transforms, the color pickers with the palette, and the recent colors. */
+/* The tool bar (the narrow Tools panel: the tools and the shapes as one column of icon buttons),
+ * the options bar above the canvas (the options of the active tool: brush, shape, selection
+ * transforms, mirror), and the color block the right panel draws (the color pickers, the palette
+ * and the recent colors). */
 struct ToolIcon; /* one entry of an icon row, in tools_panel.cpp */
 
 class ToolsPanel
@@ -15,6 +18,10 @@ class ToolsPanel
     explicit ToolsPanel(Editor &editor);
 
     void show(Panels &panels, float height);
+    void colorBlock(const Panels &panels);
+
+    /* The bar above the canvas, drawn as its own window over [x, x + width] x [y, y + height]. */
+    void contextBar(float x, float y, float width, float height);
 
     /* True while the "Reset palette" confirmation is open, so the app's shortcuts stay quiet. */
     bool dialogOpen() const
@@ -29,10 +36,12 @@ class ToolsPanel
     void iconRow(const ToolIcon *first, size_t count);
     void toolGrid();
     void shapeButtons();
-    void toolOptions();
-    void symmetryOptions();
+    void barSize(const char *tip);
+    void barBrush();
+    void barShape(ToolKind tool);
+    void barSelection();
+    void barSymmetry();
     void colorWidget();
-    void selectionButtons();
     void recentColors();
     void paletteSwatches();
     void resetDialog();
@@ -40,6 +49,8 @@ class ToolsPanel
     Editor &editor_;
     bool openReset_ = false; /* the confirmation still has to be opened */
     bool dialogOpen_ = false;
+    char fgHex_[theme::HEX_BUFFER_SIZE] = ""; /* what is typed in the picker's hex field */
+    char bgHex_[theme::HEX_BUFFER_SIZE] = "";
 };
 
 #endif

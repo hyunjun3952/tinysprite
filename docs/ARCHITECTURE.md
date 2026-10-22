@@ -69,6 +69,16 @@ App            window, ImGui context, main loop, menus, shortcuts, file and conf
  |- ToolsPanel, LayersPanel, Panels   side panels and their docking
 ```
 
+The window is laid out as: a narrow **tool bar** on the left (`ToolsPanel::show`: the tools and the shapes as one
+column of icon buttons), an **options bar** above the canvas (`ToolsPanel::contextBar`: the options of the active tool,
+drawn as its own window over the canvas area), the **canvas** with the **timeline** under it (its top edge is a sash,
+`App::timelineSash`: drag to resize or fold it, double click to reset; Ctrl+T toggles it), and the right panel titled
+**Inspector** (`PanelId::Layers`: Color via `ToolsPanel::colorBlock`, then Layers, then Properties). The layer actions
+are the items of `App::layerMenuItems`, shown in the Layer menu and in the right-click menu of the list
+(`LayersPanel::setContextMenu`). The layer list is a scrolling child that takes the height the
+properties leave (`LayersPanel::list`), so the properties stay at the bottom. Panel settings keys come from a fixed key
+(`panel.tools.*`, `panel.layers.*`), not from the title.
+
 `App` and `Editor` are big classes whose code is split over several files by what it is about, so the implementation files
 stay a few hundred lines each (the class declarations remain in `editor.hpp` and `app.hpp`): `app.cpp` (startup, main loop, autosave), `app_menus.cpp`, `app_shortcuts.cpp`, `app_dialogs.cpp`,
 `app_files.cpp`; `editor.cpp` (document, strokes, texture), `editor_layers.cpp`, `editor_palette.cpp`,

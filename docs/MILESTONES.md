@@ -58,17 +58,61 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 ## UI polish 2 (ideas from Aseprite's ui library, MIT; the app's own skin is not reused)
 
-- Icons scale by a whole number (`icons::pixel_scale`, the integer `guiscale()` idea), so a lit pixel is always a
-  square and an icon stays crisp at 150% / 200% instead of staying 16 px.
+- Icons are Material Symbols Outlined glyphs (Apache 2.0, a 4 KB subset in `thirdparty/material-symbols/`) merged into
+  the UI font, so they scale with the UI, take any color and are added by one codepoint (`icons::codepoint`). Each is
+  centered by the ink of its glyph (`icons::glyph_origin`), not its em box. The diamond is drawn with lines because the
+  set has no plain rhombus. A first version used 16x16 pixel bitmaps drawn at a whole-number scale (Aseprite's
+  `guiscale()` idea); next to the Material set the tools were harder to read (eraser, bucket, eyedropper), so they were
+  replaced.
 - The five main tools are icon buttons in one row (name, shortcut and help in the tooltip, like Aseprite's tool bar),
   the same helper (`ToolsPanel::iconRow`) as the shape row; the Tools panel is one row shorter.
-- An embedded font: Inter Regular, a 26 KB subset (`thirdparty/inter/`, SIL OFL, `theme::load_fonts`, 14 px base)
-  instead of the 13 px bitmap font. Aseprite keeps font choice in its theme data; we keep one font and a constant.
+- An embedded font: Geist Regular, a 23 KB subset (`thirdparty/geist/`, SIL OFL, `theme::load_fonts`, 14 px base)
+  instead of the 13 px bitmap font. stb_truetype does not hint, so the glyphs are pixel-snapped with no oversampling:
+  compared with Inter at default settings the letter spacing and stems are even (Inter Regular was the first choice,
+  and looked soft at 14 px). Aseprite keeps font choice in its theme data; we keep one font and a constant.
+- A neutral near-black look (surface ladder `#0f1011` / `#1d1e21` / `#26282c` / `#2f3136`, hairline `#2a2c31`, 6-8 px
+  corners, no borders on controls, one off-white accent `#e8eaed` for what is selected or focused, `theme::ACCENT`). The
+  palette follows the principles of the Linear DESIGN.md analysis (VoltAgent/awesome-design-md, MIT; a description of
+  the marketing site, not the app): a surface ladder instead of shadows, a scarce accent, 4 px spacing grid.
+  Figma's analysis (white canvas, pastel blocks, pills) was not used.
 - Menus: a Layer menu (the Layers panel's actions, `Editor::canRemoveSelectedLayers` is shared with the panel's
   Delete button), File groups Export and Palette into submenus, Edit gains Deselect / Clear / Transform selection,
   View is split into zoom, canvas overlays and panels.
-- Docks: section headers are a hairline plus a caret and title instead of filled bars; the Selection section shows
-  only while the select tool is active or something is selected (the Edit menu has the same actions at any time).
+- Docks: section headers are a hairline plus a caret and title instead of filled bars. Layout, chosen after
+  prototyping three variants side by side (tidy the old structure / move Color to the right / Aseprite's context bar):
+  a 52 px vertical tool bar on the left (tools and shapes, no headers), an options bar above the canvas (brush, shape,
+  selection transforms, mirror X / Y; View > Tool options hides it), and a right panel "Inspector" with Color (and the
+  recent colors under the palette), Layers (no buttons: a right-click menu, shared with the Layer menu, and key
+  chords; the list fills the free height) and Properties (a two-column grid: blend, opacity, then size, frames,
+  palette) pinned to the bottom. The tool bar has one width; the Inspector can be resized between 250 and 480 px. The sections Tool options,
+  Symmetry, Selection and Recent no longer exist as dock sections.
+- The timeline works like a VS Code panel: drag its top edge to resize it (`timeline_drag`: between 96 px and 70% of
+  the canvas area), drag it below 60 px to fold it away, and drag the top of the status bar up to bring it back; a
+  double click on the edge restores the default height; Ctrl+T (a `CommandId`, so the View menu item and the key cannot
+  drift) does the same as folding. `view.timeline`, `view.timeline_height` and `view.options_bar` are saved. (A first
+  version had a small tab on the edge; the drag edge replaced it. Gotchas: ImGui windows are never smaller than 32 px
+  unless `WindowMinSize` is lowered, and a window that appears under the mouse takes the focus and ends a drag.)
+- Layer actions have key chords as `CommandId`s (Ctrl+Shift+N new, Ctrl+Shift+D duplicate, Ctrl+Shift+M merge down,
+  Ctrl+] / Ctrl+[ move up / down; Delete with the list focused deletes); a right click on a row selects it (unless it
+  is already selected) and opens the menu. `New...` is now Ctrl+N without Shift.
+- Numbers show their unit (`theme::int_format` / `theme::input_int`): `100 ms`, `16 px`, `2×`, `1 frame`, and the status
+  bar says `48×48 px`.
+- Menu bar titles open when the mouse rests on them (`theme::begin_menu`: ImGui only opens a title on a click; submenus
+  already open on hover).
+- A double click on a docked panel's inner edge restores its default width (`Panel::defaultWidth`), like the timeline's
+  edge; the tool bar has a fixed width so it has no edge to drag.
+- The status bar is a row of items (`StatusItem`: tool, frame, layer, zoom, selection, cel; the size is in Properties) kept in
+  `Editor::Overlays::status_items` (saved as `view.status_items`). A right click on an item offers "Hide <item>"; a
+  right click anywhere on the bar opens a menu that switches every item and hides the bar (View > Status bar shows it
+  again).
+- Dialogs: the popup color is the panel color, not the control color, so a dialog's buttons and fields are visible (they
+  had the same fill as the dialog and vanished). `theme::dialog_buttons` puts the buttons under a hairline,
+  right-aligned, 88 px at least with a gap, the main one in the accent (red for Delete / Overwrite / Reset); six
+  dialogs use it.
+- Units stay while a number is typed: the unit is drawn over the right end of the field (before the - / + buttons), not
+  made part of the text. The color picker's RGB / HSV / Hex row is replaced by `theme::hex_field` (a preview, "#" and
+  RGB / RRGGBB / RRGGBBAA, checked on Enter).
+- A round button (`icons::round_button`) for small secondary actions; the foreground / background swap uses it.
 - Looked at and not taken: `PopupWindow` hot regions and `AnimatedWidget` easing (ImGui popups already close on an
   outside click, and the UI is immediate-mode), a separate "small" font (one more atlas size for little gain now).
 
@@ -211,17 +255,17 @@ candidates listed under UI polish.
   separately. Pixel-perfect is ignored above size 1. Shapes use it for their outline, the bucket does not.
 - `layer_op_merge_down` snapshots the lower layer's cels before / after (whole-cel memcpy) instead of pixel
   deltas, so earlier pixel steps on either layer stay valid after undo. Both layers must be visible.
-- UI layout (`src/ui/panels.cpp`): Tools / Layers are docked left / right (resizable by the inner edge, 170-480 px) or
+- UI layout (`src/ui/panels.cpp`): Tools (the tool bar) / Layers (titled Inspector) are docked left / right (resizable by the inner edge, 48-480 px) or
   floating windows; dragging a docked panel's title bar pulls it out (it follows the mouse until release), and
   dragging a floating title bar to an edge docks it. The layout is persisted (`Panels::store` / `load`). The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`).
-- Look (`src/ui/theme.cpp`): a warm near-charcoal dark theme after the Warp design language (canvas `#2b2622`, cards /
-  inputs `#383330`, 1 px hairlines `#3f3a36`, 3-4 px corner radii, no shadows). The off-white `#f7f5f0` is the only accent:
-  the selected tool is drawn inverted (`theme::choiceButton`). Tools and shapes are icon buttons (the
+- Look (`src/ui/theme.cpp`): a neutral near-black theme (see "UI polish 2": surface ladder, controls told apart by
+  their fill, 1 px hairline dividers, 6-8 px corners, no shadows). The accent `theme::ACCENT` marks the selected tool
+  (`theme::choiceButton`, `icons::choice`), the checkmark and the layer drop line. Sliders (`theme::slider_int`) are a field filled up to the value with the value centered on it, combos (`theme::begin_combo`) have a drawn chevron. In the palette, Add is disabled for a color it already has, Replace gives the selected swatch the foreground color, and Reset is disabled for the default palette. Tools and shapes are icon buttons (the
   shortcut is in the tooltip), the other buttons are text, grouped into collapsible sections (`theme::section`) in the
-  Tools and Layers panels; the icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
-  as rects, so there is no font or generator: edit the rows to change one; `tests/ui/ui_icons.cpp` checks their shape). The
-  Tool options section shows only what the active tool uses. The font is an embedded Inter subset (UI polish 2); DM Mono is not embedded. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
+  Tools and Layers panels; the icons are font glyphs
+  (`src/ui/icons.cpp`; `tests/ui/ui_icons.cpp` checks the table and that every glyph is in the font). The
+  The options bar shows only what the active tool uses. The font is an embedded Geist subset (UI polish 2); there is no mono font. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
   display; `ctest -R ui_smoke` runs three frames of the app.
 - Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
   `namespace sections`; the menu stays open while toggling; "Reset layout and sections" restores everything). View
@@ -242,7 +286,7 @@ candidates listed under UI polish.
   Dragging a selected row moves the whole selection as a block (order kept) next to the drop row; dropping on a
   selected row does nothing.
   Layers are reordered by dragging a row onto another (`moveLayer`, one undo step, the dragged layer stays active) or
-  with the Up / Down buttons (`moveSelectedLayersBy`). While dragging, a 2 px off-white line across the hovered row marks where the layer
+  with the Up / Down buttons (`moveSelectedLayersBy`). While dragging, a 2 px accent line across the hovered row marks where the layer
   will land (above the row for a layer coming from below, under it for one coming from above; none over its own row). With the layer list focused (`LayersPanel::focused`, set from the window's
   focus in the frame it is drawn) the Delete key and the trash button ask "Delete layer?" first (Enter confirms,
   Escape cancels, undo brings it back); elsewhere Delete still clears the selected pixels. While that dialog is
@@ -280,7 +324,7 @@ candidates listed under UI polish.
 - Rasterizers clip no pixels; the caller bounds-checks. Filled ones take an optional clip rect that only skips fill rows and columns outside it (a shape dragged far past the cel stays cheap), and shapes draw once and reflect each plotted pixel for symmetry. A selection is one rectangle, and pixels moved off the sprite are
   lost. Merging needs both layers visible.
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
-- No native file chooser (a path dialog instead); one UI font (an Inter subset), no mono font and no CJK glyphs.
+- No native file chooser (a path dialog instead); one UI font (a Geist subset), no mono font and no CJK glyphs.
 - The Windows (MinGW) job is not built locally.
 - A GIF has no partial transparency and at most 256 colors; the sprite sheet is a plain grid / strip (no packing or JSON
   yet, that is phase 3).

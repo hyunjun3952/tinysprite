@@ -22,6 +22,15 @@ const App::CommandAction &App::commandAction(CommandId id)
     auto selected = [](const App &app) {
         return !app.editor_->stroking() && app.editor_->hasSelection();
     };
+    auto canMerge = [](const App &app) {
+        return !app.editor_->stroking() && app.editor_->canMergeLayers();
+    };
+    auto canMoveUp = [](const App &app) {
+        return !app.editor_->stroking() && app.editor_->canMoveLayersUp();
+    };
+    auto canMoveDown = [](const App &app) {
+        return !app.editor_->stroking() && app.editor_->canMoveLayersDown();
+    };
     static const CommandAction TABLE[] = {
         {[](App &app) { app.guardUnsaved([&app] { app.openNew_ = true; }); }, idle},
         {[](App &app) { app.guardUnsaved([&app] { app.askForPath(FileAction::Open); }); }, idle},
@@ -37,6 +46,13 @@ const App::CommandAction &App::commandAction(CommandId id)
         {[](App &app) { app.editor_->zoomStep(1); }, always},
         {[](App &app) { app.editor_->zoomStep(-1); }, always},
         {[](App &app) { app.editor_->view().needs_fit = true; }, always},
+        {[](App &app) { app.editor_->overlays().timeline = !app.editor_->overlays().timeline; },
+         always},
+        {[](App &app) { app.editor_->addLayer(); }, idle},
+        {[](App &app) { app.editor_->duplicateSelectedLayers(); }, idle},
+        {[](App &app) { app.editor_->mergeSelectedLayers(); }, canMerge},
+        {[](App &app) { app.editor_->moveSelectedLayersBy(1); }, canMoveUp},
+        {[](App &app) { app.editor_->moveSelectedLayersBy(-1); }, canMoveDown},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(COMMAND_COUNT),
                   "one CommandAction row per CommandId");
@@ -53,10 +69,11 @@ bool App::commandEnabled(CommandId id) const
     return commandAction(id).enabled(*this);
 }
 
-void App::commandItem(CommandId id)
+void App::commandItem(CommandId id, bool checked, const char *label)
 {
     const Command &command = command_of(id);
-    if (ImGui::MenuItem(command.label, command_hint(command).c_str(), false, commandEnabled(id))) {
+    if (ImGui::MenuItem(label != nullptr ? label : command.label, command_hint(command).c_str(),
+                        checked, commandEnabled(id))) {
         runCommand(id);
     }
 }

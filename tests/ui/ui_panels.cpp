@@ -80,15 +80,17 @@ TEST(closing_a_floating_panel_hides_it)
 
 TEST(sections_are_visible_until_hidden)
 {
+    /* The Tools panel is the narrow tool bar (tools and shapes); Color, Layers and Properties are
+     * sections of the right panel. */
     Panels panels;
-    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::RECENT));
-    panels.setSectionVisible(PanelId::Tools, sections::RECENT, false);
-    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
-    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::COLOR));
-    /* The Layers panel has its own sections. */
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::COLOR));
+    panels.setSectionVisible(PanelId::Layers, sections::COLOR, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Layers, sections::COLOR));
     ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, sections::LAYERS));
-    panels.setSectionVisible(PanelId::Layers, sections::RECENT, false);
-    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::RECENT));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::SHAPES));
+    panels.setSectionVisible(PanelId::Tools, sections::SHAPES, false);
+    ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::SHAPES));
+    ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::TOOLS));
 }
 
 TEST(layers_panel_has_a_properties_section_that_can_be_hidden)
@@ -137,13 +139,73 @@ TEST(reset_keeps_the_widths_at_the_current_ui_scale)
     ASSERT_TRUE(afterReset == scaled);
 }
 
-TEST(symmetry_section_is_hidden_until_switched_on)
+/* The width of a docked panel's window, after dragging its inner edge from (x, 300) to (toX, 300).
+ */
+static float width_after_edge_drag(Harness &h, const char *window, float x, float toX)
+{
+    h.frame(x, 300, false);
+    h.frame(x, 300, false);
+    h.drag(x, 300, toX, 300);
+    h.frame(toX, 300, false);
+    h.frame(toX, 300, false);
+    return ImGui::FindWindowByName(window)->Size.x;
+}
+
+TEST(the_tool_bar_has_a_fixed_width)
 {
     Harness h;
-    ASSERT_TRUE(!h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
-    ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SHAPES));
-    h.panels.setSectionVisible(PanelId::Tools, sections::SYMMETRY, true);
-    ASSERT_TRUE(h.panels.sectionVisible(PanelId::Tools, sections::SYMMETRY));
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    float before = ImGui::FindWindowByName("Tools")->Size.x;
+    /* its inner edge is at the window's right side; dragging it changes nothing */
+    float after = width_after_edge_drag(h, "Tools", before - 1.0f, before + 200.0f);
+    ASSERT_TRUE(after == before);
+}
+
+TEST(the_inspector_stays_between_its_minimum_and_maximum_width)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    float start = ImGui::FindWindowByName("Inspector")->Size.x;
+    float left = ImGui::FindWindowByName("Inspector")->Pos.x;
+    /* its inner edge is its left side: dragging it right narrows it, but only down to the minimum
+     * (below which the controls no longer fit) */
+    float narrow = width_after_edge_drag(h, "Inspector", left + 1.0f, left + start);
+    ASSERT_TRUE(narrow == 250.0f && narrow < start); /* the minimum */
+    float left2 = ImGui::FindWindowByName("Inspector")->Pos.x;
+    float wide = width_after_edge_drag(h, "Inspector", left2 + 1.0f, 0.0f);
+    ASSERT_TRUE(wide <= 480.0f && wide > narrow);
+}
+
+/* Like the timeline's edge: two quick clicks on a panel's inner edge put it back at its default
+ * width. */
+TEST(double_clicking_a_panel_edge_restores_its_default_width)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    const float start = ImGui::FindWindowByName("Inspector")->Size.x;
+    float left = ImGui::FindWindowByName("Inspector")->Pos.x;
+    const float narrow = width_after_edge_drag(h, "Inspector", left + 1.0f, left + 60.0f);
+    ASSERT_TRUE(narrow < start);
+    left = ImGui::FindWindowByName("Inspector")->Pos.x;
+    h.frame(left + 1.0f, 300, false);
+    h.frame(left + 1.0f, 300, false);
+    for (int i = 0; i < 2; i++) {
+        h.frame(left + 1.0f, 300, true);
+        h.frame(left + 1.0f, 300, false);
+    }
+    h.frame(left + 1.0f, 300, false);
+    h.frame(left + 1.0f, 300, false);
+    ASSERT_TRUE(ImGui::FindWindowByName("Inspector")->Size.x == start);
+}
+
+TEST(the_right_panel_is_named_for_what_it_holds)
+{
+    Harness h;
+    h.frame(0.0f, 0.0f, false);
+    ASSERT_TRUE(ImGui::FindWindowByName("Inspector") != nullptr);
 }
 
 int main()
@@ -158,7 +220,10 @@ int main()
     RUN(reset_shows_every_section_again);
     RUN(reset_keeps_the_widths_at_the_current_ui_scale);
     RUN(closing_a_floating_panel_hides_it);
-    RUN(symmetry_section_is_hidden_until_switched_on);
+    RUN(the_tool_bar_has_a_fixed_width);
+    RUN(the_inspector_stays_between_its_minimum_and_maximum_width);
+    RUN(double_clicking_a_panel_edge_restores_its_default_width);
+    RUN(the_right_panel_is_named_for_what_it_holds);
     RUN(layers_panel_has_a_properties_section_that_can_be_hidden);
     return TEST_SUMMARY();
 }

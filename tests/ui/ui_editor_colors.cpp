@@ -90,6 +90,73 @@ TEST(palette_add_uses_the_current_color_once)
     delete e;
 }
 
+TEST(a_color_can_be_added_only_while_it_is_not_in_the_palette)
+{
+    Editor *e = make_editor();
+    e->setForeground(Rgba{12, 34, 56, 255});
+    ASSERT_TRUE(e->paletteCanAdd());
+    e->paletteAdd();
+    ASSERT_TRUE(!e->paletteCanAdd());
+    e->setForeground(e->sprite().palette().get(0));
+    ASSERT_TRUE(!e->paletteCanAdd());
+    delete e;
+}
+
+TEST(a_full_palette_cannot_take_another_color)
+{
+    Editor *e = make_editor();
+    Palette full;
+    for (int i = 0; i < PALETTE_MAX_COLORS; i++) {
+        full.add(Rgba{static_cast<uint8_t>(i), 1, 2, 255});
+    }
+    e->setPalette(full);
+    e->setForeground(Rgba{9, 9, 9, 255});
+    ASSERT_TRUE(!e->paletteCanAdd());
+    delete e;
+}
+
+TEST(the_selected_swatch_takes_the_foreground_color_as_one_undo_step)
+{
+    Editor *e = make_editor();
+    Palette original = e->sprite().palette();
+    e->palettePick(2);
+    ASSERT_TRUE(!e->paletteCanReplace()); /* the foreground is the swatch itself */
+    e->setForeground(Rgba{9, 8, 7, 255});
+    ASSERT_TRUE(e->paletteCanReplace());
+    ASSERT_TRUE(e->paletteReplaceSelected());
+    ASSERT_EQ_INT(original.count(), e->sprite().palette().count());
+    ASSERT_EQ_INT(7, e->sprite().palette().get(2).b);
+    ASSERT_EQ_INT(2, e->paletteSelected());
+    ASSERT_TRUE(!e->paletteCanReplace()); /* now it is already in the palette */
+    e->undo();
+    ASSERT_TRUE(e->sprite().palette() == original);
+    delete e;
+}
+
+TEST(replacing_needs_a_selected_swatch_and_a_new_color)
+{
+    Editor *e = make_editor();
+    e->setForeground(Rgba{9, 8, 7, 255});
+    ASSERT_TRUE(!e->paletteCanReplace()); /* nothing selected */
+    ASSERT_TRUE(!e->paletteReplaceSelected());
+    e->palettePick(1);
+    e->setForeground(e->sprite().palette().get(3)); /* a color the palette has elsewhere */
+    ASSERT_TRUE(!e->paletteReplaceSelected());
+    delete e;
+}
+
+TEST(the_palette_knows_when_it_is_the_default)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->paletteIsDefault());
+    e->setForeground(Rgba{9, 8, 7, 255});
+    e->paletteAdd();
+    ASSERT_TRUE(!e->paletteIsDefault());
+    e->paletteReset();
+    ASSERT_TRUE(e->paletteIsDefault());
+    delete e;
+}
+
 TEST(palette_remove_keeps_the_selection_on_the_same_color)
 {
     Editor *e = make_editor();
@@ -237,6 +304,11 @@ int main()
     RUN(palette_edits_are_unsaved_changes_until_saved_or_undone);
     RUN(palette_add_remove_and_reset_undo_and_redo);
     RUN(undoing_a_palette_edit_drops_a_swatch_selection_that_no_longer_exists);
+    RUN(a_color_can_be_added_only_while_it_is_not_in_the_palette);
+    RUN(a_full_palette_cannot_take_another_color);
+    RUN(the_selected_swatch_takes_the_foreground_color_as_one_undo_step);
+    RUN(replacing_needs_a_selected_swatch_and_a_new_color);
+    RUN(the_palette_knows_when_it_is_the_default);
     RUN(a_palette_edit_during_a_stroke_is_refused);
     RUN(palette_reset_restores_the_default_colors);
     RUN(set_palette_replaces_it_as_an_undoable_unsaved_change);

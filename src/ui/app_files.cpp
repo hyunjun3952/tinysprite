@@ -14,6 +14,7 @@
 
 #include "file_paths.hpp"
 #include "imgui.h"
+#include "theme.hpp"
 #include "tinysprite/io.hpp"
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
@@ -221,7 +222,7 @@ void App::imageOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Scale");
     ImGui::SameLine();
-    ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
+    theme::input_int("##export_scale", &exportScale_, 1, 2, "\xC3\x97");
     exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
     ImGui::SameLine();
     ImGui::TextDisabled("%d x %d px", editor_->sprite().width() * exportScale_,
@@ -241,7 +242,7 @@ void App::animationOptions()
     ImGui::SetNextItemWidth(200.0f);
     std::string current =
         export_.tag < 0 ? "All frames" : tags[static_cast<size_t>(export_.tag)].name;
-    if (ImGui::BeginCombo("##export_range", current.c_str())) {
+    if (theme::begin_combo("##export_range", current.c_str())) {
         if (ImGui::Selectable("All frames", export_.tag < 0)) {
             export_.tag = -1;
         }
@@ -257,7 +258,7 @@ void App::animationOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Scale");
     ImGui::SameLine();
-    ImGui::InputInt("##export_scale", &exportScale_, 1, 2);
+    theme::input_int("##export_scale", &exportScale_, 1, 2, "\xC3\x97");
     exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
 }
 
@@ -275,7 +276,7 @@ void App::sheetOptions()
     ImGui::TextUnformatted("Layout");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200.0f);
-    if (ImGui::BeginCombo("##sheet_layout", LAYOUTS[export_.layout])) {
+    if (theme::begin_combo("##sheet_layout", LAYOUTS[export_.layout])) {
         for (int i = 0; i < 3; i++) {
             if (ImGui::Selectable(LAYOUTS[i], i == export_.layout)) {
                 export_.layout = i;
@@ -287,7 +288,7 @@ void App::sheetOptions()
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Columns");
         ImGui::SameLine();
-        ImGui::InputInt("##sheet_columns", &export_.columns, 1, 2);
+        theme::input_int("##sheet_columns", &export_.columns, 1, 2, "");
         export_.columns = std::clamp(export_.columns, 0, 256);
         ImGui::SameLine();
         ImGui::TextDisabled("0 = square-ish");
@@ -295,7 +296,7 @@ void App::sheetOptions()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Spacing");
     ImGui::SameLine();
-    ImGui::InputInt("##sheet_spacing", &export_.spacing, 1, 4);
+    theme::input_int("##sheet_spacing", &export_.spacing, 1, 4, " px");
     export_.spacing = std::clamp(export_.spacing, 0, 256);
 }
 
@@ -381,12 +382,12 @@ void App::fileDialog()
         (this->*info.options)();
     }
     fileDialogMessages(path);
-    ImGui::BeginDisabled(path.empty());
-    bool confirm = ImGui::Button(overwritePath_.empty() ? "OK" : "Overwrite");
-    ImGui::EndDisabled();
-    bool done = (confirm || enter) && runFileAction(info, path);
-    ImGui::SameLine();
-    bool cancel = ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape);
+    /* overwriting a file is the one thing here that destroys something: its button is red */
+    const bool overwriting = !overwritePath_.empty();
+    const int clicked = theme::dialog_buttons({"Cancel", overwriting ? "Overwrite" : "OK"}, 1,
+                                              overwriting, path.empty() ? 2u : 0u);
+    bool done = (clicked == 1 || enter) && runFileAction(info, path);
+    bool cancel = clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape);
     if (done || cancel) {
         closeFileDialog();
     }

@@ -67,7 +67,7 @@ void App::paletteMenu(bool idle)
 
 void App::fileMenu()
 {
-    if (!ImGui::BeginMenu("File")) {
+    if (!theme::begin_menu("File")) {
         return;
     }
     bool idle = !editor_->stroking();
@@ -112,7 +112,7 @@ void App::selectionMenu()
 
 void App::editMenu()
 {
-    if (!ImGui::BeginMenu("Edit")) {
+    if (!theme::begin_menu("Edit")) {
         return;
     }
     commandItem(CommandId::Undo);
@@ -135,23 +135,16 @@ void App::editMenu()
 }
 
 /* Add, copy, remove and merge. */
-void App::layerEditItems(bool idle)
+void App::layerEditItems()
 {
-    if (ImGui::MenuItem("New layer", nullptr, false, idle)) {
-        editor_->addLayer();
-    }
-    if (ImGui::MenuItem("Duplicate layer", nullptr, false, idle)) {
-        editor_->duplicateSelectedLayers();
-    }
-    if (ImGui::MenuItem("Delete layer...", nullptr, false, editor_->canRemoveSelectedLayers())) {
+    commandItem(CommandId::NewLayer);
+    commandItem(CommandId::DuplicateLayer);
+    if (ImGui::MenuItem("Delete layer...", "Delete", false, editor_->canRemoveSelectedLayers())) {
         layersPanel_->askToDelete();
     }
     ImGui::Separator();
-    bool several = editor_->selectedLayers().size() > 1;
-    if (ImGui::MenuItem(several ? "Merge layers" : "Merge down", nullptr, false,
-                        editor_->canMergeLayers())) {
-        editor_->mergeSelectedLayers();
-    }
+    const bool several = editor_->selectedLayers().size() > 1;
+    commandItem(CommandId::MergeLayerDown, false, several ? "Merge layers" : nullptr);
 }
 
 /* Hide and lock follow the active layer: the label says what the click does to the selection. */
@@ -169,28 +162,31 @@ void App::layerStateItems(bool idle)
     }
 }
 
-/* The layer operations that were only in the Layers panel; they act on every selected layer. */
+/* The layer actions, in the Layer menu and in the context menu of the layer list (right click),
+ * which has no buttons of its own: they act on every selected layer. */
+void App::layerMenuItems()
+{
+    const bool idle = !editor_->stroking();
+    layerEditItems();
+    ImGui::Separator();
+    commandItem(CommandId::MoveLayerUp);
+    commandItem(CommandId::MoveLayerDown);
+    ImGui::Separator();
+    layerStateItems(idle);
+}
+
 void App::layerMenu()
 {
-    if (!ImGui::BeginMenu("Layer")) {
+    if (!theme::begin_menu("Layer")) {
         return;
     }
-    layerEditItems(!editor_->stroking());
-    ImGui::Separator();
-    if (ImGui::MenuItem("Move up", nullptr, false, editor_->canMoveLayersUp())) {
-        editor_->moveSelectedLayersBy(1);
-    }
-    if (ImGui::MenuItem("Move down", nullptr, false, editor_->canMoveLayersDown())) {
-        editor_->moveSelectedLayersBy(-1);
-    }
-    ImGui::Separator();
-    layerStateItems(!editor_->stroking());
+    layerMenuItems();
     ImGui::EndMenu();
 }
 
 void App::frameMenu()
 {
-    if (!ImGui::BeginMenu("Frame")) {
+    if (!theme::begin_menu("Frame")) {
         return;
     }
     bool idle = !editor_->stroking();
@@ -268,7 +264,7 @@ void App::uiScaleMenu()
 
 void App::viewMenu()
 {
-    if (!ImGui::BeginMenu("View")) {
+    if (!theme::begin_menu("View")) {
         return;
     }
     commandItem(CommandId::ZoomIn);
@@ -289,8 +285,10 @@ void App::viewMenu()
     }
     theme::tip("Show the neighbouring frames faintly under the current one.");
     ImGui::Separator();
-    ImGui::MenuItem("Timeline", nullptr, &editor_->overlays().timeline);
+    commandItem(CommandId::ToggleTimeline, editor_->overlays().timeline);
     theme::tip("The frames and playback strip along the bottom of the window.");
+    ImGui::MenuItem("Tool options", nullptr, &editor_->overlays().options_bar);
+    theme::tip("The options of the active tool, in a bar above the canvas.");
     ImGui::MenuItem("Status bar", nullptr, &editor_->overlays().status);
     theme::tip("The bar along the bottom with the size, tool, frame, zoom and hovered cel.");
     ImGui::Separator();
@@ -309,7 +307,7 @@ void App::menuBar()
     frameMenu();
     viewMenu();
     panels_.windowMenu();
-    if (ImGui::BeginMenu("Help")) {
+    if (theme::begin_menu("Help")) {
         ImGui::MenuItem("Keyboard shortcuts", "F1", &showHelp_);
         ImGui::EndMenu();
     }
@@ -343,6 +341,11 @@ void App::helpWindow()
         {", .", "Previous / next frame"},
         {"Enter", "Play / stop the animation (Esc also stops it)"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
+        {"Right click on the layer list", "Layer actions (the same as the Layer menu)"},
+        {"Ctrl+Shift+N, Ctrl+Shift+D, Ctrl+Shift+M", "New layer, duplicate layer, merge down"},
+        {"Ctrl+], Ctrl+[", "Move the selected layers up / down"},
+        {"Ctrl+T",
+         "Show / hide the timeline (or drag its top edge; double-click the edge to reset)"},
         {"Ctrl+N, Ctrl+O", "New, open"},
         {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},
         {"F1", "This window"},

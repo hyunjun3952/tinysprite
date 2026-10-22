@@ -13,6 +13,8 @@ namespace
 {
 
 constexpr float OPACITY_COLUMN = 76.0f;
+constexpr float PROPERTY_NAME_COLUMN = 72.0f; /* the names in the properties grid */
+constexpr float LIST_MIN_HEIGHT = 96.0f;      /* the layer list never gets shorter than this */
 
 /* What each BlendMode does, for the tooltips of the Blend combo and the layer rows. */
 constexpr const char *BLEND_HINTS[BLEND_MODE_COUNT] = {
@@ -49,9 +51,9 @@ void centerInRow(float rowHeight, float itemHeight)
 void drawDropLine(ImVec2 rowMin, ImVec2 rowMax, bool fromBelow)
 {
     float y = fromBelow ? rowMin.y : rowMax.y;
-    ImGui::GetForegroundDrawList()->AddLine(ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
-                                            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)),
-                                            DROP_LINE_THICKNESS);
+    ImGui::GetForegroundDrawList()->AddLine(
+        ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
+        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), DROP_LINE_THICKNESS);
 }
 
 } // namespace
@@ -141,11 +143,16 @@ void LayersPanel::rowSelectable(int index, const RowContext &ctx)
         }
         editor_.pickLayer(index, pick);
     }
+    /* A right click acts on the row under it, as in a file manager: it becomes the selection unless
+     * it is already part of it (then the actions apply to the whole selection). */
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right) && !editor_.layerSelected(index)) {
+        editor_.pickLayer(index, LayerPick::Only);
+    }
     if (ctx.multiple && index == editor_.activeLayer()) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImGui::GetItemRectMin(),
             ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
-            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)));
+            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)));
     }
 }
 
@@ -355,11 +362,8 @@ void LayersPanel::propertyBlend(const Layer &layer)
     for (int i : editor_.selectedLayers()) {
         mixed = mixed || editor_.sprite().layer(i)->blendMode() != layer.blendMode();
     }
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Blend");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
+    propertyLabel("Blend");
+    if (theme::begin_combo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
         for (int m = 0; m < BLEND_MODE_COUNT; m++) {
             auto mode = static_cast<BlendMode>(m);
             if (ImGui::Selectable(blend_mode_name(mode), !mixed && mode == layer.blendMode())) {
@@ -379,13 +383,10 @@ void LayersPanel::propertyOpacity(const Layer &layer)
     const uint8_t opacityNow = layer.opacity();
     /* read before the slider can change anything: the drag may start on this very frame */
     std::vector<std::pair<int, uint8_t>> selectedNow = editor_.selectedLayerOpacities();
-    /* The name on the left, then a slider that fills the row and shows a percentage. */
+    /* A slider that fills the value column and shows a percentage. */
     int percent = (opacityNow * 100 + 127) / 255;
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Opacity");
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::SliderInt("##opacity", &percent, 0, 100, "%d%%")) {
+    propertyLabel("Opacity");
+    if (theme::slider_int("##opacity", &percent, 0, 100, "%")) {
         editor_.setSelectedLayersOpacityLive(static_cast<uint8_t>((percent * 255 + 50) / 100));
     }
     theme::tip("How much the layer shows through: 0% is invisible, 100% is fully opaque.");
@@ -397,22 +398,46 @@ void LayersPanel::propertyOpacity(const Layer &layer)
     }
 }
 
-/* Facts about the layer that cannot be edited here: its size and how many frames have a cel of
- * their own or share one. */
+/* One row of the properties grid: the name in the left column, and the widget that follows fills
+ * the right one. */
+void LayersPanel::propertyLabel(const char *name)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", name);
+    ImGui::TableNextColumn();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+}
+
+/* A row with a name and a read-only value. */
+void LayersPanel::propertyValue(const char *name, const std::string &value)
+{
+    propertyLabel(name);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(value.c_str());
+}
+
+/* Facts about the sprite that cannot be edited here: its size, its frames (and how many cels of
+ * this layer are shared with another frame) and the palette. */
 void LayersPanel::propertyInfo(const Layer &layer)
 {
-    const int frames = editor_.sprite().frameCount();
+    const Sprite &sprite = editor_.sprite();
+    const int frames = sprite.frameCount();
     int linked = 0;
     for (int f = 0; f < frames; f++) {
         if (layer.celLinked(f)) {
             linked++;
         }
     }
-    ImGui::TextDisabled("Size %d x %d px", editor_.sprite().width(), editor_.sprite().height());
-    ImGui::TextDisabled("%d frame%s, %d linked", frames, frames == 1 ? "" : "s", linked);
+    propertyValue("Size",
+                  std::to_string(sprite.width()) + " x " + std::to_string(sprite.height()) + " px");
+    propertyValue("Frames", std::to_string(frames) + "  (" + std::to_string(linked) + " linked)");
     theme::tip("A linked cel is shared with another frame: drawing on one changes them all.");
+    propertyValue("Palette", std::to_string(sprite.palette().count()) + " colors");
 }
 
+/* The grid of the section: the layer's blend and opacity, then the facts about the sprite. */
 void LayersPanel::properties()
 {
     const Layer *layer = editor_.sprite().layer(editor_.activeLayer());
@@ -423,53 +448,17 @@ void LayersPanel::properties()
         ImGui::TextDisabled("%d layers selected: opacity and blend apply to all",
                             static_cast<int>(editor_.selectedLayers().size()));
     }
+    constexpr ImGuiTableFlags FLAGS = ImGuiTableFlags_SizingFixedFit;
+    if (!ImGui::BeginTable("##properties", 2, FLAGS)) {
+        return;
+    }
+    ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed,
+                            theme::px(PROPERTY_NAME_COLUMN));
+    ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
     propertyBlend(*layer);
     propertyOpacity(*layer);
     propertyInfo(*layer);
-}
-
-/* Layer actions under the list: one icon button each, evenly spread (the tooltips name them).
- * Layers are reordered by dragging their rows or with the up / down buttons. */
-void LayersPanel::buttons()
-{
-    using icons::Icon;
-    constexpr int COUNT = 6;
-    ImVec2 size(theme::columnWidth(COUNT), ImGui::GetFrameHeight() + 6.0f);
-    int selected = static_cast<int>(editor_.selectedLayers().size());
-
-    if (icons::button(Icon::Plus, "##new", "New layer on top", size)) {
-        editor_.addLayer();
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::ArrowUp, "##up", "Move the selected layers up", size,
-                      editor_.canMoveLayersUp())) {
-        editor_.moveSelectedLayersBy(1);
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::ArrowDown, "##down", "Move the selected layers down", size,
-                      editor_.canMoveLayersDown())) {
-        editor_.moveSelectedLayersBy(-1);
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::Copy, "##copy", "Duplicate the selected layers", size)) {
-        editor_.duplicateSelectedLayers();
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::Trash, "##delete", "Delete the selected layers (Delete key)", size,
-                      editor_.canRemoveSelectedLayers())) {
-        askToDelete();
-    }
-    ImGui::SameLine();
-    if (icons::button(Icon::Merge, "##merge",
-                      selected > 1
-                          ? "Merge the selected layers into the lowest one (all visible, the "
-                            "lowest unlocked; blend modes only with nothing visible under)"
-                          : "Merge into the layer below (both visible, the lower one "
-                            "unlocked; a blend mode only with nothing visible under the lower "
-                            "one)",
-                      size, editor_.canMergeLayers())) {
-        editor_.mergeSelectedLayers();
-    }
+    ImGui::EndTable();
 }
 
 bool LayersPanel::focused() const
@@ -507,18 +496,53 @@ void LayersPanel::deleteDialog()
     }
     ImGui::TextDisabled("Ctrl+Z brings it back.");
     bool close = false;
-    if (ImGui::Button("Delete") || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    const int clicked = theme::dialog_buttons({"Cancel", "Delete"}, 1, true);
+    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         editor_.removeSelectedLayers();
         close = true;
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;
     }
     if (close) {
         ImGui::CloseCurrentPopup();
     }
     ImGui::EndPopup();
+}
+
+/* The actions have no buttons: say where they are, in the room under the last row. */
+void LayersPanel::emptyListHint()
+{
+    const char *text = "Right-click for layer actions";
+    const float line = ImGui::GetTextLineHeightWithSpacing();
+    const float y = ImGui::GetWindowHeight() - line * 1.6f;
+    if (y < ImGui::GetCursorPosY() + line) {
+        return; /* the rows fill the list */
+    }
+    const float width = ImGui::CalcTextSize(text).x;
+    ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - width) / 2.0f, y));
+    ImGui::TextDisabled("%s", text);
+}
+
+/* The rows in a scrolling area that takes all the height the properties below leave, so the list
+ * grows with the window and the properties sit at the bottom of the panel. */
+void LayersPanel::list()
+{
+    const float height =
+        std::max(theme::px(LIST_MIN_HEIGHT), ImGui::GetContentRegionAvail().y - below_);
+    /* A recessed area, so the room under the last row reads as part of the list. */
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, theme::rgb(theme::WORKSPACE, 0.55f));
+    if (ImGui::BeginChild("##layer_list", ImVec2(0.0f, height), ImGuiChildFlags_None)) {
+        rows();
+        emptyListHint();
+        if (contextMenu_ &&
+            ImGui::BeginPopupContextWindow("##layer_menu", ImGuiPopupFlags_MouseButtonRight)) {
+            contextMenu_();
+            ImGui::EndPopup();
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
 }
 
 void LayersPanel::show(const Panels &panels)
@@ -528,14 +552,20 @@ void LayersPanel::show(const Panels &panels)
     }
     /* Layers cannot change under a tool that is mid-drag. */
     ImGui::BeginDisabled(editor_.stroking());
-    /* The panel is titled "Layers" and has just this one section, so it needs no header. */
-    if (panels.sectionVisible(PanelId::Layers, sections::LAYERS)) {
-        rows();
-        buttons();
+    float belowStart = 0.0f;
+    if (panels.sectionVisible(PanelId::Layers, sections::LAYERS) &&
+        theme::section(sections::LAYERS)) {
+        list();
+        belowStart = ImGui::GetCursorPosY();
     }
     if (panels.sectionVisible(PanelId::Layers, sections::PROPERTIES) &&
         theme::section(sections::PROPERTIES)) {
         properties();
+    }
+    if (belowStart > 0.0f) {
+        /* what sat under the list this frame (the properties); the next frame sizes the list by it
+         */
+        below_ = ImGui::GetCursorPosY() - belowStart + ImGui::GetStyle().ItemSpacing.y;
     }
     ImGui::EndDisabled();
     deleteDialog();

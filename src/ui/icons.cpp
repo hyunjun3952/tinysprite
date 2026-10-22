@@ -1,6 +1,7 @@
 #include "icons.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #include "theme.hpp"
@@ -13,571 +14,137 @@ namespace
 
 constexpr size_t ICON_COUNT = static_cast<size_t>(Icon::Count);
 
-/* Indexed by Icon. */
-const std::array<std::array<const char *, SIZE>, ICON_COUNT> BITMAPS = {{
-    /* Eye */
-    {{
-        "................",
-        "................",
-        "................",
-        "....XXXXXXXX....",
-        "..XXX......XXX..",
-        ".XX...XXXX...XX.",
-        "XX...XXXXXX...XX",
-        "XX...XXXXXX...XX",
-        ".XX...XXXX...XX.",
-        "..XXX......XXX..",
-        "....XXXXXXXX....",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-    }},
-    /* EyeOff */
-    {{
-        "................",
-        "................",
-        ".............XX.",
-        "....XXXXXXXXXX..",
-        "..XXX......XXX..",
-        ".XX.......XX.XX.",
-        "XX.......XX...XX",
-        "XX......XX....XX",
-        ".XX....XX....XX.",
-        "..XXX.XX...XXX..",
-        "....XXXXXXXX....",
-        "....XX..........",
-        "...XX...........",
-        "..XX............",
-        "................",
-        "................",
-    }},
-    /* Lock */
-    {{
-        "................",
-        ".....XXXXXX.....",
-        "....XX....XX....",
-        "....XX....XX....",
-        "....XX....XX....",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXX..XXXXX..",
-        "..XXXXX..XXXXX..",
-        "..XXXXX..XXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "................",
-        "................",
-        "................",
-    }},
-    /* Unlock */
-    {{
-        "................",
-        ".....XXXXXX.....",
-        "....XX....XX....",
-        "....XX..........",
-        "....XX..........",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXX..XXXXX..",
-        "..XXXXX..XXXXX..",
-        "..XXXXX..XXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "................",
-        "................",
-        "................",
-    }},
-    /* Plus */
-    {{
-        "................",
-        "................",
-        "................",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        "...XXXXXXXXXX...",
-        "...XXXXXXXXXX...",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        "................",
-        "................",
-        "................",
-    }},
-    /* Copy */
-    {{
-        "................",
-        "................",
-        "..XXXXXXXX......",
-        "..X......X......",
-        "..X......X......",
-        "..X..XXXXXXXXX..",
-        "..X..X.......X..",
-        "..X..X.......X..",
-        "..X..X.......X..",
-        "..XXXX.......X..",
-        ".....X.......X..",
-        ".....X.......X..",
-        ".....X.......X..",
-        ".....XXXXXXXXX..",
-        "................",
-        "................",
-    }},
-    /* Trash */
-    {{
-        "................",
-        "................",
-        "......XXXX......",
-        "...XXXXXXXXXX...",
-        "................",
-        "....XXXXXXXX....",
-        "....X......X....",
-        "....X.X..X.X....",
-        "....X.X..X.X....",
-        "....X.X..X.X....",
-        "....X.X..X.X....",
-        "....X.X..X.X....",
-        "....X......X....",
-        "....XXXXXXXX....",
-        "................",
-        "................",
-    }},
-    /* Merge */
-    {{
-        "................",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        ".......XX.......",
-        "....XXXXXXXX....",
-        ".....XXXXXX.....",
-        "......XXXX......",
-        ".......XX.......",
-        "................",
-        "................",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "................",
-        "................",
-    }},
-    /* Line */
-    {{
-        "................",
-        "................",
-        "............XX..",
-        "...........XX...",
-        "..........XX....",
-        ".........XX.....",
-        "........XX......",
-        ".......XX.......",
-        "......XX........",
-        ".....XX.........",
-        "....XX..........",
-        "...XX...........",
-        "..XX............",
-        ".XX.............",
-        "................",
-        "................",
-    }},
-    /* Rect */
-    {{
-        "................",
-        "................",
-        "..XXXXXXXXXXXX..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..X..........X..",
-        "..XXXXXXXXXXXX..",
-        "................",
-        "................",
-    }},
-    /* Ellipse */
-    {{
-        "................",
-        "................",
-        "................",
-        ".....XXXXX......",
-        "...XX.....XX....",
-        "..X.........X...",
-        ".X...........X..",
-        ".X...........X..",
-        ".X...........X..",
-        "..X.........X...",
-        "...XX.....XX....",
-        ".....XXXXX......",
-        "................",
-        "................",
-        "................",
-        "................",
-    }},
-    /* Triangle */
-    {{
-        "................",
-        ".......X........",
-        "......X.X.......",
-        "......X.X.......",
-        ".....X...X......",
-        ".....X...X......",
-        "....X.....X.....",
-        "....X.....X.....",
-        "...X.......X....",
-        "...X.......X....",
-        "..X.........X...",
-        "..X.........X...",
-        ".X...........X..",
-        ".XXXXXXXXXXXXX..",
-        "................",
-        "................",
-    }},
-    /* Diamond */
-    {{
-        "................",
-        ".......X........",
-        "......X.X.......",
-        ".....X...X......",
-        "....X.....X.....",
-        "...X.......X....",
-        "..X.........X...",
-        ".X...........X..",
-        "..X.........X...",
-        "...X.......X....",
-        "....X.....X.....",
-        ".....X...X......",
-        "......X.X.......",
-        ".......X........",
-        "................",
-        "................",
-    }},
-    /* Hexagon */
-    {{
-        "................",
-        "....XXXXXXX.....",
-        "...X.......X....",
-        "...X.......X....",
-        "..X.........X...",
-        "..X.........X...",
-        ".X...........X..",
-        ".X...........X..",
-        "..X.........X...",
-        "..X.........X...",
-        "...X.......X....",
-        "...X.......X....",
-        "....X.....X.....",
-        "....XXXXXXX.....",
-        "................",
-        "................",
-    }},
-    /* Star */
-    {{
-        "................",
-        "................",
-        ".......X........",
-        "......X.X.......",
-        "......X.X.......",
-        ".XXXXX...XXXXX..",
-        "..X.........X...",
-        "...X.......X....",
-        "....X.....X.....",
-        "....X.....X.....",
-        "...X...X...X....",
-        "...X..X.X..X....",
-        "..X..X...X..X...",
-        "..XXX.....XXX...",
-        "................",
-        "................",
-    }},
-    /* Cross */
-    {{
-        "................",
-        ".....XXXXX......",
-        ".....X...X......",
-        ".....X...X......",
-        ".....X...X......",
-        ".XXXXX...XXXXX..",
-        ".X...........X..",
-        ".X...........X..",
-        ".X...........X..",
-        ".XXXXX...XXXXX..",
-        ".....X...X......",
-        ".....X...X......",
-        ".....X...X......",
-        ".....XXXXX......",
-        "................",
-        "................",
-    }},
-    /* Minus */
-    {{
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "...XXXXXXXXXX...",
-        "...XXXXXXXXXX...",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-    }},
-    /* Reset */
-    {{
-        "........X.......",
-        "........XX......",
-        ".....XXXXXX.....",
-        "....X...XX......",
-        "...X....X.......",
-        "..X.............",
-        ".X..............",
-        ".X..............",
-        ".X...........X..",
-        ".X...........X..",
-        ".X...........X..",
-        "..X.........X...",
-        "...X.......X....",
-        "....X.....X.....",
-        ".....XXXXX......",
-        "................",
-    }},
-    /* ArrowUp */
-    {{
-        "................",
-        "................",
-        ".......XX.......",
-        "......XXXX......",
-        ".....XXXXXX.....",
-        "....XXXXXXXX....",
-        "...XXXXXXXXXX...",
-        "......XXXX......",
-        "......XXXX......",
-        "......XXXX......",
-        "......XXXX......",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-    }},
-    /* ArrowDown */
-    {{
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "......XXXX......",
-        "......XXXX......",
-        "......XXXX......",
-        "......XXXX......",
-        "...XXXXXXXXXX...",
-        "....XXXXXXXX....",
-        ".....XXXXXX.....",
-        "......XXXX......",
-        ".......XX.......",
-        "................",
-        "................",
-    }},
-    /* Pencil */
-    {{
-        "................",
-        "............XX..",
-        "..........XXXXX.",
-        ".........XXXXXX.",
-        "........XXXXX...",
-        ".......XXXXX....",
-        "......XXXXX.....",
-        ".....XXXXX......",
-        "....XXXXX.......",
-        "...XXXXX........",
-        "...XXXX.........",
-        "...XXX..........",
-        "..XXX...........",
-        ".XXX............",
-        ".XX.............",
-        "................",
-    }},
-    /* Eraser */
-    {{
-        "................",
-        "................",
-        "................",
-        "................",
-        "..XXXXXXXXXXXX..",
-        "..XXXXX......X..",
-        "..XXXXX......X..",
-        "..XXXXX......X..",
-        "..XXXXX......X..",
-        "..XXXXX......X..",
-        "..XXXXX......X..",
-        "..XXXXXXXXXXXX..",
-        "................",
-        "..XXXXXXXXXXXX..",
-        "................",
-        "................",
-    }},
-    /* Bucket */
-    {{
-        "................",
-        "................",
-        "................",
-        "......XXX.......",
-        ".....X...X......",
-        ".....X...X......",
-        "...XXXXXXXXX....",
-        "...XXXXXXXXX....",
-        "...XXXXXXXXX....",
-        "...XXXXXXXXX.X..",
-        "...X.......X.XX.",
-        "...X.......X.XX.",
-        "...X.......X.X..",
-        "...XXXXXXXXX....",
-        "................",
-        "................",
-    }},
-    /* Eyedropper */
-    {{
-        "...........XXX..",
-        "..........XXXXX.",
-        "..........XXXXX.",
-        "..........XXXXX.",
-        "..........XXXXX.",
-        ".........XXXXXX.",
-        "........XXX.....",
-        ".......XXX......",
-        "......XXX.......",
-        ".....XXX........",
-        "....XXX.........",
-        "...XXX..........",
-        "..XXX...........",
-        "..XX............",
-        ".XX.............",
-        "................",
-    }},
-    /* Select */
-    {{
-        "................",
-        "................",
-        "..XX.XX.XX.XX...",
-        "..X..........X..",
-        "..X..........X..",
-        "................",
-        "..X..........X..",
-        "..X..........X..",
-        "................",
-        "..X..........X..",
-        "..X..........X..",
-        "................",
-        "..X..........X..",
-        "..X.XX.XX.XX.X..",
-        "................",
-        "................",
-    }},
-}};
+/* Indexed by Icon; the comment is the Material Symbols name. */
+constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
+    0xe8f4, /* Eye: visibility */
+    0xe8f5, /* EyeOff: visibility_off */
+    0xe899, /* Lock: lock */
+    0xe898, /* Unlock: lock_open */
+    0xe145, /* Plus: add */
+    0xe14d, /* Copy: content_copy */
+    0xe92e, /* Trash: delete */
+    0xe258, /* Merge: vertical_align_bottom */
+    0xf41e, /* Line: diagonal_line */
+    0xe3c6, /* Rect: crop_square */
+    0xe836, /* Ellipse: radio_button_unchecked */
+    0xe86b, /* Triangle: change_history */
+    0,      /* Diamond: drawn with lines, Material Symbols has no plain rhombus */
+    0xeb39, /* Hexagon: hexagon */
+    0xf09a, /* Star: star */
+    0xf2c3, /* Cross: health_cross */
+    0xe15b, /* Minus: remove */
+    0xe5d5, /* Reset: refresh */
+    0xe5d8, /* ArrowUp: arrow_upward */
+    0xe5db, /* ArrowDown: arrow_downward */
+    0xf097, /* Pencil: edit */
+    0xe6d0, /* Eraser: ink_eraser */
+    0xe23a, /* Bucket: format_color_fill */
+    0xe3b8, /* Eyedropper: colorize */
+    0xef52, /* Select: highlight_alt */
+    0xe8d4, /* Swap: swap_horiz */
+};
 
-constexpr float ROUND = 3.0f;
+constexpr float ROUND = 6.0f;
+constexpr float GLYPH_SIZE_BASE = 20.0f;
+constexpr float ROUND_GLYPH_RATIO = 0.8f; /* of the square-button glyph */
 
 ImU32 withAlpha(unsigned hex, float alpha)
 {
     return ImGui::ColorConvertFloat4ToU32(theme::rgb(hex, alpha));
 }
 
-} // namespace
-
-int pixel_scale(float uiScale)
+/* `codepoint` as UTF-8 (the Private Use Area is always three bytes). */
+std::array<char, 4> utf8(unsigned codepoint)
 {
-    return std::max(1, static_cast<int>(std::floor(uiScale + 0.5f)));
+    return {static_cast<char>(0xE0 | (codepoint >> 12)),
+            static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)),
+            static_cast<char>(0x80 | (codepoint & 0x3F)), 0};
 }
 
-const std::array<const char *, SIZE> &bitmap(Icon icon)
+} // namespace
+
+unsigned codepoint(Icon icon)
 {
-    return BITMAPS[static_cast<size_t>(icon)];
+    return CODEPOINTS[static_cast<size_t>(icon)];
+}
+
+float glyph_size(float uiScale)
+{
+    return std::round(GLYPH_SIZE_BASE * uiScale);
+}
+
+float round_glyph_size(float uiScale)
+{
+    return std::round(glyph_size(uiScale) * ROUND_GLYPH_RATIO);
+}
+
+ImVec2 glyph_origin(ImVec2 min, ImVec2 max, float x0, float y0, float x1, float y1)
+{
+    return {std::floor((min.x + max.x) / 2.0f - (x0 + x1) / 2.0f),
+            std::floor((min.y + max.y) / 2.0f - (y0 + y1) / 2.0f)};
+}
+
+/* A rhombus outline, as thick as a Material Symbols stroke at the same size. */
+void drawDiamond(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    const float size = glyph_size(theme::scale());
+    const float half = std::round(size * 0.36f);
+    const float cx = std::floor((min.x + max.x) / 2.0f) + 0.5f;
+    const float cy = std::floor((min.y + max.y) / 2.0f) + 0.5f;
+    const ImVec2 points[4] = {ImVec2(cx, cy - half), ImVec2(cx + half, cy), ImVec2(cx, cy + half),
+                              ImVec2(cx - half, cy)};
+    list->AddPolyline(points, 4, color, ImDrawFlags_Closed, size * 0.07f);
 }
 
 namespace
 {
 
-/* The box around the lit pixels of a bitmap (inclusive); x1 < 0 when none is lit. */
-struct LitBounds {
-    int x0 = SIZE;
-    int x1 = -1;
-    int y0 = SIZE;
-    int y1 = -1;
-};
-
-LitBounds litBounds(const std::array<const char *, SIZE> &rows)
+/* The glyph of `icon` at `size` pixels, centered in [min, max] by its ink. */
+void drawGlyph(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color, float size)
 {
-    LitBounds b;
-    for (int y = 0; y < SIZE; y++) {
-        for (int x = 0; x < SIZE; x++) {
-            if (rows[static_cast<size_t>(y)][x] == 'X') {
-                b.x0 = std::min(b.x0, x);
-                b.x1 = std::max(b.x1, x);
-                b.y0 = std::min(b.y0, y);
-                b.y1 = std::max(b.y1, y);
-            }
-        }
+    ImFont *font = ImGui::GetFont();
+    const ImFontGlyph *glyph =
+        font->GetFontBaked(size)->FindGlyph(static_cast<ImWchar>(codepoint(icon)));
+    if (glyph == nullptr || !glyph->Visible) {
+        return;
     }
-    return b;
-}
-
-/* The end (inclusive) of the run of lit pixels that starts at `x` in `row`, not past `limit`. */
-int runEnd(const char *row, int x, int limit)
-{
-    int end = x;
-    while (end + 1 <= limit && row[end + 1] == 'X') {
-        end++;
-    }
-    return end;
+    ImVec2 at = glyph_origin(min, max, glyph->X0, glyph->Y0, glyph->X1, glyph->Y1);
+    const std::array<char, 4> text = utf8(codepoint(icon));
+    list->AddText(font, size, at, color, text.data());
 }
 
 } // namespace
 
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
 {
-    const std::array<const char *, SIZE> &rows = bitmap(icon);
-    /* Center what is lit, not the 16x16 cell, so a small icon does not sit in a corner. */
-    LitBounds b = litBounds(rows);
-    if (b.x1 < 0) {
+    if (icon == Icon::Diamond) {
+        drawDiamond(list, min, max, color);
         return;
     }
-    const auto k = static_cast<float>(pixel_scale(theme::scale()));
-    float originX =
-        std::floor((min.x + max.x) / 2.0f - k * static_cast<float>(b.x0 + b.x1 + 1) / 2.0f);
-    float originY =
-        std::floor((min.y + max.y) / 2.0f - k * static_cast<float>(b.y0 + b.y1 + 1) / 2.0f);
-    for (int y = b.y0; y <= b.y1; y++) {
-        const char *row = rows[static_cast<size_t>(y)];
-        for (int x = b.x0; x <= b.x1; x++) {
-            if (row[x] != 'X') {
-                continue;
-            }
-            int end = runEnd(row, x, b.x1);
-            list->AddRectFilled(
-                ImVec2(originX + k * static_cast<float>(x), originY + k * static_cast<float>(y)),
-                ImVec2(originX + k * static_cast<float>(end + 1),
-                       originY + k * static_cast<float>(y + 1)),
-                color);
-            x = end;
-        }
+    drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));
+}
+
+bool round_button(Icon icon, const char *id, const char *tooltip, float diameter, bool enabled)
+{
+    ImGui::BeginDisabled(!enabled);
+    bool clicked = ImGui::InvisibleButton(id, ImVec2(diameter, diameter));
+    ImGui::EndDisabled();
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    ImGuiCol fill = ImGuiCol_Button;
+    if (ImGui::IsItemActive()) {
+        fill = ImGuiCol_ButtonActive;
+    } else if (ImGui::IsItemHovered()) {
+        fill = ImGuiCol_ButtonHovered;
     }
+    ImDrawList *list = ImGui::GetWindowDrawList();
+    list->AddCircleFilled(ImVec2((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f), diameter / 2.0f,
+                          ImGui::GetColorU32(fill), 0);
+    drawGlyph(list, icon, min, max,
+              enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f),
+              round_glyph_size(theme::scale()));
+    theme::hint(tooltip, enabled);
+    return clicked && enabled;
 }
 
 bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled)
@@ -594,16 +161,16 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
 bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec2 size)
 {
     if (selected) {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::rgb(theme::INK));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::rgb(theme::INK));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::rgb(theme::BODY_STRONG));
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::rgb(theme::ACCENT));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::rgb(theme::ACCENT));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::rgb(theme::ACCENT_STRONG));
     }
     bool clicked = ImGui::Button(id, size);
     if (selected) {
         ImGui::PopStyleColor(3);
     }
     draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-         withAlpha(selected ? theme::CANVAS : theme::INK, 1.0f));
+         withAlpha(selected ? theme::ACCENT_TEXT : theme::INK, 1.0f));
     theme::tip(tooltip);
     return clicked;
 }

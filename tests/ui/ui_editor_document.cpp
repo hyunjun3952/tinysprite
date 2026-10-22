@@ -85,6 +85,10 @@ TEST(preferences_round_trip_through_the_settings)
     Editor *a = make_editor();
     a->setShowGrid(false);
     a->overlays().status = false;
+    a->overlays().timeline = false;
+    a->overlays().timeline_height = 180.0f;
+    a->overlays().options_bar = false;
+    a->overlays().status_items = 0x15u; /* a few of the status items */
     a->options().brush_size = 5;
     a->options().brush_round = true;
     a->options().pixel_perfect = true;
@@ -100,6 +104,10 @@ TEST(preferences_round_trip_through_the_settings)
     b->load(s);
     ASSERT_TRUE(!b->showGrid());
     ASSERT_TRUE(!b->overlays().status);
+    ASSERT_TRUE(!b->overlays().timeline);
+    ASSERT_TRUE(b->overlays().timeline_height == 180.0f);
+    ASSERT_TRUE(!b->overlays().options_bar);
+    ASSERT_TRUE(b->overlays().status_items == 0x15u);
     ASSERT_TRUE(b->overlays().cursor);
     ASSERT_EQ_INT(5, b->options().brush_size);
     ASSERT_TRUE(b->options().brush_round && b->options().pixel_perfect &&

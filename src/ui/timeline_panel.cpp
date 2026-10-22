@@ -46,7 +46,7 @@ bool modeCombo(const char *id, PlayMode &mode, float width)
     ImGui::SetNextItemWidth(width);
     bool changed = false;
     int current = static_cast<int>(mode);
-    if (ImGui::BeginCombo(id, MODE_NAMES[current])) {
+    if (theme::begin_combo(id, MODE_NAMES[current])) {
         for (int i = 0; i < static_cast<int>(std::size(MODE_NAMES)); i++) {
             if (ImGui::Selectable(MODE_NAMES[i], i == current)) {
                 mode = static_cast<PlayMode>(i);
@@ -176,8 +176,8 @@ void TimelinePanel::toolbar()
     ImGui::TextUnformatted("Duration");
     ImGui::SameLine();
     int ms = sprite.frameDuration(current);
-    ImGui::SetNextItemWidth(theme::px(80.0f));
-    if (ImGui::InputInt("##ms", &ms, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue) ||
+    ImGui::SetNextItemWidth(theme::px(88.0f));
+    if (theme::input_int("##ms", &ms, 0, 0, " ms", ImGuiInputTextFlags_EnterReturnsTrue) ||
         ImGui::IsItemDeactivatedAfterEdit()) {
         editor_.setFrameDuration(current, std::clamp(ms, 1, FRAME_DURATION_MAX));
     }
@@ -195,6 +195,18 @@ void TimelinePanel::toolbar()
     theme::tip("Direction of playback.");
 }
 
+/* The tooltip of an onion field. While onion skin is off the field is greyed out: it then shows
+ * the "not allowed" cursor and says why, so it does not look broken. */
+static void onionTip(const char *text, bool on)
+{
+    if (on) {
+        theme::tip(text);
+    } else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+        ImGui::SetTooltip("Turn on Onion skin to change this.");
+    }
+}
+
 /* The second toolbar row: the onion skin switch and how many ghosts it shows. */
 void TimelinePanel::onionControls()
 {
@@ -208,31 +220,29 @@ void TimelinePanel::onionControls()
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Before");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(theme::px(60.0f));
-    changed |= ImGui::DragInt("##before", &skin.before, 0.1f, 0, ONION_MAX_FRAMES);
-    theme::tip("Previous frames shown, tinted red.");
+    ImGui::SetNextItemWidth(theme::px(78.0f));
+    changed |= ImGui::DragInt("##before", &skin.before, 0.1f, 0, ONION_MAX_FRAMES,
+                              theme::int_format(skin.before == 1 ? " frame" : " frames").c_str());
+    onionTip("Previous frames shown, tinted red.", on);
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("After");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(theme::px(60.0f));
-    changed |= ImGui::DragInt("##after", &skin.after, 0.1f, 0, ONION_MAX_FRAMES);
-    theme::tip("Following frames shown, tinted blue.");
+    ImGui::SetNextItemWidth(theme::px(78.0f));
+    changed |= ImGui::DragInt("##after", &skin.after, 0.1f, 0, ONION_MAX_FRAMES,
+                              theme::int_format(skin.after == 1 ? " frame" : " frames").c_str());
+    onionTip("Following frames shown, tinted blue.", on);
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Strength");
     ImGui::SameLine();
     int percent = (skin.opacity * 100 + 127) / 255;
     ImGui::SetNextItemWidth(theme::px(110.0f));
-    /* The value is written beside the slider: centered on it, the grip would cover the digits. */
-    if (ImGui::SliderInt("##strength", &percent, 5, 100, "")) {
+    if (theme::slider_int("##strength", &percent, 5, 100, "%")) {
         skin.opacity = static_cast<uint8_t>((percent * 255 + 50) / 100);
         changed = true;
     }
-    theme::tip("How strongly the nearest ghost shows; farther ones fade out.");
-    ImGui::SameLine();
-    ImGui::AlignTextToFramePadding();
-    ImGui::Text("%d%%", percent);
+    onionTip("How strongly the nearest ghost shows; farther ones fade out.", on);
     ImGui::EndDisabled();
     if (changed) {
         editor_.setOnion(on, skin);
@@ -513,18 +523,25 @@ void TimelinePanel::grid()
     }
 }
 
-float TimelinePanel::height()
+TimelineSize timeline_drag(float requested, float previous, float minHeight, float maxHeight,
+                           float hideBelow)
 {
-    return theme::px(BASE_HEIGHT);
+    if (requested < hideBelow) {
+        return {false, previous};
+    }
+    return {true, std::clamp(requested, minHeight, std::max(minHeight, maxHeight))};
 }
 
-void TimelinePanel::show(float x, float y, float width)
+void TimelinePanel::show(float x, float y, float width, float height)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
-    ImGui::SetNextWindowSize(ImVec2(width, height()));
+    ImGui::SetNextWindowSize(ImVec2(width, height));
+    /* NoFocusOnAppearing: the strip appears under the mouse while its edge is being dragged, and a
+     * window that takes the focus then ends that drag. */
     constexpr ImGuiWindowFlags FLAGS = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
                                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
-                                       ImGuiWindowFlags_NoSavedSettings;
+                                       ImGuiWindowFlags_NoSavedSettings |
+                                       ImGuiWindowFlags_NoFocusOnAppearing;
     if (ImGui::Begin("Timeline", nullptr, FLAGS)) {
         ImGui::BeginDisabled(editor_.stroking());
         toolbar();
