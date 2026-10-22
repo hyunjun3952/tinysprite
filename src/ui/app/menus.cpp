@@ -200,12 +200,8 @@ void App::frameMenu()
 
 void App::frameEditItems(bool idle)
 {
-    if (ImGui::MenuItem("New frame", nullptr, false, idle)) {
-        editor_->addFrame();
-    }
-    if (ImGui::MenuItem("Duplicate frame", nullptr, false, idle)) {
-        editor_->duplicateFrame();
-    }
+    commandItem(CommandId::NewFrame);
+    commandItem(CommandId::DuplicateFrame);
     if (ImGui::MenuItem("Delete frame", nullptr, false,
                         idle && editor_->sprite().frameCount() > 1)) {
         editor_->removeFrame(editor_->frame());
@@ -335,11 +331,13 @@ void App::helpWindow()
         {"Mouse wheel, F", "Zoom at the cursor, fit the sprite"},
         {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
         {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
-        {"Arrow keys (Shift: 8 px)", "Move the selected pixels"},
+        {"Arrow keys (Shift: 8 px)",
+         "Move the selected pixels (the whole cel without a selection)"},
         {"Click / Ctrl+click / Shift+click on layers",
          "Select one layer, add or remove one, select a range"},
         {"Delete (layer list focused)", "Delete the selected layers, after asking"},
         {", .", "Previous / next frame"},
+        {"Ctrl+Shift+F, Ctrl+Shift+J", "New frame, duplicate frame"},
         {"Enter", "Play / stop the animation (Esc also stops it)"},
         {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
         {"Right click on the layer list", "Layer actions (the same as the Layer menu)"},

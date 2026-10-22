@@ -21,6 +21,8 @@ const Command COMMANDS[COMMAND_COUNT] = {
     {"Merge down", nullptr, CommandId::MergeLayerDown, {{ImGuiKey_M, ShiftRule::Held}}, false},
     {"Move layer up", nullptr, CommandId::MoveLayerUp, {{ImGuiKey_RightBracket}}, false},
     {"Move layer down", nullptr, CommandId::MoveLayerDown, {{ImGuiKey_LeftBracket}}, false},
+    {"New frame", nullptr, CommandId::NewFrame, {{ImGuiKey_F, ShiftRule::Held}}, false},
+    {"Duplicate frame", nullptr, CommandId::DuplicateFrame, {{ImGuiKey_J, ShiftRule::Held}}, false},
 };
 
 namespace

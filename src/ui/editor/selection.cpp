@@ -152,21 +152,24 @@ void Editor::rotateSelection(bool clockwise)
 bool Editor::nudgeSelection(int dx, int dy)
 {
     Cel *cel = editableCel();
-    if (!cel || !selection_ || (dx == 0 && dy == 0)) {
+    if (!cel || (dx == 0 && dy == 0)) {
         return false;
     }
-    Rect before = *selection_;
+    /* Without a selection the whole cel moves and there is still none afterwards. */
+    std::optional<Rect> had = selection_;
+    Rect before = had.value_or(spriteBounds());
     Rect moved = {before.x + dx, before.y + dy, before.w, before.h};
+    std::optional<Rect> after = had ? clippedSelection(moved) : std::nullopt;
     std::unique_ptr<MoveStroke> stroke = MoveStroke::begin(history(), *cel, before);
     if (!stroke) {
         return false;
     }
     stroke->update(dx, dy);
-    if (!stroke->end(selectionAction(before, clippedSelection(moved)))) {
+    if (!stroke->end(selectionAction(had, after))) {
         return false;
     }
     markDirty(before);
     markDirty(moved);
-    setSelectionClipped(moved);
+    selection_ = after;
     return true;
 }

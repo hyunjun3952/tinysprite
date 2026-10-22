@@ -544,9 +544,9 @@ class Editor
     void flipSelection(bool horizontal);
     void rotateSelection(bool clockwise);
 
-    /* Moves the selected pixels and the selection by (dx, dy), one undo step (the arrow keys).
-     * Returns false for no selection, a cel that cannot be edited, a zero offset or an active
-     * stroke. */
+    /* Moves the selected pixels and the selection by (dx, dy), one undo step (the arrow keys);
+     * with no selection the whole cel moves. Returns false for a cel that cannot be edited, a
+     * zero offset or an active stroke. */
     bool nudgeSelection(int dx, int dy);
 
   private:

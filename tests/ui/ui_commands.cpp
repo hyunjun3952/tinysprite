@@ -99,6 +99,14 @@ TEST(the_layer_commands_have_their_own_chords)
     ASSERT_TRUE(run(false, {ImGuiKey_LeftBracket})->id == CommandId::MoveLayerDown);
 }
 
+TEST(the_frame_commands_have_their_own_chords)
+{
+    ASSERT_TRUE(command_hint(command(CommandId::NewFrame)) == "Ctrl+Shift+F");
+    ASSERT_TRUE(command_hint(command(CommandId::DuplicateFrame)) == "Ctrl+Shift+J");
+    ASSERT_TRUE(run(true, {ImGuiKey_F})->id == CommandId::NewFrame);
+    ASSERT_TRUE(run(true, {ImGuiKey_J})->id == CommandId::DuplicateFrame);
+}
+
 TEST(a_hint_can_be_spelled_out)
 {
     ASSERT_TRUE(command_hint(command(CommandId::ZoomIn)) == "Ctrl++");
@@ -161,6 +169,7 @@ int main()
     RUN(no_two_commands_claim_the_same_keys);
     RUN(the_hint_is_derived_from_the_first_shortcut);
     RUN(the_layer_commands_have_their_own_chords);
+    RUN(the_frame_commands_have_their_own_chords);
     RUN(a_hint_can_be_spelled_out);
     RUN(shift_tells_save_from_save_as_and_undo_from_redo);
     RUN(shift_is_ignored_where_a_command_does_not_care);

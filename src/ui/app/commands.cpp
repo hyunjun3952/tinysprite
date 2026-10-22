@@ -53,6 +53,8 @@ const App::CommandAction &App::commandAction(CommandId id)
         {[](App &app) { app.editor_->mergeSelectedLayers(); }, canMerge},
         {[](App &app) { app.editor_->moveSelectedLayersBy(1); }, canMoveUp},
         {[](App &app) { app.editor_->moveSelectedLayersBy(-1); }, canMoveDown},
+        {[](App &app) { app.editor_->addFrame(); }, idle},
+        {[](App &app) { app.editor_->duplicateFrame(); }, idle},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(COMMAND_COUNT),
                   "one CommandAction row per CommandId");

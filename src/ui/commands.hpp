@@ -30,6 +30,8 @@ enum class CommandId {
     MergeLayerDown,
     MoveLayerUp,
     MoveLayerDown,
+    NewFrame,
+    DuplicateFrame,
     Count,
 };
 
