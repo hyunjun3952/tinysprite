@@ -113,6 +113,7 @@ TEST(recovery_round_trips_the_document_and_its_path)
     ASSERT_TRUE(!recovery_load(dir).has_value());
     Sprite sprite(6, 4);
     sprite.layer(0)->cel(0)->set(2, 1, Rgba{9, 8, 7, 255});
+    sprite.addLayer("Glow").setBlendMode(BlendMode::Add);
     ASSERT_TRUE(recovery_save(dir, sprite, "/work/hero.pxa"));
     std::optional<Recovered> back = recovery_load(dir);
     ASSERT_TRUE(back.has_value());
@@ -122,6 +123,8 @@ TEST(recovery_round_trips_the_document_and_its_path)
     ASSERT_EQ_INT(6, back->sprite.width());
     ASSERT_TRUE(back->sprite.layer(0)->cel(0)->get(2, 1) == (Rgba{9, 8, 7, 255}));
     ASSERT_TRUE(back->path == "/work/hero.pxa");
+    ASSERT_EQ_INT(static_cast<int>(BlendMode::Add),
+                  static_cast<int>(back->sprite.layer(1)->blendMode()));
     recovery_clear(dir);
     ASSERT_TRUE(!recovery_load(dir).has_value());
     recovery_clear(dir); /* clearing nothing is fine */

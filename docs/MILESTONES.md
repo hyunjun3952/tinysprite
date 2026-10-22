@@ -74,7 +74,7 @@ TDD, one step per commit; the UI part comes last.
 - [x] **16. Undoable edit** — `layer_ops` step for a mode change (as opacity), `Editor::setSelectedLayersBlendMode`
       applying to every selected layer in one step; duplicate keeps the mode; decide and test what "merge down" does
       (bake the upper layer's mode into the pixels: composite with its mode, result Normal).
-- [ ] **17. `.pxa`** — an optional `BLND` chunk after the layers (layer index + mode byte, only for layers that are
+- [x] **17. `.pxa`** — an optional `BLND` chunk after the layers (layer index + mode byte, only for layers that are
       not Normal), so version stays 1 and a file without blend modes is byte-identical; an unknown mode value reads
       as Normal. Round-trip and old-reader (skips the chunk) tests. Also check `recovery` (autosave) keeps modes.
 - [ ] **18. UI** — a "Blend" combo in the Layers panel's Properties section (applies to all selected layers, one
@@ -93,10 +93,10 @@ headless CLI export, optional Aseprite import.
 - Frames (phase 2): a `Layer` holds its cels as `shared_ptr<Cel>`, in frame order. `Sprite::insertFrame` /
   `detachFrame` / `moveFrame` keep every layer, the durations and the tags in step; a removed frame (or one added and
   then undone) is kept alive by the history step so pixel steps on its cels stay valid, like removed layers.
-- `.pxa` stays version 1: `FRAM`, `LINK` and `TAGS` are optional chunks a reader of this version skips when it does not
+- `.pxa` stays version 1: `FRAM`, `LINK`, `BLND` and `TAGS` are optional chunks a reader of this version skips when it does not
   know them, and a plain one-frame sprite writes none of them (the file is byte-identical to before). The decoder grows
   the frames only after checking that the first `LAYR` chunk holds their pixels, so a lying header cannot make it
-  allocate more than the file is big. `FRAM` has to precede the layers; `LINK` and `TAGS` come after them.
+  allocate more than the file is big. `FRAM` has to precede the layers; `LINK`, `BLND` and `TAGS` come after them.
 - Tags shift with their frames: insert before / inside, remove before / inside, a tag vanishes with its last frame.
   Moving a frame keeps tags by position. A frame step records the tag list before and after so undo brings back a tag
   that vanished.

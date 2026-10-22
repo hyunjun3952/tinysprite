@@ -112,6 +112,7 @@ version is still 1), and rejects other versions and truncated data.
 | `FRAM` | optional: the duration of every frame in ms (u16 each); only written when one is not the default; before the layers |
 | `LAYR` | name (u8 length + bytes), visible (u8), opacity (u8), then the pixels of every frame; one chunk per layer, bottom to top |
 | `LINK` | optional, per layer with links: layer index, count, then (frame, earlier frame it shares its cel with) pairs |
+| `BLND` | optional, after the layers: count, then (layer index, blend mode byte) for each layer that is not Normal; an unknown mode reads as Normal |
 | `TAGS` | optional: count, then per tag a name, first and last frame and a direction |
 
 Every writer goes through `file_write_atomic` (temporary file plus rename), so a failed write never destroys an
