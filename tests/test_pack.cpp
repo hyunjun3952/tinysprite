@@ -119,6 +119,8 @@ TEST(nothing_is_packed_when_it_cannot_fit_or_there_is_nothing)
     ASSERT_TRUE(!pack_rects({size(101, 4)}, 0, 100).has_value());
     ASSERT_TRUE(!pack_rects({size(0, 4)}, 0, 100).has_value());
     ASSERT_TRUE(!pack_rects({size(4, 4)}, -1, 100).has_value());
+    ASSERT_TRUE(!pack_rects({size(4, 4)}, 101, 100).has_value()); /* more padding than sheet */
+    ASSERT_TRUE(!pack_rects({size(4, 4)}, 2147483647, 100).has_value()); /* no overflow either */
     /* four 60 x 60 cannot share a 100 x 100 sheet */
     ASSERT_TRUE(!pack_rects(std::vector<Rect>(4, size(60, 60)), 0, 100).has_value());
     ASSERT_TRUE(pack_rects(std::vector<Rect>(4, size(60, 60)), 0, 120).has_value());

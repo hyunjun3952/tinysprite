@@ -112,7 +112,9 @@ bool better(const Attempt &a, const Attempt &b)
 
 bool validInput(const std::vector<Rect> &sizes, int padding, int maxSize)
 {
-    if (sizes.empty() || padding < 0 || maxSize < 1) {
+    /* a padding larger than the sheet could be would overflow the sums below, and cannot fit anyway
+     */
+    if (sizes.empty() || padding < 0 || maxSize < 1 || padding > maxSize) {
         return false;
     }
     return std::all_of(sizes.begin(), sizes.end(), [maxSize](const Rect &r) {
