@@ -54,6 +54,7 @@ void App::unsplit()
     pane_[0] = editor_;
     pane_[1] = nullptr;
     activePane_ = 0;
+    canvas2_.reset(); /* it would keep pointing at a document that may be closed next */
     bindPanes();
 }
 
@@ -63,12 +64,7 @@ void App::focusPane(int pane)
     if (!split_ || pane == activePane_ || pane_[pane] == nullptr) {
         return;
     }
-    for (int i = 0; i < static_cast<int>(docs_.size()); i++) {
-        if (docs_[static_cast<size_t>(i)].editor.get() == pane_[pane]) {
-            activateDocument(i);
-            return;
-        }
-    }
+    activateDocument(indexOf(pane_[pane]));
 }
 
 /* Points the canvases at the documents of their panes and the panels at the active one. */
@@ -78,10 +74,8 @@ void App::bindPanes()
         return;
     }
     canvas_->setEditor(*pane_[0]);
-    canvas_->setHighlighted(split_ && activePane_ == 0);
     if (split_ && canvas2_) {
         canvas2_->setEditor(*pane_[1]);
-        canvas2_->setHighlighted(activePane_ == 1);
     }
     toolsPanel_->setEditor(*editor_);
     layersPanel_->setEditor(*editor_);
@@ -93,12 +87,15 @@ void App::bindPanes()
 void App::canvasArea(float x, float y, float width, float height)
 {
     if (!split_) {
+        canvas_->setHighlighted(false);
         canvas_->show(x, y, width, height);
         return;
     }
     const float gap = theme::px(SASH_WIDTH);
     const float total = (splitSideBySide_ ? width : height) - gap;
     const float first = std::floor(total * splitRatio_);
+    canvas_->setHighlighted(activePane_ == 0);
+    canvas2_->setHighlighted(activePane_ == 1);
     if (splitSideBySide_) {
         canvas_->show(x, y, first, height);
         canvas2_->show(x + first + gap, y, total - first, height);
@@ -106,8 +103,6 @@ void App::canvasArea(float x, float y, float width, float height)
         canvas_->show(x, y, width, first);
         canvas2_->show(x, y + first + gap, width, total - first);
     }
-    canvas_->setHighlighted(activePane_ == 0);
-    canvas2_->setHighlighted(activePane_ == 1);
     splitSash(x, y, width, height, gap);
 }
 

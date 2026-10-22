@@ -159,6 +159,10 @@ bool App::runOpen(const std::string &path)
 
 bool App::runSaveAs(const std::string &path)
 {
+    if (int other = findDocument(path); other >= 0 && other != active_) {
+        fileError_ = file_name_of(path) + " is open in another tab; close that tab first";
+        return false;
+    }
     if (!pxa_save(editor_->sprite(), path)) {
         fileError_ = cannotWrite(path);
         return false;

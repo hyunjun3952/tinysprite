@@ -3,23 +3,27 @@
 #include <cstdio>
 #include <filesystem>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "app.hpp"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_sdlrenderer2.h"
 #include "imgui_internal.h"
 #include "minitest.hpp"
+#include "recovery.hpp"
 #include "tinysprite/io.hpp"
 
 struct AppTestAccess {
     App app;
 
-    bool start()
+    bool start(const std::string &configDir = "")
     {
         AppOptions options;
         options.width = 16;
         options.height = 16;
-        options.maxFrames = 1; /* no settings or autosave of the user's */
+        options.maxFrames = 1;         /* no settings or autosave of the user's */
+        options.configDir = configDir; /* a test folder turns them on there */
         if (!app.init(options)) {
             return false;
         }
@@ -114,6 +118,35 @@ struct AppTestAccess {
     void move(int from, int to)
     {
         app.moveDocument(from, to);
+    }
+    void autosaveNow()
+    {
+        app.lastAutosave_ = 0xF0000000u; /* long ago: the next autosave is due */
+        app.autosave();
+    }
+    void recoverAll(std::vector<Recovered> copies)
+    {
+        app.recovered_ = std::move(copies);
+        app.recoverAll();
+        app.recovered_.clear();
+    }
+    bool saveAs(const std::string &path)
+    {
+        return app.runSaveAs(path);
+    }
+    std::string error() const
+    {
+        return app.fileError_;
+    }
+    bool pressed(int x, int y) /* a tool drag that is not released yet */
+    {
+        editor().selectTool(ToolKind::Pencil);
+        editor().press(x, y);
+        return editor().stroking();
+    }
+    void release()
+    {
+        editor().release();
     }
     /* Editors of closed tabs that wait for the next frame to be destroyed. */
     int retired() const
@@ -467,8 +500,104 @@ TEST(a_closed_tabs_editor_is_kept_until_the_next_frame)
     ASSERT_EQ_INT(0, t.retired());
 }
 
+TEST(each_document_with_changes_gets_its_own_autosave_copy)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "tinysprite_autosave_test";
+    fs::remove_all(dir);
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(dir.string()));
+    t.dot(1, 1);
+    ASSERT_TRUE(t.addBlank(8, 8));
+    t.dot(2, 2);
+    t.autosaveNow();
+    ASSERT_EQ_INT(
+        2, static_cast<int>(recovery_load(dir.string()).size())); /* not one over the other */
+    t.activate(0);
+    t.editor().undo(); /* the first document is clean again: its copy goes */
+    t.autosaveNow();
+    ASSERT_EQ_INT(1, static_cast<int>(recovery_load(dir.string()).size()));
+    t.close(1); /* closing (discarding) the other one drops its copy too */
+    t.discard();
+    ASSERT_EQ_INT(0, static_cast<int>(recovery_load(dir.string()).size()));
+    fs::remove_all(dir);
+}
+
+TEST(recovered_copies_open_as_tabs_and_never_share_a_file)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    std::vector<Recovered> copies;
+    copies.push_back(Recovered{Sprite(5, 5), "/work/a.pxa"});
+    copies.push_back(Recovered{Sprite(6, 6), "/work/a.pxa"}); /* the same file again */
+    copies.push_back(Recovered{Sprite(7, 7), ""});
+    t.recoverAll(std::move(copies));
+    ASSERT_EQ_INT(3, t.count()); /* the untouched first tab took the first copy */
+    ASSERT_EQ_INT(5, t.editorOf(0).sprite().width());
+    ASSERT_TRUE(t.title(0) == "a.pxa");
+    ASSERT_TRUE(t.title(1) != "a.pxa"); /* the second one has no file: Save as picks one */
+    for (int i = 0; i < 3; i++) {
+        t.activate(i);
+        ASSERT_TRUE(t.dirty());
+    }
+}
+
+TEST(save_as_onto_the_file_of_another_tab_is_refused)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    std::string a = temp_pxa("tinysprite_doc_saveas.pxa", 5);
+    ASSERT_TRUE(t.open(a));
+    ASSERT_TRUE(t.addBlank(8, 8));
+    ASSERT_TRUE(!t.saveAs(a));
+    ASSERT_TRUE(t.error().find("open in another tab") != std::string::npos);
+    std::filesystem::remove(a);
+}
+
+TEST(a_tab_cannot_be_closed_while_a_tool_is_being_dragged)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    ASSERT_TRUE(t.addBlank(8, 8));
+    ASSERT_TRUE(t.pressed(1, 1));
+    t.close(1); /* the active tab, mid-stroke */
+    ASSERT_EQ_INT(2, t.count());
+    t.close(0); /* another tab: asking about it would need the active one */
+    ASSERT_EQ_INT(2, t.count());
+    t.release();
+    t.close(1);
+    t.discard();
+    ASSERT_EQ_INT(1, t.count());
+}
+
+TEST(quitting_in_the_middle_of_a_drag_still_quits)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    ASSERT_TRUE(t.pressed(1, 1));
+    t.quit();
+    ASSERT_TRUE(!t.running());
+}
+
+TEST(switching_tabs_ends_a_middle_button_pick)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.editor().selectTool(ToolKind::Bucket);
+    t.editor().tempPick(true); /* the middle button is held on the canvas */
+    ASSERT_TRUE(t.addBlank(8, 8));
+    t.activate(0);
+    ASSERT_EQ_INT(static_cast<int>(ToolKind::Bucket), static_cast<int>(t.editor().tool()));
+}
+
 int main()
 {
+    RUN(each_document_with_changes_gets_its_own_autosave_copy);
+    RUN(recovered_copies_open_as_tabs_and_never_share_a_file);
+    RUN(save_as_onto_the_file_of_another_tab_is_refused);
+    RUN(a_tab_cannot_be_closed_while_a_tool_is_being_dragged);
+    RUN(quitting_in_the_middle_of_a_drag_still_quits);
+    RUN(switching_tabs_ends_a_middle_button_pick);
     RUN(a_closed_tabs_editor_is_kept_until_the_next_frame);
     RUN(a_split_needs_a_second_document_and_shows_it_beside_the_first);
     RUN(a_stacked_split_gives_both_panes_the_full_width);

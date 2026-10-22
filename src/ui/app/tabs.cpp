@@ -192,12 +192,7 @@ void App::closeAfter(const Editor *keep, bool rightOnly)
             activateDocument(index);
             const Editor *closing = docs_[static_cast<size_t>(index)].editor.get();
             guardUnsaved([this, closing, keep, rightOnly] {
-                for (int i = 0; i < static_cast<int>(docs_.size()); i++) {
-                    if (docs_[static_cast<size_t>(i)].editor.get() == closing) {
-                        removeDocument(i);
-                        break;
-                    }
-                }
+                removeEditor(closing);
                 closeAfter(keep, rightOnly);
             });
             return;

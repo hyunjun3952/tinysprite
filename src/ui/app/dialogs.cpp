@@ -148,6 +148,39 @@ void App::newDialog()
     theme::end_modal();
 }
 
+/* What the recovery dialog says is there: one document by name, or a count and the first names. */
+void App::recoverList()
+{
+    constexpr size_t SHOWN = 5;
+    auto name = [](const Recovered &r) {
+        return r.path.empty() ? std::string("an untitled sprite") : r.path;
+    };
+    if (recovered_.size() == 1) {
+        ImGui::Text("Recover the unsaved changes to %s?", name(recovered_.front()).c_str());
+        return;
+    }
+    ImGui::Text("Recover the unsaved changes to %d documents?",
+                static_cast<int>(recovered_.size()));
+    for (size_t i = 0; i < recovered_.size() && i < SHOWN; i++) {
+        ImGui::BulletText("%s", name(recovered_[i]).c_str());
+    }
+    if (recovered_.size() > SHOWN) {
+        ImGui::TextDisabled("and %d more", static_cast<int>(recovered_.size() - SHOWN));
+    }
+}
+
+/* Opens every recovered copy in a tab, marked as having unsaved changes. A copy whose file is open
+ * in another tab becomes an untitled document, so two tabs never share one file. */
+void App::recoverAll()
+{
+    for (Recovered &copy : recovered_) {
+        const std::string path = findDocument(copy.path) >= 0 ? std::string() : copy.path;
+        if (addDocument(std::move(copy.sprite), path, true)) {
+            editor_->markModified();
+        }
+    }
+}
+
 /* Offered at start when the last session left an autosave copy behind (it did not exit cleanly). */
 void App::recoverDialog()
 {
@@ -161,22 +194,17 @@ void App::recoverDialog()
         return;
     }
     ImGui::TextUnformatted("tinysprite did not exit cleanly last time.");
-    if (recovered_) {
-        ImGui::Text("Recover the unsaved changes to %s?",
-                    recovered_->path.empty() ? "an untitled sprite" : recovered_->path.c_str());
-    }
+    recoverList();
     bool close = false;
     const int clicked = theme::dialog_buttons({"Discard", "Recover"}, 1);
     if (clicked == 1) {
-        if (recovered_ && addDocument(std::move(recovered_->sprite), recovered_->path, true)) {
-            editor_->markModified();
-        }
+        recoverAll();
         close = true;
     } else if (clicked == 0) {
         close = true;
     }
     if (close) {
-        recovered_.reset();
+        recovered_.clear();
         recovery_clear(configDir_);
         ImGui::CloseCurrentPopup();
     }

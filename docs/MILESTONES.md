@@ -165,8 +165,15 @@ Several documents open at once, as tabs, and two of them side by side. Done on `
   a pane makes its document the active one (`Canvas::setOnPress`; the active pane has a line along its top), picking a
   tab fills the active pane, and a tab that is in the other pane just takes the focus there. Closing a tab that a pane
   shows ends the split. The timeline, options bar, status bar and the Inspector follow the active document.
-- Known limits: the autosave copy holds one document (the one being edited, else the first with changes); the split is
-  not saved between runs; playback runs only in the active document.
+- Autosave keeps one copy per document with unsaved changes (`recovery_<serial>.pxa` / `.path`, `Document::recovery`); a
+  copy goes when its document is clean, saved or closed, and the recovery dialog offers all that were left (an old single
+  `recovery.pxa` too). A recovered copy whose file is open in another tab becomes untitled, and Save As onto a file that
+  another tab has is refused, so two tabs never share a file.
+- Closing a tab destroys its editor (and the layer thumbnails) a frame later (`App::retired_`, `Editor::retiredSurface_`,
+  `LayerThumbnails::graveyard_`): the frame being built may already have drawn their textures, which are rendered at its
+  end. A tab cannot be closed or left while a tool is being dragged (quit cancels the drag first), and a middle-button
+  pick ends when the tab changes.
+- Known limits: the split is not saved between runs; playback runs only in the active document.
 
 ## Phase 2b: layer blend modes
 

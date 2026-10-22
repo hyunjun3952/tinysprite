@@ -188,7 +188,9 @@ class App
     struct Document {
         std::unique_ptr<Editor> editor;
         std::string path; /* the .pxa it was opened from / saved to, "" if none */
-        int serial = 0;   /* names an untitled one: "untitled", "untitled 2", ... */
+        int serial =
+            0; /* names an untitled one: "untitled", "untitled 2", ...; also its autosave slot */
+        bool recovery = false; /* an autosave copy of it is on disk */
     };
 
     /* Opens a .pxa file or imports an image in a new tab (an untouched untitled tab is reused, and
@@ -214,6 +216,10 @@ class App
     bool pristine(const Document &document) const;
     std::string documentTitle(const Document &document) const;
     int findDocument(const std::string &path) const;
+    /* The tab that holds `editor`, or -1; and taking that tab away (it may have moved meanwhile).
+     */
+    int indexOf(const Editor *editor) const;
+    void removeEditor(const Editor *editor);
     /* Adds a tab for `sprite` (or reuses the untouched active one when `reuse`), and shows it. */
     bool addDocument(Sprite sprite, const std::string &path, bool reuse);
     bool addBlankDocument(int width, int height);
@@ -264,15 +270,17 @@ class App
     void newDialog();
     void newSizeFields();
     void recoverDialog();
+    void recoverList();
+    void recoverAll();
     void autosave();
     /* Saves the preferences, the window size and the layout, and drops the autosave copy: a clean
      * exit leaves nothing to recover. */
     void shutdown();
     bool saveScreenshot(const std::string &path) const;
 
-    std::string configDir_;              /* where they live, "" when there is no home directory */
-    std::optional<Recovered> recovered_; /* the copy an earlier session left, awaiting an answer */
-    std::vector<std::string> recent_;    /* recently opened / saved .pxa files, newest first */
+    std::string configDir_;            /* where they live, "" when there is no home directory */
+    std::vector<Recovered> recovered_; /* the copies an earlier session left, awaiting an answer */
+    std::vector<std::string> recent_;  /* recently opened / saved .pxa files, newest first */
 
     /* What the GIF and sprite sheet dialogs ask beyond the path and the scale. */
     struct ExportChoices {
@@ -334,8 +342,7 @@ class App
     std::unique_ptr<LayersPanel> layersPanel_;
     std::unique_ptr<TimelinePanel> timelinePanel_;
 
-    bool persist_ = false;     /* keep settings and an autosave copy (off for --frames runs) */
-    bool hasAutosave_ = false; /* an autosave copy of this session is on disk */
+    bool persist_ = false; /* keep settings and an autosave copy (off for --frames runs) */
     bool openRecover_ = false;
     bool openNew_ = false;
     bool newShown_ = false;     /* the New sprite dialog is open (set while it is drawn) */

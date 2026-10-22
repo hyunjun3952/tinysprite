@@ -200,7 +200,7 @@ bool App::init(const AppOptions &options)
     }
     if (persist_) {
         recovered_ = recovery_load(configDir_);
-        openRecover_ = recovered_.has_value();
+        openRecover_ = !recovered_.empty();
     }
     lastAutosave_ = SDL_GetTicks();
     return true;
@@ -217,34 +217,33 @@ void App::updateTitle()
     }
 }
 
-/* While a document has unsaved changes, a copy goes to the config directory every so often (the one
- * being edited, else the first with changes: the recovery file holds one document); once none has
- * unsaved changes any more it is not needed. */
+/* While a document has unsaved changes, a copy of it goes to the config directory every so often
+ * (one file per document, so editing a second one does not replace the first one's); once a
+ * document has no unsaved changes any more its copy is not needed. */
 void App::autosave()
 {
-    if (!persist_ || recovered_) {
+    if (!persist_ || !recovered_.empty()) {
         return;
     }
-    const Document *target = dirty(doc()) ? &doc() : nullptr;
-    for (const Document &document : docs_) {
-        if (target == nullptr && dirty(document)) {
-            target = &document;
+    const Uint32 now = SDL_GetTicks();
+    const bool due = now - lastAutosave_ >= AUTOSAVE_INTERVAL_MS;
+    bool wrote = false;
+    for (Document &document : docs_) {
+        if (!dirty(document)) {
+            if (document.recovery) {
+                recovery_clear_slot(configDir_, document.serial);
+                document.recovery = false;
+            }
+        } else if (due && !document.editor->stroking()) {
+            document.recovery = recovery_save(configDir_, document.serial,
+                                              document.editor->sprite(), document.path) ||
+                                document.recovery;
+            wrote = true;
         }
     }
-    if (target == nullptr) {
-        if (hasAutosave_) {
-            recovery_clear(configDir_);
-            hasAutosave_ = false;
-        }
-        return;
+    if (wrote) {
+        lastAutosave_ = now;
     }
-    Uint32 now = SDL_GetTicks();
-    if (target->editor->stroking() || now - lastAutosave_ < AUTOSAVE_INTERVAL_MS) {
-        return;
-    }
-    lastAutosave_ = now;
-    hasAutosave_ =
-        recovery_save(configDir_, target->editor->sprite(), target->path) || hasAutosave_;
 }
 
 void App::shutdown()
@@ -267,7 +266,7 @@ void App::shutdown()
     settings_set_int(settings, "window.width", width);
     settings_set_int(settings, "window.height", height);
     settings_save(configDir_, settings);
-    if (!recovered_) {
+    if (recovered_.empty()) {
         recovery_clear(configDir_);
     }
 }
