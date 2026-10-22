@@ -18,6 +18,7 @@
 #include "tinysprite/history.hpp"
 #include "tinysprite/playback.hpp"
 #include "tinysprite/selection.hpp"
+#include "tinysprite/slice_ops.hpp"
 #include "tinysprite/sprite.hpp"
 #include "tinysprite/tools.hpp"
 #include "tinysprite/viewport.hpp"
@@ -156,7 +157,8 @@ class Editor
         bool status = true;
         bool cursor = true;
         bool mirror_axes = true;
-        bool timeline = true;                /* the timeline strip along the bottom of the window */
+        bool slices = true;   /* the outlines, names and pivots of the slices on the canvas */
+        bool timeline = true; /* the timeline strip along the bottom of the window */
         float timeline_height = 246.0f;      /* at UI scale 1; set by dragging its top edge */
         bool options_bar = true;             /* the options of the active tool, above the canvas */
         unsigned status_items = 0x7FFFFFFFu; /* a bit per StatusItem (statusbar.hpp): which show */
@@ -523,6 +525,36 @@ class Editor
      * unchanged. */
     void commitLayerName(int index, const std::string &beforeName);
 
+    /* Slices: named rectangles the game reads from the JSON export (see Sprite::Slice). Each edit
+     * is one undo step and is held off while a tool is being dragged (except from the drag's own
+     * end). The selected slice is an index that falls back to "none" when it no longer exists
+     * (after an undo). */
+    int selectedSlice() const;
+    void selectSlice(int index);
+    /* Adds a slice over `rect` (clipped to the sprite) named "Slice N", the smallest N not in use,
+     * and selects it. False for a rectangle that is empty after clipping. */
+    bool addSlice(Rect rect);
+    bool updateSlice(int index, Sprite::Slice slice);
+    bool removeSlice(int index);
+    /* The topmost slice (the last added) whose rectangle contains the cel, or -1. */
+    int sliceAt(int cx, int cy) const;
+    /* While a slice is dragged out: the rectangle so far, drawn by the canvas. */
+    std::optional<Rect> slicePreview() const
+    {
+        return slicePreview_;
+    }
+    void setSlicePreview(std::optional<Rect> rect)
+    {
+        slicePreview_ = rect;
+    }
+    /* Changes a slice without an undo step, for the live part of a drag; the drag records the step
+     * with updateSlice when it ends. */
+    bool previewSlice(int index, Sprite::Slice slice);
+    bool sliceEditsBlocked() const
+    {
+        return stroking() && !finishingDrag_;
+    }
+
     /* Selection helpers. Delete clears the selected pixels (one undo step). */
     void selectAll();
     void clearSelection();
@@ -601,6 +633,9 @@ class Editor
     int hoverY_ = 0;
     bool hovering_ = false;
     std::optional<Rect> selection_;
+    bool finishingDrag_ = false; /* release() is running the drag's finish: it may edit slices */
+    int selectedSlice_ = -1;
+    std::optional<Rect> slicePreview_;
     int moveDx_ = 0;
     int moveDy_ = 0;
 

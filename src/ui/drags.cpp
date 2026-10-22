@@ -283,6 +283,86 @@ class SelectDrag : public Drag
     bool outside_; /* pressed beside the sprite: a plain click there selects nothing */
 };
 
+/* Dragging out a new slice: the rectangle shows as a preview and becomes a slice on release. A
+ * click without dragging only deselects. */
+class SliceCreateDrag : public Drag
+{
+  public:
+    SliceCreateDrag(Editor &editor, int cx, int cy)
+        : Drag(editor, clampX(editor, cx), clampY(editor, cy))
+    {
+        editor_.selectSlice(-1);
+    }
+
+    void update(int cx, int cy) override
+    {
+        lastX_ = clampX(editor_, cx);
+        lastY_ = clampY(editor_, cy);
+        editor_.setSlicePreview(rect_from_corners(anchorX_, anchorY_, lastX_, lastY_));
+    }
+
+    void finish() override
+    {
+        editor_.setSlicePreview(std::nullopt);
+        if (lastX_ != anchorX_ || lastY_ != anchorY_) {
+            editor_.addSlice(rect_from_corners(anchorX_, anchorY_, lastX_, lastY_));
+        }
+    }
+
+    void cancel() override
+    {
+        editor_.setSlicePreview(std::nullopt);
+    }
+};
+
+/* Moving a slice: it follows the mouse (kept inside the sprite) and the move is one undo step. */
+class SliceMoveDrag : public Drag
+{
+  public:
+    SliceMoveDrag(Editor &editor, int cx, int cy, int index)
+        : Drag(editor, cx, cy), index_(index),
+          original_(editor.sprite().slices()[static_cast<size_t>(index)])
+    {
+        editor_.selectSlice(index);
+    }
+
+    void update(int cx, int cy) override
+    {
+        const Rect &r = original_.rect;
+        Sprite::Slice moved = original_;
+        moved.rect.x = std::clamp(r.x + cx - anchorX_, 0, editor_.sprite().width() - r.w);
+        moved.rect.y = std::clamp(r.y + cy - anchorY_, 0, editor_.sprite().height() - r.h);
+        editor_.previewSlice(index_, moved);
+    }
+
+    void finish() override
+    {
+        const Sprite::Slice moved = editor_.sprite().slices()[static_cast<size_t>(index_)];
+        editor_.previewSlice(index_, original_); /* so the undo step goes from where it began */
+        if (moved.rect.x != original_.rect.x || moved.rect.y != original_.rect.y) {
+            editor_.updateSlice(index_, moved);
+        }
+    }
+
+    void cancel() override
+    {
+        editor_.previewSlice(index_, original_);
+    }
+
+  private:
+    int index_;
+    Sprite::Slice original_;
+};
+
+std::unique_ptr<Drag> beginSlice(Editor &editor, Cel * /*unused*/, int cx, int cy)
+{
+    const int hit = editor.sliceAt(cx, cy);
+    if (hit >= 0) {
+        return std::make_unique<SliceMoveDrag>(editor, cx, cy, hit);
+    }
+    return std::make_unique<SliceCreateDrag>(editor, cx, cy);
+}
+
 std::unique_ptr<Drag> beginPick(Editor &editor, Cel * /*unused*/, int cx, int cy)
 {
     return std::make_unique<PickDrag>(editor, cx, cy);
@@ -361,7 +441,7 @@ using DragFactory = std::unique_ptr<Drag> (*)(Editor &editor, Cel *cel, int cx, 
 
 /* In ToolGroup order. */
 const std::array<DragFactory, static_cast<size_t>(ToolGroup::Count)> FACTORIES = {
-    beginPencil, fillBucket, beginPick, beginShape, beginSelect,
+    beginPencil, fillBucket, beginPick, beginShape, beginSelect, beginSlice,
 };
 
 } // namespace

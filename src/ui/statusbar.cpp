@@ -39,6 +39,8 @@ const char *toolLabel(ToolKind tool)
         return "Star";
     case ToolKind::Cross:
         return "Cross";
+    case ToolKind::Slice:
+        return "Slice";
     case ToolKind::Count:
         break;
     }

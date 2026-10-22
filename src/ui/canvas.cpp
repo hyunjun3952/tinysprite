@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <optional>
 
+#include "slice_overlay.hpp"
 #include "theme.hpp"
 
 namespace
@@ -385,6 +386,9 @@ void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
         drawMirrorAxes(draw, sprite);
     }
     drawSelection(draw, origin);
+    if (editor_->overlays().slices) {
+        draw_slices(draw, origin, *editor_);
+    }
     if (editor_->overlays().cursor) {
         drawHoverOutline(draw, origin);
     }

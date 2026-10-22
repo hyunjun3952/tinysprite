@@ -43,6 +43,7 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0xef52, /* Select: highlight_alt */
     0xe8d4, /* Swap: swap_horiz */
     0,      /* Folder: drawn with lines */
+    0,      /* Slice: drawn with lines */
 };
 
 constexpr float ROUND = 6.0f;
@@ -71,7 +72,7 @@ unsigned codepoint(Icon icon)
 
 bool is_drawn(Icon icon)
 {
-    return icon == Icon::Diamond || icon == Icon::Folder;
+    return icon == Icon::Diamond || icon == Icon::Folder || icon == Icon::Slice;
 }
 
 float glyph_size(float uiScale)
@@ -122,6 +123,27 @@ void drawFolder(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
     list->AddPolyline(points, 6, color, ImDrawFlags_Closed, size * 0.07f);
 }
 
+/* Four corner brackets around a small square: a rectangle cut out of the picture. */
+void drawSliceIcon(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    const float size = glyph_size(theme::scale());
+    const float half = std::round(size * 0.38f);
+    const float arm = std::round(size * 0.22f);
+    const float cx = std::floor((min.x + max.x) / 2.0f) + 0.5f;
+    const float cy = std::floor((min.y + max.y) / 2.0f) + 0.5f;
+    const float thickness = size * 0.07f;
+    for (int sx = -1; sx <= 1; sx += 2) {
+        for (int sy = -1; sy <= 1; sy += 2) {
+            const float x = cx + static_cast<float>(sx) * half;
+            const float y = cy + static_cast<float>(sy) * half;
+            const ImVec2 points[3] = {ImVec2(x - static_cast<float>(sx) * arm, y), ImVec2(x, y),
+                                      ImVec2(x, y - static_cast<float>(sy) * arm)};
+            list->AddPolyline(points, 3, color, ImDrawFlags_None, thickness);
+        }
+    }
+    list->AddRectFilled(ImVec2(cx - 1.5f, cy - 1.5f), ImVec2(cx + 1.5f, cy + 1.5f), color);
+}
+
 namespace
 {
 
@@ -149,6 +171,10 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
     }
     if (icon == Icon::Folder) {
         drawFolder(list, min, max, color);
+        return;
+    }
+    if (icon == Icon::Slice) {
+        drawSliceIcon(list, min, max, color);
         return;
     }
     drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));

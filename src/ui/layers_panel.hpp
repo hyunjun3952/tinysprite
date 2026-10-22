@@ -10,6 +10,7 @@
 #include "editor.hpp"
 #include "layer_thumbnails.hpp"
 #include "panels.hpp"
+#include "slices_panel.hpp"
 
 /* Layer list (top layer first): each row shows what is painted on the layer, with visibility and
  * lock toggles (double-click a row to rename it in place), plus the opacity of the active layer and
@@ -85,6 +86,7 @@ class LayersPanel
 
     Editor *editor_; /* the document shown; changed by setEditor */
     LayerThumbnails thumbs_;
+    SlicesPanel slices_; /* the Slices section, between the list and the properties */
 
     /* The row whose name is being edited in place (-1 for none), what the name was when the edit
      * began, and whether the field still has to grab the keyboard focus. */

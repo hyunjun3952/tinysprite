@@ -219,8 +219,12 @@ branch and PR.
       `tinysprite export <input> --sheet|--image|--gif out [--json f] [--layout] [--columns] [--spacing] [--scale]
       [--first] [--last] [--frame]` runs in `src/io/cli.cpp` before any SDL init, so it needs no display
       (exit 0 / 1 unreadable or unwritable / 2 bad command line). `--columns` alone means a grid.
-- [ ] **20. Slices, pivots, hitboxes** — named rects with an optional pivot per sprite (`slice_ops.h`, `SLCE`
-      chunk, JSON `slices`), a slice tool and panel.
+- [x] **20. Slices, pivots, hitboxes** — named rects with an optional pivot per sprite: `Sprite::Slice` and
+      `slice_ops.hpp` (undoable add / set / remove), the optional `SLCE` chunk of `.pxa` (name, rectangle, flags, pivot;
+      read back checked against the sprite size), a `slices` list in the sheet JSON (`name`, `bounds`, optional `pivot`,
+      scaled by the export scale), and in the UI the Slice tool (K: drag to mark one, drag a slice to move it, a click on
+      empty canvas deselects), outlines with names and pivots on the canvas (View > Slices), and a Slices section in
+      the Inspector (list, New / Delete, name, X / Y / Width / Height, pivot; every change one undo step).
 - [ ] **21. Sheet packing** — trim transparent borders and pack frames (skyline), with the trim offsets in the JSON.
 - [ ] **22. Filters** — outline, palette swap, hue / brightness, as undoable layer operations.
 - [ ] **23. Tilemap editor** — tileset from a cel grid, tile layer, `.tmj`-like export.
