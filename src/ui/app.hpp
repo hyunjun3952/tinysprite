@@ -137,10 +137,13 @@ class App
     /* True when the dialog may write `path`: it is new, it is the document's own file, or the user
      * already saw the warning and pressed OK again. Otherwise arms the warning. */
     bool overwriteAllowed(const std::string &path);
+    /* The file `path` would overwrite: itself, or the .json a sprite sheet writes beside its image;
+     * "" when neither exists. */
+    std::string existingOutput(const std::string &path) const;
     void fileDone(const std::string &path);
     void save();
     void fileDialog();
-    void fileDialogMessages(const std::string &path);
+    void fileDialogMessages();
     bool runFileAction(const FileActionInfo &info, const std::string &path);
     void closeFileDialog();
     bool pathField();
@@ -315,6 +318,7 @@ class App
     std::string lastDir_; /* where the last file was opened / saved, for the next dialog */
     std::string
         overwritePath_; /* the path the dialog asked to overwrite and the user was warned about */
+    std::string overwriteName_; /* the file name that warning named (the image, or its .json) */
     Toasts toasts_;
 
     std::function<void()> pending_;   /* waits for the unsaved-changes popup */

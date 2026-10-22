@@ -2,6 +2,7 @@
  * asks about unsaved changes and the tool, colors and clipboard follow the user between tabs. */
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -114,6 +115,23 @@ struct AppTestAccess {
     void quit()
     {
         app.quit();
+    }
+    /* The sprite sheet dialog: would writing `path` overwrite something the user was not asked
+     * about? */
+    bool sheetOverwriteAllowed(const std::string &path, bool alsoJson)
+    {
+        app.fileAction_ = App::FileAction::ExportSheet;
+        app.export_.json = alsoJson;
+        app.overwritePath_.clear();
+        return app.overwriteAllowed(path);
+    }
+    bool overwriteAllowedAgain(const std::string &path)
+    {
+        return app.overwriteAllowed(path);
+    }
+    std::string overwriteName() const
+    {
+        return app.overwriteName_;
     }
     void drop(const std::string &path)
     {
@@ -631,8 +649,28 @@ TEST(a_file_dropped_while_a_dialog_is_open_is_ignored)
     ASSERT_EQ_INT(1, t.count()); /* and then it was closed */
 }
 
+/* "Also write a .json file" is on by default, so the sheet dialog may overwrite a .json the user
+ * never saw named: the overwrite question has to cover it. */
+TEST(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_image)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "tinysprite_doc_sheetjson";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    std::ofstream(dir / "hero.json") << "{\"mine\": true}";
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    std::string image = (dir / "hero.png").string();
+    ASSERT_TRUE(!t.sheetOverwriteAllowed(image, true)); /* hero.png is new, but hero.json is not */
+    ASSERT_TRUE(t.overwriteName() == "hero.json");
+    ASSERT_TRUE(t.overwriteAllowedAgain(image));        /* asked once: the second OK goes through */
+    ASSERT_TRUE(t.sheetOverwriteAllowed(image, false)); /* no JSON written: nothing to ask */
+    fs::remove_all(dir);
+}
+
 int main()
 {
+    RUN(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_image);
     RUN(a_file_dropped_while_a_dialog_is_open_is_ignored);
     RUN(each_document_with_changes_gets_its_own_autosave_copy);
     RUN(recovered_copies_open_as_tabs_and_never_share_a_file);

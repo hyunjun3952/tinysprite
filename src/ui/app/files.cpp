@@ -87,15 +87,30 @@ std::string App::cannotWrite(const std::string &path)
     return "Cannot write " + path + (reason.empty() ? "" : ": " + reason);
 }
 
-bool App::overwriteAllowed(const std::string &path)
+std::string App::existingOutput(const std::string &path) const
 {
     std::error_code error;
-    bool exists = std::filesystem::exists(path, error);
-    if (!exists || (fileAction_ == FileAction::SaveAs && path == filePath()) ||
+    if (std::filesystem::exists(path, error)) {
+        return path;
+    }
+    if (fileAction_ == FileAction::ExportSheet && export_.json) {
+        const std::string json = with_replaced_extension(path, ".json");
+        if (std::filesystem::exists(json, error)) {
+            return json;
+        }
+    }
+    return "";
+}
+
+bool App::overwriteAllowed(const std::string &path)
+{
+    const std::string existing = existingOutput(path);
+    if (existing.empty() || (fileAction_ == FileAction::SaveAs && path == filePath()) ||
         overwritePath_ == path) {
         return true;
     }
     overwritePath_ = path;
+    overwriteName_ = file_name_of(existing);
     fileError_.clear();
     return false;
 }
@@ -340,14 +355,14 @@ void App::sheetOptions()
 }
 
 /* The last error and the overwrite warning for `path`, under the dialog's options. */
-void App::fileDialogMessages(const std::string &path)
+void App::fileDialogMessages()
 {
     if (!fileError_.empty()) {
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", fileError_.c_str());
     }
-    if (!overwritePath_.empty()) {
+    if (!overwritePath_.empty()) { /* overwriteName_ is the image or, for a sheet, its .json */
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.35f, 1.0f), "%s already exists.",
-                           file_name_of(path).c_str());
+                           overwriteName_.c_str());
     }
 }
 
@@ -450,7 +465,7 @@ void App::fileDialog()
     if (info.options) {
         (this->*info.options)();
     }
-    fileDialogMessages(path);
+    fileDialogMessages();
     /* overwriting a file is the one thing here that destroys something: its button is red */
     const bool overwriting = !overwritePath_.empty();
     const int clicked = theme::dialog_buttons({"Cancel", overwriting ? "Overwrite" : "OK"}, 1,
