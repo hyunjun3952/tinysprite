@@ -614,8 +614,13 @@ TEST(switching_tabs_ends_a_middle_button_pick)
     AppTestAccess t;
     ASSERT_TRUE(t.start());
     t.editor().selectTool(ToolKind::Bucket);
-    t.editor().tempPick(true); /* the middle button is held on the canvas */
+    t.editor().tempPick(
+        true); /* the middle button is held on the canvas: the eyedropper is borrowed */
+    ASSERT_EQ_INT(static_cast<int>(ToolKind::Eyedropper), static_cast<int>(t.editor().tool()));
     ASSERT_TRUE(t.addBlank(8, 8));
+    /* the tab left behind must have its own tool back: nothing else would ever end the pick there
+     */
+    ASSERT_EQ_INT(static_cast<int>(ToolKind::Bucket), static_cast<int>(t.editorOf(0).tool()));
     t.activate(0);
     ASSERT_EQ_INT(static_cast<int>(ToolKind::Bucket), static_cast<int>(t.editor().tool()));
 }
