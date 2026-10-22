@@ -88,6 +88,25 @@ std::string tagsJson(const Sprite &sprite, int first, int last)
     return out;
 }
 
+/* The slices in the exported frames' pixel space: every frame has the same size, so each slice is
+ * given once, scaled like the frames. */
+std::string slicesJson(const Sprite &sprite, int scale)
+{
+    std::string out;
+    for (const Sprite::Slice &slice : sprite.slices()) {
+        Rect r = {slice.rect.x * scale, slice.rect.y * scale, slice.rect.w * scale,
+                  slice.rect.h * scale};
+        out += out.empty() ? "\n" : ",\n";
+        out += "    {\"name\": " + quoted(slice.name) + ", \"bounds\": " + rectJson(r);
+        if (slice.hasPivot) {
+            out += ", \"pivot\": {\"x\": " + std::to_string(slice.pivotX * scale) +
+                   ", \"y\": " + std::to_string(slice.pivotY * scale) + "}";
+        }
+        out += "}";
+    }
+    return out;
+}
+
 } // namespace
 
 std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &options,
@@ -104,7 +123,9 @@ std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &
         ", \"h\": " + std::to_string(sprite.height() * options.scale) +
         "},\n    \"scale\": " + std::to_string(options.scale) + "\n  },\n";
     out += "  \"frames\": [" + frames + (frames.empty() ? "" : "\n  ") + "],\n";
-    out += "  \"tags\": [" + tags + (tags.empty() ? "" : "\n  ") + "]\n}\n";
+    out += "  \"tags\": [" + tags + (tags.empty() ? "" : "\n  ") + "],\n";
+    std::string slices = slicesJson(sprite, options.scale);
+    out += "  \"slices\": [" + slices + (slices.empty() ? "" : "\n  ") + "]\n}\n";
     return out;
 }
 

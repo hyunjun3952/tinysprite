@@ -77,8 +77,55 @@ TEST(no_tags_gives_an_empty_list)
     ASSERT_TRUE(has(j, "\"tags\": []"));
 }
 
+TEST(lists_the_slices_with_bounds_and_an_optional_pivot)
+{
+    Sprite s = walker();
+    Sprite::Slice hit;
+    hit.name = "hitbox";
+    hit.rect = Rect{1, 0, 2, 2};
+    hit.hasPivot = true;
+    hit.pivotX = 1;
+    hit.pivotY = 1;
+    Sprite::Slice head;
+    head.name = "head";
+    head.rect = Rect{0, 0, 1, 1};
+    s.addSlice(hit);
+    s.addSlice(head);
+    std::string j = json_of(s, SheetOptions{}, "a.png");
+    ASSERT_TRUE(has(j,
+                    "{\"name\": \"hitbox\", \"bounds\": {\"x\": 1, \"y\": 0, \"w\": 2, \"h\": 2}, "
+                    "\"pivot\": {\"x\": 1, \"y\": 1}}"));
+    ASSERT_TRUE(
+        has(j, "{\"name\": \"head\", \"bounds\": {\"x\": 0, \"y\": 0, \"w\": 1, \"h\": 1}}"));
+}
+
+TEST(a_sprite_without_slices_has_an_empty_list)
+{
+    ASSERT_TRUE(has(json_of(walker(), SheetOptions{}, "a.png"), "\"slices\": []"));
+}
+
+TEST(slices_follow_the_export_scale)
+{
+    Sprite s = walker();
+    Sprite::Slice hit;
+    hit.name = "hitbox";
+    hit.rect = Rect{1, 0, 2, 2};
+    hit.hasPivot = true;
+    hit.pivotX = 1;
+    hit.pivotY = 0;
+    s.addSlice(hit);
+    SheetOptions o;
+    o.scale = 3;
+    std::string j = json_of(s, o, "a.png");
+    ASSERT_TRUE(has(j, "\"bounds\": {\"x\": 3, \"y\": 0, \"w\": 6, \"h\": 6}"));
+    ASSERT_TRUE(has(j, "\"pivot\": {\"x\": 3, \"y\": 0}"));
+}
+
 int main()
 {
+    RUN(lists_the_slices_with_bounds_and_an_optional_pivot);
+    RUN(a_sprite_without_slices_has_an_empty_list);
+    RUN(slices_follow_the_export_scale);
     RUN(lists_the_frames_with_rects_and_durations);
     RUN(lists_the_tags_with_their_direction);
     RUN(a_range_renumbers_the_tags_and_drops_the_ones_outside);
