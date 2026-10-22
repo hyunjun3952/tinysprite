@@ -1,4 +1,4 @@
-# Install once per clone: `pre-commit install` (the devcontainer does it). CI runs the same hooks
+# Install once per clone: `pre-commit install`. CI runs the same hooks
 # with `pre-commit run --all-files --hook-stage manual`. The clang tools are pinned here, once.
 default_install_hook_types: [pre-commit, pre-push]
 

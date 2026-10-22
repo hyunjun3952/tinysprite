@@ -1,7 +1,7 @@
 #include <cstring>
 
-#include "minitest.h"
-#include "tinysprite/tools.h"
+#include "minitest.hpp"
+#include "tinysprite/tools.hpp"
 
 #define W 6
 #define H 4

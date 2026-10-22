@@ -1,5 +1,5 @@
-#include "drag.h"
-#include "editor.h"
+#include "drag.hpp"
+#include "editor.hpp"
 
 #include <algorithm>
 #include <array>
@@ -7,7 +7,7 @@
 #include <optional>
 #include <utility>
 
-#include "tinysprite/tools.h"
+#include "tinysprite/tools.hpp"
 
 namespace
 {

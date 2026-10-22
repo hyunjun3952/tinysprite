@@ -1,8 +1,8 @@
 #include <cstring>
 
-#include "minitest.h"
-#include "tinysprite/raster.h"
-#include "tinysprite/tools.h"
+#include "minitest.hpp"
+#include "tinysprite/raster.hpp"
+#include "tinysprite/tools.hpp"
 
 #define W 8
 #define H 6

@@ -1,7 +1,7 @@
 #include <stdexcept>
 
-#include "minitest.h"
-#include "tinysprite/cel.h"
+#include "minitest.hpp"
+#include "tinysprite/cel.hpp"
 
 TEST(create_is_transparent)
 {

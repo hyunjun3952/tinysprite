@@ -1,4 +1,4 @@
-#include "canvas.h"
+#include "canvas.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <optional>
 
-#include "theme.h"
+#include "theme.hpp"
 
 namespace
 {

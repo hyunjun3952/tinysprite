@@ -1,12 +1,12 @@
-#include "editor.h"
+#include "editor.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <optional>
 #include <utility>
 
-#include "drag.h"
-#include "editor_internal.h"
+#include "drag.hpp"
+#include "editor_internal.hpp"
 
 Editor::Editor(SDL_Renderer *renderer, Sprite sprite)
     : renderer_(renderer), sprite_(std::move(sprite))

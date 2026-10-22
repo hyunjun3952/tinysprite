@@ -1,8 +1,8 @@
 #include <vector>
 
-#include "minitest.h"
-#include "tinysprite/composite.h"
-#include "tinysprite/sprite.h"
+#include "minitest.hpp"
+#include "tinysprite/composite.hpp"
+#include "tinysprite/sprite.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};

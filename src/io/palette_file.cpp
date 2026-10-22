@@ -7,8 +7,8 @@
 #include <iterator>
 #include <sstream>
 
-#include "path_util.h"
-#include "tinysprite/io.h"
+#include "path_util.hpp"
+#include "tinysprite/io.hpp"
 
 bool file_write_atomic(const std::string &path, const std::string &data)
 {

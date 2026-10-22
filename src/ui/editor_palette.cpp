@@ -1,12 +1,12 @@
 /* Editor: colors and the palette. */
 
-#include "editor.h"
+#include "editor.hpp"
 
 #include <algorithm>
 #include <utility>
 
-#include "editor_internal.h"
-#include "tinysprite/palette_ops.h"
+#include "editor_internal.hpp"
+#include "tinysprite/palette_ops.hpp"
 
 Rgba Editor::foreground() const
 {

@@ -7,9 +7,9 @@
 #include <utility>
 #include <vector>
 
-#include "editor.h"
-#include "minitest.h"
-#include "ui_editor_support.h"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "ui_editor_support.hpp"
 
 /* An editor with layers "Layer 1" .. "Layer n" (index 0 is the bottom one). */
 static Editor *editor_with_layers(int n)

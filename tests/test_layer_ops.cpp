@@ -1,6 +1,6 @@
-#include "minitest.h"
-#include "tinysprite/composite.h"
-#include "tinysprite/layer_ops.h"
+#include "minitest.hpp"
+#include "tinysprite/composite.hpp"
+#include "tinysprite/layer_ops.hpp"
 
 #include <cstring>
 

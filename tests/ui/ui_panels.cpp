@@ -1,8 +1,8 @@
 /* Drives the side panels with synthetic mouse input: dragging a docked panel's title bar pulls it
  * out, and dragging it to a window edge docks it again. Runs under SDL_VIDEODRIVER=dummy. */
-#include "minitest.h"
-#include "theme.h"
-#include "ui_harness.h"
+#include "minitest.hpp"
+#include "theme.hpp"
+#include "ui_harness.hpp"
 
 using test_ui::Harness;
 

@@ -1,4 +1,4 @@
-#include "tinysprite/rect.h"
+#include "tinysprite/rect.hpp"
 
 #include <algorithm>
 

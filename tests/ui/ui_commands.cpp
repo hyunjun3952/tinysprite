@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <string>
 
-#include "commands.h"
-#include "minitest.h"
+#include "commands.hpp"
+#include "minitest.hpp"
 
 static const Command &command(CommandId id)
 {

@@ -1,6 +1,6 @@
-#include "minitest.h"
-#include "tinysprite/cel.h"
-#include "tinysprite/thumbnail.h"
+#include "minitest.hpp"
+#include "tinysprite/cel.hpp"
+#include "tinysprite/thumbnail.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};

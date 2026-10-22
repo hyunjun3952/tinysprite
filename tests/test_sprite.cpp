@@ -1,5 +1,5 @@
-#include "minitest.h"
-#include "tinysprite/sprite.h"
+#include "minitest.hpp"
+#include "tinysprite/sprite.hpp"
 
 #include <cstring>
 #include <memory>

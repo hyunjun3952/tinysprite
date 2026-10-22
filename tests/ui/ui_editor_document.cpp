@@ -4,9 +4,9 @@
 
 #include <utility>
 
-#include "editor.h"
-#include "minitest.h"
-#include "ui_editor_support.h"
+#include "editor.hpp"
+#include "minitest.hpp"
+#include "ui_editor_support.hpp"
 
 TEST(overlay_settings_survive_opening_a_document)
 {

@@ -1,12 +1,12 @@
-#include "timeline_panel.h"
+#include "timeline_panel.hpp"
 
 #include <algorithm>
 #include <cstdio>
 #include <iterator>
 #include <string>
 
-#include "icons.h"
-#include "theme.h"
+#include "icons.hpp"
+#include "theme.hpp"
 
 namespace
 {

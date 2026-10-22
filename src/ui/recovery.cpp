@@ -1,10 +1,10 @@
-#include "recovery.h"
+#include "recovery.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 
-#include "tinysprite/io.h"
+#include "tinysprite/io.hpp"
 
 namespace
 {

@@ -1,4 +1,4 @@
-#include "tinysprite/frame_ops.h"
+#include "tinysprite/frame_ops.hpp"
 
 #include <memory>
 #include <optional>

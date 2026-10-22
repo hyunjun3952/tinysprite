@@ -1,7 +1,7 @@
-#include "tinysprite/tools.h"
+#include "tinysprite/tools.hpp"
 
-#include "history_plot.h"
-#include "tinysprite/raster.h"
+#include "history_plot.hpp"
+#include "tinysprite/raster.hpp"
 
 bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry)
 {

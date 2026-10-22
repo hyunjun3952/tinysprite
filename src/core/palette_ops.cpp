@@ -1,4 +1,4 @@
-#include "tinysprite/palette_ops.h"
+#include "tinysprite/palette_ops.hpp"
 
 #include <utility>
 

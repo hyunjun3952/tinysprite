@@ -1,6 +1,6 @@
 #include <utility>
 
-#include "tinysprite/selection.h"
+#include "tinysprite/selection.hpp"
 
 #include <algorithm>
 

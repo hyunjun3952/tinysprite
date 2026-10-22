@@ -1,4 +1,4 @@
-#include "tinysprite/raster.h"
+#include "tinysprite/raster.hpp"
 
 #include <algorithm>
 #include <cmath>

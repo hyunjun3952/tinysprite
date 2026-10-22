@@ -1,6 +1,6 @@
 /* App: keyboard shortcuts. */
 
-#include "app.h"
+#include "app.hpp"
 
 #include <algorithm>
 #include <initializer_list>
@@ -57,7 +57,7 @@ bool App::modalOpen() const
            openRecover_ || newShown_ || recoverShown_;
 }
 
-/* Ctrl+key shortcuts: the commands of commands.h (file, zoom, undo / redo, the clipboard). */
+/* Ctrl+key shortcuts: the commands of commands.hpp (file, zoom, undo / redo, the clipboard). */
 void App::ctrlShortcuts()
 {
     const Command *command = find_command(

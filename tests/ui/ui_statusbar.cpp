@@ -3,11 +3,11 @@
 #include <memory>
 #include <string>
 
-#include "editor.h"
-#include "file_paths.h"
-#include "minitest.h"
-#include "statusbar.h"
-#include "ui_harness.h"
+#include "editor.hpp"
+#include "file_paths.hpp"
+#include "minitest.hpp"
+#include "statusbar.hpp"
+#include "ui_harness.hpp"
 
 using test_ui::Harness;
 

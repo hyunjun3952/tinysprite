@@ -1,4 +1,4 @@
-#include "tinysprite/thumbnail.h"
+#include "tinysprite/thumbnail.hpp"
 
 #include <algorithm>
 #include <cmath>

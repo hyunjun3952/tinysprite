@@ -1,8 +1,8 @@
 #include <memory>
 #include <vector>
 
-#include "minitest.h"
-#include "tinysprite/history.h"
+#include "minitest.hpp"
+#include "tinysprite/history.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};

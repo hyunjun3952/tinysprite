@@ -1,5 +1,5 @@
-#include "minitest.h"
-#include "tinysprite/palette.h"
+#include "minitest.hpp"
+#include "tinysprite/palette.hpp"
 
 TEST(create_is_empty)
 {

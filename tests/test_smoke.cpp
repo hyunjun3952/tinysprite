@@ -1,4 +1,4 @@
-#include "minitest.h"
+#include "minitest.hpp"
 
 TEST(harness_runs)
 {

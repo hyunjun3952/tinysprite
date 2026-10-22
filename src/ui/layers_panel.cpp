@@ -1,13 +1,13 @@
-#include "layers_panel.h"
+#include "layers_panel.hpp"
 
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <vector>
 
-#include "icons.h"
+#include "icons.hpp"
 #include "imgui.h"
-#include "theme.h"
+#include "theme.hpp"
 
 namespace
 {

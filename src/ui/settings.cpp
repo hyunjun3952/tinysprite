@@ -1,4 +1,4 @@
-#include "settings.h"
+#include "settings.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -9,7 +9,7 @@
 #include <sstream>
 #include <vector>
 
-#include "tinysprite/io.h"
+#include "tinysprite/io.hpp"
 
 namespace
 {

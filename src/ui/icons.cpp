@@ -1,9 +1,9 @@
-#include "icons.h"
+#include "icons.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "theme.h"
+#include "theme.hpp"
 
 namespace icons
 {

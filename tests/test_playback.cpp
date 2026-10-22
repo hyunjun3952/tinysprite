@@ -1,7 +1,7 @@
 #include <vector>
 
-#include "minitest.h"
-#include "tinysprite/playback.h"
+#include "minitest.hpp"
+#include "tinysprite/playback.hpp"
 
 /* A sprite with `n` frames whose durations are 100, 200, 300, ... milliseconds. */
 static Sprite frames(int n)

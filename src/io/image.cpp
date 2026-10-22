@@ -6,11 +6,11 @@
 #include <utility>
 #include <vector>
 
-#include "path_util.h"
+#include "path_util.hpp"
 #include "stb_image.h"
 #include "stb_image_write.h"
-#include "tinysprite/composite.h"
-#include "tinysprite/io.h"
+#include "tinysprite/composite.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {

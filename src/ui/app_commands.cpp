@@ -1,6 +1,6 @@
 /* App: what the menu commands do (their labels and keys are in commands.cpp). */
 
-#include "app.h"
+#include "app.hpp"
 
 #include <iterator>
 

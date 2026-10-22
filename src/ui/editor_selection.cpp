@@ -1,6 +1,6 @@
 /* Editor: the pixel selection and the clipboard. */
 
-#include "editor.h"
+#include "editor.hpp"
 
 #include <optional>
 #include <utility>

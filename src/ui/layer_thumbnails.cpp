@@ -1,8 +1,8 @@
-#include "layer_thumbnails.h"
+#include "layer_thumbnails.hpp"
 
 #include <vector>
 
-#include "tinysprite/thumbnail.h"
+#include "tinysprite/thumbnail.hpp"
 
 LayerThumbnails::LayerThumbnails(SDL_Renderer *renderer) : renderer_(renderer)
 {

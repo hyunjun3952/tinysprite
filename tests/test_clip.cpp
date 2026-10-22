@@ -1,8 +1,8 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "minitest.h"
-#include "tinysprite/selection.h"
+#include "minitest.hpp"
+#include "tinysprite/selection.hpp"
 
 /* Rows of letters: '.' is transparent, anything else is an opaque pixel whose red channel is the
  * letter, so every distinct letter is a distinct color. */

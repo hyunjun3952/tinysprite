@@ -3,8 +3,8 @@
 #include <fstream>
 #include <string>
 
-#include "minitest.h"
-#include "tinysprite/io.h"
+#include "minitest.hpp"
+#include "tinysprite/io.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 128};

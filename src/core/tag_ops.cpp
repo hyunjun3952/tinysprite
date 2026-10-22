@@ -1,4 +1,4 @@
-#include "tinysprite/tag_ops.h"
+#include "tinysprite/tag_ops.hpp"
 
 #include <utility>
 #include <vector>

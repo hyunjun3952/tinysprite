@@ -1,4 +1,4 @@
-#include "tinysprite/playback.h"
+#include "tinysprite/playback.hpp"
 
 #include <algorithm>
 

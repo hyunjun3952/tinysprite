@@ -1,8 +1,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "minitest.h"
-#include "tinysprite/layer.h"
+#include "minitest.hpp"
+#include "tinysprite/layer.hpp"
 
 #include <cstring>
 

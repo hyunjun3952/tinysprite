@@ -1,4 +1,4 @@
-#include "tinysprite/sprite.h"
+#include "tinysprite/sprite.hpp"
 
 #include <algorithm>
 #include <stdexcept>

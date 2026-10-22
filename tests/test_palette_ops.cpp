@@ -1,5 +1,5 @@
-#include "minitest.h"
-#include "tinysprite/palette_ops.h"
+#include "minitest.hpp"
+#include "tinysprite/palette_ops.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};

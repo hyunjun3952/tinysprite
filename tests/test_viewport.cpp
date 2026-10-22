@@ -1,7 +1,7 @@
 #include <cmath>
 
-#include "minitest.h"
-#include "tinysprite/viewport.h"
+#include "minitest.hpp"
+#include "tinysprite/viewport.hpp"
 
 TEST(default_view_maps_origin_to_screen_origin)
 {

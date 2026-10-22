@@ -1,4 +1,4 @@
-#include "tinysprite/selection.h"
+#include "tinysprite/selection.hpp"
 
 #include <functional>
 #include <utility>

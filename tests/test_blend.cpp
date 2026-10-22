@@ -1,9 +1,9 @@
 #include <cstring>
 #include <vector>
 
-#include "minitest.h"
-#include "tinysprite/composite.h"
-#include "tinysprite/sprite.h"
+#include "minitest.hpp"
+#include "tinysprite/composite.hpp"
+#include "tinysprite/sprite.hpp"
 
 static const Rgba CLEAR = {0, 0, 0, 0};
 static const Rgba BACK = {200, 100, 50, 255};

@@ -8,7 +8,7 @@ Rules: `CLAUDE.md`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas that came out of it are below.
 
-- [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.h`, smoke test.
+- [x] **1. Project foundation** — git, CMake + CTest, ASan/UBSan, `minitest.hpp`, smoke test.
 - [x] **1b. Format / lint automation** — `.clang-format` / `.clang-tidy`, `.pre-commit-config.yaml` (clang-format on commit, clang-tidy on push), GitHub Actions CI.
 - [x] **2. Core data model** — `Sprite` / `Layer` / `Cel` / `Palette`, public headers in `include/tinysprite/`.
       Cel is RGBA only; the palette holds at most 256 colors; a sprite starts with 1 frame and 1 layer.
@@ -18,7 +18,7 @@ Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas
       `composite_sprite`, live strokes. `tinysprite [width [height]] [--frames N]`: `--frames` exits after N frames
       (smoke runs, e.g. `SDL_VIDEODRIVER=dummy`).
 - [x] **6. Remaining tools + layer operations** — bucket, eyedropper, shapes, selection / move, pixel-perfect,
-      symmetry, undoable layer operations (`layer_ops.h`), layer panel.
+      symmetry, undoable layer operations (`layer_ops.hpp`), layer panel.
 - [x] **7. File I/O** — `.pxa` (versioned, chunked) and image export / import via stb; File menu with a path dialog,
       since there is no native file chooser.
 - [x] **8. Polish** — palette files (`.gpl` / `.hex`), settings (`settings.ini`), autosave recovery, shortcuts,
@@ -29,13 +29,13 @@ Done. The design is described in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas
 
 Done. The design is in [ARCHITECTURE.md](ARCHITECTURE.md); the gotchas are in the list below.
 
-- [x] **9. Frames** — `Sprite` inserts, detaches and moves frames, each with a duration; `frame_ops.h` records them as
+- [x] **9. Frames** — `Sprite` inserts, detaches and moves frames, each with a duration; `frame_ops.hpp` records them as
       undo steps; `.pxa` stores durations in an optional `FRAM` chunk and reads several frames.
 - [x] **10. Timeline and playback** — the `Editor` has a current frame and a `Playback` that `tick()` advances; a
       timeline strip with a cel grid, frame buttons, duration and play mode; `,` `.` `Enter` and a Frame menu.
 - [x] **11. Onion skin** — `composite_onion` draws neighbouring frames tinted and fading under the current one.
-- [x] **12. Tags** — named frame ranges with a direction (`tag_ops.h`, `TAGS` chunk); a selected tag limits playback.
-- [x] **13. Linked cels** — frames of a layer can share one cel (`cel_ops.h`, `LINK` chunk).
+- [x] **12. Tags** — named frame ranges with a direction (`tag_ops.hpp`, `TAGS` chunk); a selected tag limits playback.
+- [x] **13. Linked cels** — frames of a layer can share one cel (`cel_ops.hpp`, `LINK` chunk).
 - [x] **14. Export** — `gif_encode` (own LZW encoder) and `spritesheet_render`, with File menu dialogs; animated GIF
       import.
 
@@ -72,7 +72,7 @@ per-cel modes, color tags, cel offsets.
 Done (PR #8, plus the merge-down fix in PR #9). TDD, one step per commit; the UI part came last.
 
 - [x] **15. Core model + compositing** — `BlendMode` enum and `Layer::blendMode()` / `setBlendMode()` in
-      `layer.h`; `composite_blend(dst, src, opacity, mode)` in `composite.h` (Normal must equal `composite_over`);
+      `layer.hpp`; `composite_blend(dst, src, opacity, mode)` in `composite.hpp` (Normal must equal `composite_over`);
       `composite_sprite` / `composite_pixel` use it per layer. Golden-pixel tests per mode (opaque, half alpha,
       transparent backdrop). Onion skin ghosts stay plain "over".
 - [x] **16. Undoable edit** — `layer_ops` step for a mode change (as opacity), `Editor::setSelectedLayersBlendMode`
@@ -96,10 +96,11 @@ only Opacity, size and link info, so Blend is its first mode-like control.
 Ordered by value for a game developer and by risk (smallest, most self-contained first). Each is its own
 branch and PR.
 
-- [ ] **19. Sheet metadata + headless CLI** — `spritesheet_metadata_json` (frame rects, durations, tags, sheet
-      size; Aseprite-like "frames" / "meta" layout), `spritesheet_export` writes it next to the image, and
-      `tinysprite export <file> --sheet out.png [--json out.json] [--columns N] [--scale N]` runs without a window
-      (no SDL video init), so a build script can export.
+- [x] **19. Sheet metadata + headless CLI** — `spritesheet_metadata_json` (`meta` / `frames` / `tags`; tags are
+      renumbered from the first exported frame and clamped to the range) and `spritesheet_export_with_json`;
+      `tinysprite export <input> --sheet|--image|--gif out [--json f] [--layout] [--columns] [--spacing] [--scale]
+      [--first] [--last] [--frame]` runs in `src/io/cli.cpp` before any SDL init, so it needs no display
+      (exit 0 / 1 unreadable or unwritable / 2 bad command line). `--columns` alone means a grid.
 - [ ] **20. Slices, pivots, hitboxes** — named rects with an optional pivot per sprite (`slice_ops.h`, `SLCE`
       chunk, JSON `slices`), a slice tool and panel.
 - [ ] **21. Sheet packing** — trim transparent borders and pack frames (skyline), with the trim offsets in the JSON.
@@ -161,7 +162,7 @@ candidates listed under UI polish.
 - The canvas edits `Editor.active_layer` / `Editor.frame` (frame stays 0 until phase 2).
 - Live shape / move strokes redraw from scratch on every update (`LiveStroke::restart`), so
   previews never accumulate and the whole drag is one undo step.
-- Layer add / remove / reorder / rename / visibility / opacity are undoable through `layer_ops.h`, which records
+- Layer add / remove / reorder / rename / visibility / opacity are undoable through `layer_ops.hpp`, which records
   them with `History::pushAction` (a step with its own undo / redo callables, destroyed with the step). A removed layer, or an
   added layer that was undone, is detached from the sprite and owned by its history step, so pixel steps on its
   cels stay valid and replay correctly; release callbacks must not dereference layers because steps are dropped
@@ -170,14 +171,14 @@ candidates listed under UI polish.
   (`Editor::commitLayerName` / `commitSelectedLayersOpacity` record before -> current through `layer_op_record_*`).
 - Pixel-perfect also cuts the corner of a 90-degree turn (the L-shaped corner pixel is removed), like Aseprite.
   A removed pixel is restored to the color it had before the stroke touched it.
-- Symmetry (`symmetry.h`) mirrors across the cel's center and applies to pencil / eraser, shapes
+- Symmetry (`symmetry.hpp`) mirrors across the cel's center and applies to pencil / eraser, shapes
   (`shape_stroke` / `ShapeStroke::begin` with a `ShapeStyle`) and bucket (`bucket_fill`).
 - The selection is a single rectangle clipped to the sprite. Moving it loses pixels pushed off the sprite, and
   transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
   it, unless the click only dismisses an existing selection.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
 - `tests/ui/ui_editor_*.cpp` (ctest `ui_editor_{selection,layers,colors,drawing,document}`, shared helpers in
-  `ui_editor_support.h`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor*.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
+  `ui_editor_support.hpp`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor*.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
   CI builds the UI, so the `ui_*` tests run there too.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.
@@ -187,7 +188,7 @@ candidates listed under UI polish.
   the right button for that, so a right click never draws (`tests/ui/ui_canvas.cpp`).
 - Shortcuts live in `src/ui/app_shortcuts.cpp` (`App::plainShortcuts`): B E G I L R O M pick tools, X swaps colors, F fits,
   `+` / `-` and `[` / `]` brush size (1 px; `Editor::changeBrushSize`), the wheel zooms, holding the middle button = temporary eyedropper (`Editor::tempPick`; dragging it pans), Space + drag pans.
-- Clipboard (`selection.h`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
+- Clipboard (`selection.hpp`): copy / cut / paste and selection flip / rotate. A rotated selection keeps its center and
   loses what leaves the sprite; undoing it restores the selection rectangle.
 - `RecentColors` is not part of undo. Recent colors are recorded on press by every drawing tool except the eraser and
   the eyedropper.
@@ -251,14 +252,14 @@ candidates listed under UI polish.
   region but only writes inside the selection.
 - Shift+click with the pencil / eraser draws a line from `Editor::lastDrawPoint` (end of the previous stroke; reset when
   the document is replaced). Shift is only read at the press, not while dragging.
-- Shift while dragging a shape keeps even proportions (`shape_constrain` in `tools.h`: a square box, a circle, a line snapped to
+- Shift while dragging a shape keeps even proportions (`shape_constrain` in `tools.hpp`: a square box, a circle, a line snapped to
   horizontal / vertical / 45 degrees); `Editor::drag(cx, cy, shift)` passes it to `Drag::setShift`.
 - `image_export(..., scale)` enlarges by whole pixels (1..`IMAGE_EXPORT_MAX_SCALE`, at most `IMAGE_EXPORT_MAX_SIZE` px); the
   Export image dialog has a Scale field that is remembered. File > Open recent keeps ten `.pxa` paths (`recent_add`,
   `recent.N` keys), the New dialog has 16 / 32 / 64 / 128 / 256 presets and remembers its size, Ctrl + / - / 0 zoom.
 - F1 / `?` opens the keyboard shortcut list (`App::helpWindow`, also in the Help menu).
-- Dev packages are installed by `postCreateCommand` in `.devcontainer/devcontainer.json` and the `Install tools` steps
-  of `ci.yml`; add new apt dependencies in both. The devcontainer does not forward a display, so the UI window is not shown from inside it.
+- Dev packages are installed by the `Install tools` steps of `ci.yml` (and `sudo apt install libsdl2-dev pipx` locally,
+  see the README); add a new apt dependency in both.
 
 ## Known limits (what is left)
 - The model does not enforce layer locks; the `Editor` does (`editableCel`).
@@ -266,6 +267,6 @@ candidates listed under UI polish.
   lost. Merging needs both layers visible.
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); ImGui's built-in font (Inter / DM Mono are not embedded).
-- The Windows (MinGW) job is not built locally; the devcontainer shows no display (use WSL / a local build for the UI).
+- The Windows (MinGW) job is not built locally.
 - A GIF has no partial transparency and at most 256 colors; the sprite sheet is a plain grid / strip (no packing or JSON
   yet, that is phase 3).

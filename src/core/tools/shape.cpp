@@ -1,4 +1,4 @@
-#include "tinysprite/tools.h"
+#include "tinysprite/tools.hpp"
 
 #include <algorithm>
 #include <array>
@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 
-#include "history_plot.h"
-#include "tinysprite/raster.h"
+#include "history_plot.hpp"
+#include "tinysprite/raster.hpp"
 
 namespace
 {

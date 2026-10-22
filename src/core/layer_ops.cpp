@@ -1,4 +1,4 @@
-#include "tinysprite/layer_ops.h"
+#include "tinysprite/layer_ops.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "tinysprite/composite.h"
+#include "tinysprite/composite.hpp"
 
 namespace
 {

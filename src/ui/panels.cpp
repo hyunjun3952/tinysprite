@@ -1,4 +1,4 @@
-#include "panels.h"
+#include "panels.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -7,7 +7,7 @@
 #include <string>
 
 #include "imgui.h"
-#include "theme.h"
+#include "theme.hpp"
 
 namespace
 {

@@ -2,8 +2,8 @@
 #include <fstream>
 #include <string>
 
-#include "minitest.h"
-#include "tinysprite/io.h"
+#include "minitest.hpp"
+#include "tinysprite/io.hpp"
 
 static Palette sample()
 {
