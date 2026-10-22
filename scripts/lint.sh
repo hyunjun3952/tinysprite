@@ -1,33 +1,64 @@
 #!/bin/sh
-# Usage: scripts/lint.sh [build-dir]   (default: build)
+# Usage: scripts/lint.sh [--changed] [build-dir]   (default: build)
 # Runs clang-tidy on first-party .cpp files using the build's compile_commands.json.
+# --changed lints only what differs from origin/main (falling back to main, then HEAD): changed and
+# untracked .cpp files, plus the .cpp files that #include a changed header. Much faster for a local
+# check; CI and a plain run still lint everything.
 # src/ui and tests/ui are only compiled when the UI is built (SDL2 found), so they are skipped
 # (with a note) when the build dir does not contain them; any other file missing from the
 # database is an error (stale build dir: re-run cmake).
 set -eu
 cd "$(dirname "$0")/.."
 
-case ${1:-} in
--*)
-    echo "usage: scripts/lint.sh [build-dir]" >&2
-    exit 2
-    ;;
-esac
-[ "$#" -le 1 ] || {
-    echo "usage: scripts/lint.sh [build-dir]" >&2
+usage() {
+    echo "usage: scripts/lint.sh [--changed] [build-dir]" >&2
     exit 2
 }
+changed_only=
+if [ "${1:-}" = "--changed" ]; then
+    changed_only=1
+    shift
+fi
+case ${1:-} in
+-*) usage ;;
+esac
+[ "$#" -le 1 ] || usage
 
 build=${1:-build}
 [ -f "$build/compile_commands.json" ] || cmake -S . -B "$build" >/dev/null
 db="$build/compile_commands.json"
 root=$(pwd -P)
 
+# With --changed, `only` lists (one per line) the .cpp files worth linting; otherwise it stays empty
+# and every file is.
+only=$(mktemp)
+trap 'rm -f "$only"' EXIT
+if [ -n "$changed_only" ]; then
+    base=HEAD
+    for ref in origin/main main; do
+        if git rev-parse --verify -q "$ref" >/dev/null; then
+            base=$(git merge-base HEAD "$ref")
+            break
+        fi
+    done
+    changes=$(mktemp)
+    { git diff --name-only "$base" --; git ls-files -o --exclude-standard; } >"$changes"
+    grep -E '\.cpp$' "$changes" >"$only" || true
+    # A header change reaches every .cpp that includes it by name.
+    for h in $(grep -E '\.h$' "$changes" || true); do
+        git grep -lE "#include [\"<][^\">]*$(basename "$h")[\">]" -- '*.cpp' >>"$only" || true
+    done
+    rm -f "$changes"
+fi
+
 # Positional parameters hold the files to lint, so paths with spaces survive.
 set --
 missing=0
 while IFS= read -r f; do
     if [ ! -f "$f" ]; then
+        continue
+    fi
+    if [ -n "$changed_only" ] && ! grep -qxF "$f" "$only"; then
         continue
     fi
     if grep -qF "\"$root/$f\"" "$db"; then
@@ -66,7 +97,7 @@ key=$(
 )
 todo=$(mktemp)
 err=$(mktemp -d)
-trap 'rm -rf "$todo" "$err"' EXIT
+trap 'rm -rf "$todo" "$err" "$only"' EXIT
 for f in "$@"; do
     stamp="$cache/$(printf '%s\n' "$key" | cat - "$f" | sha | cut -d' ' -f1)"
     if [ -n "${LINT_NO_CACHE:-}" ] || [ ! -f "$stamp" ]; then

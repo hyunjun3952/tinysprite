@@ -125,6 +125,9 @@ headless CLI export, optional Aseprite import.
 - Undo is per stroke (not per pixel); only the internal storage is per pixel.
 - Cel is RGBA now; the indexed-color mode from the original design is deferred.
 - `scripts/lint.sh` and `scripts/format.sh` use `git ls-files -co`, so untracked files are checked too.
+  `lint.sh --changed` (used by the pre-push hook) lints only the .cpp files that differ from main plus the ones
+  including a changed header; CI and a plain run lint everything, so a local pass can still miss what a different
+  clang-tidy version finds in CI.
 - clang-tidy runs with warnings-as-errors; explicit casts are required for multi-level pointer
   conversions such as `calloc`/`realloc`/`free` of `T **`.
 - stb is compiled only in `src/io/stb_impl.cpp`, without warnings; the rest of `src/io` includes the headers.
