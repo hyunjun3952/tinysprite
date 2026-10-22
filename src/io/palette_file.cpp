@@ -120,37 +120,41 @@ std::string palette_encode_gpl(const Palette &palette, const std::string &name)
     return out;
 }
 
+/* A GPL line that carries no color: a comment or the Name / Columns header. */
+static bool isGplMetadata(const std::string &line)
+{
+    return line[0] == '#' || line.rfind("Name:", 0) == 0 || line.rfind("Columns:", 0) == 0;
+}
+
+/* The color on a line of a palette file, or nullopt for a line that is not one. */
+static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl)
+{
+    Rgba color;
+    bool ok = gpl ? parseGplColor(line, color) : parseHexColor(line, color);
+    return ok ? std::optional<Rgba>(color) : std::nullopt;
+}
+
 std::optional<Palette> palette_decode(const std::string &text)
 {
     std::vector<std::string> all = lines(text);
-    size_t first = 0;
-    while (first < all.size() && all[first].empty()) {
-        first++;
-    }
-    if (first == all.size()) {
+    auto header =
+        std::find_if(all.begin(), all.end(), [](const std::string &line) { return !line.empty(); });
+    if (header == all.end()) {
         return std::nullopt;
     }
-    bool gpl = all[first] == "GIMP Palette";
+    bool gpl = *header == "GIMP Palette";
     Palette palette;
-    for (size_t i = gpl ? first + 1 : first; i < all.size(); i++) {
-        const std::string &line = all[i];
-        if (line.empty()) {
+    for (auto it = gpl ? header + 1 : header; it != all.end(); ++it) {
+        if (it->empty() || (gpl && isGplMetadata(*it))) {
             continue;
         }
-        if (gpl &&
-            (line[0] == '#' || line.rfind("Name:", 0) == 0 || line.rfind("Columns:", 0) == 0)) {
-            continue;
-        }
-        Rgba color;
-        if (!(gpl ? parseGplColor(line, color) : parseHexColor(line, color))) {
+        std::optional<Rgba> color = parseColorLine(*it, gpl);
+        if (!color) {
             return std::nullopt;
         }
-        palette.add(color); /* a full palette ignores the rest */
+        palette.add(*color); /* a full palette ignores the rest */
     }
-    if (palette.count() == 0) {
-        return std::nullopt;
-    }
-    return palette;
+    return palette.count() == 0 ? std::nullopt : std::optional<Palette>(palette);
 }
 
 namespace

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "frame_range.h"
 #include "path_util.h"
 #include "tinysprite/composite.h"
 #include "tinysprite/io.h"
@@ -38,97 +39,177 @@ struct Counted {
     uint32_t count;
 };
 
+Rgba unpackRgb(uint32_t rgb)
+{
+    return Rgba{static_cast<uint8_t>(rgb >> 16), static_cast<uint8_t>(rgb >> 8),
+                static_cast<uint8_t>(rgb), 255};
+}
+
+/* A group of colors for the median cut. */
+using Box = std::vector<Counted>;
+
+uint32_t channelOf(const Counted &c, int channel)
+{
+    return (c.rgb >> (16 - 8 * channel)) & 0xff;
+}
+
+/* How far apart the box's colors are along its widest channel, and which channel that is. */
+struct Spread {
+    uint32_t range = 0;
+    int channel = 0;
+};
+
+Spread widestSpread(const Box &box)
+{
+    Spread best;
+    for (int ch = 0; ch < 3; ch++) {
+        uint32_t lo = 255;
+        uint32_t hi = 0;
+        for (const Counted &c : box) {
+            lo = std::min(lo, channelOf(c, ch));
+            hi = std::max(hi, channelOf(c, ch));
+        }
+        if (hi - lo >= best.range) {
+            best = Spread{hi - lo, ch};
+        }
+    }
+    return best;
+}
+
+/* The box with the widest spread (the first one on a tie) and that spread; `range` is 0 when
+ * every box is a single color. */
+struct Pick {
+    size_t box = 0;
+    Spread spread;
+};
+
+Pick widestBox(const std::vector<Box> &boxes)
+{
+    Pick pick;
+    for (size_t i = 0; i < boxes.size(); i++) {
+        Spread spread = boxes[i].size() > 1 ? widestSpread(boxes[i]) : Spread{};
+        if (spread.range > pick.spread.range) {
+            pick = Pick{i, spread};
+        }
+    }
+    return pick;
+}
+
+/* Where to cut a box sorted along its widest channel: after the color that brings the pixel
+ * count to half, keeping at least one color on each side. */
+size_t medianCutIndex(const Box &box)
+{
+    uint64_t total = 0;
+    for (const Counted &c : box) {
+        total += c.count;
+    }
+    uint64_t seen = 0;
+    size_t cut = 1;
+    for (size_t i = 0; i + 1 < box.size(); i++) {
+        seen += box[i].count;
+        cut = i + 1;
+        if (seen * 2 >= total) {
+            break;
+        }
+    }
+    return cut;
+}
+
+/* Splits the box along `channel` at the median, moving the upper half into a new box. */
+Box splitBox(Box &box, int channel)
+{
+    std::sort(box.begin(), box.end(), [channel](const Counted &a, const Counted &b) {
+        return channelOf(a, channel) < channelOf(b, channel);
+    });
+    size_t cut = medianCutIndex(box);
+    Box upper(box.begin() + static_cast<std::ptrdiff_t>(cut), box.end());
+    box.resize(cut);
+    return upper;
+}
+
+/* The weighted average color of a box. */
+Rgba averageColor(const Box &box)
+{
+    uint64_t total = 0;
+    uint64_t sum[3] = {0, 0, 0};
+    for (const Counted &c : box) {
+        total += c.count;
+        for (int ch = 0; ch < 3; ch++) {
+            sum[ch] += static_cast<uint64_t>(channelOf(c, ch)) * c.count;
+        }
+    }
+    auto avg = [&](int ch) { return static_cast<uint8_t>((sum[ch] + total / 2) / total); };
+    return Rgba{avg(0), avg(1), avg(2), 255};
+}
+
 /* Median cut over the distinct colors: boxes are split along their widest channel at the median
  * (by pixel count) until there are `limit` of them; a box becomes its weighted average. */
 std::vector<Rgba> medianCut(std::vector<Counted> colors, size_t limit)
 {
-    using Box = std::vector<Counted>;
     std::vector<Box> boxes;
     boxes.push_back(std::move(colors));
-    auto channel = [](const Counted &c, int ch) { return (c.rgb >> (16 - 8 * ch)) & 0xff; };
-    auto range = [&](const Box &box, int &widest) {
-        uint32_t best = 0;
-        for (int ch = 0; ch < 3; ch++) {
-            uint32_t lo = 255;
-            uint32_t hi = 0;
-            for (const Counted &c : box) {
-                lo = std::min(lo, channel(c, ch));
-                hi = std::max(hi, channel(c, ch));
-            }
-            if (hi - lo >= best) {
-                best = hi - lo;
-                widest = ch;
-            }
-        }
-        return best;
-    };
     while (boxes.size() < limit) {
-        size_t pick = boxes.size();
-        uint32_t pickRange = 0;
-        int pickChannel = 0;
-        for (size_t i = 0; i < boxes.size(); i++) {
-            int widest = 0;
-            uint32_t r = boxes[i].size() > 1 ? range(boxes[i], widest) : 0;
-            if (r > pickRange) {
-                pickRange = r;
-                pickChannel = widest;
-                pick = i;
-            }
-        }
-        if (pick == boxes.size()) {
+        Pick pick = widestBox(boxes);
+        if (pick.spread.range == 0) {
             break; /* every box is a single color */
         }
-        Box &box = boxes[pick];
-        std::sort(box.begin(), box.end(), [&](const Counted &a, const Counted &b) {
-            return channel(a, pickChannel) < channel(b, pickChannel);
-        });
-        uint64_t total = 0;
-        for (const Counted &c : box) {
-            total += c.count;
-        }
-        uint64_t seen = 0;
-        size_t cut = 1;
-        for (size_t i = 0; i + 1 < box.size(); i++) {
-            seen += box[i].count;
-            cut = i + 1;
-            if (seen * 2 >= total) {
-                break;
-            }
-        }
-        Box upper(box.begin() + static_cast<std::ptrdiff_t>(cut), box.end());
-        box.resize(cut);
-        boxes.push_back(std::move(upper));
+        boxes.push_back(splitBox(boxes[pick.box], pick.spread.channel));
     }
     std::vector<Rgba> out;
+    out.reserve(boxes.size());
     for (const Box &box : boxes) {
-        uint64_t total = 0;
-        uint64_t sum[3] = {0, 0, 0};
-        for (const Counted &c : box) {
-            total += c.count;
-            for (int ch = 0; ch < 3; ch++) {
-                sum[ch] += static_cast<uint64_t>(channel(c, ch)) * c.count;
-            }
-        }
-        auto avg = [&](int ch) { return static_cast<uint8_t>((sum[ch] + total / 2) / total); };
-        out.push_back(Rgba{avg(0), avg(1), avg(2), 255});
+        out.push_back(averageColor(box));
     }
     return out;
 }
 
-/* The palette for the flattened frames: the exact colors when they fit, else a median cut. */
-GifPalette buildPalette(const std::vector<const std::vector<Rgba> *> &frames)
+/* How many of the frames' pixels each opaque color covers; sets `transparent` when any pixel is
+ * see-through. */
+std::map<uint32_t, uint32_t> colorHistogram(const std::vector<const std::vector<Rgba> *> &frames,
+                                            bool &transparent)
 {
-    GifPalette palette;
     std::map<uint32_t, uint32_t> histogram;
     for (const std::vector<Rgba> *frame : frames) {
         for (const Rgba &p : *frame) {
             if (p.a >= 128) {
                 histogram[packRgb(p)]++;
             } else {
-                palette.transparent = true;
+                transparent = true;
             }
         }
     }
+    return histogram;
+}
+
+long colorDistance(uint32_t rgb, const Rgba &entry)
+{
+    Rgba c = unpackRgb(rgb);
+    long dr = static_cast<long>(c.r) - entry.r;
+    long dg = static_cast<long>(c.g) - entry.g;
+    long db = static_cast<long>(c.b) - entry.b;
+    return dr * dr + dg * dg + db * db;
+}
+
+/* The index, from `first` on, of the entry closest to the color (itself, when it is there). */
+int nearestEntry(const std::vector<Rgba> &entries, int first, uint32_t rgb)
+{
+    int best = first;
+    long bestDistance = -1;
+    for (int i = first; i < static_cast<int>(entries.size()) && bestDistance != 0; i++) {
+        long d = colorDistance(rgb, entries[static_cast<size_t>(i)]);
+        if (bestDistance < 0 || d < bestDistance) {
+            bestDistance = d;
+            best = i;
+        }
+    }
+    return best;
+}
+
+/* The palette for the flattened frames: the exact colors when they fit, else a median cut. */
+GifPalette buildPalette(const std::vector<const std::vector<Rgba> *> &frames)
+{
+    GifPalette palette;
+    std::map<uint32_t, uint32_t> histogram = colorHistogram(frames, palette.transparent);
     size_t room = MAX_COLORS - (palette.transparent ? 1 : 0);
     std::vector<Counted> colors;
     colors.reserve(histogram.size());
@@ -138,9 +219,7 @@ GifPalette buildPalette(const std::vector<const std::vector<Rgba> *> &frames)
     std::vector<Rgba> chosen;
     if (colors.size() <= room) {
         for (const Counted &c : colors) {
-            chosen.push_back(Rgba{static_cast<uint8_t>(c.rgb >> 16),
-                                  static_cast<uint8_t>(c.rgb >> 8), static_cast<uint8_t>(c.rgb),
-                                  255});
+            chosen.push_back(unpackRgb(c.rgb));
         }
     } else {
         chosen = medianCut(colors, room);
@@ -155,23 +234,7 @@ GifPalette buildPalette(const std::vector<const std::vector<Rgba> *> &frames)
     /* every distinct color gets its nearest entry (itself, when it fits) */
     int first = palette.transparent ? 1 : 0;
     for (const Counted &c : colors) {
-        int best = first;
-        long bestDistance = -1;
-        for (int i = first; i < static_cast<int>(palette.entries.size()); i++) {
-            const Rgba &e = palette.entries[static_cast<size_t>(i)];
-            long dr = static_cast<long>(c.rgb >> 16) - e.r;
-            long dg = static_cast<long>((c.rgb >> 8) & 0xff) - e.g;
-            long db = static_cast<long>(c.rgb & 0xff) - e.b;
-            long d = dr * dr + dg * dg + db * db;
-            if (bestDistance < 0 || d < bestDistance) {
-                bestDistance = d;
-                best = i;
-                if (d == 0) {
-                    break;
-                }
-            }
-        }
-        palette.indexOf[c.rgb] = best;
+        palette.indexOf[c.rgb] = nearestEntry(palette.entries, first, c.rgb);
     }
     return palette;
 }
@@ -309,15 +372,67 @@ int tableBits(size_t entries)
     return bits;
 }
 
+/* The last frame to write, or -1 when the options ask for something that cannot be encoded. */
+int validLastFrame(const Sprite &sprite, const GifOptions &options)
+{
+    int last = frame_range_end(sprite, options.first, options.last);
+    bool badScale = options.scale < 1 || options.scale > IMAGE_EXPORT_MAX_SCALE ||
+                    sprite.width() * options.scale > IMAGE_EXPORT_MAX_SIZE ||
+                    sprite.height() * options.scale > IMAGE_EXPORT_MAX_SIZE;
+    return badScale ? -1 : last;
+}
+
+/* The header, the logical screen with the global color table, and the looping extension. */
+void writeHeader(std::vector<uint8_t> &out, const Sprite &sprite, const GifOptions &options,
+                 const GifPalette &palette, int bits, bool loops)
+{
+    out.insert(out.end(), {'G', 'I', 'F', '8', '9', 'a'});
+    putU16(out, sprite.width() * options.scale);
+    putU16(out, sprite.height() * options.scale);
+    out.push_back(static_cast<uint8_t>(0x80 | (7 << 4) | (bits - 1)));
+    out.push_back(0); /* background color index */
+    out.push_back(0); /* square pixels */
+    for (int i = 0; i < (1 << bits); i++) {
+        Rgba c = static_cast<size_t>(i) < palette.entries.size()
+                     ? palette.entries[static_cast<size_t>(i)]
+                     : Rgba{0, 0, 0, 255};
+        out.insert(out.end(), {c.r, c.g, c.b});
+    }
+    if (loops) {
+        const char *app = "NETSCAPE2.0";
+        out.insert(out.end(), {uint8_t{0x21}, uint8_t{0xff}, uint8_t{11}});
+        out.insert(out.end(), app, app + 11);
+        out.insert(out.end(),
+                   {uint8_t{3}, uint8_t{1}, uint8_t{0}, uint8_t{0}, uint8_t{0}}); /* forever */
+    }
+}
+
+/* A frame's graphic control extension and image descriptor, ahead of its compressed data. */
+void writeFrameHeader(std::vector<uint8_t> &out, int delayMs, bool transparent, int width,
+                      int height)
+{
+    int delay = std::min(std::max((delayMs + 5) / 10, MIN_DELAY_CS), 65535);
+    /* disposal 2 (clear to background) keeps transparent frames from piling up */
+    const int disposal = transparent ? 2 : 1;
+    out.insert(out.end(), {uint8_t{0x21}, uint8_t{0xf9}, uint8_t{4},
+                           static_cast<uint8_t>(disposal << 2 | (transparent ? 1 : 0))});
+    putU16(out, delay);
+    out.push_back(0); /* the transparent entry, when there is one, is index 0 */
+    out.push_back(0);
+    out.push_back(0x2c);
+    putU16(out, 0);
+    putU16(out, 0);
+    putU16(out, width);
+    putU16(out, height);
+    out.push_back(0);
+}
+
 } // namespace
 
 std::vector<uint8_t> gif_encode(const Sprite &sprite, const GifOptions &options)
 {
-    int last = options.last < 0 ? sprite.frameCount() - 1 : options.last;
-    if (options.first < 0 || last >= sprite.frameCount() || options.first > last ||
-        options.scale < 1 || options.scale > IMAGE_EXPORT_MAX_SCALE ||
-        sprite.width() * options.scale > IMAGE_EXPORT_MAX_SIZE ||
-        sprite.height() * options.scale > IMAGE_EXPORT_MAX_SIZE) {
+    int last = validLastFrame(sprite, options);
+    if (last < 0) {
         return {};
     }
     const int width = sprite.width();
@@ -335,51 +450,19 @@ std::vector<uint8_t> gif_encode(const Sprite &sprite, const GifOptions &options)
     }
     GifPalette palette = buildPalette(distinct);
     int bits = tableBits(palette.entries.size());
-    int minCodeSize = std::max(2, bits);
 
-    std::vector<uint8_t> out = {'G', 'I', 'F', '8', '9', 'a'};
-    putU16(out, width * options.scale);
-    putU16(out, height * options.scale);
-    out.push_back(static_cast<uint8_t>(0x80 | (7 << 4) | (bits - 1)));
-    out.push_back(0); /* background color index */
-    out.push_back(0); /* square pixels */
-    for (int i = 0; i < (1 << bits); i++) {
-        Rgba c = static_cast<size_t>(i) < palette.entries.size()
-                     ? palette.entries[static_cast<size_t>(i)]
-                     : Rgba{0, 0, 0, 255};
-        out.insert(out.end(), {c.r, c.g, c.b});
-    }
-    if (options.loop && order.size() > 1) {
-        const char *app = "NETSCAPE2.0";
-        out.insert(out.end(), {uint8_t{0x21}, uint8_t{0xff}, uint8_t{11}});
-        out.insert(out.end(), app, app + 11);
-        out.insert(out.end(),
-                   {uint8_t{3}, uint8_t{1}, uint8_t{0}, uint8_t{0}, uint8_t{0}}); /* forever */
-    }
+    std::vector<uint8_t> out;
+    writeHeader(out, sprite, options, palette, bits, options.loop && order.size() > 1);
     std::map<int, std::vector<uint8_t>> encoded; /* a frame shown twice is compressed once */
     for (int f : order) {
-        int delay = (sprite.frameDuration(f) + 5) / 10;
-        delay = std::min(std::max(delay, MIN_DELAY_CS), 65535);
-        /* disposal 2 (clear to background) keeps transparent frames from piling up */
-        const int disposal = palette.transparent ? 2 : 1;
-        out.insert(out.end(),
-                   {uint8_t{0x21}, uint8_t{0xf9}, uint8_t{4},
-                    static_cast<uint8_t>(disposal << 2 | (palette.transparent ? 1 : 0))});
-        putU16(out, delay);
-        out.push_back(0); /* the transparent entry, when there is one, is index 0 */
-        out.push_back(0);
-        out.push_back(0x2c);
-        putU16(out, 0);
-        putU16(out, 0);
-        putU16(out, width * options.scale);
-        putU16(out, height * options.scale);
-        out.push_back(0);
+        writeFrameHeader(out, sprite.frameDuration(f), palette.transparent, width * options.scale,
+                         height * options.scale);
         std::vector<uint8_t> &data = encoded[f];
         if (data.empty()) {
             lzwEncode(data,
                       indexFrame(flat[static_cast<size_t>(f - options.first)], width, height,
                                  options.scale, palette),
-                      minCodeSize);
+                      std::max(2, bits));
         }
         out.insert(out.end(), data.begin(), data.end());
     }

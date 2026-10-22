@@ -137,6 +137,14 @@ uint64_t minLayerBytes(const Sprite &sprite, uint32_t frames)
     return 1 + 2 + static_cast<uint64_t>(frames) * sprite.width() * sprite.height() * sizeof(Rgba);
 }
 
+/* The layer at a file's layer index, or null if the sprite has no such layer. */
+Layer *layerAt(Sprite &sprite, uint32_t index)
+{
+    return index < static_cast<uint32_t>(sprite.layerCount())
+               ? sprite.layer(static_cast<int>(index))
+               : nullptr;
+}
+
 /* One frame of a layer that shows the same cel as an earlier frame. */
 struct CelLink {
     uint32_t layer;
@@ -161,9 +169,7 @@ void readLinks(Reader &chunk, std::vector<CelLink> &links)
 bool applyLinks(Sprite &sprite, const std::vector<CelLink> &links)
 {
     for (const CelLink &link : links) {
-        Layer *layer = link.layer < static_cast<uint32_t>(sprite.layerCount())
-                           ? sprite.layer(static_cast<int>(link.layer))
-                           : nullptr;
+        Layer *layer = layerAt(sprite, link.layer);
         if (!layer || link.frame >= static_cast<uint32_t>(layer->frameCount()) ||
             link.source >= link.frame) {
             return false;
@@ -206,9 +212,7 @@ void readBlends(Reader &chunk, std::vector<LayerBlend> &blends)
 bool applyBlends(Sprite &sprite, const std::vector<LayerBlend> &blends)
 {
     for (const LayerBlend &blend : blends) {
-        Layer *layer = blend.layer < static_cast<uint32_t>(sprite.layerCount())
-                           ? sprite.layer(static_cast<int>(blend.layer))
-                           : nullptr;
+        Layer *layer = layerAt(sprite, blend.layer);
         if (!layer) {
             return false;
         }
@@ -240,6 +244,135 @@ void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
     }
 }
 
+/* What the chunks read so far add up to. The chunks that fill the sprite (FRAM, LINK, BLND, TAGS)
+ * are kept aside and applied in finish(), once the frames and layers they refer to exist. */
+class Decoder
+{
+  public:
+    /* Reads one chunk; false if the file is invalid. Chunks this version does not know are skipped.
+     */
+    bool chunk(const uint8_t *tag, Reader &payload, uint32_t length);
+
+    std::optional<Sprite> finish()
+    {
+        if (layers_ == 0 || !sprite_) {
+            return std::nullopt;
+        }
+        for (size_t i = 0; i < durations_.size(); i++) {
+            sprite_->setFrameDuration(static_cast<int>(i), static_cast<int>(durations_[i]));
+        }
+        if (!applyLinks(*sprite_, links_) || !applyBlends(*sprite_, blends_) ||
+            !sprite_->setTags(std::move(tags_))) {
+            return std::nullopt;
+        }
+        return std::move(sprite_);
+    }
+
+  private:
+    using Read = bool (Decoder::*)(Reader &chunk, uint32_t length);
+    struct ChunkReader {
+        const char *tag;
+        Read read;
+    };
+    static const ChunkReader CHUNKS[];
+
+    bool readHead(Reader &chunk, uint32_t)
+    {
+        uint32_t width = chunk.u32();
+        uint32_t height = chunk.u32();
+        frames_ = chunk.u32();
+        /* The Sprite constructor checks the size; the frames are created with the first layer,
+         * once the file is known to hold their pixels. */
+        if (sprite_ || frames_ < 1 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
+            return false;
+        }
+        sprite_.emplace(static_cast<int>(width), static_cast<int>(height));
+        return true;
+    }
+
+    bool readDurations(Reader &chunk, uint32_t length)
+    {
+        if (!sprite_ || layers_ > 0 || length % 2 != 0 || length / 2 != frames_) {
+            return false;
+        }
+        for (uint32_t i = 0; i < frames_; i++) {
+            uint32_t ms = chunk.u16();
+            if (ms < 1) {
+                return false;
+            }
+            durations_.push_back(ms);
+        }
+        return true;
+    }
+
+    bool readPaletteChunk(Reader &chunk, uint32_t)
+    {
+        if (!sprite_) {
+            return false;
+        }
+        readPalette(chunk, sprite_->palette());
+        return true;
+    }
+
+    bool readLayerChunk(Reader &chunk, uint32_t length)
+    {
+        if (!sprite_) {
+            return false;
+        }
+        if (layers_ == 0) {
+            if (length < minLayerBytes(*sprite_, frames_)) {
+                return false;
+            }
+            growFrames(*sprite_, frames_);
+        }
+        readLayer(chunk, *sprite_, layers_++);
+        return true;
+    }
+
+    bool readLinkChunk(Reader &chunk, uint32_t)
+    {
+        readLinks(chunk, links_);
+        return true;
+    }
+
+    bool readBlendChunk(Reader &chunk, uint32_t)
+    {
+        readBlends(chunk, blends_);
+        return true;
+    }
+
+    bool readTagChunk(Reader &chunk, uint32_t)
+    {
+        readTags(chunk, tags_);
+        return true;
+    }
+
+    std::optional<Sprite> sprite_;
+    int layers_ = 0;
+    uint32_t frames_ = 1;
+    std::vector<uint32_t> durations_; /* from FRAM, applied once the frames exist */
+    std::vector<Sprite::Tag> tags_;   /* from TAGS, checked against the frames at the end */
+    std::vector<CelLink> links_;      /* from LINK, applied once the layers exist */
+    std::vector<LayerBlend> blends_;  /* from BLND, applied once the layers exist */
+};
+
+const Decoder::ChunkReader Decoder::CHUNKS[] = {
+    {"HEAD", &Decoder::readHead},         {"FRAM", &Decoder::readDurations},
+    {"PALT", &Decoder::readPaletteChunk}, {"LAYR", &Decoder::readLayerChunk},
+    {"LINK", &Decoder::readLinkChunk},    {"BLND", &Decoder::readBlendChunk},
+    {"TAGS", &Decoder::readTagChunk},
+};
+
+bool Decoder::chunk(const uint8_t *tag, Reader &payload, uint32_t length)
+{
+    for (const ChunkReader &known : CHUNKS) {
+        if (isTag(tag, known.tag)) {
+            return (this->*known.read)(payload, length);
+        }
+    }
+    return true;
+}
+
 std::optional<Sprite> decode(const std::vector<uint8_t> &data)
 {
     Reader file(data.data(), data.data() + data.size());
@@ -247,75 +380,143 @@ std::optional<Sprite> decode(const std::vector<uint8_t> &data)
         file.u32() != PXA_VERSION) {
         return std::nullopt;
     }
-    std::optional<Sprite> sprite;
-    int layers = 0;
-    uint32_t frames = 1;
-    std::vector<uint32_t> durations; /* from FRAM, applied once the frames exist */
-    std::vector<Sprite::Tag> tags;   /* from TAGS, checked against the frames at the end */
-    std::vector<CelLink> links;      /* from LINK, applied once the layers exist */
-    std::vector<LayerBlend> blends;  /* from BLND, applied once the layers exist */
+    Decoder decoder;
     while (!file.atEnd()) {
         const uint8_t *tag = file.take(4);
         uint32_t length = file.u32();
         const uint8_t *payload = file.take(length);
         Reader chunk(payload, payload + length);
-
-        if (isTag(tag, "HEAD")) {
-            uint32_t width = chunk.u32();
-            uint32_t height = chunk.u32();
-            frames = chunk.u32();
-            /* The Sprite constructor checks the size; the frames are created with the first layer,
-             * once the file is known to hold their pixels. */
-            if (sprite || frames < 1 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
-                return std::nullopt;
-            }
-            sprite.emplace(static_cast<int>(width), static_cast<int>(height));
-        } else if (isTag(tag, "FRAM")) {
-            if (!sprite || layers > 0 || length != 2 * static_cast<uint64_t>(length / 2) ||
-                length / 2 != frames) {
-                return std::nullopt;
-            }
-            for (uint32_t i = 0; i < frames; i++) {
-                uint32_t ms = chunk.u16();
-                if (ms < 1) {
-                    return std::nullopt;
-                }
-                durations.push_back(ms);
-            }
-        } else if (isTag(tag, "LINK")) {
-            readLinks(chunk, links);
-        } else if (isTag(tag, "BLND")) {
-            readBlends(chunk, blends);
-        } else if (isTag(tag, "TAGS")) {
-            readTags(chunk, tags);
-        } else if (isTag(tag, "PALT") || isTag(tag, "LAYR")) {
-            if (!sprite) {
-                return std::nullopt;
-            }
-            if (isTag(tag, "PALT")) {
-                readPalette(chunk, sprite->palette());
-            } else {
-                if (layers == 0) {
-                    if (length < minLayerBytes(*sprite, frames)) {
-                        return std::nullopt;
-                    }
-                    growFrames(*sprite, frames);
-                }
-                readLayer(chunk, *sprite, layers++);
-            }
+        if (!decoder.chunk(tag, chunk, length)) {
+            return std::nullopt;
         }
     }
-    if (layers == 0 || !sprite) {
-        return std::nullopt;
+    return decoder.finish();
+}
+
+void writeHead(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    putChunk(out, "HEAD", [&](std::vector<uint8_t> &o) {
+        putU32(o, static_cast<uint32_t>(sprite.width()));
+        putU32(o, static_cast<uint32_t>(sprite.height()));
+        putU32(o, static_cast<uint32_t>(sprite.frameCount()));
+    });
+}
+
+/* Only a sprite with non-default durations needs the chunk. */
+void writeDurations(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    bool timed = false;
+    for (int frame = 0; frame < sprite.frameCount(); frame++) {
+        timed = timed || sprite.frameDuration(frame) != FRAME_DURATION_DEFAULT;
     }
-    for (size_t i = 0; i < durations.size(); i++) {
-        sprite->setFrameDuration(static_cast<int>(i), static_cast<int>(durations[i]));
+    if (!timed) {
+        return;
     }
-    if (!applyLinks(*sprite, links) || !applyBlends(*sprite, blends) ||
-        !sprite->setTags(std::move(tags))) {
-        return std::nullopt;
+    putChunk(out, "FRAM", [&](std::vector<uint8_t> &o) {
+        for (int frame = 0; frame < sprite.frameCount(); frame++) {
+            putU16(o, static_cast<uint32_t>(sprite.frameDuration(frame)));
+        }
+    });
+}
+
+void writePalette(std::vector<uint8_t> &out, const Palette &palette)
+{
+    putChunk(out, "PALT", [&](std::vector<uint8_t> &o) {
+        putU16(o, static_cast<uint32_t>(palette.count()));
+        for (int i = 0; i < palette.count(); i++) {
+            Rgba c = palette.get(i);
+            o.insert(o.end(), {c.r, c.g, c.b, c.a});
+        }
+    });
+}
+
+void writeLayer(std::vector<uint8_t> &out, const Layer &layer)
+{
+    putChunk(out, "LAYR", [&](std::vector<uint8_t> &o) {
+        o.push_back(static_cast<uint8_t>(layer.name().size()));
+        o.insert(o.end(), layer.name().begin(), layer.name().end());
+        o.push_back(static_cast<uint8_t>((layer.visible() ? 1 : 0) | (layer.locked() ? 2 : 0)));
+        o.push_back(layer.opacity());
+        for (int frame = 0; frame < layer.frameCount(); frame++) {
+            const Cel &cel = *layer.cel(frame);
+            auto bytes = reinterpret_cast<const uint8_t *>(cel.pixels());
+            o.insert(o.end(), bytes, bytes + pixelBytes(cel));
+        }
+    });
+}
+
+/* Each frame of the layer that shows a cel of an earlier frame, with the first frame that shows
+ * it. */
+std::vector<std::pair<uint32_t, uint32_t>> celLinks(const Layer &layer)
+{
+    std::vector<std::pair<uint32_t, uint32_t>> pairs;
+    for (int frame = 1; frame < layer.frameCount(); frame++) {
+        int first = 0;
+        while (layer.cel(first) != layer.cel(frame)) {
+            first++;
+        }
+        if (first < frame) {
+            pairs.emplace_back(static_cast<uint32_t>(frame), static_cast<uint32_t>(first));
+        }
     }
-    return sprite;
+    return pairs;
+}
+
+void writeLinks(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    for (int i = 0; i < sprite.layerCount(); i++) {
+        auto pairs = celLinks(*sprite.layer(i));
+        if (pairs.empty()) {
+            continue;
+        }
+        putChunk(out, "LINK", [&](std::vector<uint8_t> &o) {
+            putU32(o, static_cast<uint32_t>(i));
+            putU32(o, static_cast<uint32_t>(pairs.size()));
+            for (const auto &pair : pairs) {
+                putU32(o, pair.first);
+                putU32(o, pair.second);
+            }
+        });
+    }
+}
+
+/* Only the layers that are not Normal are listed. */
+void writeBlends(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    std::vector<std::pair<uint32_t, uint8_t>> blends;
+    for (int i = 0; i < sprite.layerCount(); i++) {
+        BlendMode mode = sprite.layer(i)->blendMode();
+        if (mode != BlendMode::Normal) {
+            blends.emplace_back(static_cast<uint32_t>(i), static_cast<uint8_t>(mode));
+        }
+    }
+    if (blends.empty()) {
+        return;
+    }
+    putChunk(out, "BLND", [&](std::vector<uint8_t> &o) {
+        putU32(o, static_cast<uint32_t>(blends.size()));
+        for (const auto &entry : blends) {
+            putU32(o, entry.first);
+            o.push_back(entry.second);
+        }
+    });
+}
+
+void writeTags(std::vector<uint8_t> &out, const std::vector<Sprite::Tag> &tags)
+{
+    if (tags.empty()) {
+        return;
+    }
+    putChunk(out, "TAGS", [&](std::vector<uint8_t> &o) {
+        putU16(o, static_cast<uint32_t>(tags.size()));
+        for (const Sprite::Tag &tag : tags) {
+            o.push_back(static_cast<uint8_t>(tag.name.size()));
+            o.insert(o.end(), tag.name.begin(), tag.name.end());
+            putU32(o, static_cast<uint32_t>(tag.from));
+            putU32(o, static_cast<uint32_t>(tag.to));
+            o.push_back(static_cast<uint8_t>(tag.direction));
+        }
+    });
 }
 
 } // namespace
@@ -324,94 +525,15 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
 {
     std::vector<uint8_t> out(MAGIC.begin(), MAGIC.end());
     putU32(out, PXA_VERSION);
-    putChunk(out, "HEAD", [&](std::vector<uint8_t> &o) {
-        putU32(o, static_cast<uint32_t>(sprite.width()));
-        putU32(o, static_cast<uint32_t>(sprite.height()));
-        putU32(o, static_cast<uint32_t>(sprite.frameCount()));
-    });
-    bool timed = false; /* only a sprite with non-default durations needs the chunk */
-    for (int frame = 0; frame < sprite.frameCount(); frame++) {
-        timed = timed || sprite.frameDuration(frame) != FRAME_DURATION_DEFAULT;
-    }
-    if (timed) {
-        putChunk(out, "FRAM", [&](std::vector<uint8_t> &o) {
-            for (int frame = 0; frame < sprite.frameCount(); frame++) {
-                putU16(o, static_cast<uint32_t>(sprite.frameDuration(frame)));
-            }
-        });
-    }
-    putChunk(out, "PALT", [&](std::vector<uint8_t> &o) {
-        putU16(o, static_cast<uint32_t>(sprite.palette().count()));
-        for (int i = 0; i < sprite.palette().count(); i++) {
-            Rgba c = sprite.palette().get(i);
-            o.insert(o.end(), {c.r, c.g, c.b, c.a});
-        }
-    });
+    writeHead(out, sprite);
+    writeDurations(out, sprite);
+    writePalette(out, sprite.palette());
     for (int i = 0; i < sprite.layerCount(); i++) {
-        const Layer &layer = *sprite.layer(i);
-        putChunk(out, "LAYR", [&](std::vector<uint8_t> &o) {
-            o.push_back(static_cast<uint8_t>(layer.name().size()));
-            o.insert(o.end(), layer.name().begin(), layer.name().end());
-            o.push_back(static_cast<uint8_t>((layer.visible() ? 1 : 0) | (layer.locked() ? 2 : 0)));
-            o.push_back(layer.opacity());
-            for (int frame = 0; frame < layer.frameCount(); frame++) {
-                const Cel &cel = *layer.cel(frame);
-                auto bytes = reinterpret_cast<const uint8_t *>(cel.pixels());
-                o.insert(o.end(), bytes, bytes + pixelBytes(cel));
-            }
-        });
+        writeLayer(out, *sprite.layer(i));
     }
-    for (int i = 0; i < sprite.layerCount(); i++) {
-        const Layer &layer = *sprite.layer(i);
-        /* each frame that shows a cel of an earlier frame, with the first frame that shows it */
-        std::vector<std::pair<uint32_t, uint32_t>> pairs;
-        for (int frame = 1; frame < layer.frameCount(); frame++) {
-            for (int first = 0; first < frame; first++) {
-                if (layer.cel(first) == layer.cel(frame)) {
-                    pairs.emplace_back(static_cast<uint32_t>(frame), static_cast<uint32_t>(first));
-                    break;
-                }
-            }
-        }
-        if (!pairs.empty()) {
-            putChunk(out, "LINK", [&](std::vector<uint8_t> &o) {
-                putU32(o, static_cast<uint32_t>(i));
-                putU32(o, static_cast<uint32_t>(pairs.size()));
-                for (const auto &pair : pairs) {
-                    putU32(o, pair.first);
-                    putU32(o, pair.second);
-                }
-            });
-        }
-    }
-    std::vector<std::pair<uint32_t, uint8_t>> blends; /* the layers that are not Normal */
-    for (int i = 0; i < sprite.layerCount(); i++) {
-        BlendMode mode = sprite.layer(i)->blendMode();
-        if (mode != BlendMode::Normal) {
-            blends.emplace_back(static_cast<uint32_t>(i), static_cast<uint8_t>(mode));
-        }
-    }
-    if (!blends.empty()) {
-        putChunk(out, "BLND", [&](std::vector<uint8_t> &o) {
-            putU32(o, static_cast<uint32_t>(blends.size()));
-            for (const auto &entry : blends) {
-                putU32(o, entry.first);
-                o.push_back(entry.second);
-            }
-        });
-    }
-    if (!sprite.tags().empty()) {
-        putChunk(out, "TAGS", [&](std::vector<uint8_t> &o) {
-            putU16(o, static_cast<uint32_t>(sprite.tags().size()));
-            for (const Sprite::Tag &tag : sprite.tags()) {
-                o.push_back(static_cast<uint8_t>(tag.name.size()));
-                o.insert(o.end(), tag.name.begin(), tag.name.end());
-                putU32(o, static_cast<uint32_t>(tag.from));
-                putU32(o, static_cast<uint32_t>(tag.to));
-                o.push_back(static_cast<uint8_t>(tag.direction));
-            }
-        });
-    }
+    writeLinks(out, sprite);
+    writeBlends(out, sprite);
+    writeTags(out, sprite.tags());
     return out;
 }
 
