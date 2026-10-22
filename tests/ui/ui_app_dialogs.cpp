@@ -1,5 +1,6 @@
 /* Whole frames of the app with synthetic key events: a key that closes a dialog must not also act
  * as a shortcut in the same frame. */
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -319,6 +320,14 @@ TEST(hovering_a_menu_title_opens_the_menu)
     }
 }
 
+/* The dialog joins path parts with "/" while std::filesystem on Windows writes "\\": compare the
+ * paths with one separator. */
+static std::string slashes(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    return path;
+}
+
 /* A folder's name in the file dialog's tree picks it as the place to save to: its path goes in
  * front of the file name, the tree keeps its root, and the arrow opens the folder to show what is
  * in it. */
@@ -335,19 +344,19 @@ TEST(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name)
     t.openSaveDialog((root / "sprite.pxa").string());
     ASSERT_TRUE(t.listRow(0).x > 0.0f);
     t.click(t.listRow(1)); /* alpha/ */
-    ASSERT_TRUE(t.path() == (root / "alpha" / "sprite.pxa").string());
+    ASSERT_TRUE(slashes(t.path()) == slashes((root / "alpha" / "sprite.pxa").string()));
     t.click(t.listRow(1)); /* the same folder again: nothing is stacked onto the path */
-    ASSERT_TRUE(t.path() == (root / "alpha" / "sprite.pxa").string());
+    ASSERT_TRUE(slashes(t.path()) == slashes((root / "alpha" / "sprite.pxa").string()));
     t.click(t.listRow(2)); /* beta/: the tree still starts at root, so the rows did not move */
-    ASSERT_TRUE(t.path() == (root / "beta" / "sprite.pxa").string());
+    ASSERT_TRUE(slashes(t.path()) == slashes((root / "beta" / "sprite.pxa").string()));
     t.click(t.listRow(1, 20.0f)); /* the arrow of alpha/ opens it: inner/ and note.pxa show */
     t.click(t.listRow(2));        /* inner/ */
-    ASSERT_TRUE(t.path() == (root / "alpha" / "inner" / "sprite.pxa").string());
+    ASSERT_TRUE(slashes(t.path()) == slashes((root / "alpha" / "inner" / "sprite.pxa").string()));
     t.click(t.listRow(3)); /* note.pxa: a file replaces the name */
-    ASSERT_TRUE(t.path() == (root / "alpha" / "note.pxa").string());
+    ASSERT_TRUE(slashes(t.path()) == slashes((root / "alpha" / "note.pxa").string()));
     t.click(t.listRow(0)); /* ../ : the tree starts one level up */
-    ASSERT_TRUE(t.path() == (root.parent_path() / "note.pxa").string() ||
-                t.path() == (root.parent_path() / "sprite.pxa").string());
+    ASSERT_TRUE(slashes(t.path()) == slashes((root.parent_path() / "note.pxa").string()) ||
+                slashes(t.path()) == slashes((root.parent_path() / "sprite.pxa").string()));
     std::error_code ignored;
     fs::remove_all(root, ignored);
 }
