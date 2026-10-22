@@ -1,0 +1,76 @@
+/* The slider and the combo of the theme are drawn over invisible ImGui widgets: the input must
+ * still work, and the field must show the value as a fill. */
+#include "imgui.h"
+#include "minitest.hpp"
+#include "theme.hpp"
+#include "ui_harness.hpp"
+
+namespace
+{
+
+constexpr float FIELD_WIDTH = 200.0f;
+
+/* A window with one slider 0..100 whose rectangle is stored in `min` and `max`. */
+struct SliderRig {
+    test_ui::Harness h;
+    int value = 0;
+    ImVec2 min;
+    ImVec2 max;
+
+    SliderRig()
+    {
+        h.body = [this] {
+            ImGui::SetNextWindowPos(ImVec2(100.0f, 100.0f));
+            ImGui::SetNextWindowSize(ImVec2(260.0f, 80.0f));
+            ImGui::Begin("##rig", nullptr, ImGuiWindowFlags_NoDecoration);
+            ImGui::SetNextItemWidth(FIELD_WIDTH);
+            theme::slider_int("##slider", &value, 0, 100, "%");
+            min = ImGui::GetItemRectMin();
+            max = ImGui::GetItemRectMax();
+            ImGui::End();
+        };
+        h.frame(0.0f, 0.0f, false);
+    }
+    float centerY() const
+    {
+        return (min.y + max.y) / 2.0f;
+    }
+};
+
+} // namespace
+
+TEST(dragging_a_slider_sets_the_value_by_the_mouse_position)
+{
+    SliderRig rig;
+    float y = rig.centerY();
+    rig.h.drag(rig.min.x + 2.0f, y, rig.min.x + FIELD_WIDTH / 2.0f, y);
+    ASSERT_TRUE(rig.value >= 40 && rig.value <= 60);
+    rig.h.drag(rig.min.x + 2.0f, y, rig.max.x + 100.0f, y); /* past the end */
+    ASSERT_EQ_INT(100, rig.value);
+}
+
+TEST(a_slider_is_filled_up_to_its_value)
+{
+    SliderRig rig;
+    rig.value = 50;
+    rig.h.frame(0.0f, 0.0f, false);
+    int y = static_cast<int>(rig.centerY()) + 6; /* under the digits */
+    ASSERT_TRUE(rig.h.pixel(static_cast<int>(rig.min.x) + 20, y) == theme::SLIDER_FILL);
+    ASSERT_TRUE(rig.h.pixel(static_cast<int>(rig.max.x) - 20, y) == theme::CANVAS_SOFT);
+}
+
+TEST(an_empty_slider_has_no_fill)
+{
+    SliderRig rig;
+    rig.h.frame(0.0f, 0.0f, false);
+    int y = static_cast<int>(rig.centerY()) + 6;
+    ASSERT_TRUE(rig.h.pixel(static_cast<int>(rig.min.x) + 20, y) == theme::CANVAS_SOFT);
+}
+
+int main()
+{
+    RUN(dragging_a_slider_sets_the_value_by_the_mouse_position);
+    RUN(a_slider_is_filled_up_to_its_value);
+    RUN(an_empty_slider_has_no_fill);
+    return TEST_SUMMARY();
+}

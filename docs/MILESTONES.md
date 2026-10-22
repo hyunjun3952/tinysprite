@@ -261,7 +261,7 @@ candidates listed under UI polish.
   on resize until the user zooms or pans (`Editor.auto_fit`).
 - Look (`src/ui/theme.cpp`): a neutral near-black theme (see "UI polish 2": surface ladder, controls told apart by
   their fill, 1 px hairline dividers, 6-8 px corners, no shadows). The accent `theme::ACCENT` marks the selected tool
-  (`theme::choiceButton`, `icons::choice`), the checkmark, the slider grab and the layer drop line. Tools and shapes are icon buttons (the
+  (`theme::choiceButton`, `icons::choice`), the checkmark and the layer drop line. Sliders (`theme::slider_int`) are a field filled up to the value with the value centered on it, combos (`theme::begin_combo`) have a drawn chevron. In the palette, Add is disabled for a color it already has, Replace gives the selected swatch the foreground color, and Reset is disabled for the default palette. Tools and shapes are icon buttons (the
   shortcut is in the tooltip), the other buttons are text, grouped into collapsible sections (`theme::section`) in the
   Tools and Layers panels; the icons are font glyphs
   (`src/ui/icons.cpp`; `tests/ui/ui_icons.cpp` checks the table and that every glyph is in the font). The

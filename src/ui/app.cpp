@@ -297,7 +297,6 @@ void App::pollEvents()
     }
 }
 
-/* Lays out and builds every panel and dialog of one UI frame. */
 /* The edge of the timeline, like the edge of a VS Code panel: drag it up or down to resize the
  * timeline, drag it below the minimum to fold it away; while it is folded the same edge sits on
  * top of the status bar and dragging it up brings the timeline back. `bottomY` is where the
@@ -354,6 +353,7 @@ void App::timelineSash(float x, float width, float bottomY, float maxHeight)
     ImGui::PopStyleVar(3);
 }
 
+/* Lays out and builds every panel and dialog of one UI frame. */
 void App::buildUi()
 {
     menuBar();

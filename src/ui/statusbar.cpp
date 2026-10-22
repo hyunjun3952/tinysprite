@@ -113,6 +113,7 @@ const char *status_item_name(StatusItem item)
     case StatusItem::Selection:
         return "Selection";
     case StatusItem::Cell:
+    case StatusItem::Count:
         break;
     }
     return "Cel under the mouse";
