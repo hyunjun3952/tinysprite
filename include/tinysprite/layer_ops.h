@@ -23,25 +23,26 @@ bool layer_op_remove(History &history, Sprite &sprite, int index);
  * if either index is out of range or a stroke is active. */
 bool layer_op_move(History &history, Sprite &sprite, int from, int to);
 
-/* Inserts a copy of the layer at `index` (name + " copy", same visibility, opacity and pixels in
- * every frame) just above it. Returns the copy, or null if index is out of range or a stroke is
- * active. */
+/* Inserts a copy of the layer at `index` (name + " copy", same visibility, opacity, blend mode and
+ * pixels in every frame) just above it. Returns the copy, or null if index is out of range or a
+ * stroke is active. */
 Layer *layer_op_duplicate(History &history, Sprite &sprite, int index);
 
 /* Whether `upper` can be drawn onto `lower`: both are visible and `lower` is not locked (`upper` is
  * only read). The rule behind layer_op_merge_down, for callers that ask first. */
 bool layer_can_merge(const Layer &upper, const Layer &lower);
 
-/* Draws the layer at `index` onto the layer below it (every frame, with the upper layer's opacity
- * applied to its pixels) and removes it; the lower layer keeps its own name and properties. The
- * pixel change and the removal are one undo step. Returns false if there is no layer below,
- * either layer is hidden, the lower layer is locked, or a stroke is active. */
+/* Draws the layer at `index` onto the layer below it (every frame, with the upper layer's blend
+ * mode and opacity applied to its pixels) and removes it; the lower layer keeps its own name and
+ * properties. The pixel change and the removal are one undo step. Returns false if there is no
+ * layer below, either layer is hidden, the lower layer is locked, or a stroke is active. */
 bool layer_op_merge_down(History &history, Sprite &sprite, int index);
 
 bool layer_op_set_name(History &history, Layer &layer, const std::string &name);
 bool layer_op_set_visible(History &history, Layer &layer, bool visible);
 bool layer_op_set_locked(History &history, Layer &layer, bool locked);
 bool layer_op_set_opacity(History &history, Layer &layer, uint8_t opacity);
+bool layer_op_set_blend_mode(History &history, Layer &layer, BlendMode mode);
 
 /* For an edit made live with Layer::set*: the layer already holds the new value and `before` is
  * what it held when the edit began. Records that change as one undo step without applying it

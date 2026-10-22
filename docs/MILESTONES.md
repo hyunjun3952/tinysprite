@@ -71,7 +71,7 @@ TDD, one step per commit; the UI part comes last.
       `layer.h`; `composite_blend(dst, src, opacity, mode)` in `composite.h` (Normal must equal `composite_over`);
       `composite_sprite` / `composite_pixel` use it per layer. Golden-pixel tests per mode (opaque, half alpha,
       transparent backdrop). Onion skin ghosts stay plain "over".
-- [ ] **16. Undoable edit** — `layer_ops` step for a mode change (as opacity), `Editor::setSelectedLayersBlendMode`
+- [x] **16. Undoable edit** — `layer_ops` step for a mode change (as opacity), `Editor::setSelectedLayersBlendMode`
       applying to every selected layer in one step; duplicate keeps the mode; decide and test what "merge down" does
       (bake the upper layer's mode into the pixels: composite with its mode, result Normal).
 - [ ] **17. `.pxa`** — an optional `BLND` chunk after the layers (layer index + mode byte, only for layers that are

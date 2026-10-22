@@ -361,3 +361,16 @@ void Editor::commitSelectedLayersOpacity(const std::vector<std::pair<int, uint8_
     history().endGroup();
     markAllDirty();
 }
+
+void Editor::setSelectedLayersBlendMode(BlendMode mode)
+{
+    if (stroking()) {
+        return;
+    }
+    history().beginGroup();
+    for (int i : selectedLayers()) {
+        layer_op_set_blend_mode(history(), *sprite().layer(i), mode);
+    }
+    history().endGroup();
+    markAllDirty();
+}

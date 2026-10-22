@@ -494,6 +494,10 @@ class Editor
     void setSelectedLayersOpacityLive(uint8_t opacity);
     void commitSelectedLayersOpacity(const std::vector<std::pair<int, uint8_t>> &before);
 
+    /* The blend mode combo changes every selected layer at once; one undo step, nothing for the
+     * layers that already hold the mode. Held off while stroking. */
+    void setSelectedLayersBlendMode(BlendMode mode);
+
     /* Records a name / opacity edit made live with Layer::set*: the layer currently holds the
      * edited value, `before*` is what it held when the edit began. One undo step; nothing if
      * unchanged. */
