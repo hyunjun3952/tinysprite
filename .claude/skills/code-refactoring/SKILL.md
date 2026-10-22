@@ -1,12 +1,33 @@
 ---
 name: code-refactoring
 description: Finds and plans behavior-preserving refactorings in this C++ repo - code smells (refactoring.guru catalog), C++ anti-patterns, magic numbers, SOLID/OOP violations, functions at or near the cognitive complexity limit of 15, and measured performance hot spots - then applies the approved ones in small verified steps. Use when the user says "refactor", "리팩토링", "code smell", "clean up this code", "코드 냄새", "복잡도 줄여줘", "책임이 너무 많아", "too complex", "느려", "버벅여", or asks to improve structure without changing behavior. Do NOT use to fix a bug (use bug-hunting) or to review a pull request (use pr-review).
+argument-hint: "[target] [soft|hard]"
 metadata:
   author: tinysprite
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Code refactoring
+
+## Arguments: `[target] [soft|hard]`
+
+`/code-refactoring src/ui/editor.cpp hard`, `/code-refactoring src/core`, `/code-refactoring hard`, `/code-refactoring` all work. Parse the arguments as:
+
+- **target** (optional): the scope of Step 0 (function, file, module, files changed in the last N commits). Missing: rank candidates and propose a few, as Step 0 says.
+- **mode** (optional): the word `soft` or `hard`, anywhere in the arguments. **Missing means `soft`.** Any other word is part of the target.
+
+| | soft (default) | hard |
+|---|---|---|
+| Goal | the few changes with a clear payoff | a thorough structural audit of the target; slow, say so before starting |
+| Lenses (Step 1) | all five, but only candidates with evidence; report the top 5 by rank | all five on every function of the target, no cap on the list |
+| Complexity | functions at 12 or more (`Threshold: 11`) | functions at 8 or more (`Threshold: 7`), plus functions over 40 lines, over 4 parameters, and files over 500 lines |
+| Extra signals | none | duplicated blocks across the target (3 or more similar copies), files that always change together (`git log`), include fan-in/fan-out of each header, public header exposure of internals, `cppcoreguidelines-*` and `readability-*` clang-tidy findings on the target |
+| Performance | only measured problems or plausible hot paths | every per-pixel, per-frame and file I/O path in the target is measured on a Release build, even without a complaint |
+| Evaluation (Step 2) | one row per finding | one row per finding with the measured before numbers and a second, cheaper alternative |
+| Safety net (Step 0, 3) | tests of the scope pass | also check that the net can fail: break a key line in a scratchpad copy (restore it) and see a test fail; if none does, write the characterization test before refactoring |
+| After applying | affected tests, then full `ctest`, then the hooks | the same, plus a Release build run of the tests and a re-measurement of every number in the report |
+
+Everything else (behavior must not change, report first, one finding per commit, the layering rules) is the same in both modes.
 
 Improve structure without changing behavior, and only where the gain is worth the change.
 Write the report in the user's language (Korean if they wrote Korean). Code and identifiers stay as they are.

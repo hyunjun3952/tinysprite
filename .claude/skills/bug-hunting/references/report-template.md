@@ -5,7 +5,7 @@ Drop sections that are empty. Findings are sorted 심각 -> 보통 -> 낮음 -> 
 ```markdown
 # Bug hunt: SCOPE
 
-Scope: what was read (files, commit range). Baseline: existing tests pass/fail (exit code).
+Scope: what was read (files, commit range). Mode: soft | hard. Baseline: existing tests pass/fail (exit code).
 
 ## Summary
 | Severity | Count | Confirmed | Suspected |
@@ -43,6 +43,10 @@ Scope: what was read (files, commit range). Baseline: existing tests pass/fail (
 ## Improvements (not bugs)
 | Where | Problem | Proposed change | Why | Change cost | Complexity before -> after |
 |---|---|---|---|---|---|
+
+## Coverage (hard only)
+| Function | Inputs and sequences tried | Result |
+|---|---|---|
 
 ## Not checked
 What was out of scope or could not be tested, and why.

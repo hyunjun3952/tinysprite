@@ -1,12 +1,31 @@
 ---
 name: bug-hunting
 description: Hunts bugs in this repo's code by logic review first, then confirms each suspicion with a test, and reports findings sorted by severity (심각/보통/낮음/주의), with UI defects described as steps, actual screen and expected screen. Use when the user says "find bugs", "bug hunt", "버그 찾아줘", "버그 헌팅", "이 코드 검토해줘", "why does this crash", "audit this module", or asks to check a function, module or recent change for defects. Do NOT use for reviewing a pull request (use pr-review) or for implementing a new feature.
+argument-hint: "[target] [soft|hard]"
 metadata:
   author: tinysprite
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Bug hunting
+
+## Arguments: `[target] [soft|hard]`
+
+`/bug-hunting src/core/history.cpp hard`, `/bug-hunting src/io`, `/bug-hunting hard`, `/bug-hunting` all work. Parse the arguments as:
+
+- **target** (optional): the scope of Step 0 (function, file, module, `HEAD~3..HEAD`, or a symptom in words). Missing: follow Step 0 (ask only if unclear).
+- **mode** (optional): the word `soft` or `hard`, anywhere in the arguments. **Missing means `soft`.** Any other word is part of the target.
+
+| | soft (default) | hard |
+|---|---|---|
+| Goal | the bugs a careful read finds, each confirmed or marked Suspected | everything a deep pass can find in the target; slow, say so before starting |
+| Step 0 | the target as given | the target plus its direct callers and callees, read as context (findings still only in the three target groups) |
+| Step 1 | the four questions per function | the four questions for **every** function and every early return, plus a boundary table per public function (empty, 1x1, max size, negative, out of range, 1 frame, 1 layer) and undo/redo/linked-cel sequences |
+| Step 3 | one failing test per suspicion | each Suspected finding gets at least two different attempts to reproduce it before it stays Suspected. Add scratchpad tests that apply random operation sequences and check invariants (undo everything = original document, `.pxa` save-load-save is identical, truncated or bit-flipped `.pxa`/image/palette input never crashes), run the affected tests 10 times, and run clang-tidy with `bugprone-*,cert-*,clang-analyzer-*,cppcoreguidelines-*` on the target, keeping only the findings that point at a real bug |
+| Test quality | not checked | break a key condition in a scratchpad copy of the code (one at a time, then restore) to see that a test fails; a mutation no test notices is a **test gap** finding |
+| Report | as the template | adds a coverage table (function x inputs tried) and "Not checked" must be empty or justified per item |
+
+Everything else (report only, sorting by severity, confirmation rules, exit codes) is the same in both modes.
 
 Find real defects by reading first and running second. Every reported bug must say how it was confirmed.
 Write the report in the user's language (Korean if they wrote Korean). Code and identifiers stay as they are.

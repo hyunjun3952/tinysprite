@@ -6,7 +6,7 @@ Numbers come before opinions. Record the command, the build type and the result.
 
 CI already fails above 15 (`readability-function-cognitive-complexity`, config in `.clang-tidy`, `src/` only). To list functions that are close, run
 clang-tidy with a lower threshold; this reports without failing the build. The check warns only when the score is **above** the
-threshold, so threshold 11 lists every function scoring 12 or more:
+threshold, so threshold 11 lists every function scoring 12 or more (soft mode; hard mode uses `Threshold: "7"` for 8 or more):
 
 ```sh
 tidy=$(ls -d ~/.cache/pre-commit/*/py_env-*/bin/clang-tidy | head -1)
