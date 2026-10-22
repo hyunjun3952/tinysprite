@@ -50,8 +50,12 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
 - Not done: a TTF font (the 13 px bitmap font is only scaled), a
   file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
-- Left from the pattern survey: an `Editor` change observer or an `applyOp` helper, a `theme::labeledRow` helper,
-  merging the tool tables, declarative settings bindings.
+- Left from the pattern survey: an `Editor` change observer, a `theme::labeledRow` helper, merging the tool tables,
+  declarative settings bindings. The reasoning and the other candidates are in [DESIGN_PATTERNS.md](DESIGN_PATTERNS.md).
+- Cleanup pass: `History::perform` (record + run redo) replaced six hand-written copies; dead `History::grouping`,
+  `Editor::duplicateLayer` and `commitLayerOpacity` removed; every function in `src/` is at most 12 cognitive complexity
+  (`pxa` encode / decode, timeline grid, GIF palette, dialogs and shortcuts were split), and clang-tidy now fails a function
+  above 15.
 
 ## Phase 2b: layer blend modes (branch `feat/blend-modes`)
 
@@ -150,7 +154,7 @@ headless CLI export, optional Aseprite import.
   cels stay valid and replay correctly; release callbacks must not dereference layers because steps are dropped
   oldest-first. `History::forgetCel` remains for callers that destroy a cel outside this path.
 - The layer panel edits name / opacity live and records one step on widget release
-  (`Editor::commitLayerName` / `commitLayerOpacity` record before -> current through `layer_op_record_*`).
+  (`Editor::commitLayerName` / `commitSelectedLayersOpacity` record before -> current through `layer_op_record_*`).
 - Pixel-perfect also cuts the corner of a 90-degree turn (the L-shaped corner pixel is removed), like Aseprite.
   A removed pixel is restored to the color it had before the stroke touched it.
 - Symmetry (`symmetry.h`) mirrors across the cel's center and applies to pencil / eraser, shapes

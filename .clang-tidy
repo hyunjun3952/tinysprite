@@ -7,6 +7,7 @@ Checks: >
   performance-*,
   portability-*,
   readability-braces-around-statements,
+  readability-function-cognitive-complexity,
   readability-misleading-indentation,
   readability-non-const-parameter,
   -bugprone-easily-swappable-parameters,
@@ -17,6 +18,9 @@ Checks: >
   -misc-use-anonymous-namespace,
   -performance-enum-size
 WarningsAsErrors: '*'
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '15'
 # DeprecatedOrUnsafeBufferHandling is disabled: it demands C11 Annex K (*_s) functions,
 # which glibc does not provide. The other disabled misc / performance checks are style noise for the
 # class-based UI code (public state structs, small enums).

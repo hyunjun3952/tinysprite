@@ -95,7 +95,7 @@ mkdir -p "$cache"
 key=$(
     {
         "$tidy" --version
-        cat .clang-tidy
+        cat .clang-tidy tests/.clang-tidy
         git ls-files -co --exclude-standard 'include/*.h' 'src/*.h' 'tests/*.h' |
             while IFS= read -r h; do [ -f "$h" ] && cat "$h"; done
     } | sha | cut -d' ' -f1
