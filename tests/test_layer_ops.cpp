@@ -502,6 +502,50 @@ TEST(merge_down_bakes_the_upper_blend_mode_into_the_pixels)
     ASSERT_EQ_INT(static_cast<int>(BlendMode::Multiply), static_cast<int>(s.layer(1)->blendMode()));
 }
 
+/* A blend mode merged onto a layer that has visible layers under it would not look like the
+ * stack did: the blend saw all of them, the merge only sees the one below. */
+TEST(merge_down_with_a_blend_mode_needs_nothing_visible_below_the_lower_layer)
+{
+    Sprite s(1, 1);
+    s.addLayer("Mid");
+    s.addLayer("Top").setBlendMode(BlendMode::Multiply);
+    History h;
+    ASSERT_TRUE(layer_can_merge_down(s, 1)); /* Mid is Normal, Top over the only layer below */
+    ASSERT_TRUE(!layer_can_merge_down(s, 2));
+    ASSERT_TRUE(!layer_op_merge_down(h, s, 2));
+    ASSERT_EQ_INT(3, s.layerCount());
+    ASSERT_TRUE(!h.canUndo());
+    s.layer(0)->setVisible(false); /* a hidden layer below does not take part in the look */
+    ASSERT_TRUE(layer_can_merge_down(s, 2));
+    ASSERT_TRUE(layer_op_merge_down(h, s, 2));
+}
+
+TEST(merge_down_onto_a_blended_layer_needs_nothing_visible_below_it_either)
+{
+    Sprite s(1, 1);
+    s.addLayer("Mid").setBlendMode(BlendMode::Screen);
+    s.addLayer("Top");
+    ASSERT_TRUE(!layer_can_merge_down(s, 2)); /* Normal onto Screen, with Base under Screen */
+    ASSERT_TRUE(layer_can_merge_down(s, 1));  /* Screen onto the bottom layer */
+    s.layer(1)->setBlendMode(BlendMode::Normal);
+    ASSERT_TRUE(layer_can_merge_down(s, 2)); /* Normal onto Normal is always exact */
+}
+
+TEST(merge_down_with_a_blend_mode_looks_like_the_stack_when_allowed)
+{
+    Sprite s(2, 1);
+    s.addLayer("Top").setBlendMode(BlendMode::Multiply);
+    s.layer(0)->cel(0)->set(0, 0, Rgba{200, 100, 50, 255});
+    s.layer(1)->cel(0)->set(0, 0, Rgba{128, 255, 10, 255});
+    s.layer(1)->cel(0)->set(1, 0, Rgba{128, 255, 10, 255}); /* over nothing: shown unchanged */
+    Rgba before0 = composite_pixel(s, 0, 0, 0);
+    Rgba before1 = composite_pixel(s, 0, 1, 0);
+    History h;
+    ASSERT_TRUE(layer_op_merge_down(h, s, 1));
+    ASSERT_TRUE(composite_pixel(s, 0, 0, 0) == before0);
+    ASSERT_TRUE(composite_pixel(s, 0, 1, 0) == before1);
+}
+
 int main(void)
 {
     RUN(add_is_undoable);
@@ -536,5 +580,8 @@ int main(void)
     RUN(blend_mode_unchanged_records_nothing_and_is_refused_while_stroking);
     RUN(duplicate_keeps_the_blend_mode);
     RUN(merge_down_bakes_the_upper_blend_mode_into_the_pixels);
+    RUN(merge_down_with_a_blend_mode_needs_nothing_visible_below_the_lower_layer);
+    RUN(merge_down_onto_a_blended_layer_needs_nothing_visible_below_it_either);
+    RUN(merge_down_with_a_blend_mode_looks_like_the_stack_when_allowed);
     return TEST_SUMMARY();
 }

@@ -73,7 +73,9 @@ TDD, one step per commit; the UI part comes last.
       transparent backdrop). Onion skin ghosts stay plain "over".
 - [x] **16. Undoable edit** — `layer_ops` step for a mode change (as opacity), `Editor::setSelectedLayersBlendMode`
       applying to every selected layer in one step; duplicate keeps the mode; decide and test what "merge down" does
-      (bake the upper layer's mode into the pixels: composite with its mode, result Normal).
+      (bake the upper layer's mode into the pixels: composite with its mode, result Normal). Merge is only
+      allowed when it keeps the look (`layer_merge_keeps_look`): a blend sees every layer under it, a merge only
+      the lower one, so it needs both layers Normal or no visible layer under the lower one.
 - [x] **17. `.pxa`** — an optional `BLND` chunk after the layers (layer index + mode byte, only for layers that are
       not Normal), so version stays 1 and a file without blend modes is byte-identical; an unknown mode value reads
       as Normal. Round-trip and old-reader (skips the chunk) tests. Also check `recovery` (autosave) keeps modes.

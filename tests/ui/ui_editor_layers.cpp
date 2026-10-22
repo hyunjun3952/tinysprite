@@ -469,6 +469,29 @@ TEST(merge_is_refused_when_a_lower_selected_layer_is_locked)
     delete e;
 }
 
+TEST(merge_is_refused_when_a_blend_would_change_the_look)
+{
+    Editor *e = editor_with_dots();
+    e->sprite().layer(2)->setBlendMode(BlendMode::Multiply);
+    e->pickLayer(2, LayerPick::Only); /* Multiply onto a Normal layer that has Base under it */
+    ASSERT_TRUE(!e->canMergeLayers());
+    e->mergeSelectedLayers();
+    ASSERT_EQ_INT(4, e->sprite().layerCount());
+    e->pickLayer(1, LayerPick::Only); /* a Normal layer onto Normal still merges */
+    ASSERT_TRUE(e->canMergeLayers());
+    e->pickLayer(1, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Toggle); /* the blended layer folded into one with Base under it */
+    ASSERT_TRUE(!e->canMergeLayers());
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Toggle); /* ... but nothing is under the lowest one here */
+    ASSERT_TRUE(e->canMergeLayers());
+    e->sprite().layer(2)->setBlendMode(BlendMode::Normal);
+    e->pickLayer(1, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Toggle);
+    ASSERT_TRUE(e->canMergeLayers());
+    delete e;
+}
+
 TEST(undo_and_redo_keep_the_same_layer_active)
 {
     Editor *e = make_editor();
@@ -694,6 +717,7 @@ int main(void)
     RUN(merge_down_follows_a_higher_active_layer);
     RUN(duplicate_and_merge_are_held_off_while_dragging_or_invalid);
     RUN(merge_is_refused_when_a_lower_selected_layer_is_locked);
+    RUN(merge_is_refused_when_a_blend_would_change_the_look);
     RUN(undo_and_redo_keep_the_same_layer_active);
     RUN(opacity_edits_apply_to_every_selected_layer_as_one_step);
     RUN(layers_keep_their_own_opacity_before_a_shared_edit);
