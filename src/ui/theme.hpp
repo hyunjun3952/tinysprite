@@ -8,8 +8,8 @@
 
 /* The look of the UI: a neutral near-black with a short ladder of lifted surfaces, no borders on
  * controls (a fill tells them from the panel), hairline dividers, 6-8 px corners and one accent
- * color that only marks what is selected or focused. The widgets are plain ImGui ones styled by
- * apply(); the helpers here are the few building blocks the panels share. */
+ * color (off-white) that only marks what is selected or focused. The widgets are plain ImGui ones
+ * styled by apply(); the helpers here are the few building blocks the panels share. */
 namespace theme
 {
 
@@ -30,9 +30,13 @@ inline constexpr unsigned WORKSPACE = 0x08090a; /* behind the sprite, darker tha
 
 /* The accent marks what is selected or focused (the active tool, checkmarks, the slider grab) and
  * nothing else; ACCENT_TEXT is the text and icon color on top of it. */
-inline constexpr unsigned ACCENT = 0x6c78e6;
-inline constexpr unsigned ACCENT_STRONG = 0x5865d0; /* the pressed accent */
-inline constexpr unsigned ACCENT_TEXT = 0xffffff;
+inline constexpr unsigned ACCENT = 0xe8eaed;
+inline constexpr unsigned ACCENT_STRONG = 0xc4c8ce; /* the pressed accent */
+inline constexpr unsigned ACCENT_TEXT = 0x0f1011;
+
+/* The filled part of a slider: a lifted grey, so the digits on it stay readable. */
+inline constexpr unsigned SLIDER_FILL = 0x3a3d44;
+inline constexpr unsigned SLIDER_FILL_ACTIVE = 0x4a4e57;
 
 /* A button that destroys something (delete, discard, reset): the accent's red counterpart. */
 inline constexpr unsigned DANGER = 0xd2524f;
@@ -89,6 +93,15 @@ ImVec2 unit_origin(ImVec2 min, ImVec2 max, float textWidth, float textHeight, fl
  * the field, so it stays while the number is typed (ImGui itself shows only the digits then). */
 bool input_int(const char *id, int *value, int step, int stepFast, const char *unit,
                ImGuiInputTextFlags flags = 0);
+
+/* ImGui::SliderInt in the style of the fields: a rounded field filled with the accent up to the
+ * value, and the value with `unit` centered on it ("50%"). There is no grip to cover the digits and
+ * no Ctrl+click text entry. Drag, or use the arrow keys when focused. */
+bool slider_int(const char *id, int *value, int min, int max, const char *unit = "");
+
+/* ImGui::BeginCombo with a drawn chevron at the right end instead of the arrow button. Call
+ * ImGui::EndCombo() when it returns true. */
+bool begin_combo(const char *id, const char *preview);
 
 /* The width of a dialog button with a label `textWidth` wide: at least 88 px, else the text with 16
  * px at each side. */

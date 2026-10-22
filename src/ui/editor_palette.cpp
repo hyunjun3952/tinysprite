@@ -37,6 +37,33 @@ int Editor::paletteAdd()
     return index;
 }
 
+bool Editor::paletteCanAdd() const
+{
+    const Palette &palette = sprite().palette();
+    return palette.find(foreground()) < 0 && palette.count() < PALETTE_MAX_COLORS;
+}
+
+bool Editor::paletteCanReplace() const
+{
+    return paletteSelected_ >= 0 && paletteSelected_ < sprite().palette().count() &&
+           sprite().palette().find(foreground()) < 0;
+}
+
+bool Editor::paletteReplaceSelected()
+{
+    if (!paletteCanReplace()) {
+        return false;
+    }
+    Palette next = sprite().palette();
+    return next.set(paletteSelected_, foreground()) &&
+           palette_op_set(history(), sprite(), std::move(next));
+}
+
+bool Editor::paletteIsDefault() const
+{
+    return sprite().palette() == editor_detail::defaultPalette();
+}
+
 void Editor::paletteReset()
 {
     setPalette(editor_detail::defaultPalette());

@@ -71,7 +71,7 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   compared with Inter at default settings the letter spacing and stems are even (Inter Regular was the first choice,
   and looked soft at 14 px). Aseprite keeps font choice in its theme data; we keep one font and a constant.
 - A neutral near-black look (surface ladder `#0f1011` / `#1d1e21` / `#26282c` / `#2f3136`, hairline `#2a2c31`, 6-8 px
-  corners, no borders on controls, one indigo accent `#6c78e6` for what is selected or focused, `theme::ACCENT`). The
+  corners, no borders on controls, one off-white accent `#e8eaed` for what is selected or focused, `theme::ACCENT`). The
   palette follows the principles of the Linear DESIGN.md analysis (VoltAgent/awesome-design-md, MIT; a description of
   the marketing site, not the app): a surface ladder instead of shadows, a scarce accent, 4 px spacing grid.
   Figma's analysis (white canvas, pastel blocks, pills) was not used.

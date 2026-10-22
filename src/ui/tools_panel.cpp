@@ -254,7 +254,7 @@ void ToolsPanel::barSize(const char *tip)
     ImGui::TextDisabled("Size");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(theme::px(BAR_SLIDER_WIDTH));
-    ImGui::SliderInt("##bar_size", &options.brush_size, 1, PENCIL_BRUSH_MAX, "%d px");
+    theme::slider_int("##bar_size", &options.brush_size, 1, PENCIL_BRUSH_MAX, " px");
     theme::tip(tip);
 }
 
@@ -474,9 +474,9 @@ void ToolsPanel::paletteSwatches()
         ImGui::PopID();
     }
     ImGui::PopID();
-    ImVec2 size(theme::columnWidth(3), ImGui::GetFrameHeight() + 6.0f);
+    ImVec2 size(theme::columnWidth(4), ImGui::GetFrameHeight() + 6.0f);
     if (icons::button(icons::Icon::Plus, "##palette_add", "Add the foreground color to the palette",
-                      size)) {
+                      size, editor_.paletteCanAdd())) {
         editor_.paletteAdd();
     }
     ImGui::SameLine();
@@ -485,8 +485,15 @@ void ToolsPanel::paletteSwatches()
         editor_.paletteRemove(editor_.paletteSelected());
     }
     ImGui::SameLine();
+    if (icons::button(icons::Icon::Swap, "##palette_replace",
+                      "Replace the selected swatch with the foreground color", size,
+                      editor_.paletteCanReplace())) {
+        editor_.paletteReplaceSelected();
+    }
+    ImGui::SameLine();
     if (icons::button(icons::Icon::Reset, "##palette_reset",
-                      "Reset the palette to the default colors (cannot be undone)", size)) {
+                      "Reset the palette to the default colors (cannot be undone)", size,
+                      !editor_.paletteIsDefault())) {
         openReset_ = true; /* asks first: it throws the palette's colors away */
     }
 }

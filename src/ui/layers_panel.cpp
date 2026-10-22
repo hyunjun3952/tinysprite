@@ -363,7 +363,7 @@ void LayersPanel::propertyBlend(const Layer &layer)
         mixed = mixed || editor_.sprite().layer(i)->blendMode() != layer.blendMode();
     }
     propertyLabel("Blend");
-    if (ImGui::BeginCombo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
+    if (theme::begin_combo("##blend", mixed ? "Mixed" : blend_mode_name(layer.blendMode()))) {
         for (int m = 0; m < BLEND_MODE_COUNT; m++) {
             auto mode = static_cast<BlendMode>(m);
             if (ImGui::Selectable(blend_mode_name(mode), !mixed && mode == layer.blendMode())) {
@@ -386,7 +386,7 @@ void LayersPanel::propertyOpacity(const Layer &layer)
     /* A slider that fills the value column and shows a percentage. */
     int percent = (opacityNow * 100 + 127) / 255;
     propertyLabel("Opacity");
-    if (ImGui::SliderInt("##opacity", &percent, 0, 100, "%d%%")) {
+    if (theme::slider_int("##opacity", &percent, 0, 100, "%")) {
         editor_.setSelectedLayersOpacityLive(static_cast<uint8_t>((percent * 255 + 50) / 100));
     }
     theme::tip("How much the layer shows through: 0% is invisible, 100% is fully opaque.");

@@ -46,7 +46,7 @@ bool modeCombo(const char *id, PlayMode &mode, float width)
     ImGui::SetNextItemWidth(width);
     bool changed = false;
     int current = static_cast<int>(mode);
-    if (ImGui::BeginCombo(id, MODE_NAMES[current])) {
+    if (theme::begin_combo(id, MODE_NAMES[current])) {
         for (int i = 0; i < static_cast<int>(std::size(MODE_NAMES)); i++) {
             if (ImGui::Selectable(MODE_NAMES[i], i == current)) {
                 mode = static_cast<PlayMode>(i);
@@ -195,6 +195,18 @@ void TimelinePanel::toolbar()
     theme::tip("Direction of playback.");
 }
 
+/* The tooltip of an onion field. While onion skin is off the field is greyed out: it then shows
+ * the "not allowed" cursor and says why, so it does not look broken. */
+static void onionTip(const char *text, bool on)
+{
+    if (on) {
+        theme::tip(text);
+    } else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+        ImGui::SetTooltip("Turn on Onion skin to change this.");
+    }
+}
+
 /* The second toolbar row: the onion skin switch and how many ghosts it shows. */
 void TimelinePanel::onionControls()
 {
@@ -211,7 +223,7 @@ void TimelinePanel::onionControls()
     ImGui::SetNextItemWidth(theme::px(78.0f));
     changed |= ImGui::DragInt("##before", &skin.before, 0.1f, 0, ONION_MAX_FRAMES,
                               theme::int_format(skin.before == 1 ? " frame" : " frames").c_str());
-    theme::tip("Previous frames shown, tinted red.");
+    onionTip("Previous frames shown, tinted red.", on);
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("After");
@@ -219,22 +231,18 @@ void TimelinePanel::onionControls()
     ImGui::SetNextItemWidth(theme::px(78.0f));
     changed |= ImGui::DragInt("##after", &skin.after, 0.1f, 0, ONION_MAX_FRAMES,
                               theme::int_format(skin.after == 1 ? " frame" : " frames").c_str());
-    theme::tip("Following frames shown, tinted blue.");
+    onionTip("Following frames shown, tinted blue.", on);
     ImGui::SameLine();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Strength");
     ImGui::SameLine();
     int percent = (skin.opacity * 100 + 127) / 255;
     ImGui::SetNextItemWidth(theme::px(110.0f));
-    /* The value is written beside the slider: centered on it, the grip would cover the digits. */
-    if (ImGui::SliderInt("##strength", &percent, 5, 100, "")) {
+    if (theme::slider_int("##strength", &percent, 5, 100, "%")) {
         skin.opacity = static_cast<uint8_t>((percent * 255 + 50) / 100);
         changed = true;
     }
-    theme::tip("How strongly the nearest ghost shows; farther ones fade out.");
-    ImGui::SameLine();
-    ImGui::AlignTextToFramePadding();
-    ImGui::Text("%d%%", percent);
+    onionTip("How strongly the nearest ghost shows; farther ones fade out.", on);
     ImGui::EndDisabled();
     if (changed) {
         editor_.setOnion(on, skin);

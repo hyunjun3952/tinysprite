@@ -242,7 +242,7 @@ void App::animationOptions()
     ImGui::SetNextItemWidth(200.0f);
     std::string current =
         export_.tag < 0 ? "All frames" : tags[static_cast<size_t>(export_.tag)].name;
-    if (ImGui::BeginCombo("##export_range", current.c_str())) {
+    if (theme::begin_combo("##export_range", current.c_str())) {
         if (ImGui::Selectable("All frames", export_.tag < 0)) {
             export_.tag = -1;
         }
@@ -276,7 +276,7 @@ void App::sheetOptions()
     ImGui::TextUnformatted("Layout");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(200.0f);
-    if (ImGui::BeginCombo("##sheet_layout", LAYOUTS[export_.layout])) {
+    if (theme::begin_combo("##sheet_layout", LAYOUTS[export_.layout])) {
         for (int i = 0; i < 3; i++) {
             if (ImGui::Selectable(LAYOUTS[i], i == export_.layout)) {
                 export_.layout = i;
@@ -288,7 +288,7 @@ void App::sheetOptions()
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Columns");
         ImGui::SameLine();
-        ImGui::InputInt("##sheet_columns", &export_.columns, 1, 2);
+        theme::input_int("##sheet_columns", &export_.columns, 1, 2, "");
         export_.columns = std::clamp(export_.columns, 0, 256);
         ImGui::SameLine();
         ImGui::TextDisabled("0 = square-ish");

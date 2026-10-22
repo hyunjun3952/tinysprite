@@ -26,6 +26,15 @@ constexpr float ROUND_CARD = 8.0f;  /* popups, child areas */
 /* The one UI scale, set at startup. */
 float uiScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
+/* The fill of a slider field: lifts while hovered and again while dragged. */
+unsigned fieldFill(bool active, bool hovered)
+{
+    if (active) {
+        return PRESSED;
+    }
+    return hovered ? HOVER : CANVAS_SOFT;
+}
+
 ImU32 toU32(unsigned hex, float alpha = 1.0f)
 {
     return ImGui::ColorConvertFloat4ToU32(rgb(hex, alpha));
@@ -143,7 +152,7 @@ void apply()
     c[ImGuiCol_ScrollbarGrabHovered] = rgb(MUTE, 0.6f);
     c[ImGuiCol_ScrollbarGrabActive] = rgb(MUTE);
     c[ImGuiCol_CheckMark] = rgb(ACCENT);
-    c[ImGuiCol_SliderGrab] = rgb(BODY);
+    c[ImGuiCol_SliderGrab] = rgb(BODY); /* slider_int draws its own */
     c[ImGuiCol_SliderGrabActive] = rgb(ACCENT);
     c[ImGuiCol_Button] = rgb(CANVAS_SOFT);
     c[ImGuiCol_ButtonHovered] = rgb(HOVER);
@@ -249,6 +258,61 @@ bool input_int(const char *id, int *value, int step, int stepFast, const char *u
     return changed;
 }
 
+bool slider_int(const char *id, int *value, int min, int max, const char *unit)
+{
+    /* ImGui does the input; it is made invisible and everything is drawn over it afterwards. */
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, rgb(0x000000, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, rgb(0x000000, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, rgb(0x000000, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_SliderGrab, rgb(0x000000, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, rgb(0x000000, 0.0f));
+    const bool changed = ImGui::SliderInt(id, value, min, max, "", ImGuiSliderFlags_NoInput);
+    ImGui::PopStyleColor(5);
+
+    const ImVec2 lo = ImGui::GetItemRectMin();
+    const ImVec2 hi = ImGui::GetItemRectMax();
+    const float rounding = ImGui::GetStyle().FrameRounding;
+    const bool active = ImGui::IsItemActive();
+    const bool hovered = ImGui::IsItemHovered();
+    ImDrawList *draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(lo, hi, toU32(fieldFill(active, hovered)), rounding);
+    const float t =
+        max > min ? std::clamp(static_cast<float>(*value - min) / static_cast<float>(max - min),
+                               0.0f, 1.0f)
+                  : 0.0f;
+    if (t > 0.0f) {
+        const float x = std::floor(lo.x + (hi.x - lo.x) * t);
+        draw->AddRectFilled(lo, ImVec2(x, hi.y), toU32(active ? SLIDER_FILL_ACTIVE : SLIDER_FILL),
+                            rounding,
+                            t >= 1.0f ? ImDrawFlags_RoundCornersAll : ImDrawFlags_RoundCornersLeft);
+    }
+    const std::string text = [&] {
+        char buffer[32];
+        std::snprintf(buffer, sizeof buffer, int_format(unit).c_str(), *value);
+        return std::string(buffer);
+    }();
+    const ImVec2 size = ImGui::CalcTextSize(text.c_str());
+    draw->AddText(ImVec2(std::floor((lo.x + hi.x - size.x) / 2.0f),
+                         std::floor((lo.y + hi.y - size.y) / 2.0f)),
+                  toU32(INK), text.c_str());
+    return changed;
+}
+
+bool begin_combo(const char *id, const char *preview)
+{
+    const bool open = ImGui::BeginCombo(id, preview, ImGuiComboFlags_NoArrowButton);
+    /* BeginCombo's item is the field; the chevron sits inside its right end. */
+    const ImVec2 lo = ImGui::GetItemRectMin();
+    const ImVec2 hi = ImGui::GetItemRectMax();
+    const float half = px(3.5f);
+    const float cx = hi.x - ImGui::GetStyle().FramePadding.x - half - px(2.0f);
+    const float cy = std::floor((lo.y + hi.y) / 2.0f);
+    const ImVec2 points[3] = {ImVec2(cx - half, cy - half * 0.5f), ImVec2(cx, cy + half * 0.5f),
+                              ImVec2(cx + half, cy - half * 0.5f)};
+    ImGui::GetWindowDrawList()->AddPolyline(points, 3, toU32(MUTE), ImDrawFlags_None, px(1.5f));
+    return open;
+}
+
 float dialog_button_width(float textWidth)
 {
     return std::max(px(DIALOG_BUTTON_MIN_WIDTH), textWidth + px(2.0f * DIALOG_BUTTON_PADDING));
@@ -267,7 +331,7 @@ bool dialogButton(const char *label, bool filled, bool danger, bool disabled)
         ImGui::PushStyleColor(ImGuiCol_Button, rgb(fill));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(fill, 0.85f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, rgb(strong));
-        ImGui::PushStyleColor(ImGuiCol_Text, rgb(ACCENT_TEXT));
+        ImGui::PushStyleColor(ImGuiCol_Text, rgb(danger ? INK : ACCENT_TEXT));
     }
     ImGui::BeginDisabled(disabled);
     const bool clicked =

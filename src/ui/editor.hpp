@@ -327,6 +327,16 @@ class Editor
      * the same color, or is cleared when that color was removed. Out-of-range indexes are
      * ignored. */
     int paletteAdd();
+    /* Whether Add would do something: the foreground color is not in the palette yet and there is
+     * room. */
+    bool paletteCanAdd() const;
+    /* Whether Replace would do something: a swatch is selected and the foreground color is not in
+     * the palette (so the swatch changes and no duplicate appears). */
+    bool paletteCanReplace() const;
+    /* Gives the selected swatch the foreground color (one undo step). The selection stays. */
+    bool paletteReplaceSelected();
+    /* Whether the palette is the default one, so Reset would change nothing. */
+    bool paletteIsDefault() const;
 
     /* The document has been saved: the history and the palette are clean again. */
     void markSaved();
