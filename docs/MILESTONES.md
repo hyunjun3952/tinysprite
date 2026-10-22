@@ -48,7 +48,7 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 - Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
-- Not done: blend modes (a core change for its own branch), a TTF font (the 13 px bitmap font is only scaled), a
+- Not done: a TTF font (the 13 px bitmap font is only scaled), a
   file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
 - Left from the pattern survey: an `Editor` change observer or an `applyOp` helper, a `theme::labeledRow` helper,
   merging the tool tables, declarative settings bindings.
@@ -77,7 +77,7 @@ TDD, one step per commit; the UI part comes last.
 - [x] **17. `.pxa`** — an optional `BLND` chunk after the layers (layer index + mode byte, only for layers that are
       not Normal), so version stays 1 and a file without blend modes is byte-identical; an unknown mode value reads
       as Normal. Round-trip and old-reader (skips the chunk) tests. Also check `recovery` (autosave) keeps modes.
-- [ ] **18. UI** — a "Blend" combo in the Layers panel's Properties section (applies to all selected layers, one
+- [x] **18. UI** — a "Blend" combo in the Layers panel's Properties section (applies to all selected layers, one
       undo step), a small marker on rows whose mode is not Normal, and the row tooltip names it. The exports (PNG,
       GIF, sheet) already go through `composite_sprite`, so they follow; add a test that an export differs by mode.
 
