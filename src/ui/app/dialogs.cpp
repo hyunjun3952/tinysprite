@@ -77,7 +77,9 @@ void App::confirmDialog()
  * the dropped path filled in. */
 void App::dropFile(const std::string &path)
 {
-    if (editor_->stroking()) {
+    /* A dialog is a question about the document shown now; opening a tab would change that document
+     * under it (Save would then save the new one and let the old one go). */
+    if (editor_->stroking() || modalOpen()) {
         return;
     }
     openOrAsk(path);

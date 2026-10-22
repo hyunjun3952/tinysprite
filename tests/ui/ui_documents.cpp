@@ -115,6 +115,18 @@ struct AppTestAccess {
     {
         app.quit();
     }
+    void drop(const std::string &path)
+    {
+        app.dropFile(path);
+    }
+    void pressSave()
+    {
+        app.saveAndProceed();
+    }
+    void setPath(const std::string &path)
+    {
+        app.filePath() = path;
+    }
     void move(int from, int to)
     {
         app.moveDocument(from, to);
@@ -590,8 +602,38 @@ TEST(switching_tabs_ends_a_middle_button_pick)
     ASSERT_EQ_INT(static_cast<int>(ToolKind::Bucket), static_cast<int>(t.editor().tool()));
 }
 
+/* A drop arrives from the window system whatever dialog is open. Opening it would switch the active
+ * tab under the "unsaved changes" question, and Save would then save the wrong document. */
+TEST(a_file_dropped_while_a_dialog_is_open_is_ignored)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "tinysprite_doc_drop";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    std::string dropped = (dir / "dropped.pxa").string();
+    pxa_save(Sprite(5, 5), dropped);
+    std::string mine = (dir / "mine.pxa").string();
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.setPath(mine);
+    t.dot(1, 1); /* "mine.pxa" has unsaved changes */
+    ASSERT_TRUE(t.addBlank(6, 6));
+    t.activate(0);
+    t.close(0); /* asks Save / Discard / Cancel about it */
+    ASSERT_TRUE(t.asking());
+    t.drop(dropped);
+    ASSERT_EQ_INT(2, t.count()); /* nothing was opened */
+    ASSERT_EQ_INT(0, t.active());
+    t.pressSave();
+    bool written = fs::exists(mine);
+    fs::remove_all(dir);
+    ASSERT_TRUE(written);        /* Save saved the document the question was about */
+    ASSERT_EQ_INT(1, t.count()); /* and then it was closed */
+}
+
 int main()
 {
+    RUN(a_file_dropped_while_a_dialog_is_open_is_ignored);
     RUN(each_document_with_changes_gets_its_own_autosave_copy);
     RUN(recovered_copies_open_as_tabs_and_never_share_a_file);
     RUN(save_as_onto_the_file_of_another_tab_is_refused);
