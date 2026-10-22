@@ -57,6 +57,16 @@ int blendChannel(BlendMode mode, int cb, int cs)
 }
 
 /* The layer's cel on `frame`, or null when the layer does not show up in the flattened image. */
+/* Calls visit(x, y) for every cell of the rectangle, row by row. */
+template <class Visit> void for_each_cell(const Rect &r, Visit visit)
+{
+    for (int y = r.y; y < r.y + r.h; y++) {
+        for (int x = r.x; x < r.x + r.w; x++) {
+            visit(x, y);
+        }
+    }
+}
+
 const Cel *drawnCel(const Layer &layer, int frame)
 {
     return layer.visible() ? layer.cel(frame) : nullptr;
@@ -106,26 +116,21 @@ void composite_sprite(const Sprite &sprite, int frame, Rect region, Rgba *out)
     }
     size_t width = static_cast<size_t>(sprite.width());
     Rect r = rect_clip(region, sprite.width(), sprite.height());
+    auto dstAt = [&](int x, int y) -> Rgba & {
+        return out[static_cast<size_t>(y) * width + static_cast<size_t>(x)];
+    };
 
-    for (int y = r.y; y < r.y + r.h; y++) {
-        for (int x = r.x; x < r.x + r.w; x++) {
-            out[static_cast<size_t>(y) * width + static_cast<size_t>(x)] = Rgba{};
-        }
-    }
+    for_each_cell(r, [&](int x, int y) { dstAt(x, y) = Rgba{}; });
     for (int i = 0; i < sprite.layerCount(); i++) {
         const Layer &layer = *sprite.layer(i);
         const Cel *cel = drawnCel(layer, frame);
         if (!cel) {
             continue;
         }
-        uint8_t opacity = layer.opacity();
-        BlendMode mode = layer.blendMode();
-        for (int y = r.y; y < r.y + r.h; y++) {
-            for (int x = r.x; x < r.x + r.w; x++) {
-                Rgba &dst = out[static_cast<size_t>(y) * width + static_cast<size_t>(x)];
-                dst = composite_blend(dst, cel->get(x, y), opacity, mode);
-            }
-        }
+        for_each_cell(r, [&](int x, int y) {
+            Rgba &dst = dstAt(x, y);
+            dst = composite_blend(dst, cel->get(x, y), layer.opacity(), layer.blendMode());
+        });
     }
 }
 
@@ -146,6 +151,32 @@ Rgba ghostPixel(const Sprite &sprite, int frame, int x, int y, Rgba tint)
     return Rgba{half(p.r, tint.r), half(p.g, tint.g), half(p.b, tint.b), p.a};
 }
 
+/* How many ghosts really show on each side of a frame, and how many the fade is spread over. */
+struct OnionPlan {
+    OnionSkin skin;
+    int before;
+    int after;
+    int wantBefore;
+    int wantAfter;
+};
+
+/* The ghosts under the frame at (x, y), far to near so the nearest ends up on top. */
+Rgba ghostsAt(const Sprite &sprite, int frame, int x, int y, const OnionPlan &plan)
+{
+    Rgba acc;
+    for (int d = std::max(plan.before, plan.after); d >= 1; d--) {
+        if (d <= plan.after) {
+            acc = composite_over(acc, ghostPixel(sprite, frame + d, x, y, ONION_FUTURE_TINT),
+                                 ghostOpacity(plan.skin, d, plan.wantAfter));
+        }
+        if (d <= plan.before) {
+            acc = composite_over(acc, ghostPixel(sprite, frame - d, x, y, ONION_PAST_TINT),
+                                 ghostOpacity(plan.skin, d, plan.wantBefore));
+        }
+    }
+    return acc;
+}
+
 } // namespace
 
 void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rect region, Rgba *out)
@@ -156,29 +187,12 @@ void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rec
     size_t width = static_cast<size_t>(sprite.width());
     Rect r = rect_clip(region, sprite.width(), sprite.height());
     /* Ghosts beyond the animation do not exist, so the count is what can actually be drawn. */
-    int before = std::clamp(skin.before, 0, frame);
-    int after = std::clamp(skin.after, 0, sprite.frameCount() - 1 - frame);
-    int wantBefore = std::max(skin.before, 1);
-    int wantAfter = std::max(skin.after, 1);
+    OnionPlan plan{skin, std::clamp(skin.before, 0, frame),
+                   std::clamp(skin.after, 0, sprite.frameCount() - 1 - frame),
+                   std::max(skin.before, 1), std::max(skin.after, 1)};
 
-    for (int y = r.y; y < r.y + r.h; y++) {
-        for (int x = r.x; x < r.x + r.w; x++) {
-            Rgba acc;
-            /* far to near, so the nearest ghost ends up on top */
-            int far = std::max(before, after);
-            for (int d = far; d >= 1; d--) {
-                if (d <= after) {
-                    acc =
-                        composite_over(acc, ghostPixel(sprite, frame + d, x, y, ONION_FUTURE_TINT),
-                                       ghostOpacity(skin, d, wantAfter));
-                }
-                if (d <= before) {
-                    acc = composite_over(acc, ghostPixel(sprite, frame - d, x, y, ONION_PAST_TINT),
-                                         ghostOpacity(skin, d, wantBefore));
-                }
-            }
-            out[static_cast<size_t>(y) * width + static_cast<size_t>(x)] =
-                composite_over(acc, composite_pixel(sprite, frame, x, y), 255);
-        }
-    }
+    for_each_cell(r, [&](int x, int y) {
+        out[static_cast<size_t>(y) * width + static_cast<size_t>(x)] = composite_over(
+            ghostsAt(sprite, frame, x, y, plan), composite_pixel(sprite, frame, x, y), 255);
+    });
 }

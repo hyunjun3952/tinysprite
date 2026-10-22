@@ -160,9 +160,26 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
 }
 
 /* Scanline fill: for every row, the crossings with the edges, paired up into spans. */
-static void fill_polygon(const std::vector<std::pair<int, int>> &points, const RasterPlotFn &plot)
+/* The x where each polygon edge crosses the scanline y, sorted. Edges are half-open in y, so a
+ * vertex shared by two edges counts once. */
+static void scanline_crossings(const std::vector<std::pair<int, int>> &points, int y,
+                               std::vector<double> &crossings)
 {
     const size_t n = points.size();
+    crossings.clear();
+    for (size_t i = 0; i < n; i++) {
+        const auto &a = points[i];
+        const auto &b = points[(i + 1) % n];
+        if ((a.second <= y && b.second > y) || (b.second <= y && a.second > y)) {
+            double t = (y - a.second) / static_cast<double>(b.second - a.second);
+            crossings.push_back(a.first + t * (b.first - a.first));
+        }
+    }
+    std::sort(crossings.begin(), crossings.end());
+}
+
+static void fill_polygon(const std::vector<std::pair<int, int>> &points, const RasterPlotFn &plot)
+{
     int top = points[0].second;
     int bottom = points[0].second;
     for (const auto &p : points) {
@@ -171,17 +188,7 @@ static void fill_polygon(const std::vector<std::pair<int, int>> &points, const R
     }
     std::vector<double> crossings;
     for (int y = top; y <= bottom; y++) {
-        crossings.clear();
-        for (size_t i = 0; i < n; i++) {
-            const auto &a = points[i];
-            const auto &b = points[(i + 1) % n];
-            /* Half-open in y, so a vertex shared by two edges counts once. */
-            if ((a.second <= y && b.second > y) || (b.second <= y && a.second > y)) {
-                double t = (y - a.second) / static_cast<double>(b.second - a.second);
-                crossings.push_back(a.first + t * (b.first - a.first));
-            }
-        }
-        std::sort(crossings.begin(), crossings.end());
+        scanline_crossings(points, y, crossings);
         for (size_t i = 0; i + 1 < crossings.size(); i += 2) {
             /* Pixels sit on integer coordinates; those inside the span, ends included, are
              * lit, which keeps a mirrored polygon an exact mirror image. */
@@ -218,61 +225,93 @@ void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
     }
 }
 
-/* Queues one seed per run of fillable pixels in row y, between x0 and x1. */
-static void push_runs(std::vector<std::pair<int, int>> &stack, const Cel &cel,
-                      const std::vector<unsigned char> &seen, Rgba target, int x0, int x1, int y)
+namespace
 {
-    if (y < 0 || y >= cel.height()) {
-        return;
+
+/* The state of one flood fill: which pixels were taken and which still match the clicked color. */
+class FloodRegion
+{
+  public:
+    FloodRegion(const Cel &cel, Rgba target)
+        : cel_(cel), target_(target),
+          seen_(static_cast<size_t>(cel.width()) * static_cast<size_t>(cel.height()), 0)
+    {
     }
-    bool inRun = false;
-    for (int x = x0; x <= x1; x++) {
-        bool fillable = !seen[cel.indexOf(x, y)] && cel.get(x, y) == target;
-        if (fillable && !inRun) {
-            stack.emplace_back(x, y);
+
+    bool fillable(int x, int y) const
+    {
+        return !seen_[cel_.indexOf(x, y)] && cel_.get(x, y) == target_;
+    }
+    bool taken(int x, int y) const
+    {
+        return seen_[cel_.indexOf(x, y)] != 0;
+    }
+
+    /* Takes the whole run of fillable pixels around (x, y) in its row; returns it as [left, right].
+     */
+    std::pair<int, int> takeRun(int x, int y)
+    {
+        int left = x;
+        int right = x;
+        while (left > 0 && fillable(left - 1, y)) {
+            left--;
         }
-        inRun = fillable;
+        while (right < cel_.width() - 1 && fillable(right + 1, y)) {
+            right++;
+        }
+        for (int i = left; i <= right; i++) {
+            seen_[cel_.indexOf(i, y)] = 1;
+        }
+        return {left, right};
     }
-}
+
+    /* Queues one seed per run of fillable pixels in row y, between x0 and x1. */
+    void pushRuns(std::vector<std::pair<int, int>> &stack, int x0, int x1, int y) const
+    {
+        if (y < 0 || y >= cel_.height()) {
+            return;
+        }
+        bool inRun = false;
+        for (int x = x0; x <= x1; x++) {
+            bool open = fillable(x, y);
+            if (open && !inRun) {
+                stack.emplace_back(x, y);
+            }
+            inRun = open;
+        }
+    }
+
+  private:
+    const Cel &cel_;
+    Rgba target_;
+    std::vector<unsigned char> seen_;
+};
+
+} // namespace
 
 bool raster_flood_fill(const Cel &cel, int x, int y, const RasterPlotFn &plot)
 {
     if (!cel.inBounds(x, y)) {
         return false;
     }
-    size_t w = static_cast<size_t>(cel.width());
-    size_t h = static_cast<size_t>(cel.height());
-    Rgba target = cel.get(x, y);
-    std::vector<unsigned char> seen(w * h, 0);
+    FloodRegion region(cel, cel.get(x, y));
     std::vector<std::pair<int, int>> stack = {{x, y}};
-
     while (!stack.empty()) {
         auto [sx, sy] = stack.back();
         stack.pop_back();
-        if (seen[cel.indexOf(sx, sy)]) {
+        if (region.taken(sx, sy)) {
             continue;
         }
-        int left = sx;
-        int right = sx;
-        while (left > 0 && !seen[cel.indexOf(left - 1, sy)] && cel.get(left - 1, sy) == target) {
-            left--;
-        }
-        while (right < cel.width() - 1 && !seen[cel.indexOf(right + 1, sy)] &&
-               cel.get(right + 1, sy) == target) {
-            right++;
-        }
-        for (int i = left; i <= right; i++) {
-            seen[cel.indexOf(i, sy)] = 1;
-        }
-        push_runs(stack, cel, seen, target, left, right, sy - 1);
-        push_runs(stack, cel, seen, target, left, right, sy + 1);
+        auto [left, right] = region.takeRun(sx, sy);
+        region.pushRuns(stack, left, right, sy - 1);
+        region.pushRuns(stack, left, right, sy + 1);
     }
 
     /* Report only once the region is known, so the callback can edit the cel it came from. */
-    for (size_t r = 0; r < h; r++) {
-        for (size_t c = 0; c < w; c++) {
-            if (seen[r * w + c]) {
-                plot(static_cast<int>(c), static_cast<int>(r));
+    for (int r = 0; r < cel.height(); r++) {
+        for (int c = 0; c < cel.width(); c++) {
+            if (region.taken(c, r)) {
+                plot(c, r);
             }
         }
     }

@@ -7,15 +7,11 @@ namespace
 {
 
 /* Records the change of the whole tag list from what it is now to `next` and applies it. */
-bool replaceTags(History &history, Sprite &sprite, std::vector<Sprite::Tag> next)
+bool replaceTags(History &history, Sprite &sprite, const std::vector<Sprite::Tag> &next)
 {
     std::vector<Sprite::Tag> before = sprite.tags();
-    if (!history.pushAction(HistoryAction{[&sprite, before] { sprite.setTags(before); },
-                                          [&sprite, next] { sprite.setTags(next); }})) {
-        return false;
-    }
-    sprite.setTags(std::move(next));
-    return true;
+    return history.perform(HistoryAction{[&sprite, before] { sprite.setTags(before); },
+                                         [&sprite, next] { sprite.setTags(next); }});
 }
 
 bool same(const Sprite::Tag &a, const Sprite::Tag &b)
@@ -33,7 +29,7 @@ bool tag_op_add(History &history, Sprite &sprite, Sprite::Tag tag)
     tag.name = layer_name_truncate(tag.name, TAG_NAME_MAX);
     std::vector<Sprite::Tag> next = sprite.tags();
     next.push_back(std::move(tag));
-    return replaceTags(history, sprite, std::move(next));
+    return replaceTags(history, sprite, next);
 }
 
 bool tag_op_set(History &history, Sprite &sprite, int index, Sprite::Tag tag)
@@ -48,7 +44,7 @@ bool tag_op_set(History &history, Sprite &sprite, int index, Sprite::Tag tag)
     }
     std::vector<Sprite::Tag> next = sprite.tags();
     next[static_cast<size_t>(index)] = std::move(tag);
-    return replaceTags(history, sprite, std::move(next));
+    return replaceTags(history, sprite, next);
 }
 
 bool tag_op_remove(History &history, Sprite &sprite, int index)
@@ -58,5 +54,5 @@ bool tag_op_remove(History &history, Sprite &sprite, int index)
     }
     std::vector<Sprite::Tag> next = sprite.tags();
     next.erase(next.begin() + index);
-    return replaceTags(history, sprite, std::move(next));
+    return replaceTags(history, sprite, next);
 }

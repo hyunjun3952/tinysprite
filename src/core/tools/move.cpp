@@ -1,5 +1,6 @@
 #include "tinysprite/selection.h"
 
+#include <functional>
 #include <utility>
 
 MoveStroke::MoveStroke(History &history, Cel &cel, Rect area, Clip pixels)
@@ -30,19 +31,20 @@ void MoveStroke::update(int dx, int dy)
             history_.setPixel(x, y, color);
         }
     };
-    for (int j = 0; j < area_.h; j++) {
-        for (int i = 0; i < area_.w; i++) {
-            put(area_.x + i, area_.y + j, Rgba{});
-        }
-    }
-    for (int j = 0; j < area_.h; j++) {
-        for (int i = 0; i < area_.w; i++) {
-            Rgba pixel = pixels_.get(i, j);
-            if (pixel.a != 0) {
-                put(area_.x + i + dx, area_.y + j + dy, pixel);
+    auto eachCell = [this](const std::function<void(int, int)> &visit) {
+        for (int j = 0; j < area_.h; j++) {
+            for (int i = 0; i < area_.w; i++) {
+                visit(i, j);
             }
         }
-    }
+    };
+    eachCell([&](int i, int j) { put(area_.x + i, area_.y + j, Rgba{}); });
+    eachCell([&](int i, int j) {
+        Rgba pixel = pixels_.get(i, j);
+        if (pixel.a != 0) {
+            put(area_.x + i + dx, area_.y + j + dy, pixel);
+        }
+    });
 }
 
 bool move_stroke(History &history, Cel &cel, Rect selection, int dx, int dy)

@@ -164,6 +164,18 @@ bool History::pushAction(HistoryAction action)
     return true;
 }
 
+bool History::perform(HistoryAction action)
+{
+    std::function<void()> redo = action.redo;
+    if (!pushAction(std::move(action))) {
+        return false;
+    }
+    if (redo) {
+        redo();
+    }
+    return true;
+}
+
 bool History::undo()
 {
     if (!canUndo() || strokeActive() || grouping_) {

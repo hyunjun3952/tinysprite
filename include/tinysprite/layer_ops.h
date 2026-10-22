@@ -37,6 +37,10 @@ bool layer_can_merge(const Layer &upper, const Layer &lower);
  * "over" nests) or when no visible layer lies under `lower` (`visibleBelow` false). */
 bool layer_merge_keeps_look(const Layer &upper, const Layer &lower, bool visibleBelow);
 
+/* Whether any layer below `index` (indexes 0..index-1) is visible: the `visibleBelow` argument of
+ * layer_merge_keeps_look for a layer sitting at `index`. */
+bool layer_any_visible_below(const Sprite &sprite, int index);
+
 /* Whether layer_op_merge_down(index) would go through: a layer below, layer_can_merge and
  * layer_merge_keeps_look. For callers that ask first. */
 bool layer_can_merge_down(const Sprite &sprite, int index);

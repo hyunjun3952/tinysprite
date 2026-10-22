@@ -11,15 +11,11 @@ namespace
 using CelList = std::vector<std::shared_ptr<Cel>>;
 
 /* Records the swap of the layer's cels from what they are to `next` and applies it. */
-bool replaceCels(History &history, Layer &layer, CelList next)
+bool replaceCels(History &history, Layer &layer, const CelList &next)
 {
     CelList before = layer.celList();
-    if (!history.pushAction(HistoryAction{[&layer, before] { layer.setCelList(before); },
-                                          [&layer, next] { layer.setCelList(next); }})) {
-        return false;
-    }
-    layer.setCelList(std::move(next));
-    return true;
+    return history.perform(HistoryAction{[&layer, before] { layer.setCelList(before); },
+                                         [&layer, next] { layer.setCelList(next); }});
 }
 
 } // namespace
@@ -34,7 +30,7 @@ bool cel_op_link(History &history, Layer &layer, int from, int to)
     }
     CelList next = layer.celList();
     next[static_cast<size_t>(to)] = next[static_cast<size_t>(from)];
-    return replaceCels(history, layer, std::move(next));
+    return replaceCels(history, layer, next);
 }
 
 bool cel_op_unlink(History &history, Layer &layer, int frame)
@@ -51,5 +47,5 @@ bool cel_op_unlink(History &history, Layer &layer, int frame)
                 copy->pixels());
     CelList next = layer.celList();
     next[static_cast<size_t>(frame)] = std::move(copy);
-    return replaceCels(history, layer, std::move(next));
+    return replaceCels(history, layer, next);
 }

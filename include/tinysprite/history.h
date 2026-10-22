@@ -60,10 +60,6 @@ class History
      * returns false without one. An empty group records nothing. */
     bool beginGroup();
     bool endGroup();
-    bool grouping() const
-    {
-        return grouping_;
-    }
 
     /* Limits setPixel to the cels inside `area` (nullopt lifts the limit); a pixel outside it is
      * rejected like one out of bounds. Undo and redo are not affected. */
@@ -75,6 +71,10 @@ class History
     /* Records an action whose effect the caller has already applied, as one undo step, and
      * discards the redo steps. Returns false (dropping the action) if a stroke is active. */
     bool pushAction(HistoryAction action);
+
+    /* Like pushAction for an edit the caller has not applied yet: records the step, then runs its
+     * redo. Returns false (dropping the action, running nothing) if a stroke is active. */
+    bool perform(HistoryAction action);
 
     bool canUndo() const
     {

@@ -67,6 +67,8 @@ class PencilStroke : public LiveStroke
     };
 
     PencilStroke(History &history, Cel &cel, Rgba color, PencilOptions options, int x, int y);
+    void buildBrush();
+    void buildLeadingEdges();
 
     /* Pixel-perfect only applies to a one-pixel brush. */
     bool usesPixelPerfect() const

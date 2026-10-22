@@ -40,6 +40,34 @@ void Playback::stop()
     playing_ = false;
 }
 
+/* How long one pass over the frames first..last takes (out and back for ping-pong, the two ends
+ * shown once). */
+static long long loopLength(const Sprite &sprite, int first, int last, PlayMode mode)
+{
+    long long loop = 0;
+    for (int f = first; f <= last; f++) {
+        loop += sprite.frameDuration(f);
+    }
+    if (mode == PlayMode::PingPong) {
+        loop = 2 * loop - sprite.frameDuration(first) - sprite.frameDuration(last);
+    }
+    return loop;
+}
+
+/* The frame after the current one; ping-pong turns around at an end, the other modes wrap. */
+int Playback::nextFrame(int first, int last)
+{
+    int next = frame_ + direction_;
+    if (next <= last && next >= first) {
+        return next;
+    }
+    if (mode_ == PlayMode::PingPong) {
+        direction_ = -direction_;
+        return frame_ + direction_;
+    }
+    return direction_ > 0 ? first : last;
+}
+
 int Playback::advance(const Sprite &sprite, int elapsedMs)
 {
     if (!playing_) {
@@ -54,27 +82,11 @@ int Playback::advance(const Sprite &sprite, int elapsedMs)
     inFrame_ += std::max(elapsedMs, 0);
     /* A step is never shorter than one millisecond, so this ends; a long pause is first reduced to
      * whole loops of the range so it takes no longer than one. */
-    long long loop = 0;
-    for (int f = first; f <= last; f++) {
-        loop += sprite.frameDuration(f);
-    }
-    if (mode_ == PlayMode::PingPong) {
-        /* out and back, the two ends shown once */
-        loop = 2 * loop - sprite.frameDuration(first) - sprite.frameDuration(last);
-    }
+    long long loop = loopLength(sprite, first, last, mode_);
     inFrame_ = inFrame_ > 2 * loop ? inFrame_ % loop + loop : inFrame_;
     while (inFrame_ >= sprite.frameDuration(frame_)) {
         inFrame_ -= sprite.frameDuration(frame_);
-        int next = frame_ + direction_;
-        if (next > last || next < first) {
-            if (mode_ == PlayMode::PingPong) {
-                direction_ = -direction_;
-                next = frame_ + direction_;
-            } else {
-                next = direction_ > 0 ? first : last;
-            }
-        }
-        frame_ = next;
+        frame_ = nextFrame(first, last);
     }
     return frame_;
 }

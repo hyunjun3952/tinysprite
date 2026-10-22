@@ -14,19 +14,6 @@ namespace
 /* Ownership rule for every op below: a layer belongs to the sprite while it is attached and to
  * the step that detached it otherwise, so the history frees it only when it is dropped detached. */
 
-/* Records `action` as one undo step; `applyNow` also runs its redo. */
-bool record(History &history, HistoryAction action, bool applyNow)
-{
-    std::function<void()> redo = action.redo;
-    if (!history.pushAction(std::move(action))) {
-        return false;
-    }
-    if (applyNow && redo) {
-        redo();
-    }
-    return true;
-}
-
 /* Add / remove / merge: where a layer sits in its sprite, and who owns it while it does not. */
 struct Membership {
     Sprite &sprite;
@@ -67,7 +54,7 @@ Layer *layer_op_add(History &history, Sprite &sprite, const std::string &name)
     }
     Layer &layer = sprite.addLayer(name);
     auto m = std::make_shared<Membership>(Membership{sprite, &layer, sprite.layerCount() - 1, {}});
-    record(history, layerAdded(m), false);
+    history.pushAction(layerAdded(m));
     return &layer;
 }
 
@@ -77,7 +64,7 @@ bool layer_op_remove(History &history, Sprite &sprite, int index)
         return false;
     }
     auto m = std::make_shared<Membership>(Membership{sprite, sprite.layer(index), index, {}});
-    return record(history, layerRemoved(m), true);
+    return history.perform(layerRemoved(m));
 }
 
 Layer *layer_op_duplicate(History &history, Sprite &sprite, int index)
@@ -113,7 +100,7 @@ Layer *layer_op_duplicate(History &history, Sprite &sprite, int index)
     Layer *result = copy.get();
     sprite.insertLayer(index + 1, std::move(copy));
     auto m = std::make_shared<Membership>(Membership{sprite, result, index + 1, {}});
-    record(history, layerAdded(m), false);
+    history.pushAction(layerAdded(m));
     return result;
 }
 
@@ -155,6 +142,16 @@ bool layer_merge_keeps_look(const Layer &upper, const Layer &lower, bool visible
     return plain || !visibleBelow;
 }
 
+bool layer_any_visible_below(const Sprite &sprite, int index)
+{
+    for (int i = 0; i < index; i++) {
+        if (sprite.layer(i)->visible()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool layer_can_merge_down(const Sprite &sprite, int index)
 {
     const Layer *upper = sprite.layer(index);
@@ -162,11 +159,7 @@ bool layer_can_merge_down(const Sprite &sprite, int index)
     if (!upper || !lower || !layer_can_merge(*upper, *lower)) {
         return false;
     }
-    bool visibleBelow = false;
-    for (int i = 0; i < index - 1; i++) {
-        visibleBelow = visibleBelow || sprite.layer(i)->visible();
-    }
-    return layer_merge_keeps_look(*upper, *lower, visibleBelow);
+    return layer_merge_keeps_look(*upper, *lower, layer_any_visible_below(sprite, index - 1));
 }
 
 bool layer_op_merge_down(History &history, Sprite &sprite, int index)
@@ -202,18 +195,16 @@ bool layer_op_merge_down(History &history, Sprite &sprite, int index)
                 composite_blend(low[i], up[i], upper->opacity(), upper->blendMode()));
         }
     }
-    return record(history,
-                  HistoryAction{[m] {
-                                    m->lower->setCelList(m->linked);
-                                    m->write(m->before);
-                                    m->upper.attach();
-                                },
-                                [m] {
-                                    m->lower->setCelList(m->separate);
-                                    m->write(m->after);
-                                    m->upper.detach();
-                                }},
-                  true);
+    return history.perform(HistoryAction{[m] {
+                                             m->lower->setCelList(m->linked);
+                                             m->write(m->before);
+                                             m->upper.attach();
+                                         },
+                                         [m] {
+                                             m->lower->setCelList(m->separate);
+                                             m->write(m->after);
+                                             m->upper.detach();
+                                         }});
 }
 
 bool layer_op_move(History &history, Sprite &sprite, int from, int to)
@@ -224,10 +215,8 @@ bool layer_op_move(History &history, Sprite &sprite, int from, int to)
     if (from == to) {
         return true;
     }
-    return record(history,
-                  HistoryAction{[&sprite, from, to] { sprite.moveLayer(to, from); },
-                                [&sprite, from, to] { sprite.moveLayer(from, to); }},
-                  true);
+    return history.perform(HistoryAction{[&sprite, from, to] { sprite.moveLayer(to, from); },
+                                         [&sprite, from, to] { sprite.moveLayer(from, to); }});
 }
 
 namespace
@@ -245,8 +234,8 @@ bool changeValue(History &history, const T &old, const T &next,
     if (old == next) {
         return true;
     }
-    return record(history, HistoryAction{[set, old] { set(old); }, [set, next] { set(next); }},
-                  applyNow);
+    HistoryAction action{[set, old] { set(old); }, [set, next] { set(next); }};
+    return applyNow ? history.perform(std::move(action)) : history.pushAction(std::move(action));
 }
 
 /* Names compare after the same truncation Layer::setName applies, so the comparison and the undo

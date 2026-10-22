@@ -35,6 +35,8 @@ class Playback
     int advance(const Sprite &sprite, int elapsedMs);
 
   private:
+    int nextFrame(int first, int last);
+
     bool playing_ = false;
     int frame_ = 0;
     int first_ = 0;

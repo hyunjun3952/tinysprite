@@ -55,6 +55,17 @@ PencilStroke::PencilStroke(History &history, Cel &cel, Rgba color, PencilOptions
                            int y)
     : LiveStroke(history, cel), color_(color), options_(options), lastX_(x), lastY_(y)
 {
+    buildBrush();
+    buildLeadingEdges();
+    if (!usesPixelPerfect()) {
+        painted_.assign(static_cast<size_t>(cel.width()) * static_cast<size_t>(cel.height()), 0);
+    }
+    plotPixel(x, y);
+}
+
+/* The brush's cels relative to the plotted point. */
+void PencilStroke::buildBrush()
+{
     int size = options_.brushSize();
     int origin = options_.brushOrigin();
     for (int j = 0; j < size; j++) {
@@ -64,6 +75,12 @@ PencilStroke::PencilStroke(History &history, Cel &cel, Rgba color, PencilOptions
             }
         }
     }
+}
+
+/* For each of the nine one-step moves, the brush cels the new stamp covers that the previous one
+ * did not. */
+void PencilStroke::buildLeadingEdges()
+{
     for (int step = 0; step < 9; step++) {
         ToolPoint d = {step % 3 - 1, step / 3 - 1};
         for (ToolPoint c : brush_) {
@@ -75,10 +92,6 @@ PencilStroke::PencilStroke(History &history, Cel &cel, Rgba color, PencilOptions
             }
         }
     }
-    if (!usesPixelPerfect()) {
-        painted_.assign(static_cast<size_t>(cel.width()) * static_cast<size_t>(cel.height()), 0);
-    }
-    plotPixel(x, y);
 }
 
 std::unique_ptr<PencilStroke> PencilStroke::begin(History &history, Cel &cel, Rgba color,

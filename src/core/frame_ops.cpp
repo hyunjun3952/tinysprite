@@ -113,12 +113,8 @@ bool frame_op_move(History &history, Sprite &sprite, int from, int to)
     if (from == to) {
         return true;
     }
-    if (!history.pushAction(HistoryAction{[&sprite, from, to] { sprite.moveFrame(to, from); },
-                                          [&sprite, from, to] { sprite.moveFrame(from, to); }})) {
-        return false;
-    }
-    sprite.moveFrame(from, to);
-    return true;
+    return history.perform(HistoryAction{[&sprite, from, to] { sprite.moveFrame(to, from); },
+                                         [&sprite, from, to] { sprite.moveFrame(from, to); }});
 }
 
 bool frame_op_set_duration(History &history, Sprite &sprite, int frame, int ms)
@@ -131,11 +127,7 @@ bool frame_op_set_duration(History &history, Sprite &sprite, int frame, int ms)
     if (old == ms) {
         return true;
     }
-    if (!history.pushAction(
-            HistoryAction{[&sprite, frame, old] { sprite.setFrameDuration(frame, old); },
-                          [&sprite, frame, ms] { sprite.setFrameDuration(frame, ms); }})) {
-        return false;
-    }
-    sprite.setFrameDuration(frame, ms);
-    return true;
+    return history.perform(
+        HistoryAction{[&sprite, frame, old] { sprite.setFrameDuration(frame, old); },
+                      [&sprite, frame, ms] { sprite.setFrameDuration(frame, ms); }});
 }

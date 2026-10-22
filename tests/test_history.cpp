@@ -315,6 +315,42 @@ TEST(action_undo_redo_calls_callbacks)
     ASSERT_EQ_INT(1, n.releases);
 }
 
+TEST(perform_runs_redo_and_records_the_step)
+{
+    Counter n;
+    {
+        History h;
+        ASSERT_TRUE(h.perform(counter_action(&n)));
+        ASSERT_EQ_INT(1, n.redos);
+        ASSERT_TRUE(h.undo());
+        ASSERT_EQ_INT(1, n.undos);
+        ASSERT_TRUE(h.redo());
+        ASSERT_EQ_INT(2, n.redos);
+    }
+    ASSERT_EQ_INT(1, n.releases);
+}
+
+TEST(perform_refused_during_stroke_runs_nothing)
+{
+    History h;
+    Cel c(4, 4);
+    Counter n;
+    h.beginStroke(c);
+    ASSERT_TRUE(!h.perform(counter_action(&n)));
+    ASSERT_EQ_INT(0, n.redos);
+    ASSERT_EQ_INT(1, n.releases);
+    h.endStroke();
+}
+
+TEST(perform_accepts_an_action_without_redo)
+{
+    History h;
+    HistoryAction action;
+    action.undo = [] {};
+    ASSERT_TRUE(h.perform(std::move(action)));
+    ASSERT_TRUE(h.canUndo());
+}
+
 TEST(action_interleaves_with_strokes)
 {
     History h;
@@ -674,6 +710,9 @@ int main(void)
     RUN(forget_cel_keeps_undo_redo_boundary);
     RUN(forget_cel_cancels_active_stroke_on_it);
     RUN(action_undo_redo_calls_callbacks);
+    RUN(perform_runs_redo_and_records_the_step);
+    RUN(perform_refused_during_stroke_runs_nothing);
+    RUN(perform_accepts_an_action_without_redo);
     RUN(action_interleaves_with_strokes);
     RUN(new_edit_releases_redone_actions);
     RUN(action_rejected_during_stroke_is_released);
