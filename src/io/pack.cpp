@@ -148,9 +148,9 @@ std::optional<PackedRects> pack_rects(const std::vector<Rect> &sizes, int paddin
 
     const int lower =
         std::max(widest, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(area)))));
-    const long long limit = std::min<long long>(
+    const auto limit = std::min<long long>(
         {totalWidth, static_cast<long long>(maxSize) + padding, static_cast<long long>(lower) * 4});
-    const int upper = static_cast<int>(std::max<long long>(limit, lower));
+    const auto upper = static_cast<int>(std::max<long long>(limit, lower));
     const int step = std::max(1, lower / 32);
     Attempt best;
     for (int width = lower; width <= upper; width += step) {

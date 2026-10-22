@@ -73,13 +73,14 @@ TEST(rectangles_of_many_sizes_never_overlap_and_stay_inside_the_sheet)
         if (!packed) {
             return;
         }
-        ASSERT_TRUE(valid(sizes, *packed, padding));
+        const PackedRects &sheet = *packed;
+        ASSERT_TRUE(valid(sizes, sheet, padding));
         long long area = 0;
         for (const Rect &r : sizes) {
             area += static_cast<long long>(r.w) * r.h;
         }
         /* a decent packing: the sheet is no more than about twice the area of what it holds */
-        ASSERT_TRUE(static_cast<long long>(packed->width) * packed->height <= area * 2 + 4000);
+        ASSERT_TRUE(static_cast<long long>(sheet.width) * sheet.height <= area * 2 + 4000);
     }
 }
 

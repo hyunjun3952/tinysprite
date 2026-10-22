@@ -99,23 +99,25 @@ std::optional<SpriteSheet> renderPacked(const Sprite &sprite, const SheetOptions
         sizes.push_back(Rect{0, 0, kept.back().w * options.scale, kept.back().h * options.scale});
         frames.push_back(std::move(frame));
     }
-    std::optional<PackedRects> packed = pack_rects(sizes, options.spacing, IMAGE_EXPORT_MAX_SIZE);
-    if (!packed) {
+    const std::optional<PackedRects> placed =
+        pack_rects(sizes, options.spacing, IMAGE_EXPORT_MAX_SIZE);
+    if (!placed) {
         return std::nullopt;
     }
+    const PackedRects &packed = *placed;
     SpriteSheet sheet;
-    sheet.width = packed->width;
-    sheet.height = packed->height;
+    sheet.width = packed.width;
+    sheet.height = packed.height;
     sheet.pixels.assign(static_cast<size_t>(sheet.width) * static_cast<size_t>(sheet.height),
                         Rgba{});
     sheet.trimmed = true;
     for (int i = 0; i < count; i++) {
-        const size_t at = static_cast<size_t>(i);
-        sheet.frames.push_back(packed->rects[at]);
+        const auto at = static_cast<size_t>(i);
+        sheet.frames.push_back(packed.rects[at]);
         sheet.trims.push_back(
             Rect{kept[at].x * options.scale, kept[at].y * options.scale, sizes[at].w, sizes[at].h});
         blitScaled(sheet, cutOut(frames[at], sprite.width(), kept[at]), kept[at].w,
-                   packed->rects[at], options.scale);
+                   packed.rects[at], options.scale);
     }
     return sheet;
 }
