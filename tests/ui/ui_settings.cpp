@@ -110,33 +110,78 @@ TEST(panel_load_ignores_bad_entries)
 TEST(recovery_round_trips_the_document_and_its_path)
 {
     std::string dir = scratch("test_recovery_dir");
-    ASSERT_TRUE(!recovery_load(dir).has_value());
+    ASSERT_TRUE(recovery_load(dir).empty());
     Sprite sprite(6, 4);
     sprite.layer(0)->cel(0)->set(2, 1, Rgba{9, 8, 7, 255});
     sprite.addLayer("Glow").setBlendMode(BlendMode::Add);
-    ASSERT_TRUE(recovery_save(dir, sprite, "/work/hero.pxa"));
-    std::optional<Recovered> back = recovery_load(dir);
-    ASSERT_TRUE(back.has_value());
-    if (!back) {
+    ASSERT_TRUE(recovery_save(dir, 1, sprite, "/work/hero.pxa"));
+    std::vector<Recovered> back = recovery_load(dir);
+    ASSERT_EQ_INT(1, static_cast<int>(back.size()));
+    if (back.size() != 1) {
         return;
     }
-    ASSERT_EQ_INT(6, back->sprite.width());
-    ASSERT_TRUE(back->sprite.layer(0)->cel(0)->get(2, 1) == (Rgba{9, 8, 7, 255}));
-    ASSERT_TRUE(back->path == "/work/hero.pxa");
+    ASSERT_EQ_INT(6, back[0].sprite.width());
+    ASSERT_TRUE(back[0].sprite.layer(0)->cel(0)->get(2, 1) == (Rgba{9, 8, 7, 255}));
+    ASSERT_TRUE(back[0].path == "/work/hero.pxa");
     ASSERT_EQ_INT(static_cast<int>(BlendMode::Add),
-                  static_cast<int>(back->sprite.layer(1)->blendMode()));
+                  static_cast<int>(back[0].sprite.layer(1)->blendMode()));
     recovery_clear(dir);
-    ASSERT_TRUE(!recovery_load(dir).has_value());
+    ASSERT_TRUE(recovery_load(dir).empty());
     recovery_clear(dir); /* clearing nothing is fine */
-    ASSERT_TRUE(!recovery_save("", sprite, ""));
+    ASSERT_TRUE(!recovery_save("", 1, sprite, ""));
     fs::remove_all("test_recovery_dir");
+}
+
+/* Every document with unsaved changes has its own copy, so editing a second one does not replace
+ * the first one's. */
+TEST(recovery_keeps_one_copy_per_document_and_clears_them_one_by_one)
+{
+    std::string dir = scratch("test_recovery_slots");
+    ASSERT_TRUE(recovery_save(dir, 3, Sprite(3, 3), "/work/b.pxa"));
+    ASSERT_TRUE(recovery_save(dir, 1, Sprite(5, 5), ""));
+    ASSERT_TRUE(recovery_save(dir, 10, Sprite(7, 7), "/work/c.pxa"));
+    std::vector<Recovered> all = recovery_load(dir);
+    ASSERT_EQ_INT(3, static_cast<int>(all.size()));
+    if (all.size() != 3) {
+        return;
+    }
+    /* in slot order, not in the order of the file names */
+    ASSERT_EQ_INT(5, all[0].sprite.width());
+    ASSERT_TRUE(all[0].path.empty());
+    ASSERT_EQ_INT(3, all[1].sprite.width());
+    ASSERT_EQ_INT(7, all[2].sprite.width());
+    recovery_clear_slot(dir, 3);
+    ASSERT_EQ_INT(2, static_cast<int>(recovery_load(dir).size()));
+    ASSERT_TRUE(recovery_save(dir, 1, Sprite(9, 9), "")); /* a slot is overwritten, not added */
+    ASSERT_EQ_INT(2, static_cast<int>(recovery_load(dir).size()));
+    recovery_clear(dir);
+    ASSERT_TRUE(recovery_load(dir).empty());
+    fs::remove_all("test_recovery_slots");
+}
+
+/* An earlier version kept one copy as recovery.pxa and recovery.path. */
+TEST(a_copy_in_the_old_single_file_layout_is_still_offered)
+{
+    std::string dir = scratch("test_recovery_legacy");
+    ASSERT_TRUE(pxa_save(Sprite(4, 4), dir + "/recovery.pxa"));
+    std::ofstream(dir + "/recovery.path") << "/work/old.pxa";
+    std::vector<Recovered> back = recovery_load(dir);
+    ASSERT_EQ_INT(1, static_cast<int>(back.size()));
+    if (back.size() == 1) {
+        ASSERT_TRUE(back[0].path == "/work/old.pxa");
+    }
+    recovery_clear(dir);
+    ASSERT_TRUE(recovery_load(dir).empty());
+    ASSERT_TRUE(!fs::exists(dir + "/recovery.pxa"));
+    fs::remove_all("test_recovery_legacy");
 }
 
 TEST(a_corrupt_recovery_copy_is_ignored)
 {
     std::string dir = scratch("test_recovery_bad");
     std::ofstream(dir + "/recovery.pxa") << "not a sprite";
-    ASSERT_TRUE(!recovery_load(dir).has_value());
+    std::ofstream(dir + "/recovery_2.pxa") << "not a sprite either";
+    ASSERT_TRUE(recovery_load(dir).empty());
     fs::remove_all("test_recovery_bad");
 }
 
@@ -179,6 +224,8 @@ int main()
     RUN(panel_layout_survives_a_round_trip);
     RUN(panel_load_ignores_bad_entries);
     RUN(recovery_round_trips_the_document_and_its_path);
+    RUN(recovery_keeps_one_copy_per_document_and_clears_them_one_by_one);
+    RUN(a_copy_in_the_old_single_file_layout_is_still_offered);
     RUN(a_corrupt_recovery_copy_is_ignored);
     RUN(recent_list_puts_the_newest_first_without_repeats);
     RUN(recent_list_round_trips_through_the_settings_in_order);

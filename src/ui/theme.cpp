@@ -167,6 +167,14 @@ void apply()
     c[ImGuiCol_ResizeGrip] = rgb(HAIRLINE);
     c[ImGuiCol_ResizeGripHovered] = rgb(MUTE, 0.6f);
     c[ImGuiCol_ResizeGripActive] = rgb(MUTE);
+    /* document tabs: the selected one sits on a soft fill with a thin accent line on top */
+    c[ImGuiCol_Tab] = rgb(CANVAS);
+    c[ImGuiCol_TabHovered] = rgb(HOVER);
+    c[ImGuiCol_TabSelected] = rgb(CANVAS_SOFT);
+    c[ImGuiCol_TabSelectedOverline] = rgb(ACCENT, 0.9f);
+    c[ImGuiCol_TabDimmed] = rgb(CANVAS);
+    c[ImGuiCol_TabDimmedSelected] = rgb(CANVAS_SOFT);
+    c[ImGuiCol_TabDimmedSelectedOverline] = rgb(MUTE, 0.7f);
     c[ImGuiCol_TableHeaderBg] = rgb(CANVAS_SOFT);
     c[ImGuiCol_TableBorderStrong] = rgb(HAIRLINE);
     c[ImGuiCol_TableBorderLight] = rgb(HAIRLINE);

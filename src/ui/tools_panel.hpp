@@ -17,6 +17,10 @@ class ToolsPanel
   public:
     explicit ToolsPanel(Editor &editor);
 
+    /* Shows another document from now on (a tab was picked); what the panel remembers about the
+     * old one is dropped. */
+    void setEditor(Editor &editor);
+
     void show(Panels &panels, float height);
     void colorBlock(const Panels &panels);
 
@@ -46,7 +50,7 @@ class ToolsPanel
     void paletteSwatches();
     void resetDialog();
 
-    Editor &editor_;
+    Editor *editor_;         /* the document shown; changed by setEditor */
     bool openReset_ = false; /* the confirmation still has to be opened */
     bool dialogOpen_ = false;
     char fgHex_[theme::HEX_BUFFER_SIZE] = ""; /* what is typed in the picker's hex field */

@@ -21,6 +21,10 @@ class LayersPanel
   public:
     explicit LayersPanel(Editor &editor);
 
+    /* Shows another document from now on (a tab was picked); what the panel remembers about the
+     * old one is dropped. */
+    void setEditor(Editor &editor);
+
     void show(const Panels &panels);
 
     /* What the right-click menu of the list holds: `body` draws its menu items (the App passes the
@@ -79,7 +83,7 @@ class LayersPanel
     void propertyLabel(const char *name);
     void propertyValue(const char *name, const std::string &value);
 
-    Editor &editor_;
+    Editor *editor_; /* the document shown; changed by setEditor */
     LayerThumbnails thumbs_;
 
     /* The row whose name is being edited in place (-1 for none), what the name was when the edit

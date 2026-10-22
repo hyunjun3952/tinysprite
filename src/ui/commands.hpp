@@ -32,6 +32,9 @@ enum class CommandId {
     MoveLayerDown,
     NewFrame,
     DuplicateFrame,
+    CloseTab,
+    NextTab,
+    PreviousTab,
     Count,
 };
 

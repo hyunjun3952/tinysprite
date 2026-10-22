@@ -442,6 +442,11 @@ class Editor
     void store(SettingsMap &settings) const;
     void load(const SettingsMap &settings);
 
+    /* Takes over `other`'s preferences (what store / load keep, plus the symmetry) and its
+     * clipboard, leaving this document alone. Each document tab has its own Editor; this is how the
+     * tool, the colors and a copied selection follow the user from one tab to the next. */
+    void adoptPreferences(const Editor &other);
+
     /* Zooms one step in (direction > 0) or out (< 0) around the canvas center. */
     void zoomStep(int direction);
 
@@ -603,6 +608,10 @@ class Editor
     Sprite sprite_;
     History history_;
     std::unique_ptr<CompositeSurface> surface_;
+    /* The surface a new document replaced: the canvas may already have drawn its texture in the
+     * frame being built, so it lives until the next updateTexture (the start of the next canvas).
+     */
+    std::unique_ptr<CompositeSurface> retiredSurface_;
     std::optional<Clip> clipboard_; /* last copied / cut selection */
     uint64_t revision_ = 0;
 

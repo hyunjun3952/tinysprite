@@ -23,6 +23,17 @@ const Command COMMANDS[COMMAND_COUNT] = {
     {"Move layer down", nullptr, CommandId::MoveLayerDown, {{ImGuiKey_LeftBracket}}, false},
     {"New frame", nullptr, CommandId::NewFrame, {{ImGuiKey_F, ShiftRule::Held}}, false},
     {"Duplicate frame", nullptr, CommandId::DuplicateFrame, {{ImGuiKey_J, ShiftRule::Held}}, false},
+    {"Close tab", nullptr, CommandId::CloseTab, {{ImGuiKey_W}}, false},
+    {"Next tab",
+     nullptr,
+     CommandId::NextTab,
+     {{ImGuiKey_Tab, ShiftRule::NotHeld}, {ImGuiKey_PageDown}},
+     false},
+    {"Previous tab",
+     nullptr,
+     CommandId::PreviousTab,
+     {{ImGuiKey_Tab, ShiftRule::Held}, {ImGuiKey_PageUp}},
+     false},
 };
 
 namespace
@@ -47,6 +58,8 @@ std::string keyLabel(ImGuiKey key)
         return "[";
     case ImGuiKey_RightBracket:
         return "]";
+    case ImGuiKey_Tab:
+        return "Tab";
     default:
         return "?";
     }

@@ -107,6 +107,18 @@ TEST(the_frame_commands_have_their_own_chords)
     ASSERT_TRUE(run(true, {ImGuiKey_J})->id == CommandId::DuplicateFrame);
 }
 
+TEST(the_tab_commands_have_their_own_chords)
+{
+    ASSERT_TRUE(command_hint(command(CommandId::CloseTab)) == "Ctrl+W");
+    ASSERT_TRUE(command_hint(command(CommandId::NextTab)) == "Ctrl+Tab");
+    ASSERT_TRUE(command_hint(command(CommandId::PreviousTab)) == "Ctrl+Shift+Tab");
+    ASSERT_TRUE(run(false, {ImGuiKey_W})->id == CommandId::CloseTab);
+    ASSERT_TRUE(run(false, {ImGuiKey_Tab})->id == CommandId::NextTab);
+    ASSERT_TRUE(run(true, {ImGuiKey_Tab})->id == CommandId::PreviousTab);
+    ASSERT_TRUE(run(false, {ImGuiKey_PageDown})->id == CommandId::NextTab);
+    ASSERT_TRUE(run(false, {ImGuiKey_PageUp})->id == CommandId::PreviousTab);
+}
+
 TEST(a_hint_can_be_spelled_out)
 {
     ASSERT_TRUE(command_hint(command(CommandId::ZoomIn)) == "Ctrl++");
@@ -170,6 +182,7 @@ int main()
     RUN(the_hint_is_derived_from_the_first_shortcut);
     RUN(the_layer_commands_have_their_own_chords);
     RUN(the_frame_commands_have_their_own_chords);
+    RUN(the_tab_commands_have_their_own_chords);
     RUN(a_hint_can_be_spelled_out);
     RUN(shift_tells_save_from_save_as_and_undo_from_redo);
     RUN(shift_is_ignored_where_a_command_does_not_care);

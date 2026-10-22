@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 #include "tinysprite/sprite.hpp"
 
@@ -27,6 +28,14 @@ class LayerThumbnails
     /* The thumbnail of `layer`'s cel in `frame`, fitted into maxWidth x maxHeight (see
      * thumbnail_size) and current as of `revision`. */
     Thumb get(const Layer &layer, int frame, int maxWidth, int maxHeight, uint64_t revision);
+
+    /* Drops every thumbnail (another document is shown: layer addresses and revisions of the old
+     * one mean nothing for it). */
+    void clear()
+    {
+        graveyard_ = std::move(entries_);
+        entries_.clear();
+    }
 
     /* Drops the thumbnails of layers that are no longer in `sprite`. */
     void prune(const Sprite &sprite);
@@ -54,6 +63,9 @@ class LayerThumbnails
 
     SDL_Renderer *renderer_;
     std::unordered_map<const Layer *, Entry> entries_;
+    /* What clear() took out: the frame being built may have drawn these textures already, so they
+     * are destroyed by the next get() or prune(), in a later frame. */
+    std::unordered_map<const Layer *, Entry> graveyard_;
 };
 
 #endif

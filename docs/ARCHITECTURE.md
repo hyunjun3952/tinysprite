@@ -64,8 +64,10 @@ thumbnails use to know when to redraw.
 
 ```
 App            window, ImGui context, main loop, menus, shortcuts, file and confirmation dialogs, autosave
- |- Editor     document + history + tool state + texture; the only thing panels edit
+ |- Document[] one per open tab: an Editor, the file it came from, its autosave slot
+ |   '- Editor  document + history + tool state + texture; the only thing panels edit (App::editor_ is the active one's)
  |- Canvas     draws the sprite and overlays, turns mouse input into zoom, pan and Editor::press / drag / release
+ |             (two of them in a split view, one per pane)
  |- ToolsPanel, LayersPanel, Panels   side panels and their docking
 ```
 
@@ -81,7 +83,9 @@ properties leave (`LayersPanel::list`), so the properties stay at the bottom. Pa
 
 `App` and `Editor` are big classes whose code is split over several files by what it is about, so the implementation files
 stay a few hundred lines each (the class declarations remain in `editor.hpp` and `app.hpp` in `src/ui/`). `src/ui/app/`:
-`app.cpp` (startup, main loop, autosave), `menus.cpp`, `commands.cpp`, `shortcuts.cpp`, `dialogs.cpp`, `files.cpp`.
+`app.cpp` (startup, main loop, autosave), `menus.cpp`, `commands.cpp`, `shortcuts.cpp`, `dialogs.cpp`, `files.cpp`,
+`file_browser_ui.cpp` (the file dialog's folder tree), `documents.cpp` (the open documents), `tabs.cpp` (the tab bar),
+`split.cpp` (the split view).
 `src/ui/editor/`: `editor.cpp` (document, strokes, texture), `layers.cpp`, `frames.cpp`, `palette.cpp`, `selection.cpp`,
 `settings.cpp`. Helpers shared between the files in `editor/` (and `layer_selection.cpp`) are declared in
 `editor/internal.hpp` and defined in `editor/internal.cpp`.
@@ -106,8 +110,12 @@ The timeline (`timeline_panel.cpp`) is a strip under the canvas, not one of the 
 skin row, a tag row and a grid of cels. `Editor` holds the current frame, the selected tag and the playback
 (`editor/frames.cpp`); `App` calls `Editor::tick` once per UI frame with the elapsed time.
 
+Several documents can be open (tabs, `App::docs_`), each with its own `Editor`; the panels and canvases are re-pointed
+at the active one with `setEditor`, and `Editor::adoptPreferences` carries the tool, colors and clipboard from tab to tab.
+A frame that closes a tab must not free its textures before the frame is rendered: see `App::retired_`.
+
 Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an autosave copy
-of a document with unsaved changes; the next start offers to recover it. Neither is touched by `--frames` smoke runs
+of each document with unsaved changes (one file per document); the next start offers to recover them. Neither is touched by `--frames` smoke runs
 unless `--config-dir` is given.
 
 ## File format
