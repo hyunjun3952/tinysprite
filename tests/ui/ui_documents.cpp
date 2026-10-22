@@ -584,6 +584,35 @@ TEST(save_as_onto_the_file_of_another_tab_is_refused)
     std::filesystem::remove(a);
 }
 
+TEST(the_same_file_under_another_spelling_is_still_the_same_file)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    std::string a = temp_pxa("tinysprite_doc_alias.pxa", 5);
+    std::filesystem::path dir = std::filesystem::path(a).parent_path();
+    std::filesystem::create_directories(dir / "tinysprite_alias_sub");
+    std::string dotted =
+        (dir / "tinysprite_alias_sub" / ".." / "tinysprite_doc_alias.pxa").string();
+    std::string link = (dir / "tinysprite_alias_link.pxa").string();
+    std::error_code ignored;
+    std::filesystem::remove(link, ignored);
+    std::filesystem::create_symlink(a, link, ignored);
+    ASSERT_TRUE(t.open(a));
+    ASSERT_EQ_INT(1, t.count());
+    ASSERT_TRUE(t.open(dotted));
+    ASSERT_EQ_INT(1, t.count()); /* shown, not opened a second time */
+    if (!ignored) {
+        ASSERT_TRUE(t.open(link));
+        ASSERT_EQ_INT(1, t.count());
+    }
+    ASSERT_TRUE(t.addBlank(8, 8));
+    ASSERT_TRUE(!t.saveAs(dotted));
+    ASSERT_TRUE(t.error().find("open in another tab") != std::string::npos);
+    std::filesystem::remove(link, ignored);
+    std::filesystem::remove_all(dir / "tinysprite_alias_sub", ignored);
+    std::filesystem::remove(a);
+}
+
 TEST(a_tab_cannot_be_closed_while_a_tool_is_being_dragged)
 {
     AppTestAccess t;
@@ -680,6 +709,7 @@ int main()
     RUN(each_document_with_changes_gets_its_own_autosave_copy);
     RUN(recovered_copies_open_as_tabs_and_never_share_a_file);
     RUN(save_as_onto_the_file_of_another_tab_is_refused);
+    RUN(the_same_file_under_another_spelling_is_still_the_same_file);
     RUN(a_tab_cannot_be_closed_while_a_tool_is_being_dragged);
     RUN(quitting_in_the_middle_of_a_drag_still_quits);
     RUN(switching_tabs_ends_a_middle_button_pick);

@@ -1,12 +1,33 @@
 /* App: the open documents (tabs): adding, showing and closing them. */
 
 #include <algorithm>
+#include <filesystem>
 #include <string>
 #include <utility>
 
 #include "app.hpp"
 #include "file_paths.hpp"
 #include "recovery.hpp"
+
+namespace
+{
+
+/* True if both paths name the same file however they are spelled: relative or absolute, with "..",
+ * through a symbolic link, or (on Windows) in another case. A file that does not exist yet is
+ * compared by its normalized path. */
+bool sameFile(const std::string &a, const std::string &b)
+{
+    namespace fs = std::filesystem;
+    std::error_code error;
+    if (a == b || fs::equivalent(a, b, error)) {
+        return true;
+    }
+    fs::path first = fs::weakly_canonical(a, error);
+    fs::path second = error ? fs::path() : fs::weakly_canonical(b, error);
+    return !error && first == second;
+}
+
+} // namespace
 
 bool App::dirty(const Document &document) const
 {
@@ -38,8 +59,9 @@ int App::findDocument(const std::string &path) const
     if (path.empty()) {
         return -1;
     }
-    auto found = std::find_if(docs_.begin(), docs_.end(),
-                              [&path](const Document &d) { return d.path == path; });
+    auto found = std::find_if(docs_.begin(), docs_.end(), [&path](const Document &d) {
+        return !d.path.empty() && sameFile(d.path, path);
+    });
     return found == docs_.end() ? -1 : static_cast<int>(found - docs_.begin());
 }
 

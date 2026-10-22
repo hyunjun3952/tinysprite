@@ -90,12 +90,12 @@ std::string App::cannotWrite(const std::string &path)
 std::string App::existingOutput(const std::string &path) const
 {
     std::error_code error;
-    if (std::filesystem::exists(path, error)) {
+    if (std::filesystem::exists(path_from_utf8(path), error)) {
         return path;
     }
     if (fileAction_ == FileAction::ExportSheet && export_.json) {
         const std::string json = with_replaced_extension(path, ".json");
-        if (std::filesystem::exists(json, error)) {
+        if (std::filesystem::exists(path_from_utf8(json), error)) {
             return json;
         }
     }
@@ -424,7 +424,7 @@ std::string App::startDirectory() const
         return lastDir_;
     }
     std::error_code ignored;
-    return std::filesystem::current_path(ignored).string();
+    return path_to_utf8(std::filesystem::current_path(ignored));
 }
 
 /* What the dialog would write or read: "~" is the home folder, and a write gets its extension. */

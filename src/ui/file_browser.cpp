@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "file_paths.hpp"
+#include "tinysprite/io.hpp"
 
 namespace fs = std::filesystem;
 
@@ -36,10 +37,11 @@ bool extensionListed(const std::string &name, const std::string &extensions)
     return false;
 }
 
-/* `path` without trailing separators (a lone "/" stays). */
+/* `path` without trailing separators (the root, "/" or "C:\\", stays). */
 std::string trimmed(std::string path)
 {
-    while (path.size() > 1 && (path.back() == '/' || path.back() == '\\')) {
+    const size_t root = std::max<size_t>(root_length(path), 1);
+    while (path.size() > root && (path.back() == '/' || path.back() == '\\')) {
         path.pop_back();
     }
     return path;
@@ -48,7 +50,7 @@ std::string trimmed(std::string path)
 bool isDirectory(const std::string &path)
 {
     std::error_code error;
-    return !path.empty() && fs::is_directory(path, error);
+    return !path.empty() && fs::is_directory(path_from_utf8(path), error);
 }
 
 } // namespace
@@ -58,9 +60,9 @@ std::vector<DirEntry> list_directory(const std::string &directory, const std::st
     std::vector<DirEntry> folders;
     std::vector<DirEntry> files;
     std::error_code error;
-    for (fs::directory_iterator it(directory.empty() ? "." : directory, error), end;
+    for (fs::directory_iterator it(path_from_utf8(directory.empty() ? "." : directory), error), end;
          !error && it != end; it.increment(error)) {
-        std::string name = it->path().filename().string();
+        std::string name = path_to_utf8(it->path().filename());
         if (name.empty() || name[0] == '.') {
             continue;
         }

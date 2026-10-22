@@ -78,6 +78,17 @@ TEST(the_parent_of_a_folder)
     ASSERT_TRUE(parent_directory("") == "..");
 }
 
+TEST(the_parent_of_a_windows_folder_never_leaves_its_root)
+{
+    ASSERT_TRUE(parent_directory("C:\\Users") == "C:\\");
+    ASSERT_TRUE(parent_directory("C:\\Users\\") == "C:\\");
+    ASSERT_TRUE(parent_directory("C:\\") == "C:\\");
+    ASSERT_TRUE(parent_directory("C:/a/b") == "C:/a");
+    ASSERT_TRUE(parent_directory("\\\\srv\\share\\d") == "\\\\srv\\share\\");
+    ASSERT_TRUE(parent_directory("\\\\srv\\share\\") == "\\\\srv\\share\\");
+    ASSERT_TRUE(parent_directory("\\\\srv\\share") == "\\\\srv\\share");
+}
+
 TEST(the_browsed_folder_is_the_typed_ones_or_a_fallback)
 {
     Scratch scratch;
@@ -151,6 +162,7 @@ int main()
     RUN(an_empty_filter_lists_every_file_but_never_hidden_ones);
     RUN(an_unreadable_folder_lists_nothing);
     RUN(the_parent_of_a_folder);
+    RUN(the_parent_of_a_windows_folder_never_leaves_its_root);
     RUN(the_browsed_folder_is_the_typed_ones_or_a_fallback);
     RUN(a_search_keeps_the_entries_that_contain_the_text_ignoring_case);
     RUN(a_leading_tilde_means_the_home_folder);

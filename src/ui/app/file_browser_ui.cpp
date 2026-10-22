@@ -12,6 +12,7 @@
 #include "file_paths.hpp"
 #include "imgui.h"
 #include "theme.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {
@@ -40,8 +41,9 @@ void App::browseTo(const std::string &directory)
 {
     const std::string typed = pathInput_;
     std::error_code ignored;
-    const bool hasName = !typed.empty() && typed.back() != '/' && typed.back() != '\\' &&
-                         !std::filesystem::is_directory(expand_home(typed), ignored);
+    const bool hasName =
+        !typed.empty() && typed.back() != '/' && typed.back() != '\\' &&
+        !std::filesystem::is_directory(path_from_utf8(expand_home(typed)), ignored);
     const std::string name = fileInfo(fileAction_).writes() && hasName ? file_name_of(typed) : "";
     std::snprintf(pathInput_, sizeof(pathInput_), "%s", join_path(directory, name).c_str());
     browseSearch_[0] = '\0';

@@ -93,6 +93,9 @@ TEST(directory_of_and_join)
     ASSERT_TRUE(directory_of("/a/b/c.pxa") == "/a/b");
     ASSERT_TRUE(directory_of("c.pxa").empty());
     ASSERT_TRUE(directory_of("/c.pxa") == "/");
+    ASSERT_TRUE(directory_of("C:\\a.pxa") == "C:\\");
+    ASSERT_TRUE(directory_of("C:\\a\\b.pxa") == "C:\\a");
+    ASSERT_TRUE(directory_of("\\\\srv\\share\\a.pxa") == "\\\\srv\\share\\");
     ASSERT_TRUE(join_path("/a/b", "c.png") == "/a/b/c.png");
     ASSERT_TRUE(join_path("/a/b/", "c.png") == "/a/b/c.png");
     ASSERT_TRUE(join_path("", "c.png") == "c.png");

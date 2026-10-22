@@ -51,13 +51,32 @@ std::string with_replaced_extension(const std::string &path, const std::string &
     return (dot == std::string::npos || dot < name ? path : path.substr(0, dot)) + extension;
 }
 
+size_t root_length(const std::string &path)
+{
+    if (path.size() >= 2 && isSeparator(path[0]) && isSeparator(path[1])) {
+        /* UNC: the root is "\\server\share" plus its separator */
+        size_t server = path.find_first_of("/\\", 2);
+        if (server == std::string::npos) {
+            return path.size();
+        }
+        size_t share = path.find_first_of("/\\", server + 1);
+        return share == std::string::npos ? path.size() : share + 1;
+    }
+    if (path.size() >= 3 && std::isalpha(static_cast<unsigned char>(path[0])) != 0 &&
+        path[1] == ':' && isSeparator(path[2])) {
+        return 3;
+    }
+    return !path.empty() && isSeparator(path[0]) ? 1 : 0;
+}
+
 std::string directory_of(const std::string &path)
 {
     size_t at = lastSeparator(path);
     if (at == std::string::npos) {
         return "";
     }
-    return at == 0 ? path.substr(0, 1) : path.substr(0, at);
+    size_t root = root_length(path);
+    return at < root ? path.substr(0, root) : path.substr(0, at);
 }
 
 std::string file_name_of(const std::string &path)

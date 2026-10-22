@@ -187,7 +187,7 @@ std::string config_dir()
 
 SettingsMap settings_load(const std::string &dir)
 {
-    std::ifstream file((std::filesystem::path(dir) / "settings.ini").string(), std::ios::binary);
+    std::ifstream file(path_from_utf8(dir) / "settings.ini", std::ios::binary);
     if (dir.empty() || !file) {
         return {};
     }
@@ -201,7 +201,7 @@ bool settings_save(const std::string &dir, const SettingsMap &settings)
         return false;
     }
     std::error_code error;
-    std::filesystem::create_directories(dir, error);
-    return !error && file_write_atomic((std::filesystem::path(dir) / "settings.ini").string(),
+    std::filesystem::create_directories(path_from_utf8(dir), error);
+    return !error && file_write_atomic(path_to_utf8(path_from_utf8(dir) / "settings.ini"),
                                        settings_format(settings));
 }

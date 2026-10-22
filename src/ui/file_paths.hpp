@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_UI_FILE_PATHS_HPP
 #define TINYSPRITE_UI_FILE_PATHS_HPP
 
+#include <cstddef>
 #include <string>
 
 /* Small string helpers for the path dialog; they only look at the text, never at the disk. Both
@@ -16,7 +17,12 @@ std::string with_required_extension(const std::string &path, const std::string &
  * (".json"); a name without one gets it added; "" stays "". */
 std::string with_replaced_extension(const std::string &path, const std::string &extension);
 
-/* Everything before the last separator ("" for a bare name, "/" for a file in the root). */
+/* How many leading characters of `path` are its root: "/" (1), "C:\\" (3) or "\\\\server\\share\\"
+ * (the trailing separator counted when there is one); 0 for a relative path. */
+size_t root_length(const std::string &path);
+
+/* Everything before the last separator ("" for a bare name; the root itself, "/" or "C:\\", for
+ * a file directly in it, and for the root). */
 std::string directory_of(const std::string &path);
 
 /* The last component. */

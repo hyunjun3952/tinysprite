@@ -23,12 +23,12 @@ std::string stem(int slot)
 
 std::string pxaFile(const std::string &dir, int slot)
 {
-    return (fs::path(dir) / (stem(slot) + ".pxa")).string();
+    return path_to_utf8(path_from_utf8(dir) / (stem(slot) + ".pxa"));
 }
 
 std::string pathFile(const std::string &dir, int slot)
 {
-    return (fs::path(dir) / (stem(slot) + ".path")).string();
+    return path_to_utf8(path_from_utf8(dir) / (stem(slot) + ".path"));
 }
 
 /* The slot a file name stands for ("recovery_12.pxa" is 12, "recovery.pxa" the old copy), or
@@ -60,9 +60,10 @@ std::vector<int> slotsIn(const std::string &dir)
 {
     std::vector<int> slots;
     std::error_code error;
-    for (fs::directory_iterator it(dir, error), end; !error && it != end; it.increment(error)) {
+    for (fs::directory_iterator it(path_from_utf8(dir), error), end; !error && it != end;
+         it.increment(error)) {
         int slot = 0;
-        if (slotOf(it->path().filename().string(), slot)) {
+        if (slotOf(path_to_utf8(it->path().filename()), slot)) {
             slots.push_back(slot);
         }
     }
@@ -78,7 +79,7 @@ bool recovery_save(const std::string &dir, int slot, const Sprite &sprite, const
         return false;
     }
     std::error_code error;
-    fs::create_directories(dir, error);
+    fs::create_directories(path_from_utf8(dir), error);
     return !error && file_write_atomic(pathFile(dir, slot), path) &&
            pxa_save(sprite, pxaFile(dir, slot));
 }
@@ -95,7 +96,7 @@ std::vector<Recovered> recovery_load(const std::string &dir)
             continue;
         }
         std::string path;
-        std::ifstream file(pathFile(dir, slot), std::ios::binary);
+        std::ifstream file(path_from_utf8(pathFile(dir, slot)), std::ios::binary);
         if (file) {
             path.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
         }
@@ -110,8 +111,8 @@ void recovery_clear_slot(const std::string &dir, int slot)
         return;
     }
     std::error_code ignored;
-    fs::remove(pxaFile(dir, slot), ignored);
-    fs::remove(pathFile(dir, slot), ignored);
+    fs::remove(path_from_utf8(pxaFile(dir, slot)), ignored);
+    fs::remove(path_from_utf8(pathFile(dir, slot)), ignored);
 }
 
 void recovery_clear(const std::string &dir)
