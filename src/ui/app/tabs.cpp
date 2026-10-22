@@ -126,7 +126,7 @@ void App::tabBar(float x, float y, float width, float height)
      * answer is only believed when the app did not just change it */
     const bool forced = tabSelected_ != active_;
     if (ImGui::Begin("##tabs", nullptr, FLAGS)) {
-        if (ImGui::BeginTabBar("##doc_tabs", ImGuiTabBarFlags_FittingPolicyScroll |
+        if (ImGui::BeginTabBar("##doc_tabs", ImGuiTabBarFlags_FittingPolicyResizeDown |
                                                  ImGuiTabBarFlags_Reorderable)) {
             std::vector<ImGuiID> ids(docs_.size(), 0);
             for (int i = 0; i < static_cast<int>(docs_.size()); i++) {

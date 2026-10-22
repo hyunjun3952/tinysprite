@@ -367,7 +367,7 @@ void App::helpWindow()
         {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},
         {"F1", "This window"},
     };
-    ImGui::SetNextWindowSize(ImVec2(620, 0), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(theme::px(620.0f), 0), ImGuiCond_Appearing);
     if (ImGui::Begin("Keyboard shortcuts", &showHelp_, ImGuiWindowFlags_NoCollapse)) {
         if (ImGui::BeginTable("shortcuts", 2,
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {

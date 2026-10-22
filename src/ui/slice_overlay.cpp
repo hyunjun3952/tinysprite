@@ -8,10 +8,11 @@
 namespace
 {
 
-constexpr ImU32 COLOR_SLICE = IM_COL32(76, 201, 240, 255);   /* an unselected slice */
-constexpr ImU32 COLOR_SELECTED = IM_COL32(255, 183, 3, 255); /* the selected one, and a new one */
-constexpr ImU32 COLOR_PIVOT = IM_COL32(255, 92, 161, 255);
-constexpr ImU32 COLOR_SHADOW = IM_COL32(0, 0, 0, 200);
+constexpr ImU32 COLOR_SLICE = theme::overlay::SLICE; /* an unselected slice */
+constexpr ImU32 COLOR_SELECTED =
+    theme::overlay::SLICE_SELECTED; /* the selected one, and a new one */
+constexpr ImU32 COLOR_PIVOT = theme::overlay::SLICE_PIVOT;
+constexpr ImU32 COLOR_SHADOW = theme::overlay::SLICE_SHADOW;
 constexpr float LABEL_MIN_WIDTH =
     28.0f; /* no label on a slice that is smaller than this on screen */
 
@@ -44,7 +45,8 @@ void label(ImDrawList *draw, const ScreenBox &box, const std::string &name, ImU3
     const ImVec2 size = ImGui::CalcTextSize(name.c_str());
     const ImVec2 at(box.min.x, box.min.y - size.y - 3.0f);
     draw->AddRectFilled(ImVec2(at.x - 1.0f, at.y - 1.0f),
-                        ImVec2(at.x + size.x + 3.0f, at.y + size.y + 1.0f), IM_COL32(0, 0, 0, 170));
+                        ImVec2(at.x + size.x + 3.0f, at.y + size.y + 1.0f),
+                        theme::overlay::SLICE_LABEL_BACKGROUND);
     draw->AddText(ImVec2(at.x + 1.0f, at.y), color, name.c_str());
 }
 
@@ -77,7 +79,7 @@ void draw_slices(ImDrawList *draw, ImVec2 origin, const Editor &editor)
         const Rect at = editor.sliceMovePreview(i).value_or(slice.rect);
         const ScreenBox box = boxOf(editor, origin, at);
         if (selected) {
-            draw->AddRectFilled(box.min, box.max, IM_COL32(255, 183, 3, 34));
+            draw->AddRectFilled(box.min, box.max, theme::overlay::SLICE_SELECTED_FILL);
         }
         outline(draw, box, color, selected ? 2.0f : 1.0f);
         label(draw, box, slice.name, color);
@@ -87,7 +89,7 @@ void draw_slices(ImDrawList *draw, ImVec2 origin, const Editor &editor)
     }
     if (const std::optional<Rect> preview = editor.slicePreview()) {
         const ScreenBox box = boxOf(editor, origin, *preview);
-        draw->AddRectFilled(box.min, box.max, IM_COL32(255, 183, 3, 34));
+        draw->AddRectFilled(box.min, box.max, theme::overlay::SLICE_SELECTED_FILL);
         outline(draw, box, COLOR_SELECTED, 1.0f);
     }
 }

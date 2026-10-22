@@ -15,8 +15,8 @@ colors:
   accent-text: "#0f1011"
   slider-fill: "#3a3d44"
   slider-fill-active: "#4a4e57"
-  danger: "#d2524f"
-  danger-strong: "#b3403d"
+  danger: "#c0403d"
+  danger-strong: "#a63836"
   ink: "#f7f8f8"
   body-strong: "#d0d6e0"
   body: "#b0b6c0"
@@ -177,7 +177,7 @@ The interface has exactly one voice of emphasis: the **off-white accent** (`{col
 - **Accent** (`{colors.accent}` #e8eaed): the active tool, the selected choice, checkmarks, the tab overline, the primary dialog button. Never decoration.
 - **Accent Strong** (`{colors.accent-strong}` #c4c8ce): the pressed accent.
 - **Accent Text** (`{colors.accent-text}` #0f1011): text and icons on top of the accent.
-- **Danger** (`{colors.danger}` #d2524f) and **Danger Strong** (#b3403d, pressed): the primary button of a dialog that destroys something (delete, discard, reset). Not an error color for text.
+- **Danger** (`{colors.danger}` #c0403d) and **Danger Strong** (#a63836, pressed): the primary button of a dialog that destroys something (delete, discard, reset). Not an error color for text.
 
 ### Text
 - **Ink** (`{colors.ink}` #f7f8f8): primary text, labels, values.
@@ -187,7 +187,7 @@ The interface has exactly one voice of emphasis: the **off-white accent** (`{col
 
 ### Rules for color
 - A new color needs a new row in `theme.hpp` first. Panels never inline a hex value.
-- Text on any surface must keep a contrast ratio of at least 4.5:1 for text and 3:1 for icons and control boundaries. `{colors.mute}` on `{colors.canvas-soft}` is the tightest pair in the system; check it before using mute for anything that must be read.
+- Text on any surface must keep a contrast ratio of at least 4.5:1 for text and 3:1 for icons. Control boundaries are told by fill alone and are exempt (canvas-soft on canvas is 1.14:1 by design); state is never carried by the boundary, a selected control is inverted. `{colors.mute}` on `{colors.canvas-soft}` is the tightest pair in the system; check it before using mute for anything that must be read.
 - Color never carries meaning alone. A selected control is also inverted, a disabled one also has the "not allowed" cursor and no tooltip behavior change.
 
 ## Typography
@@ -280,13 +280,13 @@ Icons are Material Symbols Outlined (unfilled). Chevrons are drawn as two stroke
 
 ### Panels
 - **Tool bar**: one column of icon buttons, then the shapes. **Options bar**: only the options of the active tool, so it changes with the tool.
-- **Inspector**: Color, then Layers, then Properties. Panel settings keys are fixed (`panel.tools.*`, `panel.layers.*`), not derived from the title.
+- **Inspector**: Color, then Layers, then Slices (folded by default), then Properties. Panel settings keys are fixed (`panel.tools.*`, `panel.layers.*`), not derived from the title.
 - **Timeline**: toolbar, onion skin row, tag row, grid of cels. The playhead and the selected cells use the accent family; linked cels show a dot.
 - **Status bar**: 24 px, mute text: the active tool, cursor position, zoom and transient messages (check `statusbar.cpp` for the exact set).
 
 ### Canvas
 - Nearest-neighbor sampling always; the pixel grid appears from zoom 4. Fit margin 16 px.
-- Overlays (selection marching ants, slices, onion skin, symmetry axes, loupe) are drawn above the sprite and never change its pixels. They must stay visible on both light and dark artwork.
+- Overlays (selection marching ants, slices, onion skin, symmetry axes, loupe) are drawn above the sprite and never change its pixels. They must stay visible on both light and dark artwork. Their colors are the fixed `theme::overlay` values in `theme.hpp`, not the surface ladder.
 - The cursor shows the tool's footprint. The loupe (14 px cells) follows the mouse with a 22 px gap.
 
 ### Dialogs

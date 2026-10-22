@@ -293,7 +293,7 @@ void TimelinePanel::tagControls()
     if (selected < 0 || selected >= static_cast<int>(sprite.tags().size())) {
         ImGui::SameLine();
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Click a tag band to edit it or to play just its frames.");
+        ImGui::TextDisabled("Click a tag band to edit it or to play just its frames");
         tagNameActive_ = false;
         return;
     }

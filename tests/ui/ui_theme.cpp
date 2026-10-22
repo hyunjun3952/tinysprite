@@ -1,10 +1,42 @@
 /* The UI font is embedded (a subset of Geist, SIL OFL), so the text looks the same on every
  * machine and scales as vector outlines instead of stretching a 13 px bitmap. */
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #include "imgui.h"
 #include "minitest.hpp"
 #include "theme.hpp"
+
+namespace
+{
+
+double luminance(unsigned rgb)
+{
+    double sum = 0.0;
+    const double weight[3] = {0.2126, 0.7152, 0.0722};
+    for (int i = 0; i < 3; i++) {
+        double c = static_cast<double>((rgb >> (16 - 8 * i)) & 0xff) / 255.0;
+        sum += weight[i] * (c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4));
+    }
+    return sum;
+}
+
+double contrast(unsigned a, unsigned b)
+{
+    double la = luminance(a);
+    double lb = luminance(b);
+    return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+}
+
+} // namespace
+
+TEST(text_on_a_filled_dialog_button_reaches_the_4_5_contrast_ratio)
+{
+    ASSERT_TRUE(contrast(theme::INK, theme::DANGER) >= 4.5);
+    ASSERT_TRUE(contrast(theme::INK, theme::DANGER_STRONG) >= 4.5);
+    ASSERT_TRUE(contrast(theme::ACCENT_TEXT, theme::ACCENT) >= 4.5);
+}
 
 TEST(load_fonts_adds_the_embedded_font_at_the_base_size)
 {
@@ -172,6 +204,7 @@ int main()
     RUN(mix_blends_two_colors_per_channel);
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
+    RUN(text_on_a_filled_dialog_button_reaches_the_4_5_contrast_ratio);
     RUN(a_control_fill_is_visibly_lighter_than_the_panel);
     RUN(an_int_format_appends_the_unit_and_escapes_percent);
     RUN(the_unit_sits_at_the_right_end_of_the_field_centered_vertically);

@@ -21,7 +21,7 @@ constexpr float MIDDLE_DRAG_PIXELS = 4.0f;   /* ... unless the mouse moves this 
 void drawCheckerboard(ImDrawList *draw, float vx0, float vy0, float vx1, float vy1, float sx0,
                       float sy0)
 {
-    draw->AddRectFilled(ImVec2(vx0, vy0), ImVec2(vx1, vy1), IM_COL32(170, 170, 170, 255));
+    draw->AddRectFilled(ImVec2(vx0, vy0), ImVec2(vx1, vy1), theme::overlay::CHECKER_LIGHT);
     int tx0 = static_cast<int>((vx0 - sx0) / CHECKER_TILE);
     int tx1 = static_cast<int>((vx1 - sx0) / CHECKER_TILE);
     int ty0 = static_cast<int>((vy0 - sy0) / CHECKER_TILE);
@@ -36,7 +36,7 @@ void drawCheckerboard(ImDrawList *draw, float vx0, float vy0, float vx1, float v
             float x1 = std::min(sx0 + static_cast<float>((tx + 1) * CHECKER_TILE), vx1);
             float y1 = std::min(sy0 + static_cast<float>((ty + 1) * CHECKER_TILE), vy1);
             if (x0 < x1 && y0 < y1) {
-                draw->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), IM_COL32(150, 150, 150, 255));
+                draw->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), theme::overlay::CHECKER_TILE);
             }
         }
     }
@@ -192,7 +192,7 @@ void Canvas::drawGrid(ImDrawList *draw, ImVec2 origin, const ScreenRect &visible
     int lastX = view.screenToCelX(visible.x1 - origin.x);
     int firstY = view.screenToCelY(visible.y0 - origin.y);
     int lastY = view.screenToCelY(visible.y1 - origin.y);
-    ImU32 color = IM_COL32(0, 0, 0, 80);
+    ImU32 color = theme::overlay::PIXEL_GRID;
     for (int x = firstX; x <= lastX; x++) {
         float sx = origin.x + view.celToScreenX(x);
         if (sx >= visible.x0 && sx <= visible.x1) {
@@ -232,7 +232,7 @@ void Canvas::drawBrushPreview(ImDrawList *draw, ImVec2 origin) const
         draw->AddRectFilled(
             ImVec2(x0, y0),
             ImVec2(x0 + view.zoom * static_cast<float>(right - left + 1), y0 + view.zoom),
-            IM_COL32(255, 255, 255, 70));
+            theme::overlay::ROW_HIGHLIGHT);
     }
 }
 
@@ -249,7 +249,7 @@ void Canvas::drawHoverOutline(ImDrawList *draw, ImVec2 origin) const
     float y0 = origin.y + editor_->view().viewport.celToScreenY(editor_->hoverY());
     drawRectOutline(draw, ImVec2(x0, y0),
                     ImVec2(x0 + editor_->view().viewport.zoom, y0 + editor_->view().viewport.zoom),
-                    IM_COL32(255, 255, 255, 220));
+                    theme::overlay::PIXEL_OUTLINE);
 }
 
 /* Selection outline: a dark rectangle under a light one so it shows on any background. */
@@ -266,14 +266,14 @@ void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
     ImVec2 p1(p0.x + static_cast<float>(r.w) * editor_->view().viewport.zoom,
               p0.y + static_cast<float>(r.h) * editor_->view().viewport.zoom);
     drawRectOutline(draw, ImVec2(p0.x - 1.0f, p0.y - 1.0f), ImVec2(p1.x + 1.0f, p1.y + 1.0f),
-                    IM_COL32(0, 0, 0, 220));
-    drawRectOutline(draw, p0, p1, IM_COL32(255, 255, 255, 255));
+                    theme::overlay::LINE_SHADOW);
+    drawRectOutline(draw, p0, p1, theme::overlay::LINE_LIGHT);
 }
 
 /* Center line(s) the symmetry option mirrors across. */
 void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
 {
-    ImU32 color = IM_COL32(0, 200, 255, 200);
+    ImU32 color = theme::overlay::MIRROR_AXIS;
     if (editor_->options().symmetry.mirror_x) {
         float x = (sprite.x0 + sprite.x1) / 2.0f;
         draw->AddLine(ImVec2(x, sprite.y0), ImVec2(x, sprite.y1), color);
@@ -293,7 +293,7 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
     draw->AddRectFilled(
         ImVec2(at.x - LOUPE_PAD, at.y - LOUPE_PAD),
         ImVec2(at.x + LOUPE_SIZE + LOUPE_PAD, at.y + LOUPE_SIZE + LOUPE_LABEL + LOUPE_PAD),
-        IM_COL32(24, 24, 28, 240), 3.0f);
+        theme::overlay::LOUPE_BACKGROUND, 3.0f);
     const int cx = editor_->hoverX();
     const int cy = editor_->hoverY();
     for (int j = 0; j < LOUPE_CELLS; j++) {
@@ -304,12 +304,12 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
             std::optional<Rgba> color = eyedropper_pick_sprite(
                 editor_->sprite(), editor_->frame(), cx - LOUPE_RADIUS + i, cy - LOUPE_RADIUS + j);
             if (!color) {
-                draw->AddRectFilled(p0, p1, IM_COL32(48, 48, 54, 255)); /* beside the sprite */
+                draw->AddRectFilled(p0, p1, theme::overlay::LOUPE_OUTSIDE); /* beside the sprite */
                 continue;
             }
             draw->AddRectFilled(p0, p1,
-                                (i + j) % 2 == 0 ? IM_COL32(170, 170, 170, 255)
-                                                 : IM_COL32(120, 120, 120, 255));
+                                (i + j) % 2 == 0 ? theme::overlay::CHECKER_LIGHT
+                                                 : theme::overlay::CHECKER_DARK);
             draw->AddRectFilled(p0, p1, IM_COL32(color->r, color->g, color->b, color->a));
         }
     }
@@ -317,8 +317,8 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
               at.y + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL);
     ImVec2 c1(c0.x + LOUPE_CELL, c0.y + LOUPE_CELL);
     draw->AddRect(ImVec2(c0.x - 1.0f, c0.y - 1.0f), ImVec2(c1.x + 1.0f, c1.y + 1.0f),
-                  IM_COL32(0, 0, 0, 255));
-    draw->AddRect(c0, c1, IM_COL32(255, 255, 255, 255));
+                  theme::overlay::LINE_DARK);
+    draw->AddRect(c0, c1, theme::overlay::LINE_LIGHT);
     char text[48];
     if (std::optional<Rgba> color =
             eyedropper_pick_sprite(editor_->sprite(), editor_->frame(), cx, cy)) {
@@ -327,7 +327,7 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
     } else {
         std::snprintf(text, sizeof(text), "-");
     }
-    draw->AddText(ImVec2(at.x, at.y + LOUPE_SIZE + 3.0f), IM_COL32(255, 255, 255, 255), text);
+    draw->AddText(ImVec2(at.x, at.y + LOUPE_SIZE + 3.0f), theme::overlay::LINE_LIGHT, text);
 }
 
 /* Re-fits the sprite when asked to, or when the canvas was resized while it follows the window. */
@@ -381,7 +381,7 @@ void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
         }
     }
     drawRectOutline(draw, ImVec2(sprite.x0 - 1.0f, sprite.y0 - 1.0f),
-                    ImVec2(sprite.x1 + 1.0f, sprite.y1 + 1.0f), IM_COL32(200, 200, 205, 255));
+                    ImVec2(sprite.x1 + 1.0f, sprite.y1 + 1.0f), theme::overlay::SPRITE_FRAME);
     if (editor_->overlays().mirror_axes) {
         drawMirrorAxes(draw, sprite);
     }

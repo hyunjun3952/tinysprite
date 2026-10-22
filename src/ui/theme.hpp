@@ -39,8 +39,8 @@ inline constexpr unsigned SLIDER_FILL = 0x3a3d44;
 inline constexpr unsigned SLIDER_FILL_ACTIVE = 0x4a4e57;
 
 /* A button that destroys something (delete, discard, reset): the accent's red counterpart. */
-inline constexpr unsigned DANGER = 0xd2524f;
-inline constexpr unsigned DANGER_STRONG = 0xb3403d;
+inline constexpr unsigned DANGER = 0xc0403d;
+inline constexpr unsigned DANGER_STRONG = 0xa63836;
 
 /* Text. */
 inline constexpr unsigned INK = 0xf7f8f8;
@@ -150,6 +150,31 @@ bool actionButton(const char *label, const char *tooltip, float width, bool enab
 
 /* Colors for the canvas area, as ImU32. */
 ImU32 workspaceColor();
+
+/* Colors drawn on and around the artwork (not chrome): they must read on light and dark art, so
+ * they are fixed values and do not follow the surface ladder. */
+namespace overlay
+{
+inline constexpr ImU32 CHECKER_LIGHT = IM_COL32(170, 170, 170, 255); /* transparency checker */
+inline constexpr ImU32 CHECKER_TILE = IM_COL32(150, 150, 150, 255);  /* the canvas's own tiles */
+inline constexpr ImU32 CHECKER_DARK = IM_COL32(120, 120, 120, 255);  /* thumbnails and loupe */
+inline constexpr ImU32 PIXEL_GRID = IM_COL32(0, 0, 0, 80);
+inline constexpr ImU32 ROW_HIGHLIGHT = IM_COL32(255, 255, 255, 70);
+inline constexpr ImU32 PIXEL_OUTLINE = IM_COL32(255, 255, 255, 220);
+inline constexpr ImU32 LINE_SHADOW = IM_COL32(0, 0, 0, 220);
+inline constexpr ImU32 LINE_LIGHT = IM_COL32(255, 255, 255, 255);
+inline constexpr ImU32 LINE_DARK = IM_COL32(0, 0, 0, 255);
+inline constexpr ImU32 SPRITE_FRAME = IM_COL32(200, 200, 205, 255);
+inline constexpr ImU32 MIRROR_AXIS = IM_COL32(0, 200, 255, 200);
+inline constexpr ImU32 LOUPE_BACKGROUND = IM_COL32(24, 24, 28, 240);
+inline constexpr ImU32 LOUPE_OUTSIDE = IM_COL32(48, 48, 54, 255); /* beside the sprite */
+inline constexpr ImU32 SLICE = IM_COL32(76, 201, 240, 255);       /* an unselected slice */
+inline constexpr ImU32 SLICE_SELECTED = IM_COL32(255, 183, 3, 255);
+inline constexpr ImU32 SLICE_SELECTED_FILL = IM_COL32(255, 183, 3, 34);
+inline constexpr ImU32 SLICE_PIVOT = IM_COL32(255, 92, 161, 255);
+inline constexpr ImU32 SLICE_SHADOW = IM_COL32(0, 0, 0, 200);
+inline constexpr ImU32 SLICE_LABEL_BACKGROUND = IM_COL32(0, 0, 0, 170);
+} // namespace overlay
 
 /* Small transitions. ease_toward moves `current` toward `target` at a steady rate that covers 0..1
  * in `seconds` (never past the target; no duration jumps). animate keeps one such value per widget

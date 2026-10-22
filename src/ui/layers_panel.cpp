@@ -113,7 +113,7 @@ void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
     ImDrawList *draw = ImGui::GetWindowDrawList();
     float alpha = layer.visible() ? 1.0f : 0.4f;
     draw->PushClipRect(min, max, true);
-    draw->AddRectFilled(min, max, IM_COL32(170, 170, 170, 255));
+    draw->AddRectFilled(min, max, theme::overlay::CHECKER_LIGHT);
     for (int y = 0; y < thumb.height; y += THUMB_CHECKER) {
         for (int x = (y / THUMB_CHECKER) % 2 == 0 ? THUMB_CHECKER : 0; x < thumb.width;
              x += 2 * THUMB_CHECKER) {
@@ -121,7 +121,7 @@ void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
             draw->AddRectFilled(p,
                                 ImVec2(p.x + static_cast<float>(THUMB_CHECKER),
                                        p.y + static_cast<float>(THUMB_CHECKER)),
-                                IM_COL32(120, 120, 120, 255));
+                                theme::overlay::CHECKER_DARK);
         }
     }
     draw->PopClipRect();
