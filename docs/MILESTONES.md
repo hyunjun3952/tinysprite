@@ -67,7 +67,7 @@ per-cel modes, color tags, cel offsets.
 
 TDD, one step per commit; the UI part comes last.
 
-- [ ] **15. Core model + compositing** — `BlendMode` enum and `Layer::blendMode()` / `setBlendMode()` in
+- [x] **15. Core model + compositing** — `BlendMode` enum and `Layer::blendMode()` / `setBlendMode()` in
       `layer.h`; `composite_blend(dst, src, opacity, mode)` in `composite.h` (Normal must equal `composite_over`);
       `composite_sprite` / `composite_pixel` use it per layer. Golden-pixel tests per mode (opaque, half alpha,
       transparent backdrop). Onion skin ghosts stay plain "over".

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 
 namespace
 {
@@ -30,6 +31,31 @@ Rgba blendOver(Rgba dst, Rgba src, int srcAlpha)
                 static_cast<uint8_t>(outAlpha)};
 }
 
+/* B(Cb, Cs) for one 0..255 channel. */
+int blendChannel(BlendMode mode, int cb, int cs)
+{
+    switch (mode) {
+    case BlendMode::Multiply:
+        return div255(cb * cs);
+    case BlendMode::Screen:
+        return cb + cs - div255(cb * cs);
+    case BlendMode::Overlay:
+        /* hard light with the roles swapped: the backdrop decides */
+        return cb < 128 ? div255(2 * cb * cs) : 255 - div255(2 * (255 - cb) * (255 - cs));
+    case BlendMode::Darken:
+        return std::min(cb, cs);
+    case BlendMode::Lighten:
+        return std::max(cb, cs);
+    case BlendMode::Add:
+        return std::min(255, cb + cs);
+    case BlendMode::Difference:
+        return std::abs(cb - cs);
+    case BlendMode::Normal:
+        break;
+    }
+    return cs;
+}
+
 /* The layer's cel on `frame`, or null when the layer does not show up in the flattened image. */
 const Cel *drawnCel(const Layer &layer, int frame)
 {
@@ -43,6 +69,20 @@ Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity)
     return blendOver(dst, src, div255(src.a * opacity));
 }
 
+Rgba composite_blend(Rgba dst, Rgba src, uint8_t opacity, BlendMode mode)
+{
+    int srcAlpha = div255(src.a * opacity);
+    if (mode == BlendMode::Normal || srcAlpha == 0 || dst.a == 0) {
+        return blendOver(dst, src, srcAlpha);
+    }
+    auto mixed = [&](int cb, int cs) {
+        return static_cast<uint8_t>(
+            div255((255 - dst.a) * cs + dst.a * blendChannel(mode, cb, cs)));
+    };
+    Rgba color{mixed(dst.r, src.r), mixed(dst.g, src.g), mixed(dst.b, src.b), src.a};
+    return blendOver(dst, color, srcAlpha);
+}
+
 Rgba composite_pixel(const Sprite &sprite, int frame, int x, int y)
 {
     Rgba out;
@@ -53,7 +93,7 @@ Rgba composite_pixel(const Sprite &sprite, int frame, int x, int y)
     for (int i = 0; i < sprite.layerCount(); i++) {
         const Layer &layer = *sprite.layer(i);
         if (const Cel *cel = drawnCel(layer, frame)) {
-            out = composite_over(out, cel->get(x, y), layer.opacity());
+            out = composite_blend(out, cel->get(x, y), layer.opacity(), layer.blendMode());
         }
     }
     return out;
@@ -79,10 +119,11 @@ void composite_sprite(const Sprite &sprite, int frame, Rect region, Rgba *out)
             continue;
         }
         uint8_t opacity = layer.opacity();
+        BlendMode mode = layer.blendMode();
         for (int y = r.y; y < r.y + r.h; y++) {
             for (int x = r.x; x < r.x + r.w; x++) {
                 Rgba &dst = out[static_cast<size_t>(y) * width + static_cast<size_t>(x)];
-                dst = composite_over(dst, cel->get(x, y), opacity);
+                dst = composite_blend(dst, cel->get(x, y), opacity, mode);
             }
         }
     }

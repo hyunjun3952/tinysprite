@@ -15,6 +15,14 @@ Layer::Layer(const std::string &name, int width, int height, int frameCount)
     }
 }
 
+const char *blend_mode_name(BlendMode mode)
+{
+    static const char *const names[BLEND_MODE_COUNT] = {
+        "Normal", "Multiply", "Screen", "Overlay", "Darken", "Lighten", "Add", "Difference"};
+    size_t i = static_cast<size_t>(mode);
+    return i < BLEND_MODE_COUNT ? names[i] : names[0];
+}
+
 std::string layer_name_truncate(const std::string &name, size_t maxBytes)
 {
     if (name.size() <= maxBytes) {
