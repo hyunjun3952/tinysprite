@@ -19,7 +19,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 - Never report "tests passed" without the exit code of that run. Do not pipe a test or lint run through `tail`/`head`
   and read `$?`; redirect to a log file, test `$?`, then read the log.
 - Mark every finding **Confirmed** (a test or run reproduces it) or **Suspected** (logic only, could not be reproduced), and say why.
-- You cannot see the screen. Never invent how the UI looks: describe what the code draws, say that it is derived from code,
+- Never invent how the UI looks. Without a screenshot you took (Step 4, UI defects only), describe what the code draws, say that it is derived from code,
   and ask the user for a screenshot when the exact visual matters.
 
 ## Step 0: Scope
@@ -91,13 +91,32 @@ When the test itself is changed (existing test edited or new test added), write 
   (affected test files by name, then the full `ctest --test-dir build --output-on-failure`, then `scripts/format.sh --check` and `scripts/lint.sh` for C++ changes), and their exit codes.
 Never weaken or delete an existing assertion to make a test pass; that hides the bug.
 
-## Step 4: UI defects
+## Step 4: UI defects (screenshots only here)
 
-Only when the symptom is on screen (build with the UI; `SDL_VIDEODRIVER=dummy` runs headless, so a human or screenshot is needed to see pixels).
+Only when the symptom is on screen. Screenshots are taken **only for UI defects**: never for core/io/script/test findings,
+and never "to be thorough" when the code-level evidence is already enough. If Step 1-3 found no UI defect, skip this step entirely.
+
+The app already has a screenshot option that writes a PNG; use it first (no extra tool needed, works headless; Read opens the PNG):
+
+```sh
+SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --frames 3 --screenshot OUT.png --config-dir TMPDIR
+```
+
+1. Build with the UI first (`cmake -S . -B build && cmake --build build`). Use a scratchpad `--config-dir` so the user's settings and autosave are untouched.
+2. `--screenshot` saves the last of the `--frames` frames; the app gets no input, so the screen is the state right after start.
+   To show another state, make a `.pxa` in that state (write it from a test or a small program with the `io` API, in the scratchpad) and pass it as `file`.
+   Scale with `--scale S` when the defect is about zoom or density.
+3. Save images in the scratchpad as `ui-U<n>-actual.png` (and `-expected.png` only if a reference exists, for example the same file before the change).
+   Open each with Read and describe only what is visible, not what the code should draw.
+4. If the defect needs live input (drag, hover, menu open, animation playing) and the option cannot reach it, use the computer-use or browser skill if the session has one;
+   otherwise say "From code", describe the screen from the code, and ask the user for a screenshot. Never describe pixels you did not see.
+
+Do not commit screenshots or temporary `.pxa` files. Give the user the absolute path of each image (send it with SendUserFile when they follow remotely).
+
 Use `references/report-template.md` UI block:
 
 1. **Steps to reproduce**: situation and exact actions (tool, menu, shortcut, zoom level, frame/layer state).
-2. **Actual**: what the screen shows.
+2. **Actual**: what the screen shows (with the screenshot path).
 3. **Expected**: what it should show.
 4. **Proposal from the user's view**: how the UI should change, and why (what the user is trying to do, what confuses or blocks them).
    Prefer the smallest change that fixes it; compare with the alternative if there is one.

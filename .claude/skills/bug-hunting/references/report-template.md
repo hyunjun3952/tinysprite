@@ -30,6 +30,7 @@ Scope: what was read (files, commit range). Baseline: existing tests pass/fail (
 ### U1 [보통] Short title  (Confirmed | From code)
 - Steps: 1. ... 2. ... 3. ...
 - Actual: what the screen shows
+- Screenshot: absolute path of the captured image (UI defects only), or "none: derived from code"
 - Expected: what it should show
 - Proposal (user's view): how to change the UI and why
 - Cause in code / test: if known
