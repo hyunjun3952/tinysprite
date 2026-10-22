@@ -66,6 +66,7 @@ bool App::initImGui()
     ImGui::CreateContext();
     imguiContext_ = true;
     ImGui::GetIO().IniFilename = nullptr;
+    theme::load_fonts(); /* on failure the built-in font stays */
     theme::apply();
     if (!ImGui_ImplSDL2_InitForSDLRenderer(window_, renderer_)) {
         return false;

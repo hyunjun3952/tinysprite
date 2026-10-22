@@ -435,7 +435,6 @@ void LayersPanel::buttons()
     using icons::Icon;
     constexpr int COUNT = 6;
     ImVec2 size(theme::columnWidth(COUNT), ImGui::GetFrameHeight() + 6.0f);
-    int count = editor_.sprite().layerCount();
     int selected = static_cast<int>(editor_.selectedLayers().size());
 
     if (icons::button(Icon::Plus, "##new", "New layer on top", size)) {
@@ -457,7 +456,7 @@ void LayersPanel::buttons()
     }
     ImGui::SameLine();
     if (icons::button(Icon::Trash, "##delete", "Delete the selected layers (Delete key)", size,
-                      count - selected >= 1)) {
+                      editor_.canRemoveSelectedLayers())) {
         askToDelete();
     }
     ImGui::SameLine();
@@ -480,11 +479,10 @@ bool LayersPanel::focused() const
 
 void LayersPanel::askToDelete()
 {
-    std::vector<int> selected = editor_.selectedLayers();
-    if (static_cast<int>(selected.size()) >= editor_.sprite().layerCount() || editor_.stroking()) {
+    if (!editor_.canRemoveSelectedLayers()) {
         return; /* at least one layer must stay */
     }
-    deleteCount_ = static_cast<int>(selected.size());
+    deleteCount_ = static_cast<int>(editor_.selectedLayers().size());
     deleteName_ = editor_.sprite().layer(editor_.activeLayer())->name();
     openDelete_ = true;
 }

@@ -684,6 +684,24 @@ TEST(moving_layers_is_held_off_while_stroking)
     delete e;
 }
 
+/* The Layer menu and the Layers panel's Delete button ask the editor, so both agree. */
+TEST(removing_layers_is_allowed_only_while_one_stays_and_not_while_stroking)
+{
+    Editor *e = editor_with_layers(3);
+    ASSERT_TRUE(e->canRemoveSelectedLayers());
+    e->pickLayer(0, LayerPick::Only);
+    e->pickLayer(2, LayerPick::Range);
+    ASSERT_EQ_INT(3, static_cast<int>(e->selectedLayers().size()));
+    ASSERT_TRUE(!e->canRemoveSelectedLayers()); /* would leave no layer */
+    e->pickLayer(1, LayerPick::Only);
+    ASSERT_TRUE(e->canRemoveSelectedLayers());
+    e->press(0, 0);
+    ASSERT_TRUE(e->stroking());
+    ASSERT_TRUE(!e->canRemoveSelectedLayers());
+    e->release();
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -732,6 +750,7 @@ int main()
     RUN(blend_mode_applies_to_every_selected_layer_as_one_step);
     RUN(an_unchanged_blend_mode_records_nothing);
     RUN(a_blend_mode_edit_is_held_off_while_stroking);
+    RUN(removing_layers_is_allowed_only_while_one_stays_and_not_while_stroking);
     ui_quit();
     return TEST_SUMMARY();
 }

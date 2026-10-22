@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+
+#include "inter_regular_subset.hpp"
 
 namespace theme
 {
@@ -43,6 +46,22 @@ float scaleForDpi(float dpi)
         return 1.0f;
     }
     return std::clamp(std::round(dpi / 96.0f * 4.0f) / 4.0f, SCALE_MIN, SCALE_MAX);
+}
+
+bool load_fonts()
+{
+    ImGuiIO &io = ImGui::GetIO();
+    ImFontConfig config;
+    config.FontDataOwnedByAtlas = false; /* the data is static */
+    std::snprintf(config.Name, sizeof(config.Name), "Inter Regular");
+    ImFont *font = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(INTER_REGULAR_SUBSET),
+                                                  static_cast<int>(sizeof(INTER_REGULAR_SUBSET)),
+                                                  0.0f, &config);
+    if (font == nullptr) {
+        return false;
+    }
+    ImGui::GetStyle().FontSizeBase = FONT_SIZE;
+    return true;
 }
 
 void apply()
@@ -130,8 +149,23 @@ void apply()
 
 bool section(const char *label, bool openByDefault)
 {
+    /* A hairline above and a plain caret and title, not a filled bar: a stack of sections then
+     * reads as one list with dividers, and the controls under a header stay the heaviest thing. */
+    ImVec2 at = ImGui::GetCursorScreenPos();
+    float y = std::floor(at.y - ImGui::GetStyle().ItemSpacing.y * 0.5f);
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(at.x, y),
+                                        ImVec2(at.x + ImGui::GetContentRegionAvail().x, y),
+                                        ImGui::ColorConvertFloat4ToU32(rgb(HAIRLINE, 0.6f)));
+    ImGui::PushStyleColor(ImGuiCol_Header, rgb(0x000000, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, rgb(HOVER, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, rgb(PRESSED, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_Text, rgb(BODY_STRONG));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
     ImGuiTreeNodeFlags flags = openByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0;
-    return ImGui::CollapsingHeader(label, flags);
+    bool open = ImGui::CollapsingHeader(label, flags);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(4);
+    return open;
 }
 
 float columnWidth(int count)

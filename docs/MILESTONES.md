@@ -47,8 +47,7 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 - Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
-- Not done: a TTF font (the 13 px bitmap font is only scaled), a
-  file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
+- Not done: a file browser, HiDPI window flags, the OS reason in a failed-write message (the io functions return `bool`).
 - Left from the pattern survey: an `Editor` change observer, a `theme::labeledRow` helper, merging the tool tables,
   declarative settings bindings; also a guard helper for `if (stroking()) return;` (about forty times in `Editor`), one holder
   for `Slot` and `Membership`, and a `Playback` State if a fourth mode is added.
@@ -56,6 +55,22 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   `Editor::duplicateLayer` and `commitLayerOpacity` removed; every function in `src/` is at most 12 cognitive complexity
   (`pxa` encode / decode, timeline grid, GIF palette, dialogs and shortcuts were split), and clang-tidy now fails a function
   above 15.
+
+## UI polish 2 (ideas from Aseprite's ui library, MIT; the app's own skin is not reused)
+
+- Icons scale by a whole number (`icons::pixel_scale`, the integer `guiscale()` idea), so a lit pixel is always a
+  square and an icon stays crisp at 150% / 200% instead of staying 16 px.
+- The five main tools are icon buttons in one row (name, shortcut and help in the tooltip, like Aseprite's tool bar),
+  the same helper (`ToolsPanel::iconRow`) as the shape row; the Tools panel is one row shorter.
+- An embedded font: Inter Regular, a 26 KB subset (`thirdparty/inter/`, SIL OFL, `theme::load_fonts`, 14 px base)
+  instead of the 13 px bitmap font. Aseprite keeps font choice in its theme data; we keep one font and a constant.
+- Menus: a Layer menu (the Layers panel's actions, `Editor::canRemoveSelectedLayers` is shared with the panel's
+  Delete button), File groups Export and Palette into submenus, Edit gains Deselect / Clear / Transform selection,
+  View is split into zoom, canvas overlays and panels.
+- Docks: section headers are a hairline plus a caret and title instead of filled bars; the Selection section shows
+  only while the select tool is active or something is selected (the Edit menu has the same actions at any time).
+- Looked at and not taken: `PopupWindow` hot regions and `AnimatedWidget` easing (ImGui popups already close on an
+  outside click, and the UI is immediate-mode), a separate "small" font (one more atlas size for little gain now).
 
 ## Phase 2b: layer blend modes
 
@@ -202,12 +217,11 @@ candidates listed under UI polish.
   on resize until the user zooms or pans (`Editor.auto_fit`).
 - Look (`src/ui/theme.cpp`): a warm near-charcoal dark theme after the Warp design language (canvas `#2b2622`, cards /
   inputs `#383330`, 1 px hairlines `#3f3a36`, 3-4 px corner radii, no shadows). The off-white `#f7f5f0` is the only accent:
-  the selected tool is drawn inverted (`theme::choiceButton`). Buttons are text, grouped into collapsible
-  sections (`theme::section`) in the Tools and Layers panels, with the shortcut letter at the button's right end;
-  only the layer rows and layer buttons have icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
+  the selected tool is drawn inverted (`theme::choiceButton`). Tools and shapes are icon buttons (the
+  shortcut is in the tooltip), the other buttons are text, grouped into collapsible sections (`theme::section`) in the
+  Tools and Layers panels; the icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
   as rects, so there is no font or generator: edit the rows to change one; `tests/ui/ui_icons.cpp` checks their shape). The
-  Tool options section shows only what the active tool uses. ImGui's built-in font is still used (Inter / DM Mono are not
-  embedded yet). `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
+  Tool options section shows only what the active tool uses. The font is an embedded Inter subset (UI polish 2); DM Mono is not embedded. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
   display; `ctest -R ui_smoke` runs three frames of the app.
 - Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
   `namespace sections`; the menu stays open while toggling; "Reset layout and sections" restores everything). View
@@ -266,7 +280,7 @@ candidates listed under UI polish.
 - Rasterizers clip no pixels; the caller bounds-checks. Filled ones take an optional clip rect that only skips fill rows and columns outside it (a shape dragged far past the cel stays cheap), and shapes draw once and reflect each plotted pixel for symmetry. A selection is one rectangle, and pixels moved off the sprite are
   lost. Merging needs both layers visible.
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
-- No native file chooser (a path dialog instead); ImGui's built-in font (Inter / DM Mono are not embedded).
+- No native file chooser (a path dialog instead); one UI font (an Inter subset), no mono font and no CJK glyphs.
 - The Windows (MinGW) job is not built locally.
 - A GIF has no partial transparency and at most 256 colors; the sprite sheet is a plain grid / strip (no packing or JSON
   yet, that is phase 3).
