@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdio>
 
-#include "inter_regular_subset.hpp"
+#include "geist_regular_subset.hpp"
 
 namespace theme
 {
@@ -12,8 +12,8 @@ namespace theme
 namespace
 {
 
-constexpr float ROUND_SMALL = 3.0f; /* buttons, inputs */
-constexpr float ROUND_CARD = 4.0f;  /* popups, child areas */
+constexpr float ROUND_SMALL = 6.0f; /* buttons, inputs */
+constexpr float ROUND_CARD = 8.0f;  /* popups, child areas */
 
 /* The one UI scale, set at startup. */
 float uiScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
@@ -53,9 +53,15 @@ bool load_fonts()
     ImGuiIO &io = ImGui::GetIO();
     ImFontConfig config;
     config.FontDataOwnedByAtlas = false; /* the data is static */
-    std::snprintf(config.Name, sizeof(config.Name), "Inter Regular");
-    ImFont *font = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(INTER_REGULAR_SUBSET),
-                                                  static_cast<int>(sizeof(INTER_REGULAR_SUBSET)),
+    /* stb_truetype does not hint, so a glyph at a fractional position, or oversampled, comes out
+     * soft and unevenly spaced at 14 px. Whole-pixel positions and one sample per pixel keep the
+     * stems and the letter spacing even. */
+    config.PixelSnapH = true;
+    config.OversampleH = 1;
+    config.OversampleV = 1;
+    std::snprintf(config.Name, sizeof(config.Name), "Geist Regular");
+    ImFont *font = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(GEIST_REGULAR_SUBSET),
+                                                  static_cast<int>(sizeof(GEIST_REGULAR_SUBSET)),
                                                   0.0f, &config);
     if (font == nullptr) {
         return false;
@@ -84,7 +90,7 @@ void apply()
     style.WindowBorderSize = 1.0f;
     style.ChildBorderSize = 1.0f;
     style.PopupBorderSize = 1.0f;
-    style.FrameBorderSize = 1.0f;
+    style.FrameBorderSize = 0.0f; /* controls are told apart by their fill */
     style.TabBorderSize = 0.0f;
 
     /* Docked panels fill the window edge to edge, so windows stay square. */
@@ -116,9 +122,9 @@ void apply()
     c[ImGuiCol_ScrollbarGrab] = rgb(PRESSED);
     c[ImGuiCol_ScrollbarGrabHovered] = rgb(MUTE, 0.6f);
     c[ImGuiCol_ScrollbarGrabActive] = rgb(MUTE);
-    c[ImGuiCol_CheckMark] = rgb(INK);
+    c[ImGuiCol_CheckMark] = rgb(ACCENT);
     c[ImGuiCol_SliderGrab] = rgb(BODY);
-    c[ImGuiCol_SliderGrabActive] = rgb(INK);
+    c[ImGuiCol_SliderGrabActive] = rgb(ACCENT);
     c[ImGuiCol_Button] = rgb(CANVAS_SOFT);
     c[ImGuiCol_ButtonHovered] = rgb(HOVER);
     c[ImGuiCol_ButtonActive] = rgb(PRESSED);
@@ -137,7 +143,7 @@ void apply()
     c[ImGuiCol_TableRowBg] = rgb(0x000000, 0.0f);
     c[ImGuiCol_TableRowBgAlt] = rgb(INK, 0.03f);
     c[ImGuiCol_TextSelectedBg] = rgb(INK, 0.25f);
-    c[ImGuiCol_DragDropTarget] = rgb(INK);
+    c[ImGuiCol_DragDropTarget] = rgb(ACCENT);
     c[ImGuiCol_NavCursor] = rgb(INK, 0.7f);
     c[ImGuiCol_NavWindowingHighlight] = rgb(INK, 0.7f);
     c[ImGuiCol_NavWindowingDimBg] = rgb(0x000000, 0.4f);
@@ -197,10 +203,10 @@ bool choiceButton(const char *label, const char *hint, bool selected, float widt
                   const char *tooltip)
 {
     if (selected) {
-        ImGui::PushStyleColor(ImGuiCol_Button, rgb(INK));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(INK));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, rgb(BODY_STRONG));
-        ImGui::PushStyleColor(ImGuiCol_Text, rgb(CANVAS));
+        ImGui::PushStyleColor(ImGuiCol_Button, rgb(ACCENT));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(ACCENT));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, rgb(ACCENT_STRONG));
+        ImGui::PushStyleColor(ImGuiCol_Text, rgb(ACCENT_TEXT));
     }
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
     bool clicked = ImGui::Button(label, ImVec2(width, 0.0f));

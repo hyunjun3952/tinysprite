@@ -49,9 +49,9 @@ void centerInRow(float rowHeight, float itemHeight)
 void drawDropLine(ImVec2 rowMin, ImVec2 rowMax, bool fromBelow)
 {
     float y = fromBelow ? rowMin.y : rowMax.y;
-    ImGui::GetForegroundDrawList()->AddLine(ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
-                                            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)),
-                                            DROP_LINE_THICKNESS);
+    ImGui::GetForegroundDrawList()->AddLine(
+        ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
+        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), DROP_LINE_THICKNESS);
 }
 
 } // namespace
@@ -145,7 +145,7 @@ void LayersPanel::rowSelectable(int index, const RowContext &ctx)
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImGui::GetItemRectMin(),
             ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
-            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::INK)));
+            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)));
     }
 }
 

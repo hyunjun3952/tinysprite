@@ -62,8 +62,15 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   square and an icon stays crisp at 150% / 200% instead of staying 16 px.
 - The five main tools are icon buttons in one row (name, shortcut and help in the tooltip, like Aseprite's tool bar),
   the same helper (`ToolsPanel::iconRow`) as the shape row; the Tools panel is one row shorter.
-- An embedded font: Inter Regular, a 26 KB subset (`thirdparty/inter/`, SIL OFL, `theme::load_fonts`, 14 px base)
-  instead of the 13 px bitmap font. Aseprite keeps font choice in its theme data; we keep one font and a constant.
+- An embedded font: Geist Regular, a 23 KB subset (`thirdparty/geist/`, SIL OFL, `theme::load_fonts`, 14 px base)
+  instead of the 13 px bitmap font. stb_truetype does not hint, so the glyphs are pixel-snapped with no oversampling:
+  compared with Inter at default settings the letter spacing and stems are even (Inter Regular was the first choice,
+  and looked soft at 14 px). Aseprite keeps font choice in its theme data; we keep one font and a constant.
+- A neutral near-black look (surface ladder `#0f1011` / `#1d1e21` / `#26282c` / `#2f3136`, hairline `#2a2c31`, 6-8 px
+  corners, no borders on controls, one indigo accent `#6c78e6` for what is selected or focused, `theme::ACCENT`). The
+  palette follows the principles of the Linear DESIGN.md analysis (VoltAgent/awesome-design-md, MIT; a description of
+  the marketing site, not the app): a surface ladder instead of shadows, a scarce accent, 4 px spacing grid.
+  Figma's analysis (white canvas, pastel blocks, pills) was not used.
 - Menus: a Layer menu (the Layers panel's actions, `Editor::canRemoveSelectedLayers` is shared with the panel's
   Delete button), File groups Export and Palette into submenus, Edit gains Deselect / Clear / Transform selection,
   View is split into zoom, canvas overlays and panels.
@@ -215,13 +222,13 @@ candidates listed under UI polish.
   floating windows; dragging a docked panel's title bar pulls it out (it follows the mouse until release), and
   dragging a floating title bar to an edge docks it. The layout is persisted (`Panels::store` / `load`). The canvas refits
   on resize until the user zooms or pans (`Editor.auto_fit`).
-- Look (`src/ui/theme.cpp`): a warm near-charcoal dark theme after the Warp design language (canvas `#2b2622`, cards /
-  inputs `#383330`, 1 px hairlines `#3f3a36`, 3-4 px corner radii, no shadows). The off-white `#f7f5f0` is the only accent:
-  the selected tool is drawn inverted (`theme::choiceButton`). Tools and shapes are icon buttons (the
+- Look (`src/ui/theme.cpp`): a neutral near-black theme (see "UI polish 2": surface ladder, controls told apart by
+  their fill, 1 px hairline dividers, 6-8 px corners, no shadows). The accent `theme::ACCENT` marks the selected tool
+  (`theme::choiceButton`, `icons::choice`), the checkmark, the slider grab and the layer drop line. Tools and shapes are icon buttons (the
   shortcut is in the tooltip), the other buttons are text, grouped into collapsible sections (`theme::section`) in the
   Tools and Layers panels; the icons (`src/ui/icons.cpp`: 16x16 pixel bitmaps kept as strings, drawn
   as rects, so there is no font or generator: edit the rows to change one; `tests/ui/ui_icons.cpp` checks their shape). The
-  Tool options section shows only what the active tool uses. The font is an embedded Inter subset (UI polish 2); DM Mono is not embedded. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
+  Tool options section shows only what the active tool uses. The font is an embedded Geist subset (UI polish 2); there is no mono font. `tinysprite --frames N --screenshot out.png` saves the last frame, for checking the look without a
   display; `ctest -R ui_smoke` runs three frames of the app.
 - Customizing the UI: Window > <panel> > Sections toggles each collapsible section (`Panels::sectionVisible`, names in
   `namespace sections`; the menu stays open while toggling; "Reset layout and sections" restores everything). View
@@ -242,7 +249,7 @@ candidates listed under UI polish.
   Dragging a selected row moves the whole selection as a block (order kept) next to the drop row; dropping on a
   selected row does nothing.
   Layers are reordered by dragging a row onto another (`moveLayer`, one undo step, the dragged layer stays active) or
-  with the Up / Down buttons (`moveSelectedLayersBy`). While dragging, a 2 px off-white line across the hovered row marks where the layer
+  with the Up / Down buttons (`moveSelectedLayersBy`). While dragging, a 2 px accent line across the hovered row marks where the layer
   will land (above the row for a layer coming from below, under it for one coming from above; none over its own row). With the layer list focused (`LayersPanel::focused`, set from the window's
   focus in the frame it is drawn) the Delete key and the trash button ask "Delete layer?" first (Enter confirms,
   Escape cancels, undo brings it back); elsewhere Delete still clears the selected pixels. While that dialog is
@@ -280,7 +287,7 @@ candidates listed under UI polish.
 - Rasterizers clip no pixels; the caller bounds-checks. Filled ones take an optional clip rect that only skips fill rows and columns outside it (a shape dragged far past the cel stays cheap), and shapes draw once and reflect each plotted pixel for symmetry. A selection is one rectangle, and pixels moved off the sprite are
   lost. Merging needs both layers visible.
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
-- No native file chooser (a path dialog instead); one UI font (an Inter subset), no mono font and no CJK glyphs.
+- No native file chooser (a path dialog instead); one UI font (a Geist subset), no mono font and no CJK glyphs.
 - The Windows (MinGW) job is not built locally.
 - A GIF has no partial transparency and at most 256 colors; the sprite sheet is a plain grid / strip (no packing or JSON
   yet, that is phase 3).

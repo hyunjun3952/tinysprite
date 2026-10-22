@@ -594,16 +594,16 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
 bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec2 size)
 {
     if (selected) {
-        ImGui::PushStyleColor(ImGuiCol_Button, theme::rgb(theme::INK));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::rgb(theme::INK));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::rgb(theme::BODY_STRONG));
+        ImGui::PushStyleColor(ImGuiCol_Button, theme::rgb(theme::ACCENT));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, theme::rgb(theme::ACCENT));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::rgb(theme::ACCENT_STRONG));
     }
     bool clicked = ImGui::Button(id, size);
     if (selected) {
         ImGui::PopStyleColor(3);
     }
     draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-         withAlpha(selected ? theme::CANVAS : theme::INK, 1.0f));
+         withAlpha(selected ? theme::ACCENT_TEXT : theme::INK, 1.0f));
     theme::tip(tooltip);
     return clicked;
 }

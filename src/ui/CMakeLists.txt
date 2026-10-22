@@ -19,7 +19,7 @@ add_library(tinysprite_ui STATIC
   app.cpp app_menus.cpp app_commands.cpp app_shortcuts.cpp app_dialogs.cpp app_files.cpp
   canvas.cpp statusbar.cpp file_paths.cpp panels.cpp tools_panel.cpp layers_panel.cpp timeline_panel.cpp layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(tinysprite_ui PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/inter)
+target_include_directories(tinysprite_ui PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/geist)
 target_link_libraries(tinysprite_ui PUBLIC tinysprite_core tinysprite_io tinysprite_imgui)
 
 add_executable(tinysprite main.cpp)

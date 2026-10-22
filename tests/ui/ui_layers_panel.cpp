@@ -4,6 +4,7 @@
 #include "editor.hpp"
 #include "layers_panel.hpp"
 #include "minitest.hpp"
+#include "theme.hpp"
 #include "ui_harness.hpp"
 
 using test_ui::Harness;
@@ -126,13 +127,13 @@ TEST(dragging_a_row_moves_the_layer)
     ASSERT_TRUE(names(f) == "Layer 1,Layer 2,Layer 3");
 }
 
-/* Rows of the list whose pixel at x is the off-white that marks the drop position. */
+/* Rows of the list whose pixel at x is the accent color that marks the drop position. */
 static int ink_rows(Fixture &f, int x)
 {
     int count = 0;
     for (int y = 40; y < 260; y++) {
         unsigned c = f.h.pixel(x, y);
-        if (c == 0xf7f5f0u) {
+        if (c == theme::ACCENT) {
             count++;
         }
     }

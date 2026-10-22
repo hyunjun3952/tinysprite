@@ -3,10 +3,10 @@
 
 #include "imgui.h"
 
-/* The look of the UI: a warm near-charcoal dark theme with hairline borders, tight corner radii and
- * an off-white as the only accent (after the Warp design language, see the colors below). The
- * widgets are plain ImGui ones styled by apply(); the helpers here are the few building blocks the
- * panels share. */
+/* The look of the UI: a neutral near-black with a short ladder of lifted surfaces, no borders on
+ * controls (a fill tells them from the panel), hairline dividers, 6-8 px corners and one accent
+ * color that only marks what is selected or focused. The widgets are plain ImGui ones styled by
+ * apply(); the helpers here are the few building blocks the panels share. */
 namespace theme
 {
 
@@ -18,26 +18,31 @@ constexpr ImVec4 rgb(unsigned hex, float alpha = 1.0f)
 }
 
 /* Surfaces. */
-inline constexpr unsigned CANVAS = 0x2b2622;      /* window background */
-inline constexpr unsigned CANVAS_SOFT = 0x383330; /* cards, inputs, buttons */
-inline constexpr unsigned HAIRLINE =
-    0x6b645c;                                 /* 1 px borders and dividers, about 2.5:1 on CANVAS */
-inline constexpr unsigned HOVER = 0x433d39;   /* hovered soft surface */
-inline constexpr unsigned PRESSED = 0x4d4641; /* pressed / selected soft surface */
-inline constexpr unsigned WORKSPACE = 0x1f1b19; /* behind the sprite, darker than the panels */
+inline constexpr unsigned CANVAS = 0x0f1011;      /* window background */
+inline constexpr unsigned CANVAS_SOFT = 0x1d1e21; /* cards, inputs, buttons */
+inline constexpr unsigned HAIRLINE = 0x2a2c31;  /* 1 px dividers and the few borders that remain */
+inline constexpr unsigned HOVER = 0x26282c;     /* hovered soft surface */
+inline constexpr unsigned PRESSED = 0x2f3136;   /* pressed / selected soft surface */
+inline constexpr unsigned WORKSPACE = 0x08090a; /* behind the sprite, darker than the panels */
 
-/* Text; INK doubles as the accent (selected tool, checkmarks). */
-inline constexpr unsigned INK = 0xf7f5f0;
-inline constexpr unsigned BODY_STRONG = 0xdad2c1;
-inline constexpr unsigned BODY = 0xc9c0ad;
-inline constexpr unsigned MUTE = 0xaea69c;
+/* The accent marks what is selected or focused (the active tool, checkmarks, the slider grab) and
+ * nothing else; ACCENT_TEXT is the text and icon color on top of it. */
+inline constexpr unsigned ACCENT = 0x6c78e6;
+inline constexpr unsigned ACCENT_STRONG = 0x5865d0; /* the pressed accent */
+inline constexpr unsigned ACCENT_TEXT = 0xffffff;
+
+/* Text. */
+inline constexpr unsigned INK = 0xf7f8f8;
+inline constexpr unsigned BODY_STRONG = 0xd0d6e0;
+inline constexpr unsigned BODY = 0xb0b6c0;
+inline constexpr unsigned MUTE = 0x8a8f98;
 
 /* The font size at scale 1, in pixels. */
 inline constexpr float FONT_SIZE = 14.0f;
 
-/* Adds the embedded UI font (Inter, a subset) to the current context's atlas and sets the base
- * font size. Call it once after creating the context and before apply(). Returns false and leaves
- * ImGui's built-in font in place if the font data cannot be read. */
+/* Adds the embedded UI font (Geist Regular, a subset) to the current context's atlas and sets the
+ * base font size. Call it once after creating the context and before apply(). Returns false and
+ * leaves ImGui's built-in font in place if the font data cannot be read. */
 bool load_fonts();
 
 /* The UI scale: 1 is the FONT_SIZE font and the sizes below as designed. Everything drawn in pixels
