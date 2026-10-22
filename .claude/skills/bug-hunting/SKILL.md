@@ -133,7 +133,8 @@ SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --frames 3 --sc
    Scale with `--scale S` when the defect is about zoom or density.
 3. Save images in the scratchpad as `ui-U<n>-actual.png` (and `-expected.png` only if a reference exists, for example the same file before the change).
    Open each with Read and describe only what is visible, not what the code should draw.
-4. If the defect needs live input (drag, hover, menu open, animation playing) and the option cannot reach it, use the computer-use or browser skill if the session has one;
+4. If the defect needs live input (drag, hover, menu open, animation playing) and the option cannot reach it, use the computer-use or browser skill if the session has one
+   (a whole UI/UX pass, not one defect, is the `ui-audit` skill);
    otherwise say "From code", describe the screen from the code, and ask the user for a screenshot. Never describe pixels you did not see.
 
 Do not commit screenshots or temporary `.pxa` files. Give the user the absolute path of each image (send it with SendUserFile when they follow remotely).
