@@ -35,7 +35,7 @@ bool file_write_atomic(const std::string &path, const std::string &data)
     std::string temp = path + ".tmp";
     {
         errno = 0;
-        std::ofstream file(temp, std::ios::binary);
+        std::ofstream file(path_from_utf8(temp), std::ios::binary);
         if (!file) {
             last_write_error() = errno != 0 ? std::strerror(errno) : "cannot create the file";
             return false;
@@ -46,15 +46,15 @@ bool file_write_atomic(const std::string &path, const std::string &data)
         if (file.fail()) {
             last_write_error() = errno != 0 ? std::strerror(errno) : "cannot write the file";
             std::error_code ignored;
-            std::filesystem::remove(temp, ignored);
+            std::filesystem::remove(path_from_utf8(temp), ignored);
             return false;
         }
     }
     std::error_code error;
-    std::filesystem::rename(temp, path, error);
+    std::filesystem::rename(path_from_utf8(temp), path_from_utf8(path), error);
     if (error) {
         last_write_error() = error.message();
-        std::filesystem::remove(temp, error);
+        std::filesystem::remove(path_from_utf8(temp), error);
         return false;
     }
     return true;
@@ -162,7 +162,9 @@ static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl)
 
 std::optional<Palette> palette_decode(const std::string &text)
 {
-    std::vector<std::string> all = lines(text);
+    static const std::string bom = "\xEF\xBB\xBF"; /* Notepad and others start a file with it */
+    std::vector<std::string> all =
+        lines(text.compare(0, bom.size(), bom) == 0 ? text.substr(bom.size()) : text);
     auto header =
         std::find_if(all.begin(), all.end(), [](const std::string &line) { return !line.empty(); });
     if (header == all.end()) {
@@ -224,7 +226,7 @@ bool palette_save(const Palette &palette, const std::string &path)
         return false;
     }
     return file_write_atomic(path,
-                             format->encode(palette, std::filesystem::path(path).stem().string()));
+                             format->encode(palette, path_to_utf8(path_from_utf8(path).stem())));
 }
 
 std::optional<Palette> palette_load(const std::string &path)
@@ -232,7 +234,7 @@ std::optional<Palette> palette_load(const std::string &path)
     if (!paletteFormat(path)) {
         return std::nullopt;
     }
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream file(path_from_utf8(path), std::ios::binary);
     if (!file) {
         return std::nullopt;
     }

@@ -638,7 +638,7 @@ bool pxa_save(const Sprite &sprite, const std::string &path)
 
 std::optional<Sprite> pxa_load(const std::string &path)
 {
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream file(path_from_utf8(path), std::ios::binary);
     if (!file) {
         return std::nullopt;
     }

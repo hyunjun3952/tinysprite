@@ -9,33 +9,68 @@
 namespace
 {
 
-/* `text` as a JSON string literal (quotes included). */
+/* The length of the well-formed UTF-8 sequence that starts at `at` (overlong forms, surrogates and
+ * code points past U+10FFFF included as malformed), or 0 if there is none. */
+size_t utf8Sequence(const std::string &text, size_t at)
+{
+    const auto byte = [&](size_t i) { return static_cast<unsigned char>(text[i]); };
+    const unsigned char lead = byte(at);
+    if (lead < 0x80) {
+        return 1;
+    }
+    const size_t length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC2 ? 2 : 0;
+    if (length == 0 || lead > 0xF4 || at + length > text.size()) {
+        return 0;
+    }
+    for (size_t i = 1; i < length; i++) {
+        if ((byte(at + i) & 0xC0) != 0x80) {
+            return 0;
+        }
+    }
+    const unsigned char second = byte(at + 1);
+    const bool overlong = (lead == 0xE0 && second < 0xA0) || (lead == 0xF0 && second < 0x90);
+    const bool beyond = (lead == 0xF4 && second > 0x8F) || (lead == 0xED && second > 0x9F);
+    return overlong || beyond ? 0 : length;
+}
+
+/* One character below U+0020, a quote or a backslash as its JSON escape; empty for the rest. */
+std::string escapeAscii(char c)
+{
+    switch (c) {
+    case '"':
+        return "\\\"";
+    case '\\':
+        return "\\\\";
+    case '\n':
+        return "\\n";
+    case '\t':
+        return "\\t";
+    default:
+        break;
+    }
+    if (static_cast<unsigned char>(c) >= 0x20) {
+        return "";
+    }
+    char buf[8];
+    std::snprintf(buf, sizeof buf, "\\u%04x", static_cast<unsigned>(c));
+    return buf;
+}
+
+/* `text` as a JSON string literal (quotes included). A byte that is not valid UTF-8 (a name read
+ * from a damaged or foreign .pxa) becomes U+FFFD, so the file stays valid UTF-8. */
 std::string quoted(const std::string &text)
 {
     std::string out = "\"";
-    for (char c : text) {
-        switch (c) {
-        case '"':
-            out += "\\\"";
-            break;
-        case '\\':
-            out += "\\\\";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(c) < 0x20) {
-                char buf[8];
-                std::snprintf(buf, sizeof buf, "\\u%04x", static_cast<unsigned>(c));
-                out += buf;
-            } else {
-                out += c;
-            }
+    for (size_t i = 0; i < text.size();) {
+        const size_t length = utf8Sequence(text, i);
+        if (length == 0) {
+            out += "\\ufffd";
+            i++;
+            continue;
         }
+        const std::string escaped = length == 1 ? escapeAscii(text[i]) : "";
+        out += escaped.empty() ? text.substr(i, length) : escaped;
+        i += length;
     }
     return out + "\"";
 }
@@ -151,5 +186,5 @@ bool spritesheet_export_with_json(const Sprite &sprite, const std::string &path,
     }
     return file_write_atomic(
         jsonPath, spritesheet_metadata_json(sprite, options, *sheet,
-                                            std::filesystem::path(path).filename().string()));
+                                            path_to_utf8(path_from_utf8(path).filename())));
 }

@@ -128,7 +128,7 @@ std::optional<SpriteSheet> spritesheet_render(const Sprite &sprite, const SheetO
 {
     int last = frame_range_end(sprite, options.first, options.last);
     if (last < 0 || options.scale < 1 || options.scale > IMAGE_EXPORT_MAX_SCALE ||
-        options.spacing < 0 || options.columns < 0) {
+        options.spacing < 0 || options.spacing > IMAGE_EXPORT_MAX_SIZE || options.columns < 0) {
         return std::nullopt;
     }
     const int count = last - options.first + 1;

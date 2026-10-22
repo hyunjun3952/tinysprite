@@ -2,6 +2,7 @@
 #define TINYSPRITE_IO_HPP
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -9,6 +10,13 @@
 #include "tinysprite/playback.hpp"
 #include "tinysprite/rect.hpp"
 #include "tinysprite/sprite.hpp"
+
+/* Paths cross the API as UTF-8 strings. On Windows the narrow file APIs read a string in the ANSI
+ * code page instead, so every path is turned into a std::filesystem::path through this before it
+ * is opened, and a file name read from a folder is turned back with path_to_utf8. Elsewhere both
+ * are plain copies. */
+std::filesystem::path path_from_utf8(const std::string &path);
+std::string path_to_utf8(const std::filesystem::path &path);
 
 /* The .pxa file format: a magic number and a version, then chunks (4-byte tag, 4-byte little-endian
  * length, payload). A reader skips tags it does not know, so later versions can add chunks.

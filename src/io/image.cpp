@@ -140,7 +140,7 @@ bool fitsCel(int width, int height)
  * the file is not a GIF with more than one frame, so the caller falls back to the plain loader. */
 std::optional<Sprite> importAnimatedGif(const std::string &path)
 {
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream file(path_from_utf8(path), std::ios::binary);
     std::vector<unsigned char> data((std::istreambuf_iterator<char>(file)),
                                     std::istreambuf_iterator<char>());
     if (data.size() < 6 || std::memcmp(data.data(), "GIF8", 4) != 0) {

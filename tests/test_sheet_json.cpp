@@ -144,6 +144,26 @@ TEST(the_other_layouts_do_not_mention_a_trim)
     ASSERT_TRUE(!has(j, "spriteSourceSize"));
 }
 
+TEST(a_name_with_invalid_utf8_is_written_as_replacement_characters)
+{
+    Sprite s(4, 4);
+    s.addTag(Sprite::Tag{"bad\xff\xfe name", 0, 0, PlayMode::Forward});
+    s.addTag(Sprite::Tag{"cut\xe2\x82", 0, 0, PlayMode::Forward}); /* truncated */
+    s.addTag(Sprite::Tag{"over\xc0\x80 \xed\xa0\x80", 0, 0,
+                         PlayMode::Forward}); /* overlong, surrogate */
+    s.addTag(Sprite::Tag{"\xed\x95\x9c\xea\xb8\x80 \xf0\x9f\x98\x80", 0, 0, PlayMode::Forward});
+    std::optional<SpriteSheet> sheet = spritesheet_render(s, SheetOptions{});
+    ASSERT_TRUE(sheet.has_value());
+    std::string json = spritesheet_metadata_json(s, SheetOptions{}, *sheet, "a.png");
+    ASSERT_TRUE(json.find("bad\\ufffd\\ufffd name") != std::string::npos);
+    ASSERT_TRUE(json.find("cut\\ufffd\\ufffd") != std::string::npos);
+    ASSERT_TRUE(json.find("over\\ufffd\\ufffd \\ufffd\\ufffd\\ufffd") != std::string::npos);
+    ASSERT_TRUE(json.find("\xed\x95\x9c\xea\xb8\x80 \xf0\x9f\x98\x80") != std::string::npos);
+    for (char c : json) {
+        ASSERT_TRUE(static_cast<unsigned char>(c) != 0xff && static_cast<unsigned char>(c) != 0xfe);
+    }
+}
+
 int main()
 {
     RUN(lists_the_slices_with_bounds_and_an_optional_pivot);
@@ -157,5 +177,6 @@ int main()
     RUN(a_scale_is_reported_and_the_rects_follow_it);
     RUN(names_are_escaped);
     RUN(no_tags_gives_an_empty_list);
+    RUN(a_name_with_invalid_utf8_is_written_as_replacement_characters);
     return TEST_SUMMARY();
 }

@@ -94,6 +94,18 @@ TEST(invalid_or_empty_text_is_rejected)
     ASSERT_TRUE(!palette_decode("GIMP Palette\nName: only a header\n").has_value());
 }
 
+TEST(a_utf8_bom_is_ignored)
+{
+    std::optional<Palette> hex = palette_decode("\xEF\xBB\xBF"
+                                                "ff0000\n00ff00\n");
+    ASSERT_TRUE(hex.has_value());
+    ASSERT_EQ_INT(2, hex->count());
+    std::optional<Palette> gpl = palette_decode("\xEF\xBB\xBF"
+                                                "GIMP Palette\nName: x\n#\n255 0 0 Red\n");
+    ASSERT_TRUE(gpl.has_value());
+    ASSERT_EQ_INT(1, gpl->count());
+}
+
 TEST(only_the_first_256_colors_are_kept)
 {
     std::string text;
@@ -161,6 +173,7 @@ int main()
     RUN(gpl_reads_the_usual_layout);
     RUN(gpl_drops_alpha_on_export);
     RUN(invalid_or_empty_text_is_rejected);
+    RUN(a_utf8_bom_is_ignored);
     RUN(only_the_first_256_colors_are_kept);
     RUN(save_and_load_follow_the_extension);
     RUN(formats_list_the_extensions_that_save_and_load_accept);

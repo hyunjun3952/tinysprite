@@ -1,3 +1,4 @@
+#include <climits>
 #include <cstdio>
 
 #include "minitest.hpp"
@@ -181,6 +182,16 @@ TEST(bad_options_render_nothing)
     ASSERT_TRUE(!spritesheet_render(s, o).has_value());
 }
 
+TEST(a_spacing_beyond_the_size_limit_is_refused_even_for_one_frame)
+{
+    Sprite s(4, 4);
+    SheetOptions o;
+    o.spacing = INT_MAX;
+    ASSERT_TRUE(!spritesheet_render(s, o).has_value());
+    o.spacing = IMAGE_EXPORT_MAX_SIZE + 1;
+    ASSERT_TRUE(!spritesheet_render(s, o).has_value());
+}
+
 TEST(a_sheet_beyond_the_size_limit_is_refused)
 {
     Sprite s(4000, 4);
@@ -338,6 +349,7 @@ int main()
     RUN(a_range_picks_the_frames);
     RUN(layers_are_flattened_like_the_canvas_shows_them);
     RUN(bad_options_render_nothing);
+    RUN(a_spacing_beyond_the_size_limit_is_refused_even_for_one_frame);
     RUN(a_sheet_beyond_the_size_limit_is_refused);
     RUN(export_writes_an_image_that_reads_back);
     return TEST_SUMMARY();
