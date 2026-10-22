@@ -99,6 +99,19 @@ TEST(very_short_durations_are_raised_to_what_viewers_honor)
     ASSERT_EQ_INT(20, d.delays[0]);
 }
 
+TEST(a_duration_is_rounded_to_the_nearest_hundredth_of_a_second)
+{
+    Sprite s = dots(3);
+    s.setFrameDuration(0, 25); /* 2.5 cs rounds up */
+    s.setFrameDuration(1, 24); /* 2.4 cs rounds down; the shortest delay viewers honor is 20 ms */
+    s.setFrameDuration(2, 36);
+    Decoded d;
+    ASSERT_TRUE(decode(gif_encode(s, GifOptions{}), d));
+    ASSERT_EQ_INT(30, d.delays[0]);
+    ASSERT_EQ_INT(20, d.delays[1]);
+    ASSERT_EQ_INT(40, d.delays[2]);
+}
+
 TEST(pixels_keep_their_colors)
 {
     Decoded d;
@@ -349,6 +362,7 @@ int main()
     RUN(a_gif_has_the_header_and_all_frames);
     RUN(frame_durations_become_delays);
     RUN(very_short_durations_are_raised_to_what_viewers_honor);
+    RUN(a_duration_is_rounded_to_the_nearest_hundredth_of_a_second);
     RUN(pixels_keep_their_colors);
     RUN(transparent_pixels_stay_transparent_in_every_frame);
     RUN(an_opaque_sprite_has_no_transparency);

@@ -1,4 +1,6 @@
 #include <cstring>
+#include <utility>
+#include <vector>
 
 #include "minitest.hpp"
 #include "tinysprite/raster.hpp"
@@ -106,6 +108,19 @@ TEST(line_steep_slope)
     const char *golden[] = {"#", "#", ".#", ".#", "..#", "..#"};
     expect_rows(&g, golden, 6);
     ASSERT_EQ_INT(6, g.plots);
+}
+
+TEST(line_takes_the_diagonal_step_first_when_the_error_ties)
+{
+    /* On (0,0)-(1,2) and (0,0)-(2,4) the midpoint lies exactly between two pixels. */
+    std::vector<std::pair<int, int>> points;
+    auto record = [&points](int x, int y) { points.emplace_back(x, y); };
+    raster_line(0, 0, 1, 2, record);
+    ASSERT_TRUE((points == std::vector<std::pair<int, int>>{{0, 0}, {1, 1}, {1, 2}}));
+    points.clear();
+    raster_line(0, 0, 2, 4, record);
+    ASSERT_TRUE(
+        (points == std::vector<std::pair<int, int>>{{0, 0}, {1, 1}, {1, 2}, {2, 3}, {2, 4}}));
 }
 
 TEST(line_reversed_direction_covers_same_pixels)
@@ -472,6 +487,7 @@ int main()
     RUN(line_diagonal);
     RUN(line_shallow_slope);
     RUN(line_steep_slope);
+    RUN(line_takes_the_diagonal_step_first_when_the_error_ties);
     RUN(line_reversed_direction_covers_same_pixels);
     RUN(line_reports_each_pixel_once_and_in_order_from_start);
     RUN(line_may_leave_the_grid);

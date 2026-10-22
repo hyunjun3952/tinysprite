@@ -19,6 +19,17 @@ static void assert_rgba(Rgba got, int r, int g, int b, int a, int line)
 }
 #define ASSERT_RGBA(got, r, g, b, a) assert_rgba(got, r, g, b, a, __LINE__)
 
+TEST(overlay_switches_branch_at_a_backdrop_of_128)
+{
+    /* below 128 the backdrop is multiplied, from 128 on it is screened */
+    ASSERT_RGBA(composite_blend(Rgba{127, 127, 127, 255}, Rgba{200, 200, 200, 255}, 255,
+                                BlendMode::Overlay),
+                199, 199, 199, 255);
+    ASSERT_RGBA(composite_blend(Rgba{128, 128, 128, 255}, Rgba{200, 200, 200, 255}, 255,
+                                BlendMode::Overlay),
+                200, 200, 200, 255);
+}
+
 TEST(layer_defaults_to_normal)
 {
     Layer l("l", 2, 2, 1);
@@ -139,6 +150,7 @@ TEST(onion_ghosts_stay_plain_over)
 
 int main()
 {
+    RUN(overlay_switches_branch_at_a_backdrop_of_128);
     RUN(layer_defaults_to_normal);
     RUN(blend_mode_names);
     RUN(normal_equals_composite_over);

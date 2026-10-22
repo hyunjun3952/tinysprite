@@ -273,6 +273,34 @@ TEST(forget_cel_keeps_undo_redo_boundary)
     ASSERT_EQ_INT(0, b.get(1, 1).a);
 }
 
+TEST(forget_cel_keeps_redo_steps_of_other_cels)
+{
+    History h;
+    Cel a(4, 4);
+    Cel b(4, 4);
+    Rgba red = {255, 0, 0, 255};
+    h.beginStroke(a);
+    h.setPixel(0, 0, red);
+    h.endStroke();
+    h.beginStroke(b);
+    h.setPixel(1, 1, red);
+    h.endStroke();
+    h.beginStroke(b);
+    h.setPixel(2, 2, red);
+    h.endStroke();
+    h.undo(); /* b(2,2) is redoable; a(0,0) and b(1,1) are applied */
+
+    h.forgetCel(&a);
+    ASSERT_TRUE(h.canRedo());
+    ASSERT_TRUE(h.redo());
+    ASSERT_EQ_INT(255, b.get(2, 2).a);
+    ASSERT_TRUE(!h.canRedo());
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(0, b.get(1, 1).a);
+    ASSERT_TRUE(!h.canUndo());
+}
+
 TEST(forget_cel_cancels_active_stroke_on_it)
 {
     History h;
@@ -708,6 +736,7 @@ int main()
     RUN(cancel_stroke_restores_pixels_and_keeps_history);
     RUN(forget_cel_drops_only_that_cels_steps);
     RUN(forget_cel_keeps_undo_redo_boundary);
+    RUN(forget_cel_keeps_redo_steps_of_other_cels);
     RUN(forget_cel_cancels_active_stroke_on_it);
     RUN(action_undo_redo_calls_callbacks);
     RUN(perform_runs_redo_and_records_the_step);
