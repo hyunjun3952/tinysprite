@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  # Static checks: scripts, format and clang-tidy (the version pinned in scripts/clang-version).
+  lint:
     timeout-minutes: 20
-    # Linux: format, lint, ASan/UBSan build and tests (UI included).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -28,20 +28,36 @@ jobs:
         run: shellcheck scripts/*.sh .githooks/*
       - name: Format check
         run: scripts/format.sh --check
-      # Compiler output and clang-tidy stamps (build/.lint-cache) carry over between runs.
+      # clang-tidy stamps (build/.lint-cache) carry over between runs.
       - uses: actions/cache@v6
         with:
-          path: |
-            ~/.cache/ccache
-            build/.lint-cache
+          path: build/.lint-cache
+          key: lint-${{ github.sha }}
+          restore-keys: lint-
+      # Only needs compile_commands.json, nothing is built.
+      - name: Configure
+        run: cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
+      - name: Lint
+        run: scripts/lint.sh
+
+  # Linux: ASan/UBSan build and tests (UI included).
+  linux:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tools
+        run: scripts/install-deps.sh
+      # Compiler output carries over between runs.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ccache
           key: linux-${{ github.sha }}
           restore-keys: linux-
       - name: Configure
         run: >-
           cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      - name: Lint
-        run: scripts/lint.sh
       - name: Build
         run: cmake --build build
       - name: Test

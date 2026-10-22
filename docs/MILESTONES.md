@@ -136,6 +136,9 @@ headless CLI export, optional Aseprite import.
   CI builds the UI explicitly (`-DTINYSPRITE_BUILD_UI=ON`) and runs these tests.
 - Zoom ranges 1/16x..64x (`VIEWPORT_ZOOM_MIN/MAX`); Fit picks a whole-number zoom, or a power of two below 1x for
   sprites larger than the canvas.
+- `clang-format` / `clang-tidy` are pinned to the major in `scripts/clang-version` (18, what Ubuntu noble gives CI);
+  a newer local tool let CI-only findings through (`bugprone-unchecked-optional-access` in #8). CI runs `lint`, `linux`
+  and `windows` as separate jobs.
 - Shell scripts are checked with `shellcheck` in CI (`shellcheck scripts/*.sh .githooks/*`).
 - `tinysprite_core` links `libm` (viewport uses `floorf`).
 - The canvas edits `Editor.active_layer` / `Editor.frame` (frame stays 0 until phase 2).

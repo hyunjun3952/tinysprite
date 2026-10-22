@@ -25,6 +25,11 @@ esac
 [ "$#" -le 1 ] || usage
 
 build=${1:-build}
+tidy=clang-tidy-$(cat scripts/clang-version)
+command -v "$tidy" >/dev/null 2>&1 || {
+    echo "lint: $tidy not found (the version CI uses); run scripts/install-deps.sh" >&2
+    exit 1
+}
 [ -f "$build/compile_commands.json" ] || cmake -S . -B "$build" >/dev/null
 db="$build/compile_commands.json"
 root=$(pwd -P)
@@ -89,7 +94,7 @@ mkdir -p "$cache"
 # A header change can affect any file, so it invalidates every stamp; a .cpp change only its own.
 key=$(
     {
-        clang-tidy --version
+        "$tidy" --version
         cat .clang-tidy
         git ls-files -co --exclude-standard 'include/*.h' 'src/*.h' 'tests/*.h' |
             while IFS= read -r h; do [ -f "$h" ] && cat "$h"; done
@@ -110,12 +115,12 @@ done
 # --quiet (the warnings are suppressed ones from system headers). Keep stderr out of the way on success and
 # show it unfiltered on failure.
 jobs=${LINT_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)}
-export build err LINT_NO_CACHE
+export build err tidy LINT_NO_CACHE
 # The worker script is single-quoted on purpose: its variables expand in the child shell.
 # shellcheck disable=SC2016
 if ! xargs -0 -n 2 -P "$jobs" sh -c '
     out="$err/$(basename "$1").log"
-    if clang-tidy -p "$build" --quiet "$1" 2>"$out"; then
+    if "$tidy" -p "$build" --quiet "$1" 2>"$out"; then
         [ -n "${LINT_NO_CACHE:-}" ] || : >"$2"
     else
         { echo "== $1"; cat "$out"; } >&2

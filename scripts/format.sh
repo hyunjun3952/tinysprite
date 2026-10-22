@@ -27,8 +27,13 @@ $(git ls-files -co --exclude-standard '*.h' '*.cpp' ':!:thirdparty/*')
 EOF
 [ "$#" -gt 0 ] || exit 0
 
+format=clang-format-$(cat scripts/clang-version)
+command -v "$format" >/dev/null 2>&1 || {
+    echo "format: $format not found (the version CI uses); run scripts/install-deps.sh" >&2
+    exit 1
+}
 if [ "$mode" = check ]; then
-    clang-format --dry-run --Werror "$@"
+    "$format" --dry-run --Werror "$@"
 else
-    clang-format -i "$@"
+    "$format" -i "$@"
 fi
