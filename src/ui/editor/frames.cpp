@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 
+#include "editor/internal.hpp"
 #include "tinysprite/cel_ops.hpp"
 #include "tinysprite/frame_ops.hpp"
 #include "tinysprite/tag_ops.hpp"
@@ -67,9 +68,11 @@ void Editor::duplicateFrame()
 void Editor::removeFrame(int index)
 {
     stopPlayback();
+    const std::vector<Sprite::Tag> tags = sprite().tags();
     if (stroking() || !frame_op_remove(history(), sprite(), index)) {
         return;
     }
+    selectedTag_ = editor_detail::followTag(tags, sprite().tags(), selectedTag_);
     if (frame_ > index) {
         frame_--;
     }

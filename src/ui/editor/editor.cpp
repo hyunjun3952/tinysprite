@@ -216,10 +216,13 @@ void Editor::zoomStep(int direction)
 }
 
 /* Undoing / redoing a layer operation can change the layer count under the active index. */
-void Editor::afterHistoryStep(const Layer *active)
+void Editor::afterHistoryStep(const Layer *active, const std::vector<Sprite::Tag> *tagsBefore)
 {
     layers_.refresh(sprite(), active);
     frame_ = std::clamp(frame_, 0, sprite().frameCount() - 1);
+    if (tagsBefore) {
+        selectedTag_ = editor_detail::followTag(*tagsBefore, sprite().tags(), selectedTag_);
+    }
     if (selectedTag_ >= static_cast<int>(sprite().tags().size())) {
         selectedTag_ = -1;
     }
@@ -233,8 +236,9 @@ void Editor::undo()
 {
     stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
+    const std::vector<Sprite::Tag> tags = sprite().tags();
     if (history().undo()) {
-        afterHistoryStep(active);
+        afterHistoryStep(active, &tags);
     }
 }
 
@@ -242,8 +246,9 @@ void Editor::redo()
 {
     stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
+    const std::vector<Sprite::Tag> tags = sprite().tags();
     if (history().redo()) {
-        afterHistoryStep(active);
+        afterHistoryStep(active, &tags);
     }
 }
 

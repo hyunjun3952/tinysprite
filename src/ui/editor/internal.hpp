@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "tinysprite/palette.hpp"
 #include "tinysprite/sprite.hpp"
@@ -23,6 +24,12 @@ std::optional<Sprite> blankSprite(int width, int height);
 
 /* The index of `layer` in `sprite`, or -1 when it is not one of its layers. */
 int indexOfLayer(const Sprite &sprite, const Layer *layer);
+
+/* Where the tag that was at `selected` in `before` is in `after`, -1 when it is gone (or nothing
+ * was selected). The lists differ by tags that vanished or came back, or by edited ranges, always
+ * in the same order, so equal names are walked in step. */
+int followTag(const std::vector<Sprite::Tag> &before, const std::vector<Sprite::Tag> &after,
+              int selected);
 
 } // namespace editor_detail
 

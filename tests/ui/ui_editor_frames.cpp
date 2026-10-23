@@ -3,6 +3,7 @@
 
 #include "editor.hpp"
 #include "minitest.hpp"
+#include "tinysprite/tag_ops.hpp"
 #include "ui_editor_support.hpp"
 
 TEST(a_new_document_shows_frame_zero)
@@ -356,6 +357,74 @@ TEST(frames_stop_at_the_limit_and_say_so)
     delete e;
 }
 
+static void tag_named(Editor *e, const char *name, int from, int to)
+{
+    Sprite::Tag t;
+    t.name = name;
+    t.from = from;
+    t.to = to;
+    tag_op_add(e->history(), e->sprite(), t);
+}
+
+static std::string selected_tag_name(Editor *e)
+{
+    int i = e->selectedTag();
+    return i >= 0 && i < static_cast<int>(e->sprite().tags().size())
+               ? e->sprite().tags()[static_cast<size_t>(i)].name
+               : "";
+}
+
+TEST(the_selected_tag_stays_the_same_tag_when_a_frame_removes_an_earlier_one)
+{
+    Editor *e = make_editor();
+    for (int i = 0; i < 5; i++) {
+        e->addFrame();
+    }
+    tag_named(e, "A", 3, 3);
+    tag_named(e, "B", 0, 1);
+    tag_named(e, "C", 5, 5);
+    e->selectTag(1);
+    e->removeFrame(3);
+    ASSERT_TRUE(selected_tag_name(e) == "B");
+    e->undo();
+    ASSERT_TRUE(selected_tag_name(e) == "B");
+    e->redo();
+    ASSERT_TRUE(selected_tag_name(e) == "B");
+    e->selectTag(1); /* C */
+    e->removeFrame(0);
+    ASSERT_TRUE(selected_tag_name(e) == "C");
+    delete e;
+}
+
+TEST(the_selected_tag_stays_the_same_tag_across_undo_of_a_removal)
+{
+    Editor *e = make_editor();
+    for (int i = 0; i < 3; i++) {
+        e->addFrame();
+    }
+    tag_named(e, "A", 0, 0);
+    tag_named(e, "B", 1, 1);
+    e->selectTag(1);
+    e->removeTag(0);
+    ASSERT_EQ_INT(0, e->selectedTag());
+    e->undo();
+    ASSERT_TRUE(selected_tag_name(e) == "B");
+    e->redo();
+    ASSERT_TRUE(selected_tag_name(e) == "B");
+    delete e;
+}
+
+TEST(a_selected_tag_that_vanishes_with_its_frame_selects_nothing)
+{
+    Editor *e = make_editor();
+    e->addFrame();
+    tag_named(e, "A", 1, 1);
+    e->selectTag(0);
+    e->removeFrame(1);
+    ASSERT_EQ_INT(-1, e->selectedTag());
+    delete e;
+}
+
 TEST(adding_a_tag_covers_the_current_frame_and_selects_it)
 {
     Editor *e = make_editor();
@@ -588,6 +657,9 @@ int main()
     RUN(onion_skin_settings_survive_a_settings_round_trip);
     RUN(onion_skin_settings_are_limited);
     RUN(frames_stop_at_the_limit_and_say_so);
+    RUN(the_selected_tag_stays_the_same_tag_when_a_frame_removes_an_earlier_one);
+    RUN(the_selected_tag_stays_the_same_tag_across_undo_of_a_removal);
+    RUN(a_selected_tag_that_vanishes_with_its_frame_selects_nothing);
     RUN(adding_a_tag_covers_the_current_frame_and_selects_it);
     RUN(tags_can_be_edited_removed_and_undone);
     RUN(removing_an_earlier_tag_keeps_the_same_tag_selected);

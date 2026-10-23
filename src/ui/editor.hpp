@@ -643,7 +643,8 @@ class Editor
     std::vector<int> shiftedLayerOrder(int direction) const;
     bool canMoveLayers(int direction) const;
     void startPlayback();
-    void afterHistoryStep(const Layer *active = nullptr);
+    void afterHistoryStep(const Layer *active = nullptr,
+                          const std::vector<Sprite::Tag> *tagsBefore = nullptr);
 
     ToolKind tool_ = ToolKind::Pencil;
     float color_[4] = {0.0f, 0.0f, 0.0f, 1.0f};

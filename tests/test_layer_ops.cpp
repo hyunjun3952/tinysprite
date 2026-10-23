@@ -546,6 +546,24 @@ TEST(merge_down_with_a_blend_mode_looks_like_the_stack_when_allowed)
     ASSERT_TRUE(composite_pixel(s, 0, 1, 0) == before1);
 }
 
+TEST(merge_down_is_refused_when_the_lower_layer_is_not_fully_opaque)
+{
+    Sprite s(2, 2);
+    History h;
+    s.layer(0)->setOpacity(128);
+    s.layer(0)->cel(0)->set(0, 0, Rgba{255, 0, 0, 255});
+    Layer *top = layer_op_add(h, s, "top");
+    top->cel(0)->set(0, 0, Rgba{0, 0, 255, 255});
+    Rgba before = composite_pixel(s, 0, 0, 0);
+    ASSERT_TRUE(!layer_can_merge_down(s, 1));
+    ASSERT_TRUE(!layer_op_merge_down(h, s, 1));
+    ASSERT_EQ_INT(2, s.layerCount());
+    ASSERT_TRUE(composite_pixel(s, 0, 0, 0) == before);
+    s.layer(0)->setOpacity(255);
+    ASSERT_TRUE(layer_op_merge_down(h, s, 1));
+    ASSERT_EQ_INT(255, composite_pixel(s, 0, 0, 0).a);
+}
+
 int main()
 {
     RUN(add_is_undoable);
@@ -566,6 +584,7 @@ int main()
     RUN(duplicate_rejects_bad_index_and_active_stroke);
     RUN(merge_down_flattens_the_layer_into_the_one_below);
     RUN(merge_down_applies_the_upper_layer_opacity);
+    RUN(merge_down_is_refused_when_the_lower_layer_is_not_fully_opaque);
     RUN(merge_down_undoes_and_redoes_as_one_step);
     RUN(pixel_steps_around_a_merge_stay_valid);
     RUN(merge_down_frees_the_merged_layer_with_the_history);

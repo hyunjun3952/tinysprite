@@ -138,6 +138,10 @@ bool layer_can_merge(const Layer &upper, const Layer &lower)
 
 bool layer_merge_keeps_look(const Layer &upper, const Layer &lower, bool visibleBelow)
 {
+    /* the lower layer keeps its opacity, which would then also fade the pixels merged into it */
+    if (lower.opacity() != 255) {
+        return false;
+    }
     bool plain = upper.blendMode() == BlendMode::Normal && lower.blendMode() == BlendMode::Normal;
     return plain || !visibleBelow;
 }

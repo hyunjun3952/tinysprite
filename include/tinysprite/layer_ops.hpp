@@ -34,7 +34,9 @@ bool layer_can_merge(const Layer &upper, const Layer &lower);
 
 /* Whether merging `upper` into `lower` leaves the flattened image as it was. Blend modes see
  * everything under a layer, a merge only sees `lower`, so it is exact when both are Normal (plain
- * "over" nests) or when no visible layer lies under `lower` (`visibleBelow` false). */
+ * "over" nests) or when no visible layer lies under `lower` (`visibleBelow` false). It never is
+ * when `lower` is not fully opaque: it keeps that opacity, so the merged pixels would fade with it.
+ */
 bool layer_merge_keeps_look(const Layer &upper, const Layer &lower, bool visibleBelow);
 
 /* Whether any layer below `index` (indexes 0..index-1) is visible: the `visibleBelow` argument of

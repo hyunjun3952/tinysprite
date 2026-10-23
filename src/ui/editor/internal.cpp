@@ -63,4 +63,35 @@ int indexOfLayer(const Sprite &sprite, const Layer *layer)
     return -1;
 }
 
+int followTag(const std::vector<Sprite::Tag> &before, const std::vector<Sprite::Tag> &after,
+              int selected)
+{
+    if (selected < 0 || selected >= static_cast<int>(before.size())) {
+        return -1;
+    }
+    if (before.size() == after.size()) {
+        return selected; /* edited in place */
+    }
+    /* Walk the longer list; each of its tags either is the next one of the shorter or is extra. */
+    const bool shrank = after.size() < before.size();
+    const std::vector<Sprite::Tag> &longer = shrank ? before : after;
+    const std::vector<Sprite::Tag> &shorter = shrank ? after : before;
+    std::vector<int> partner(longer.size(), -1); /* index in `shorter`, -1 for an extra tag */
+    size_t next = 0;
+    for (size_t i = 0; i < longer.size(); i++) {
+        if (next < shorter.size() && longer[i].name == shorter[next].name) {
+            partner[i] = static_cast<int>(next++);
+        }
+    }
+    if (shrank) {
+        return partner[static_cast<size_t>(selected)];
+    }
+    for (size_t i = 0; i < partner.size(); i++) {
+        if (partner[i] == selected) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
 } // namespace editor_detail
