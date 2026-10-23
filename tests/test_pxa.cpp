@@ -234,6 +234,22 @@ TEST(a_header_that_claims_more_frames_than_the_data_holds_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
+TEST(a_sprite_at_the_frame_limit_round_trips_and_a_header_past_it_is_rejected)
+{
+    Sprite s(1, 1);
+    while (s.frameCount() < SPRITE_MAX_FRAMES) {
+        s.insertFrame(s.frameCount(), s.makeFrame());
+    }
+    std::vector<uint8_t> data = pxa_encode(s);
+    std::optional<Sprite> back = pxa_decode(data);
+    ASSERT_TRUE(back.has_value());
+    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, back->frameCount());
+    /* the frame count of HEAD, little endian: one more than the limit, with the pixels present */
+    data[8 + 8 + 8] = static_cast<uint8_t>((SPRITE_MAX_FRAMES + 1) & 0xff);
+    data[8 + 8 + 9] = static_cast<uint8_t>((SPRITE_MAX_FRAMES + 1) >> 8);
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
 TEST(a_frame_chunk_with_the_wrong_length_is_rejected)
 {
     std::vector<uint8_t> data = pxa_encode(animated());
@@ -487,6 +503,7 @@ int main()
     RUN(a_plain_sprite_writes_no_frame_chunk);
     RUN(a_single_frame_with_its_own_duration_round_trips);
     RUN(a_header_that_claims_more_frames_than_the_data_holds_is_rejected);
+    RUN(a_sprite_at_the_frame_limit_round_trips_and_a_header_past_it_is_rejected);
     RUN(a_frame_chunk_with_the_wrong_length_is_rejected);
     RUN(a_zero_duration_is_rejected);
     RUN(tags_round_trip);

@@ -167,6 +167,7 @@ std::optional<Sprite> importAnimatedGif(const std::string &path)
     if (!pixels || frames < 2 || !fitsCel(width, height)) {
         return std::nullopt;
     }
+    frames = std::min(frames, SPRITE_MAX_FRAMES); /* the timeline has room for no more */
     Sprite sprite(width, height);
     const size_t frameBytes =
         static_cast<size_t>(width) * static_cast<size_t>(height) * sizeof(Rgba);

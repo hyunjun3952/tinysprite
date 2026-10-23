@@ -28,6 +28,9 @@ const Layer *Sprite::layer(int index) const
 bool Sprite::fitsCels(int moreLayers, int moreFrames) const
 {
     /* 64-bit: 65535 layers x 65535 frames x 64 MiB still fits */
+    if (frameCount_ + moreFrames > SPRITE_MAX_FRAMES) {
+        return false;
+    }
     const unsigned long long cels = static_cast<unsigned long long>(layers_.size() + moreLayers) *
                                     static_cast<unsigned long long>(frameCount_ + moreFrames);
     const unsigned long long cel = static_cast<unsigned long long>(width_) * height_ * sizeof(Rgba);
@@ -122,8 +125,9 @@ Sprite::Frame Sprite::copyFrame(int index) const
 
 bool Sprite::insertFrame(int index, Frame frame)
 {
-    if (index < 0 || index > frameCount_ || frame.cels.size() != layers_.size() ||
-        frame.duration < 1 || frame.duration > FRAME_DURATION_MAX) {
+    if (index < 0 || index > frameCount_ || frameCount_ >= SPRITE_MAX_FRAMES ||
+        frame.cels.size() != layers_.size() || frame.duration < 1 ||
+        frame.duration > FRAME_DURATION_MAX) {
         return false;
     }
     for (size_t i = 0; i < layers_.size(); i++) {

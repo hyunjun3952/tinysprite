@@ -340,6 +340,22 @@ TEST(onion_skin_settings_are_limited)
     delete e;
 }
 
+TEST(frames_stop_at_the_limit_and_say_so)
+{
+    Editor *e = make_editor();
+    while (e->sprite().frameCount() < SPRITE_MAX_FRAMES) {
+        e->addFrame();
+    }
+    ASSERT_TRUE(!e->takeFramesFull());
+    e->addFrame();
+    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, e->sprite().frameCount());
+    ASSERT_TRUE(e->takeFramesFull());
+    ASSERT_TRUE(!e->takeMemoryShort());
+    e->duplicateFrame();
+    ASSERT_TRUE(e->takeFramesFull());
+    delete e;
+}
+
 TEST(adding_a_tag_covers_the_current_frame_and_selects_it)
 {
     Editor *e = make_editor();
@@ -571,6 +587,7 @@ int main()
     RUN(onion_skin_is_hidden_while_playing);
     RUN(onion_skin_settings_survive_a_settings_round_trip);
     RUN(onion_skin_settings_are_limited);
+    RUN(frames_stop_at_the_limit_and_say_so);
     RUN(adding_a_tag_covers_the_current_frame_and_selects_it);
     RUN(tags_can_be_edited_removed_and_undone);
     RUN(removing_an_earlier_tag_keeps_the_same_tag_selected);

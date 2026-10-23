@@ -390,6 +390,9 @@ void App::buildUi()
     Uint32 now = SDL_GetTicks();
     editor_->tick(static_cast<int>(now - lastTick_));
     lastTick_ = now;
+    if (editor_->takeFramesFull()) {
+        toast("A sprite can have at most " + std::to_string(SPRITE_MAX_FRAMES) + " frames", true);
+    }
     if (editor_->takeMemoryShort()) {
         toast("Not enough memory for that: close layers, frames or tabs first", true);
     }

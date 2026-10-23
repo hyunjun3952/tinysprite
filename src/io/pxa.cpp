@@ -333,7 +333,8 @@ class Decoder
         frames_ = chunk.u32();
         /* The Sprite constructor checks the size; the frames are created with the first layer,
          * once the file is known to hold their pixels. */
-        if (sprite_ || frames_ < 1 || width > CEL_MAX_DIMENSION || height > CEL_MAX_DIMENSION) {
+        if (sprite_ || frames_ < 1 || frames_ > SPRITE_MAX_FRAMES || width > CEL_MAX_DIMENSION ||
+            height > CEL_MAX_DIMENSION) {
             return false;
         }
         sprite_.emplace(static_cast<int>(width), static_cast<int>(height));

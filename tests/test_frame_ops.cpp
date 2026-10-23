@@ -159,6 +159,38 @@ TEST(a_removed_layer_comes_back_with_the_frames_it_had)
     ASSERT_EQ_INT(2, s.layer(1)->frameCount());
 }
 
+static Sprite full_of_frames()
+{
+    Sprite s(1, 1);
+    while (s.frameCount() < SPRITE_MAX_FRAMES) {
+        s.insertFrame(s.frameCount(), s.makeFrame());
+    }
+    return s;
+}
+
+TEST(adding_or_duplicating_stops_at_the_frame_limit)
+{
+    Sprite s = full_of_frames();
+    History h;
+    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, s.frameCount());
+    ASSERT_TRUE(!frame_op_add(h, s, 0));
+    ASSERT_TRUE(!frame_op_duplicate(h, s, 0));
+    ASSERT_TRUE(!s.insertFrame(0, s.makeFrame()));
+    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, s.frameCount());
+    ASSERT_TRUE(!h.canUndo());
+}
+
+TEST(undoing_a_removal_at_the_limit_still_works)
+{
+    Sprite s = full_of_frames();
+    History h;
+    ASSERT_TRUE(frame_op_remove(h, s, 3));
+    ASSERT_TRUE(frame_op_add(h, s, 3));
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, s.frameCount());
+}
+
 int main()
 {
     RUN(add_is_undoable);
@@ -172,5 +204,7 @@ int main()
     RUN(set_duration_is_undoable_and_skips_no_ops);
     RUN(layer_ops_and_frame_ops_undo_together);
     RUN(a_removed_layer_comes_back_with_the_frames_it_had);
+    RUN(adding_or_duplicating_stops_at_the_frame_limit);
+    RUN(undoing_a_removal_at_the_limit_still_works);
     return TEST_SUMMARY();
 }

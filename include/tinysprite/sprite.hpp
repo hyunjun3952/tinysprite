@@ -19,6 +19,10 @@ inline constexpr int SLICE_NAME_MAX = 63; /* bytes */
 inline constexpr int FRAME_DURATION_DEFAULT = 100; /* milliseconds */
 inline constexpr int FRAME_DURATION_MAX = 65535;
 
+/* The most frames one sprite may have: the timeline shows a column per frame and ImGui tables stop
+ * at 511 columns. Operations, the .pxa reader and the GIF import stay within it. */
+inline constexpr int SPRITE_MAX_FRAMES = 500;
+
 /* The most memory the cels of one sprite may take: width x height x 4 bytes for every layer and
  * frame (cels shared by linked frames are counted once per frame). Operations that would add cels
  * beyond it refuse, so a document cannot grow until the allocator gives up. */

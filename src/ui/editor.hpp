@@ -359,6 +359,11 @@ class Editor
     /* True once after an edit was refused (the sprite's cel budget is used up) or given up (the
      * allocator failed) for lack of memory; the document is as it was, and the caller tells the
      * user. */
+    /* Whether a frame was refused because the sprite already has SPRITE_MAX_FRAMES; cleared. */
+    bool takeFramesFull()
+    {
+        return std::exchange(framesFull_, false);
+    }
     bool takeMemoryShort()
     {
         return std::exchange(memoryShort_, false);
@@ -613,6 +618,7 @@ class Editor
         }
     }
     void abandonedForMemory();
+    void refusedFrame();
 
     /* The editable selected pixels, copied, with the cel and area they came from; nullopt when
      * there is no selection or the cel cannot be edited. */
@@ -645,6 +651,7 @@ class Editor
     RecentColors recent_ = {};
     int paletteSelected_ = -1;
     bool modifiedOutsideHistory_ = false;
+    bool framesFull_ = false;  /* a frame was refused at SPRITE_MAX_FRAMES */
     bool memoryShort_ = false; /* an edit was refused or given up for lack of memory */
     bool showGrid_ = true;
     Overlays overlays_;

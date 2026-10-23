@@ -245,6 +245,33 @@ TEST(an_oversized_image_is_refused_before_it_is_decoded)
 }
 #endif
 
+/* An animated GIF of `frames` 1 x 1 images. */
+static std::vector<uint8_t> tinyAnimation(int frames)
+{
+    std::vector<uint8_t> g = {'G',  'I', 'F', '8', '9', 'a', 1,   0,   1,  0,
+                              0x80, 0,   0,   0,   0,   0,   255, 255, 255};
+    for (int i = 0; i < frames; i++) {
+        g.insert(g.end(), {0x21, 0xf9, 4, 0, 5, 0, 0, 0});
+        g.insert(g.end(), {0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0});
+        g.insert(g.end(), {2, 2, 0x44, 0x01, 0});
+    }
+    g.push_back(0x3b);
+    return g;
+}
+
+TEST(an_animation_longer_than_the_frame_limit_is_cut_at_it)
+{
+    const char *path = "test_image_long.gif";
+    std::vector<uint8_t> gif = tinyAnimation(SPRITE_MAX_FRAMES + 20);
+    std::ofstream(path, std::ios::binary)
+        .write(reinterpret_cast<const char *>(gif.data()),
+               static_cast<std::streamsize>(gif.size()));
+    std::optional<Sprite> sprite = image_import(path);
+    std::remove(path);
+    ASSERT_TRUE(sprite.has_value());
+    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, sprite->frameCount());
+}
+
 int main()
 {
     RUN(export_then_import_round_trips_the_flattened_image);
@@ -258,6 +285,7 @@ int main()
     RUN(export_can_enlarge_by_whole_pixels);
     RUN(export_rejects_a_bad_scale);
     RUN(write_formats_list_what_export_accepts);
+    RUN(an_animation_longer_than_the_frame_limit_is_cut_at_it);
     RUN(an_export_follows_the_layer_blend_mode);
 #ifdef __linux__
     RUN(an_oversized_image_is_refused_before_it_is_decoded);

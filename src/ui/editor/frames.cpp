@@ -22,6 +22,16 @@ bool Editor::setFrame(int frame)
     return true;
 }
 
+/* A frame was refused: by the frame limit, else only the cel budget (or the allocator) does. */
+void Editor::refusedFrame()
+{
+    if (sprite().frameCount() >= SPRITE_MAX_FRAMES) {
+        framesFull_ = true;
+    } else {
+        memoryShort_ = true;
+    }
+}
+
 void Editor::addFrame()
 {
     stopPlayback();
@@ -34,7 +44,7 @@ void Editor::addFrame()
         frame_++;
         markAllDirty();
     } else {
-        memoryShort_ = true; /* only the cel budget (or the allocator) refuses here */
+        refusedFrame();
     }
 }
 
@@ -50,7 +60,7 @@ void Editor::duplicateFrame()
         frame_++;
         markAllDirty();
     } else {
-        memoryShort_ = true;
+        refusedFrame();
     }
 }
 

@@ -16,7 +16,8 @@ TEST(the_default_cel_budget_is_what_a_big_sprite_can_still_grow_by)
     ASSERT_TRUE(s.fitsCels(0, 31));
     ASSERT_TRUE(!s.fitsCels(1, 31)); /* 2 layers x 32 frames */
     Sprite small(8, 8);
-    ASSERT_TRUE(small.fitsCels(1000, 1000));
+    ASSERT_TRUE(small.fitsCels(1000, SPRITE_MAX_FRAMES - 1));
+    ASSERT_TRUE(!small.fitsCels(0, SPRITE_MAX_FRAMES)); /* the frame limit, not the budget */
 }
 
 TEST(layers_and_frames_stop_at_the_cel_budget)
