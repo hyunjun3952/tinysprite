@@ -232,7 +232,14 @@ branch and PR.
       per frame (scaled with the sheet; slices stay in whole-frame coordinates). `tinysprite export --layout packed`, a
       "Packed (trimmed)" entry in the sprite sheet dialog, and a checkbox there that also writes the `.json` beside the
       image (`with_replaced_extension`).
-- [ ] **22. Filters** — outline, palette swap, hue / brightness, as undoable layer operations.
+- [x] **22. Filters** — `filter_ops.hpp`: `filter_outline` (one pixel wide, 4 or 8 neighbours, read from a copy so it
+      never grows a second ring), `filter_replace_color` (exact RGBA match, the palette swap) and
+      `filter_hue_brightness` (HSL, alpha kept, transparent pixels untouched), each an optional `area`-limited pixel
+      stroke, plus `FilterParams` / `filter_apply` to pick one at run time. `filter_apply_cels` runs one over several
+      cels as a single undo step: a `History` group cannot hold strokes, so it diffs each cel against a filtered copy and
+      records one action. In the UI `Editor::applyFilter` filters the visible, unlocked selected layers inside the
+      selection, on the current frame or all frames (a linked cel once), and the Filter menu opens a dialog per filter
+      (`app/filter_dialog.cpp`; colors start as the foreground / background).
 - [ ] **23. Tilemap editor** — tileset from a cel grid, tile layer, `.tmj`-like export.
 - [ ] **24. Aseprite import** (optional).
 

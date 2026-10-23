@@ -19,6 +19,7 @@
 #include "recovery.hpp"
 #include "settings.hpp"
 #include "statusbar.hpp"
+#include "theme.hpp"
 #include "timeline_panel.hpp"
 #include "tools_panel.hpp"
 
@@ -106,6 +107,7 @@ class App
     void layerMenuItems();
     void layerEditItems();
     void layerStateItems(bool idle);
+    void filterMenu();
     void frameMenu();
     void frameEditItems(bool idle);
     void celLinkItems(bool idle);
@@ -276,6 +278,10 @@ class App
     void openOrAsk(const std::string &path);
     void helpWindow();
     void newDialog();
+    void filterDialog();
+    void filterFields();
+    void openFilter(FilterParams::Kind kind);
+    bool runFilter();
     void newSizeFields();
     void recoverDialog();
     void recoverList();
@@ -300,6 +306,12 @@ class App
         bool json = true; /* the sprite sheet dialog also writes the metadata beside the image */
     };
     ExportChoices export_;
+    /* The Filter dialog: which filter, its colors as floats for the hex fields (outline, replace
+     * from, replace to) and whether it covers every frame. */
+    FilterParams filter_;
+    float filterColors_[3][4] = {};
+    char filterHex_[3][theme::HEX_BUFFER_SIZE] = {};
+    bool filterAllFrames_ = false;
     int newWidth_ = 64;
     int newHeight_ = 64;
     int exportScale_ = 1;     /* the Export dialogs' enlargement */
@@ -355,7 +367,9 @@ class App
     bool persist_ = false; /* keep settings and an autosave copy (off for --frames runs) */
     bool openRecover_ = false;
     bool openNew_ = false;
-    bool newShown_ = false;     /* the New sprite dialog is open (set while it is drawn) */
+    bool newShown_ = false; /* the New sprite dialog is open (set while it is drawn) */
+    bool openFilter_ = false;
+    bool filterShown_ = false;  /* the Filter dialog is open (set while it is drawn) */
     bool recoverShown_ = false; /* ... and the recovery question */
     bool confirmShown_ = false; /* ... and the unsaved-changes question */
     bool imguiContext_ = false;

@@ -27,7 +27,7 @@ RGBA pixel buffer) per frame, as `shared_ptr<Cel>` so that frames can share a ce
 frame taken out of the sprite (a cel per layer plus its duration), which is how a removed frame lives on inside a history
 step. A cel is RGBA for now; indexed color is deferred.
 
-Animation lives in a few small modules next to it: `frame_ops.hpp` / `tag_ops.hpp` / `cel_ops.hpp` / `palette_ops.hpp` (undoable
+Animation lives in a few small modules next to it: `frame_ops.hpp` / `tag_ops.hpp` / `cel_ops.hpp` / `palette_ops.hpp` / `filter_ops.hpp` (undoable
 edits, same pattern as `layer_ops.hpp`), `playback.hpp` (which frame to show as time passes, and `play_order`) and the onion
 skin in `composite.hpp`.
 

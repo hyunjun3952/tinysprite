@@ -76,7 +76,7 @@ void App::plainShortcuts()
 bool App::modalOpen() const
 {
     return fileAction_ != FileAction::None || confirmShown_ || openConfirm_ || openNew_ ||
-           openRecover_ || newShown_ || recoverShown_;
+           openRecover_ || newShown_ || openFilter_ || filterShown_ || recoverShown_;
 }
 
 /* Ctrl+key shortcuts: the commands of commands.hpp (file, zoom, undo / redo, the clipboard). */

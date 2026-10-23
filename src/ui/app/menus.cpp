@@ -242,6 +242,28 @@ void App::frameStepItems(bool idle)
 }
 
 /* The size of the whole UI, for high-resolution displays. */
+/* The filters; each opens the Filter dialog for its settings. */
+void App::filterMenu()
+{
+    if (!theme::begin_menu("Filter")) {
+        return;
+    }
+    bool idle = !editor_->stroking() && !editor_->playing();
+    if (ImGui::MenuItem("Outline...", nullptr, false, idle)) {
+        openFilter(FilterParams::Kind::Outline);
+    }
+    theme::tip("Draws a line around the shapes on the selected layers.");
+    if (ImGui::MenuItem("Replace color...", nullptr, false, idle)) {
+        openFilter(FilterParams::Kind::ReplaceColor);
+    }
+    theme::tip("Swaps one exact color for another (a palette swap).");
+    if (ImGui::MenuItem("Hue / Brightness...", nullptr, false, idle)) {
+        openFilter(FilterParams::Kind::HueBrightness);
+    }
+    theme::tip("Turns the hue and lightens or darkens the colors.");
+    ImGui::EndMenu();
+}
+
 void App::uiScaleMenu()
 {
     if (!ImGui::BeginMenu("UI scale")) {
@@ -317,6 +339,7 @@ void App::menuBar()
     editMenu();
     layerMenu();
     frameMenu();
+    filterMenu();
     viewMenu();
     panels_.windowMenu();
     if (theme::begin_menu("Help")) {

@@ -16,6 +16,7 @@
 #include "layer_selection.hpp"
 #include "settings.hpp"
 #include "tinysprite/composite.hpp"
+#include "tinysprite/filter_ops.hpp"
 #include "tinysprite/history.hpp"
 #include "tinysprite/playback.hpp"
 #include "tinysprite/selection.hpp"
@@ -598,6 +599,12 @@ class Editor
      * lands outside the sprite is lost. */
     void flipSelection(bool horizontal);
     void rotateSelection(bool clockwise);
+
+    /* Runs a filter on the visible, unlocked selected layers, inside the selection if there is one,
+     * as one undo step: on the current frame's cels, or on every frame's (a cel shared by linked
+     * frames is filtered once). Returns false when nothing could be filtered (a tool is being
+     * dragged, playback runs, no layer qualifies, or memory ran out). */
+    bool applyFilter(const FilterParams &params, bool allFrames);
 
     /* Moves the selected pixels and the selection by (dx, dy), one undo step (the arrow keys);
      * with no selection the whole cel moves. Returns false for a cel that cannot be edited, a

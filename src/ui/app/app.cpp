@@ -426,6 +426,7 @@ void App::buildUi()
     fileDialog();
     confirmDialog();
     newDialog();
+    filterDialog();
     recoverDialog();
     helpWindow();
     handleShortcuts();

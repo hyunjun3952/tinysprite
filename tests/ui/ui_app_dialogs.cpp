@@ -51,6 +51,19 @@ struct AppTestAccess {
     {
         return app.dirty();
     }
+    void openFilter(FilterParams::Kind kind)
+    {
+        app.openFilter(kind);
+    }
+    bool runFilter()
+    {
+        return app.runFilter();
+    }
+    void setFilterColors(const float *from, const float *to)
+    {
+        std::copy(from, from + 4, app.filterColors_[1]);
+        std::copy(to, to + 4, app.filterColors_[2]);
+    }
     void askBeforeLeaving()
     {
         app.guardUnsaved([] {});
@@ -232,6 +245,35 @@ TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
     t.pressEscape();
     ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
     ASSERT_TRUE(editor.hasSelection());
+}
+
+TEST(the_filter_dialog_opens_and_escape_closes_it)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.openFilter(FilterParams::Kind::HueBrightness);
+    for (int i = 0; i < 3; i++) {
+        t.frame();
+    }
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    t.pressEscape();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+}
+
+TEST(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(0, 0, Rgba{255, 0, 0, 255});
+    const float red[4] = {1, 0, 0, 1};
+    const float blue[4] = {0, 0, 1, 1};
+    t.openFilter(FilterParams::Kind::ReplaceColor);
+    t.setFilterColors(red, blue);
+    ASSERT_TRUE(t.runFilter());
+    ASSERT_TRUE(editor.activeCel()->get(0, 0) == Rgba({0, 0, 255, 255}));
+    editor.undo();
+    ASSERT_TRUE(editor.activeCel()->get(0, 0) == Rgba({255, 0, 0, 255}));
 }
 
 TEST(ctrl_t_hides_and_shows_the_timeline)
@@ -419,6 +461,8 @@ int main()
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
     RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
+    RUN(the_filter_dialog_opens_and_escape_closes_it);
+    RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);
     RUN(hovering_a_menu_title_opens_the_menu);
     RUN(the_layer_chords_add_duplicate_and_move_layers);
     RUN(double_clicking_the_timeline_edge_restores_its_default_height);
