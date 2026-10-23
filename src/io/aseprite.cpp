@@ -211,7 +211,10 @@ void AseDecoder::readFrame(int index)
     }
     durations_.push_back(duration != 0 ? duration : speed_);
     Reader frame = takeReader(file_, bytes - FRAME_HEADER_BYTES);
-    uint32_t count = newChunks != 0 ? newChunks : (oldChunks == 0xFFFF ? 0 : oldChunks);
+    uint32_t count = newChunks;
+    if (count == 0 && oldChunks != 0xFFFF) {
+        count = oldChunks; /* older files count their chunks in the old field */
+    }
     for (uint32_t i = 0; i < count; i++) {
         uint32_t size = frame.u32();
         uint32_t type = frame.u16();
