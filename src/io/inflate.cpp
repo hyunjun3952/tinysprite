@@ -1,5 +1,6 @@
 #include "tinysprite/inflate.hpp"
 
+#include <algorithm>
 #include <array>
 
 namespace
@@ -180,11 +181,23 @@ bool codedBlock(Input &in, Output &out, const Huffman &literals, const Huffman &
     }
 }
 
+/* The code length of literal/length symbol `i` in the fixed code of RFC 1951. */
+uint8_t fixedLength(int i)
+{
+    if (i < 144) {
+        return 8;
+    }
+    if (i < 256) {
+        return 9;
+    }
+    return i < 280 ? 7 : 8;
+}
+
 bool fixedBlock(Input &in, Output &out)
 {
     uint8_t lengths[LITERAL_CODES];
     for (int i = 0; i < LITERAL_CODES; i++) {
-        lengths[i] = static_cast<uint8_t>(i < 144 ? 8 : i < 256 ? 9 : i < 280 ? 7 : 8);
+        lengths[i] = fixedLength(i);
     }
     uint8_t distanceLengths[DISTANCE_CODES];
     std::fill(distanceLengths, distanceLengths + DISTANCE_CODES, uint8_t{5});
@@ -193,6 +206,24 @@ bool fixedBlock(Input &in, Output &out)
     return buildHuffman(literals, lengths, LITERAL_CODES) &&
            buildHuffman(distances, distanceLengths, DISTANCE_CODES) &&
            codedBlock(in, out, literals, distances);
+}
+
+/* Reads the repeat that code-length symbol 16, 17 or 18 asks for into `value` (what to repeat)
+ * and returns how many times; 0 when the symbol cannot be used here. */
+int lengthRepeat(Input &in, int symbol, const uint8_t *lengths, int at, uint8_t &value)
+{
+    value = 0;
+    if (symbol == 16) {
+        if (at == 0) {
+            return 0;
+        }
+        value = lengths[at - 1];
+        return 3 + static_cast<int>(in.bits(2));
+    }
+    if (symbol == 17) {
+        return 3 + static_cast<int>(in.bits(3));
+    }
+    return 11 + static_cast<int>(in.bits(7));
 }
 
 /* Reads `count` code lengths coded with `codes` (the repeat symbols 16..18 included). */
@@ -208,18 +239,8 @@ bool readLengths(Input &in, const Huffman &codes, uint8_t *lengths, int count)
             continue;
         }
         uint8_t value = 0;
-        int repeat = 0;
-        if (symbol == 16) {
-            if (i == 0) {
-                return false;
-            }
-            value = lengths[i - 1];
-            repeat = 3 + static_cast<int>(in.bits(2));
-        } else {
-            repeat =
-                symbol == 17 ? 3 + static_cast<int>(in.bits(3)) : 11 + static_cast<int>(in.bits(7));
-        }
-        if (in.failed || i + repeat > count) {
+        int repeat = lengthRepeat(in, symbol, lengths, i, value);
+        if (in.failed || repeat == 0 || i + repeat > count) {
             return false;
         }
         std::fill(lengths + i, lengths + i + repeat, value);
