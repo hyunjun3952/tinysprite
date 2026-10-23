@@ -285,6 +285,74 @@ TEST(opening_a_file_reuses_an_untouched_untitled_tab_then_adds_tabs)
     std::filesystem::remove(b);
 }
 
+/* The bytes of the smallest Aseprite file: 2 x 1 RGBA, one frame, one layer, one raw cel. */
+static std::vector<unsigned char> tiny_aseprite()
+{
+    std::vector<unsigned char> b;
+    auto put = [&](unsigned value, int bytes) {
+        for (int i = 0; i < bytes; i++) {
+            b.push_back(static_cast<unsigned char>(value >> (8 * i)));
+        }
+    };
+    const unsigned layerChunk = 6 + 16 + 2 + 1;
+    const unsigned celChunk = 6 + 16 + 4 + 8;
+    put(128 + 16 + layerChunk + celChunk, 4);
+    put(0xA5E0, 2);
+    put(1, 2);
+    put(2, 2);
+    put(1, 2);
+    put(32, 2);
+    b.resize(128, 0);
+    put(16 + layerChunk + celChunk, 4);
+    put(0xF1FA, 2);
+    put(2, 2);
+    put(100, 2);
+    put(0, 2);
+    put(0, 4);
+    put(layerChunk, 4); /* layer */
+    put(0x2004, 2);
+    put(3, 2);
+    put(0, 2);
+    put(0, 2);
+    put(0, 4);
+    put(0, 2);
+    put(255, 1);
+    put(0, 3);
+    put(1, 2);
+    put('L', 1);
+    put(celChunk, 4); /* cel */
+    put(0x2005, 2);
+    put(0, 2);
+    put(0, 2);
+    put(0, 2);
+    put(255, 1);
+    put(0, 2);
+    put(0, 2);
+    put(0, 5);
+    put(2, 2);
+    put(1, 2);
+    for (unsigned char v : {10, 20, 30, 255, 40, 50, 60, 255}) {
+        put(v, 1);
+    }
+    return b;
+}
+
+TEST(an_aseprite_file_opens_as_an_untitled_document)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    const std::string path = "tinysprite_doc_tiny.aseprite";
+    std::vector<unsigned char> bytes = tiny_aseprite();
+    std::ofstream(path, std::ios::binary)
+        .write(reinterpret_cast<const char *>(bytes.data()),
+               static_cast<std::streamsize>(bytes.size()));
+    ASSERT_TRUE(t.open(path));
+    ASSERT_EQ_INT(2, t.editor().sprite().width());
+    ASSERT_EQ_INT(60, t.editor().sprite().layer(0)->cel(0)->get(1, 0).b);
+    ASSERT_TRUE(t.title(0) == "untitled"); /* saved as .pxa, like an imported image */
+    std::filesystem::remove(path);
+}
+
 TEST(an_edited_untitled_tab_is_kept_when_a_file_is_opened)
 {
     AppTestAccess t;
@@ -704,6 +772,7 @@ TEST(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_imag
 
 int main()
 {
+    RUN(an_aseprite_file_opens_as_an_untitled_document);
     RUN(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_image);
     RUN(a_file_dropped_while_a_dialog_is_open_is_ignored);
     RUN(each_document_with_changes_gets_its_own_autosave_copy);

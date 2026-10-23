@@ -188,6 +188,9 @@ std::optional<Sprite> importAnimatedGif(const std::string &path)
 
 std::optional<Sprite> image_import(const std::string &path)
 {
+    if (std::optional<Sprite> aseprite = aseprite_load(path)) {
+        return aseprite;
+    }
     if (std::optional<Sprite> animation = importAnimatedGif(path)) {
         return animation;
     }

@@ -18,7 +18,7 @@ constexpr float PICKER_HEIGHT = 130.0f; /* at UI scale 1 */
 
 ImTextureRef textureRef(const CelTexture &t)
 {
-    return ImTextureRef(reinterpret_cast<ImTextureID>(t.texture()));
+    return {reinterpret_cast<ImTextureID>(t.texture())};
 }
 
 void drawGrid(ImDrawList *draw, ImVec2 origin, int columns, int rows, float cellW, float cellH)
@@ -86,7 +86,7 @@ void TilemapWindow::toolbar(Editor &editor, const TileMap &map)
 
 void TilemapWindow::picker(Editor &editor, const Tileset &tileset)
 {
-    const float zoom = static_cast<float>(zoom_);
+    const auto zoom = static_cast<float>(zoom_);
     const float cellW = static_cast<float>(tileset.tileWidth) * zoom;
     const float cellH = static_cast<float>(tileset.tileHeight) * zoom;
     const bool eraser = editor.selectedTile() == 0;
@@ -117,8 +117,10 @@ void TilemapWindow::picker(Editor &editor, const Tileset &tileset)
     const uint32_t picked = editor.selectedTile();
     if (picked > 0) {
         const int tile = static_cast<int>(picked) - 1;
-        const ImVec2 a(origin.x + static_cast<float>(tile % columns) * cellW,
-                       origin.y + static_cast<float>(tile / columns) * cellH);
+        const int tileColumn = tile % columns;
+        const int tileRow = tile / columns;
+        const ImVec2 a(origin.x + static_cast<float>(tileColumn) * cellW,
+                       origin.y + static_cast<float>(tileRow) * cellH);
         draw->AddRect(a, ImVec2(a.x + cellW, a.y + cellH), PICKED_COLOR, 0.0f, 0, 2.0f);
     }
     ImGui::EndChild();
@@ -138,7 +140,7 @@ void TilemapWindow::paint(Editor &editor, const Tileset &tileset, const TileMap 
         lastX_ = -1;
         return;
     }
-    const float zoom = static_cast<float>(zoom_);
+    const auto zoom = static_cast<float>(zoom_);
     const ImVec2 mouse = ImGui::GetMousePos();
     const int cx = static_cast<int>(
         std::floor((mouse.x - x0) / (static_cast<float>(tileset.tileWidth) * zoom)));
@@ -163,7 +165,7 @@ void TilemapWindow::mapView(Editor &editor, const Tileset &tileset, const TileMa
         ImGui::EndChild();
         return;
     }
-    const float zoom = static_cast<float>(zoom_);
+    const auto zoom = static_cast<float>(zoom_);
     const float cellW = static_cast<float>(tileset.tileWidth) * zoom;
     const float cellH = static_cast<float>(tileset.tileHeight) * zoom;
     const ImVec2 origin = ImGui::GetCursorScreenPos();

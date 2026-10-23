@@ -14,7 +14,7 @@ tinysprite_ui     src/ui                              SDL2 + Dear ImGui frontend
 ```
 
 Each layer only knows the ones above it in the diagram, and CMake enforces that through target links. `core` and
-`io` never include SDL or ImGui. `io` also has the animated GIF encoder and the sprite sheet layout. Their public headers live in `include/tinysprite/`; headers private to a module
+`io` never include SDL or ImGui. `io` also has the animated GIF encoder, the sprite sheet layout, the Aseprite reader (`aseprite.cpp`, with its own zlib `inflate.cpp`) and the tilemap export. Their public headers live in `include/tinysprite/`; headers private to a module
 (`src/core/tools/history_plot.hpp`, everything in `src/ui`) stay next to the sources.
 
 `tests/test_*.cpp` link only `io` (and so `core`). The UI tests in `tests/ui/` link `tinysprite_ui` and run under

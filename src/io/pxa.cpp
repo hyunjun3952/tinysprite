@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "byte_reader.hpp"
 #include "tinysprite/io.hpp"
 
 namespace
@@ -39,48 +40,6 @@ template <class Fill> void putChunk(std::vector<uint8_t> &out, const char tag[4]
         out[lengthAt + i] = static_cast<uint8_t>(length >> (8 * i));
     }
 }
-
-/* Reads little-endian values from a byte range; running past its end throws std::out_of_range,
- * which pxa_decode reports as an invalid file. */
-class Reader
-{
-  public:
-    Reader(const uint8_t *begin, const uint8_t *end) : p_(begin), end_(end)
-    {
-    }
-
-    bool atEnd() const
-    {
-        return p_ == end_;
-    }
-    const uint8_t *take(size_t count)
-    {
-        if (count > static_cast<size_t>(end_ - p_)) {
-            throw std::out_of_range("pxa: truncated");
-        }
-        const uint8_t *start = p_;
-        p_ += count;
-        return start;
-    }
-    uint32_t u8()
-    {
-        return *take(1);
-    }
-    uint32_t u16()
-    {
-        const uint8_t *b = take(2);
-        return static_cast<uint32_t>(b[0]) | static_cast<uint32_t>(b[1]) << 8;
-    }
-    uint32_t u32()
-    {
-        uint32_t low = u16();
-        return low | u16() << 16;
-    }
-
-  private:
-    const uint8_t *p_;
-    const uint8_t *end_;
-};
 
 bool isTag(const uint8_t *tag, const char *name)
 {

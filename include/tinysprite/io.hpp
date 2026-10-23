@@ -188,10 +188,21 @@ std::vector<std::string> tilemap_image_names(const Sprite &sprite, const std::st
  * tilemap_image_names. Returns false if the sprite has no tilemap or a file cannot be written. */
 bool tilemap_export(const Sprite &sprite, const std::string &path);
 
+/* Aseprite files (.aseprite / .ase) as sprites. Image layers become layers (groups are flattened: a
+ * layer inside a hidden group is hidden, tilemap layers are left out), cels keep their place,
+ * opacity and links, indexed and grayscale files become RGBA, and the frame durations, tags,
+ * palette and slices (the first key of each) come along. Layer opacity, visibility, lock and the
+ * blend modes this editor has are kept; other blend modes show as Normal. Returns nothing for data
+ * that is not a valid Aseprite file or does not fit the limits (CEL_MAX_DIMENSION, the cel budget;
+ * frames beyond SPRITE_MAX_FRAMES are dropped). aseprite_load recognizes the file by its content
+ * and reads it only then, so any path may be tried. */
+std::optional<Sprite> aseprite_decode(const std::vector<uint8_t> &data);
+std::optional<Sprite> aseprite_load(const std::string &path);
+
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
  * image as its single layer and an empty palette. An animated GIF becomes one frame per GIF frame
- * (each with its delay as the duration). Returns nothing if the file is not a readable
- * image or exceeds CEL_MAX_DIMENSION. */
+ * (each with its delay as the duration), and an Aseprite file is read by aseprite_load. Returns
+ * nothing if the file is not a readable image or exceeds CEL_MAX_DIMENSION. */
 std::optional<Sprite> image_import(const std::string &path);
 
 #endif

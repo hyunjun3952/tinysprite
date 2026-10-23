@@ -253,7 +253,17 @@ branch and PR.
       painting (left button the tile, right button erases). Limits: tiles are not flipped or rotated, a tilemap is not
       drawn on the canvas or in the GIF / sprite sheet exports, and a tileset is a copy of the pixels (changing the
       cel does not change it).
-- [ ] **24. Aseprite import** (optional).
+- [x] **24. Aseprite import** — `aseprite_decode` / `aseprite_load` (`src/io/aseprite.cpp`): image layers become layers
+      (name, visible, lock from "editable", opacity, the blend modes this editor has; groups are flattened and a
+      hidden group hides its layers; tilemap layers are left out), cels keep their offset (clipped to the sprite),
+      their opacity (baked into alpha) and links; 32-bit RGBA, 16-bit grayscale and 8-bit indexed (the transparent
+      index except on a background layer) all become RGBA; frame durations, tags (clamped, ping-pong reverse reads as
+      ping-pong), the palette (new and old chunks) and slices (first key, pivot) come along. Compressed cels go
+      through `zlib_inflate` (`inflate.hpp`, our own: stored / fixed / dynamic blocks, an output limit, no checksum),
+      so a damaged or hostile file cannot allocate without bound. `image_import` opens an Aseprite file by its
+      content, so File > Open, drag and drop and `tinysprite export` read `.aseprite` / `.ase` (a document saves as
+      `.pxa`). Not imported: tilemap layers and cels, extra keys of a slice, user data, external files, frames past
+      `SPRITE_MAX_FRAMES`. Writing Aseprite files is not planned.
 
 Backlog, not scheduled (each is large or needs a design decision first): indexed color mode, several-rectangle
 selection, a TTF font and HiDPI, the OS reason in failed-write messages, the refactoring

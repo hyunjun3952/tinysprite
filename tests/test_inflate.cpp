@@ -42,7 +42,7 @@ static const std::vector<uint8_t> LONG_RUN = {
 
 static std::string text(const std::vector<uint8_t> &bytes)
 {
-    return std::string(bytes.begin(), bytes.end());
+    return {bytes.begin(), bytes.end()};
 }
 
 static std::string dynamic_text()

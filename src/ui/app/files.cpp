@@ -34,7 +34,8 @@ const App::FileActionInfo &App::fileInfo(FileAction action)
 {
     static const FileActionInfo TABLE[] = {
         {"", "", "", nullptr, nullptr, ""},
-        {"Open", "", "Opened ", &App::runOpen, nullptr, ".pxa .png .jpg .jpeg .bmp .tga .gif"},
+        {"Open", "", "Opened ", &App::runOpen, nullptr,
+         ".pxa .aseprite .ase .png .jpg .jpeg .bmp .tga .gif"},
         {"Save as", ".pxa", "Saved ", &App::runSaveAs, nullptr, ".pxa"},
         {"Export image", ".png", "Exported ", &App::runExportImage, &App::imageOptions,
          ".png .jpg .jpeg .bmp .tga"},

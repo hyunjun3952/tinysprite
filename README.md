@@ -13,8 +13,11 @@ A small pixel art and sprite editor written in C++17, with SDL2 and Dear ImGui.
 - Layers with undo / redo
 - Animation: a timeline of frames with durations, playback, onion skin, tags (named frame ranges) and
   linked cels
-- Import and export of `.pxa` (native), png, bmp, tga and jpg; animated GIF and sprite sheet export;
-  animated GIF import
+- Import and export of `.pxa` (native), png, bmp, tga and jpg; animated GIF and sprite sheet export (with a
+  JSON description, trimmed and packed layouts); animated GIF import; Aseprite (`.aseprite`) import
+- Filters (outline, replace color, hue / brightness), slices with pivots, and tilemaps with a Tiled-style
+  `.tmj` export
+- A headless `tinysprite export` command for build scripts
 
 ## Build
 
