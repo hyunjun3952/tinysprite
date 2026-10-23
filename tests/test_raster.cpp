@@ -221,6 +221,17 @@ TEST(rect_degenerate_shapes)
     ASSERT_EQ_INT(0, g.repeats);
 }
 
+TEST(an_ellipse_far_bigger_than_any_sprite_draws_nothing_instead_of_overflowing)
+{
+    int plotted = 0;
+    RasterPlotFn count = [&](int, int) { plotted++; };
+    raster_ellipse(-16777216, -16777216, 16777216, 16777216, false, count);
+    raster_ellipse(0, 0, 3000000, 10, true, count);
+    ASSERT_EQ_INT(0, plotted);
+    raster_ellipse(0, 0, 4095, 4095, false, count); /* the biggest a sprite can show */
+    ASSERT_TRUE(plotted > 0);
+}
+
 TEST(ellipse_circle_outline)
 {
     Grid g;
@@ -495,6 +506,7 @@ int main()
     RUN(rect_filled);
     RUN(rect_corner_order_does_not_matter);
     RUN(rect_degenerate_shapes);
+    RUN(an_ellipse_far_bigger_than_any_sprite_draws_nothing_instead_of_overflowing);
     RUN(ellipse_circle_outline);
     RUN(ellipse_circle_filled);
     RUN(ellipse_wide_and_flat);

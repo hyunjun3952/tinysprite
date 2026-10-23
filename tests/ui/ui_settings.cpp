@@ -76,6 +76,20 @@ TEST(config_dir_honors_the_override)
     ASSERT_TRUE(config_dir() == "somewhere");
 }
 
+#ifndef _WIN32
+TEST(config_dir_keeps_a_non_ascii_base_as_utf8)
+{
+    const char *saved = std::getenv("TINYSPRITE_CONFIG_DIR");
+    std::string keep = saved ? saved : "";
+    unsetenv("TINYSPRITE_CONFIG_DIR");
+    setenv("XDG_CONFIG_HOME", "/tmp/\xED\x99\x8D\xEA\xB8\xB8\xEB\x8F\x99", 1);
+    ASSERT_TRUE(config_dir() == "/tmp/\xED\x99\x8D\xEA\xB8\xB8\xEB\x8F\x99/tinysprite");
+    if (saved) {
+        setenv("TINYSPRITE_CONFIG_DIR", keep.c_str(), 1);
+    }
+}
+#endif
+
 TEST(panel_layout_survives_a_round_trip)
 {
     Panels a;
@@ -237,6 +251,9 @@ int main()
     RUN(typed_reads_reject_bad_or_out_of_range_values);
     RUN(save_and_load_use_the_directory);
     RUN(config_dir_honors_the_override);
+#ifndef _WIN32
+    RUN(config_dir_keeps_a_non_ascii_base_as_utf8);
+#endif
     RUN(panel_layout_survives_a_round_trip);
     RUN(panel_load_ignores_bad_entries);
     RUN(recovery_round_trips_the_document_and_its_path);

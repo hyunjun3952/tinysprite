@@ -173,14 +173,18 @@ void App::recoverList()
 
 /* Opens every recovered copy in a tab, marked as having unsaved changes. A copy whose file is open
  * in another tab becomes an untitled document, so two tabs never share one file. */
-void App::recoverAll()
+bool App::recoverAll()
 {
+    bool all = true;
     for (Recovered &copy : recovered_) {
         const std::string path = findDocument(copy.path) >= 0 ? std::string() : copy.path;
         if (addDocument(std::move(copy.sprite), path, true)) {
             editor_->markModified();
+        } else {
+            all = false;
         }
     }
+    return all;
 }
 
 /* Offered at start when the last session left an autosave copy behind (it did not exit cleanly). */
@@ -199,15 +203,21 @@ void App::recoverDialog()
     recoverList();
     bool close = false;
     const int clicked = theme::dialog_buttons({"Discard", "Recover"}, 1);
+    bool keepFiles = false;
     if (clicked == 1) {
-        recoverAll();
+        keepFiles = !recoverAll();
         close = true;
+        if (keepFiles) { /* the copies on disk are all that is left of what did not open */
+            toast("Not enough memory to open every recovered document; the copies were kept", true);
+        }
     } else if (clicked == 0) {
         close = true;
     }
     if (close) {
         recovered_.clear();
-        recovery_clear(configDir_);
+        if (!keepFiles) {
+            recovery_clear(configDir_);
+        }
         ImGui::CloseCurrentPopup();
     }
     theme::end_modal();

@@ -279,7 +279,7 @@ class App
     void newSizeFields();
     void recoverDialog();
     void recoverList();
-    void recoverAll();
+    bool recoverAll();
     void autosave();
     /* Saves the preferences, the window size and the layout, and drops the autosave copy: a clean
      * exit leaves nothing to recover. */

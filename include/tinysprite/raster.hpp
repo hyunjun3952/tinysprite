@@ -24,7 +24,12 @@ void raster_line(int x0, int y0, int x1, int y1, const RasterPlotFn &plot);
 void raster_rect(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot,
                  const Rect *clip = nullptr);
 
-/* Ellipse inscribed in the bounding box spanned by the two corners (any order, both inclusive). */
+/* The widest or tallest box raster_ellipse draws: the walk squares the span, which would overflow
+ * 64 bits well past this (a sprite is at most CEL_MAX_DIMENSION wide). */
+inline constexpr long long RASTER_ELLIPSE_MAX_SPAN = 1 << 20;
+
+/* Ellipse inscribed in the bounding box spanned by the two corners (any order, both inclusive).
+ * A box wider or taller than RASTER_ELLIPSE_MAX_SPAN draws nothing. */
 void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlotFn &plot,
                     const Rect *clip = nullptr);
 

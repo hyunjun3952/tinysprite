@@ -86,6 +86,18 @@ TEST(a_single_frame_png_export_works_too)
     std::remove("cli_o3.png");
 }
 
+TEST(a_gif_honors_the_frame_range_and_an_image_refuses_one)
+{
+    make_input("cli_in3.pxa");
+    ASSERT_EQ_INT(0, run({"export", "cli_in3.pxa", "--gif", "cli_o3.gif", "--first", "1"}));
+    ASSERT_EQ_INT(1, run({"export", "cli_in3.pxa", "--gif", "cli_o3.gif", "--first", "5"}));
+    ASSERT_EQ_INT(2, run({"export", "cli_in3.pxa", "--image", "cli_o3.png", "--first", "1"}));
+    ASSERT_EQ_INT(0, run({"export", "cli_in3.pxa", "--image", "cli_o3.png", "--frame", "1"}));
+    std::remove("cli_in3.pxa");
+    std::remove("cli_o3.gif");
+    std::remove("cli_o3.png");
+}
+
 TEST(bad_input_fails_with_a_status)
 {
     ASSERT_EQ_INT(2, run({"export"}));
@@ -105,6 +117,7 @@ int main()
     RUN(options_change_the_layout);
     RUN(the_packed_layout_trims_and_lists_the_trims_in_the_json);
     RUN(a_single_frame_png_export_works_too);
+    RUN(a_gif_honors_the_frame_range_and_an_image_refuses_one);
     RUN(bad_input_fails_with_a_status);
     return TEST_SUMMARY();
 }

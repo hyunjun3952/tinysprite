@@ -152,6 +152,12 @@ static bool isGplMetadata(const std::string &line)
     return line[0] == '#' || line.rfind("Name:", 0) == 0 || line.rfind("Columns:", 0) == 0;
 }
 
+/* A line of a .hex file that is a comment: ";" or "//" starts one ("#" is a color's prefix). */
+static bool isHexComment(const std::string &line)
+{
+    return line[0] == ';' || line.rfind("//", 0) == 0;
+}
+
 /* The color on a line of a palette file, or nullopt for a line that is not one. */
 static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl)
 {
@@ -173,7 +179,7 @@ std::optional<Palette> palette_decode(const std::string &text)
     bool gpl = *header == "GIMP Palette";
     Palette palette;
     for (auto it = gpl ? header + 1 : header; it != all.end(); ++it) {
-        if (it->empty() || (gpl && isGplMetadata(*it))) {
+        if (it->empty() || (gpl && isGplMetadata(*it)) || (!gpl && isHexComment(*it))) {
             continue;
         }
         std::optional<Rgba> color = parseColorLine(*it, gpl);

@@ -140,7 +140,10 @@ std::optional<Job> parseJob(int argc, char **argv)
         outputs += out->empty() ? 0 : 1;
     }
     bool jsonOk = job.json.empty() || !job.sheet.empty();
-    if (job.input.empty() || outputs != 1 || !jsonOk) {
+    /* a single image has --frame; a range of frames only means something to a sheet or a GIF */
+    bool rangeOk =
+        job.image.empty() || (job.sheetOptions.first == 0 && job.sheetOptions.last == -1);
+    if (job.input.empty() || outputs != 1 || !jsonOk || !rangeOk) {
         return std::nullopt;
     }
     if (!job.layoutGiven && job.sheetOptions.columns > 0) {
@@ -165,6 +168,8 @@ bool runJob(const Job &job, const Sprite &sprite)
         return image_export(sprite, job.frame, job.image, o.scale);
     }
     GifOptions gif;
+    gif.first = o.first;
+    gif.last = o.last;
     gif.scale = o.scale;
     return gif_export(sprite, job.gif, gif);
 }

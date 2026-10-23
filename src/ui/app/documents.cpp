@@ -8,6 +8,7 @@
 #include "app.hpp"
 #include "file_paths.hpp"
 #include "recovery.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {
@@ -19,11 +20,14 @@ bool sameFile(const std::string &a, const std::string &b)
 {
     namespace fs = std::filesystem;
     std::error_code error;
-    if (a == b || fs::equivalent(a, b, error)) {
+    /* the names are UTF-8, which a narrow string is not taken for on Windows */
+    const fs::path pathA = path_from_utf8(a);
+    const fs::path pathB = path_from_utf8(b);
+    if (a == b || fs::equivalent(pathA, pathB, error)) {
         return true;
     }
-    fs::path first = fs::weakly_canonical(a, error);
-    fs::path second = error ? fs::path() : fs::weakly_canonical(b, error);
+    fs::path first = fs::weakly_canonical(pathA, error);
+    fs::path second = error ? fs::path() : fs::weakly_canonical(pathB, error);
     return !error && first == second;
 }
 
@@ -89,6 +93,7 @@ void App::activateDocument(int index)
         return;
     }
     if (previous) {
+        export_.tag = -1; /* an index into the other document's tags means nothing here */
         previous->stopPlayback();
         previous->tempPick(false); /* a middle-button pick must not stay stuck in the old tab */
         next->adoptPreferences(*previous);
@@ -153,7 +158,10 @@ void App::removeDocument(int index)
         unsplit(); /* a pane would be left without its document */
     }
     if (docs_.size() == 1) {
-        addBlankDocument(newWidth_, newHeight_); /* the app always has a document */
+        if (!addBlankDocument(newWidth_, newHeight_)) { /* the app always has a document */
+            toast("Not enough memory to close this document", true);
+            return;
+        }
         index = 0;
     }
     if (index == active_) {

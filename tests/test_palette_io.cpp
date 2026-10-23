@@ -48,6 +48,14 @@ TEST(hex_accepts_hash_blank_lines_crlf_and_case)
     ASSERT_TRUE(p->get(2) == (Rgba{0, 0, 255, 128}));
 }
 
+TEST(hex_skips_comment_lines)
+{
+    std::optional<Palette> p = palette_decode("; my palette\n#ff0000\n// second\n00ff00\n");
+    ASSERT_TRUE(p.has_value());
+    ASSERT_EQ_INT(2, p->count());
+    ASSERT_TRUE(!palette_decode("; only a comment\n"));
+}
+
 TEST(gpl_round_trips_the_opaque_colors)
 {
     Palette opaque;
@@ -167,6 +175,7 @@ int main()
 {
     RUN(hex_round_trips_with_alpha);
     RUN(hex_accepts_hash_blank_lines_crlf_and_case);
+    RUN(hex_skips_comment_lines);
     RUN(gpl_round_trips_the_opaque_colors);
     RUN(gpl_reads_the_usual_layout);
     RUN(gpl_drops_alpha_on_export);

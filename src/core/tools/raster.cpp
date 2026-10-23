@@ -137,6 +137,9 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
 
     long long a = static_cast<long long>(x1) - x0;
     long long b = static_cast<long long>(y1) - y0;
+    if (a > RASTER_ELLIPSE_MAX_SPAN || b > RASTER_ELLIPSE_MAX_SPAN) {
+        return;
+    }
     long long b1 = b & 1;
     long long dx = 4 * (1 - a) * b * b;
     long long dy = 4 * (b1 + 1) * a * a;

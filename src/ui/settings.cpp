@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -30,10 +31,18 @@ const std::string *find(const SettingsMap &settings, const std::string &key)
     return it == settings.end() ? nullptr : &it->second;
 }
 
+/* The variable as UTF-8, which is what every path in the program is (on Windows the narrow
+ * environment is in the ANSI code page, so a non-ASCII user name would come out garbled). */
 std::string env(const char *name)
 {
+#ifdef _WIN32
+    std::wstring wide(name, name + std::strlen(name));
+    const wchar_t *value = _wgetenv(wide.c_str());
+    return value != nullptr ? path_to_utf8(std::filesystem::path(value)) : "";
+#else
     const char *value = std::getenv(name);
     return value != nullptr ? value : "";
+#endif
 }
 
 } // namespace
@@ -167,20 +176,19 @@ std::vector<std::string> settings_get_recent(const SettingsMap &settings, size_t
 
 std::string config_dir()
 {
-    namespace fs = std::filesystem;
     if (std::string dir = env("TINYSPRITE_CONFIG_DIR"); !dir.empty()) {
         return dir;
     }
 #ifdef _WIN32
     if (std::string base = env("APPDATA"); !base.empty()) {
-        return (fs::path(base) / "tinysprite").string();
+        return path_to_utf8(path_from_utf8(base) / "tinysprite");
     }
 #endif
     if (std::string base = env("XDG_CONFIG_HOME"); !base.empty()) {
-        return (fs::path(base) / "tinysprite").string();
+        return path_to_utf8(path_from_utf8(base) / "tinysprite");
     }
     if (std::string home = env("HOME"); !home.empty()) {
-        return (fs::path(home) / ".config" / "tinysprite").string();
+        return path_to_utf8(path_from_utf8(home) / ".config" / "tinysprite");
     }
     return "";
 }

@@ -44,6 +44,10 @@ Changes that are not pixel deltas (adding, removing, moving, renaming layers, op
 actions with their own undo and redo callables (`History::pushAction`, wrapped by `layer_ops.hpp`). A layer that is
 removed, or added and then undone, is kept alive by the history step so that pixel steps on its cels stay valid.
 
+A sprite also has at most `SPRITE_MAX_FRAMES` (500) frames, because the timeline is an ImGui table with a column per frame and
+ImGui stops at 511 columns: `Sprite::insertFrame` and `fitsCels` refuse beyond it, the `.pxa` reader rejects a larger file and
+the GIF import keeps the first 500 frames (`Editor::takeFramesFull()` makes the App say so).
+
 Memory is bounded in two places so that running out of it is a refusal and not a crash. A sprite has a cel budget
 (`SPRITE_MAX_CEL_BYTES`, 2 GiB of `width x height x 4` per layer and frame; `Sprite::fitsCels`): `layer_op_add`,
 `layer_op_duplicate`, `frame_op_add` and `frame_op_duplicate` refuse beyond it. A `History` keeps at most
