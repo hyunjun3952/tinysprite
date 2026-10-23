@@ -276,6 +276,33 @@ TEST(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step)
     ASSERT_TRUE(editor.activeCel()->get(0, 0) == Rgba({255, 0, 0, 255}));
 }
 
+TEST(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(0, 0, Rgba{255, 0, 0, 255});
+    ASSERT_TRUE(editor.addTilesetFromCel(4, 4));
+    ASSERT_TRUE(editor.addTilemap(0, 3, 3));
+    editor.overlays().tilemap_window = true;
+    for (int i = 0; i < 4; i++) {
+        t.frame();
+    }
+    ASSERT_TRUE(editor.paintTile(1, 1, 1));
+    ASSERT_TRUE(editor.endTilePaint());
+    for (int i = 0; i < 2; i++) {
+        t.frame();
+    }
+    editor.undo();
+    editor.undo(); /* the map goes: the window falls back to its hint */
+    for (int i = 0; i < 2; i++) {
+        t.frame();
+    }
+    ASSERT_EQ_INT(-1, editor.selectedTilemap());
+    editor.overlays().tilemap_window = false;
+    t.frame();
+}
+
 TEST(ctrl_t_hides_and_shows_the_timeline)
 {
     AppTestAccess t;
@@ -462,6 +489,7 @@ int main()
     RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
     RUN(the_filter_dialog_opens_and_escape_closes_it);
+    RUN(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes);
     RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);
     RUN(hovering_a_menu_title_opens_the_menu);
     RUN(the_layer_chords_add_duplicate_and_move_layers);

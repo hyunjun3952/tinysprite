@@ -105,7 +105,7 @@ TEST(a_tilemap_export_writes_the_map_and_its_tileset_images)
     cel.set(0, 0, Rgba{255, 0, 0, 255});
     TileMap map = tilemap_blank("level", 0, 2, 2);
     map.cells[0] = 1;
-    s.setTileData({*tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, "tiles")}, {map});
+    s.setTileData({must_have(tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, "tiles"))}, {map});
     pxa_save(s, "cli_tiles.pxa");
     ASSERT_EQ_INT(0, run({"export", "cli_tiles.pxa", "--tilemap", "cli_map.tmj"}));
     ASSERT_TRUE(slurp("cli_map.tmj").find("\"image\": \"cli_map_tiles.png\"") != std::string::npos);

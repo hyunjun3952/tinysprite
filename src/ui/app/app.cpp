@@ -30,6 +30,7 @@ App::~App()
 {
     /* Everything that owns textures goes before the renderer they belong to. */
     layersPanel_.reset();
+    tilemapWindow_.release();
     toolsPanel_.reset();
     canvas2_.reset();
     canvas_.reset();
@@ -427,6 +428,7 @@ void App::buildUi()
     confirmDialog();
     newDialog();
     filterDialog();
+    tilemapWindow_.show(renderer_, *editor_);
     recoverDialog();
     helpWindow();
     handleShortcuts();

@@ -46,7 +46,11 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
 {
     retiredSurface_ = std::move(surface_);
     surface_ = std::move(surface);
+    tileStroke_.reset(); /* before the history it records into is replaced */
     history_ = History{};
+    selectedTilemap_ = -1;
+    selectedTileset_ = -1;
+    tilesRevision_++;
     lastDrawPoint_.reset();
     layers_.reset();
     frame_ = 0;
@@ -229,6 +233,7 @@ void Editor::afterHistoryStep(const Layer *active, const std::vector<Sprite::Tag
     if (paletteSelected_ >= sprite().palette().count()) {
         paletteSelected_ = -1; /* the palette it pointed into changed with the step */
     }
+    tilesRevision_++;
     markAllDirty();
 }
 

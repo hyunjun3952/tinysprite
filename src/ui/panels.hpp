@@ -24,6 +24,7 @@ inline constexpr const char *SHAPES = "Shapes";
 inline constexpr const char *COLOR = "Color";
 inline constexpr const char *LAYERS = "Layers";
 inline constexpr const char *SLICES = "Slices";
+inline constexpr const char *TILEMAPS = "Tilemaps";
 inline constexpr const char *PROPERTIES = "Properties";
 } // namespace sections
 

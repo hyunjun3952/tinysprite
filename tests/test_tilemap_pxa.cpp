@@ -7,7 +7,8 @@ static Sprite with_tiles()
     Cel cel(4, 2);
     cel.set(0, 0, Rgba{255, 0, 0, 255});
     cel.set(3, 1, Rgba{0, 0, 255, 128});
-    std::vector<Tileset> sets = {*tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, "ground")};
+    std::vector<Tileset> sets = {
+        must_have(tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, "ground"))};
     TileMap map = tilemap_blank("level", 0, 3, 2);
     map.cells = {1, 0, 2, 2, 1, 0};
     map.visible = false;
@@ -17,17 +18,16 @@ static Sprite with_tiles()
 
 TEST(tiles_survive_a_save_and_load)
 {
-    std::optional<Sprite> back = pxa_decode(pxa_encode(with_tiles()));
-    ASSERT_TRUE(back.has_value());
-    ASSERT_EQ_INT(1, back->tilesets().size());
-    const Tileset &ts = back->tilesets()[0];
+    Sprite back = must_have(pxa_decode(pxa_encode(with_tiles())));
+    ASSERT_EQ_INT(1, back.tilesets().size());
+    const Tileset &ts = back.tilesets()[0];
     ASSERT_TRUE(ts.name == "ground");
     ASSERT_EQ_INT(2, ts.tileWidth);
     ASSERT_EQ_INT(2, ts.tileCount());
     ASSERT_EQ_INT(255, ts.atlas->get(0, 0).r);
     ASSERT_EQ_INT(128, ts.atlas->get(3, 1).a);
-    ASSERT_EQ_INT(1, back->tilemaps().size());
-    const TileMap &map = back->tilemaps()[0];
+    ASSERT_EQ_INT(1, back.tilemaps().size());
+    const TileMap &map = back.tilemaps()[0];
     ASSERT_TRUE(map.name == "level");
     ASSERT_TRUE(!map.visible);
     ASSERT_EQ_INT(3, map.columns);
@@ -61,11 +61,10 @@ TEST(a_map_that_points_at_a_missing_tileset_drops_the_tiles_but_keeps_the_pixels
     /* tag, length, count (u16), name length (u8), "level" (5), then the tileset index */
     size_t index = at + 4 + 4 + 2 + 1 + 5;
     data[index] = 7;
-    std::optional<Sprite> back = pxa_decode(data);
-    ASSERT_TRUE(back.has_value());
-    ASSERT_EQ_INT(0, back->tilesets().size());
-    ASSERT_EQ_INT(0, back->tilemaps().size());
-    ASSERT_EQ_INT(9, back->layer(0)->cel(0)->get(1, 1).r);
+    Sprite back = must_have(pxa_decode(data));
+    ASSERT_EQ_INT(0, back.tilesets().size());
+    ASSERT_EQ_INT(0, back.tilemaps().size());
+    ASSERT_EQ_INT(9, back.layer(0)->cel(0)->get(1, 1).r);
 }
 
 TEST(a_truncated_tile_chunk_is_an_invalid_file)

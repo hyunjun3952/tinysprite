@@ -28,7 +28,8 @@ frame taken out of the sprite (a cel per layer plus its duration), which is how 
 step. A cel is RGBA for now; indexed color is deferred.
 
 Animation lives in a few small modules next to it: `frame_ops.hpp` / `tag_ops.hpp` / `cel_ops.hpp` / `palette_ops.hpp` / `filter_ops.hpp` (undoable
-edits, same pattern as `layer_ops.hpp`), `playback.hpp` (which frame to show as time passes, and `play_order`) and the onion
+edits, same pattern as `layer_ops.hpp`), `tilemap.hpp` / `tilemap_ops.hpp` (tilesets and tilemaps next to the layers, `TileStroke` for painting; the UI is the Tilemaps
+Inspector section and `tilemap_window.cpp`), `playback.hpp` (which frame to show as time passes, and `play_order`) and the onion
 skin in `composite.hpp`.
 
 Invalid sizes throw `std::invalid_argument`. Operations that can legitimately be refused (a stroke is active, an index

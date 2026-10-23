@@ -45,14 +45,13 @@ std::string tilesetsJson(const Sprite &sprite, const std::vector<std::string> &i
     for (size_t i = 0; i < sprite.tilesets().size(); i++) {
         const Tileset &ts = sprite.tilesets()[i];
         out += i == 0 ? "\n" : ",\n";
-        out += "    {\"columns\": " + number(ts.columns()) + ", \"firstgid\": " + number(firstgid) +
-               ", \"image\": " + json_quoted(i < images.size() ? images[i] : "") +
-               ", \"imageheight\": " + number(ts.atlas->height()) +
-               ", \"imagewidth\": " + number(ts.atlas->width()) +
-               ", \"margin\": 0, \"name\": " + json_quoted(ts.name) +
-               ", \"spacing\": 0, \"tilecount\": " + number(ts.tileCount()) +
-               ", \"tileheight\": " + number(ts.tileHeight) +
-               ", \"tilewidth\": " + number(ts.tileWidth) + "}";
+        out += R"(    {"columns": )" + number(ts.columns()) + R"(, "firstgid": )" +
+               number(firstgid) + R"(, "image": )" +
+               json_quoted(i < images.size() ? images[i] : "") + R"(, "imageheight": )" +
+               number(ts.atlas->height()) + R"(, "imagewidth": )" + number(ts.atlas->width()) +
+               R"(, "margin": 0, "name": )" + json_quoted(ts.name) +
+               R"(, "spacing": 0, "tilecount": )" + number(ts.tileCount()) + R"(, "tileheight": )" +
+               number(ts.tileHeight) + R"(, "tilewidth": )" + number(ts.tileWidth) + "}";
         firstgid += ts.tileCount();
     }
     return out;
@@ -79,11 +78,11 @@ std::string layersJson(const Sprite &sprite, const std::vector<int> &firstgids, 
     int id = 1;
     for (const TileMap &map : sprite.tilemaps()) {
         out += id == 1 ? "\n" : ",\n";
-        out += "    {\"data\": " + dataJson(map, firstgids, width, height) +
-               ", \"height\": " + number(height) + ", \"id\": " + number(id) +
-               ", \"name\": " + json_quoted(map.name) + ", \"opacity\": 1" +
-               ", \"type\": \"tilelayer\", \"visible\": " + (map.visible ? "true" : "false") +
-               ", \"width\": " + number(width) + ", \"x\": 0, \"y\": 0}";
+        out += R"(    {"data": )" + dataJson(map, firstgids, width, height) + R"(, "height": )" +
+               number(height) + R"(, "id": )" + number(id) + R"(, "name": )" +
+               json_quoted(map.name) + R"(, "opacity": 1)" +
+               R"(, "type": "tilelayer", "visible": )" + (map.visible ? "true" : "false") +
+               R"(, "width": )" + number(width) + R"(, "x": 0, "y": 0})";
         id++;
     }
     return out;

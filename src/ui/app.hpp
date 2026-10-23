@@ -20,6 +20,7 @@
 #include "settings.hpp"
 #include "statusbar.hpp"
 #include "theme.hpp"
+#include "tilemap_window.hpp"
 #include "timeline_panel.hpp"
 #include "tools_panel.hpp"
 
@@ -363,6 +364,7 @@ class App
     std::unique_ptr<ToolsPanel> toolsPanel_;
     std::unique_ptr<LayersPanel> layersPanel_;
     std::unique_ptr<TimelinePanel> timelinePanel_;
+    TilemapWindow tilemapWindow_; /* its textures go before the renderer, see ~App */
 
     bool persist_ = false; /* keep settings and an autosave copy (off for --frames runs) */
     bool openRecover_ = false;

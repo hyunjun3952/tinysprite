@@ -9,7 +9,7 @@ static Tileset tiles(int count)
     for (int i = 0; i < count; i++) {
         cel.set(2 * i, 0, Rgba{static_cast<uint8_t>(10 * (i + 1)), 0, 0, 255});
     }
-    return *tileset_from_cel(cel, Rect{0, 0, 2 * count, 2}, 2, 2, "t");
+    return must_have(tileset_from_cel(cel, Rect{0, 0, 2 * count, 2}, 2, 2, "t"));
 }
 
 /* A sprite with one 3-tile tileset and one 4 x 3 map of it. */

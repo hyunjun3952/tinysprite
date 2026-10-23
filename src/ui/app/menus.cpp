@@ -323,6 +323,8 @@ void App::viewMenu()
     theme::tip("The frames and playback strip along the bottom of the window.");
     ImGui::MenuItem("Tool options", nullptr, &editor_->overlays().options_bar);
     theme::tip("The options of the active tool, in a bar above the canvas.");
+    ImGui::MenuItem("Tilemap window", nullptr, &editor_->overlays().tilemap_window);
+    theme::tip("The window where tiles are picked and painted on the selected tilemap.");
     ImGui::MenuItem("Status bar", nullptr, &editor_->overlays().status);
     theme::tip("The bar along the bottom with the size, tool, frame, zoom and hovered cel.");
     ImGui::Separator();

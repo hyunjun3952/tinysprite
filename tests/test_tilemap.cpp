@@ -23,7 +23,7 @@ static Cel two_tile_cel()
 
 static Tileset two_tiles()
 {
-    return *tileset_from_cel(two_tile_cel(), Rect{0, 0, 4, 2}, 2, 2, "ground");
+    return must_have(tileset_from_cel(two_tile_cel(), Rect{0, 0, 4, 2}, 2, 2, "ground"));
 }
 
 TEST(a_tileset_is_cut_from_a_cel_row_by_row)
@@ -41,22 +41,20 @@ TEST(a_tileset_leaves_out_partial_tiles_at_the_edges)
 {
     Cel cel(7, 5);
     cel.set(6, 4, RED);
-    std::optional<Tileset> ts = tileset_from_cel(cel, Rect{0, 0, 7, 5}, 3, 2, "t");
-    ASSERT_TRUE(ts.has_value());
-    ASSERT_EQ_INT(2, ts->columns());
-    ASSERT_EQ_INT(2, ts->rows());
-    ASSERT_EQ_INT(6, ts->atlas->width());
-    ASSERT_EQ_INT(4, ts->atlas->height());
+    Tileset ts = must_have(tileset_from_cel(cel, Rect{0, 0, 7, 5}, 3, 2, "t"));
+    ASSERT_EQ_INT(2, ts.columns());
+    ASSERT_EQ_INT(2, ts.rows());
+    ASSERT_EQ_INT(6, ts.atlas->width());
+    ASSERT_EQ_INT(4, ts.atlas->height());
 }
 
 TEST(a_tileset_takes_only_the_given_area)
 {
     Cel cel(8, 8);
     cel.set(4, 4, BLUE);
-    std::optional<Tileset> ts = tileset_from_cel(cel, Rect{4, 4, 4, 4}, 2, 2, "t");
-    ASSERT_TRUE(ts.has_value());
-    ASSERT_TRUE(ts->atlas->get(0, 0) == BLUE);
-    ASSERT_EQ_INT(4, ts->tileCount());
+    Tileset ts = must_have(tileset_from_cel(cel, Rect{4, 4, 4, 4}, 2, 2, "t"));
+    ASSERT_TRUE(ts.atlas->get(0, 0) == BLUE);
+    ASSERT_EQ_INT(4, ts.tileCount());
 }
 
 TEST(a_tileset_is_refused_for_a_bad_size_or_area)
@@ -71,7 +69,7 @@ TEST(a_tileset_is_refused_for_a_bad_size_or_area)
 TEST(a_tileset_name_is_cut_and_the_atlas_is_independent_of_the_cel)
 {
     Cel cel = two_tile_cel();
-    Tileset ts = *tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, std::string(100, 'x'));
+    Tileset ts = must_have(tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, std::string(100, 'x')));
     ASSERT_EQ_INT(TILE_NAME_MAX, ts.name.size());
     cel.set(0, 0, BLUE);
     ASSERT_TRUE(ts.atlas->get(0, 0) == RED);
@@ -109,13 +107,12 @@ TEST(rendering_draws_each_cell_with_its_tile)
     Tileset ts = two_tiles();
     TileMap map = tilemap_blank("m", 0, 3, 1);
     map.cells = {1, 0, 2};
-    std::optional<Cel> picture = tilemap_render(ts, map);
-    ASSERT_TRUE(picture.has_value());
-    ASSERT_EQ_INT(6, picture->width());
-    ASSERT_EQ_INT(2, picture->height());
-    ASSERT_TRUE(picture->get(1, 1) == RED);
-    ASSERT_TRUE(picture->get(2, 0) == Rgba{});
-    ASSERT_TRUE(picture->get(5, 1) == GREEN);
+    Cel picture = must_have(tilemap_render(ts, map));
+    ASSERT_EQ_INT(6, picture.width());
+    ASSERT_EQ_INT(2, picture.height());
+    ASSERT_TRUE(picture.get(1, 1) == RED);
+    ASSERT_TRUE(picture.get(2, 0) == Rgba{});
+    ASSERT_TRUE(picture.get(5, 1) == GREEN);
 }
 
 TEST(rendering_refuses_a_map_that_does_not_fit)
@@ -125,7 +122,7 @@ TEST(rendering_refuses_a_map_that_does_not_fit)
     bad.cells[0] = 9;
     ASSERT_TRUE(!tilemap_render(ts, bad).has_value());
     Cel big(8, 8);
-    Tileset eight = *tileset_from_cel(big, Rect{0, 0, 8, 8}, 8, 8, "t");
+    Tileset eight = must_have(tileset_from_cel(big, Rect{0, 0, 8, 8}, 8, 8, "t"));
     TileMap wide = tilemap_blank("m", 0, 1024, 1); /* 8192 px */
     ASSERT_TRUE(!tilemap_render(eight, wide).has_value());
 }

@@ -240,7 +240,19 @@ branch and PR.
       records one action. In the UI `Editor::applyFilter` filters the visible, unlocked selected layers inside the
       selection, on the current frame or all frames (a linked cel once), and the Filter menu opens a dialog per filter
       (`app/filter_dialog.cpp`; colors start as the foreground / background).
-- [ ] **23. Tilemap editor** — tileset from a cel grid, tile layer, `.tmj`-like export.
+- [x] **23. Tilemap editor** — `tilemap.hpp`: a `Tileset` (an atlas cut from a cel area into equal tiles, shared
+      `shared_ptr<const Cel>`) and a `TileMap` (columns x rows of cells: 0 empty, else tile + 1), both stored on the
+      `Sprite` (`setTileData` replaces them together after `tile_data_valid`, `setTile` sets a cell). `tilemap_ops.hpp`:
+      undoable add / remove (a tileset in use is refused, later maps follow their tileset's new index) / set / resize /
+      fill, and `TileStroke` for mouse painting (cells show at once, `end()` is one undo step, destroying it cancels).
+      `.pxa` gets optional `TSET` / `TMAP` chunks (tile data is kept all or nothing). `tilemap_json` / `tilemap_export`
+      write a Tiled-style `.tmj` (every tileset with consecutive `firstgid`, every map a `tilelayer`, smaller layers
+      padded to the biggest) plus one PNG per tileset beside it; `tinysprite export <in> --tilemap out.tmj`. UI: a
+      Tilemaps section in the Inspector (cut a tileset from the cel / selection, make, resize, rename and hide maps)
+      and a floating Tilemap window (View > Tilemap window) with the tile picker, an eraser, zoom, Fill all and
+      painting (left button the tile, right button erases). Limits: tiles are not flipped or rotated, a tilemap is not
+      drawn on the canvas or in the GIF / sprite sheet exports, and a tileset is a copy of the pixels (changing the
+      cel does not change it).
 - [ ] **24. Aseprite import** (optional).
 
 Backlog, not scheduled (each is large or needs a design decision first): indexed color mode, several-rectangle

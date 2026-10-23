@@ -79,10 +79,11 @@ void LayersPanel::setEditor(Editor &editor)
     opacityBefore_.clear();
     openDelete_ = false;
     slices_.setEditor(editor);
+    tilemaps_.setEditor(editor);
 }
 
 LayersPanel::LayersPanel(Editor &editor)
-    : editor_(&editor), thumbs_(editor.renderer()), slices_(editor)
+    : editor_(&editor), thumbs_(editor.renderer()), slices_(editor), tilemaps_(editor)
 {
 }
 
@@ -584,6 +585,10 @@ void LayersPanel::show(const Panels &panels)
     if (panels.sectionVisible(PanelId::Layers, sections::SLICES) &&
         theme::section(sections::SLICES, false)) {
         slices_.show();
+    }
+    if (panels.sectionVisible(PanelId::Layers, sections::TILEMAPS) &&
+        theme::section(sections::TILEMAPS, false)) {
+        tilemaps_.show();
     }
     if (panels.sectionVisible(PanelId::Layers, sections::PROPERTIES) &&
         theme::section(sections::PROPERTIES)) {

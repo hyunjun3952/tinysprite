@@ -8,10 +8,24 @@
 #define MINITEST_H
 
 #include <stdio.h>
+#include <stdlib.h>
+
+#include <optional>
+#include <utility>
 
 static int mt_failures = 0;
 static int mt_run = 0;
 static int mt_current_failed = 0;
+
+/* The value of an optional that the test needs to be set: the run ends if it is not. */
+template <class T> T must_have(std::optional<T> value)
+{
+    if (!value) {
+        printf("  expected a value\n");
+        abort();
+    }
+    return std::move(*value);
+}
 
 #define TEST(name) static void test_##name(void)
 

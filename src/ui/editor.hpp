@@ -22,6 +22,7 @@
 #include "tinysprite/selection.hpp"
 #include "tinysprite/slice_ops.hpp"
 #include "tinysprite/sprite.hpp"
+#include "tinysprite/tilemap_ops.hpp"
 #include "tinysprite/tools.hpp"
 #include "tinysprite/viewport.hpp"
 #include "tool.hpp"
@@ -159,6 +160,7 @@ class Editor
         bool status = true;
         bool cursor = true;
         bool mirror_axes = true;
+        bool tilemap_window = false; /* the tilemap editor window; not remembered */
         bool slices = true;   /* the outlines, names and pivots of the slices on the canvas */
         bool timeline = true; /* the timeline strip along the bottom of the window */
         float timeline_height = 246.0f;      /* at UI scale 1; set by dragging its top edge */
@@ -574,6 +576,51 @@ class Editor
         return stroking() && !finishingDrag_;
     }
 
+    /* Tilemaps (see tilemap.hpp). Each edit is one undo step and is held off while a tool is being
+     * dragged. The selected map, tileset and tile are what the Tilemaps panel and the tilemap
+     * window work on; the indexes fall back to -1 ("none") when the thing no longer exists
+     * (after an undo). A tile is a cell value: 0 erases, n is tile n - 1. */
+    int selectedTilemap() const;
+    int selectedTileset() const;
+    void selectTilemap(int index);
+    void selectTileset(int index);
+    uint32_t selectedTile() const;
+    void selectTile(uint32_t cell);
+
+    /* Bumped by every change of tiles, tilesets or maps, undo and redo included, so a picture of
+     * them knows when to be drawn again; a tile stroke ends with tilesChanged. */
+    uint64_t tilesRevision() const
+    {
+        return tilesRevision_;
+    }
+    void tilesChanged()
+    {
+        tilesRevision_++;
+    }
+
+    /* A tileset cut from the selected pixels of the active cel (the whole cel without a
+     * selection) into tiles of this size, named "Tileset N"; it becomes the selected tileset. */
+    bool addTilesetFromCel(int tileWidth, int tileHeight);
+    /* Refused while a map uses the tileset. */
+    bool removeTileset(int index);
+    /* A blank map of `tileset`, named "Map N", selected. */
+    bool addTilemap(int tileset, int columns, int rows);
+    bool removeTilemap(int index);
+    bool resizeTilemap(int index, int columns, int rows);
+    bool setTilemapVisible(int index, bool visible);
+    bool renameTilemap(int index, const std::string &name);
+    /* Paints the selected map; null without one or while a tool is being dragged. */
+    std::unique_ptr<TileStroke> beginTileStroke();
+    /* Painting with the mouse: paintTile sets one cell of the selected map and starts the stroke
+     * with the first one; endTilePaint records everything painted since as one undo step. The
+     * editor owns the stroke, so closing the document mid-drag is safe. */
+    bool paintTile(int x, int y, uint32_t cell);
+    bool endTilePaint();
+    bool tilePainting() const
+    {
+        return tileStroke_ != nullptr;
+    }
+
     /* Selection helpers. Delete clears the selected pixels (one undo step). */
     void selectAll();
     void clearSelection();
@@ -683,10 +730,15 @@ class Editor
     std::optional<Rect> slicePreviewMove_;
     int moveDx_ = 0;
     int moveDy_ = 0;
+    int selectedTilemap_ = -1;
+    int selectedTileset_ = -1;
+    uint32_t selectedTile_ = 1;
 
     SDL_Renderer *renderer_;
     Sprite sprite_;
     History history_;
+    /* After sprite_ and history_ it refers to, so it goes first on destruction. */
+    std::unique_ptr<TileStroke> tileStroke_; /* the open stroke of paintTile, if any */
     std::unique_ptr<CompositeSurface> surface_;
     /* The surface a new document replaced: the canvas may already have drawn its texture in the
      * frame being built, so it lives until the next updateTexture (the start of the next canvas).
@@ -694,6 +746,7 @@ class Editor
     std::unique_ptr<CompositeSurface> retiredSurface_;
     std::optional<Clip> clipboard_; /* last copied / cut selection */
     uint64_t revision_ = 0;
+    uint64_t tilesRevision_ = 0;
 
     std::optional<ToolPoint> lastDrawPoint_;
     std::optional<ToolPoint> lineFrom_;

@@ -14,7 +14,7 @@ static Tileset tiles(const char *name, int count, int size)
 {
     Cel cel(size * count, size);
     cel.set(0, 0, Rgba{255, 0, 0, 255});
-    return *tileset_from_cel(cel, Rect{0, 0, size * count, size}, size, size, name);
+    return must_have(tileset_from_cel(cel, Rect{0, 0, size * count, size}, size, size, name));
 }
 
 /* Two tilesets (3 tiles of 4 px, 2 tiles of 4 px) and two maps. */
