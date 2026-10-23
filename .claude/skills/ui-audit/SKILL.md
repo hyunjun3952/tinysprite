@@ -1,7 +1,7 @@
 ---
 name: ui-audit
 description: Audits the tinysprite UI/UX by driving the real app with computer-use, one isolated scenario at a time, comparing what is on screen with DESIGN.md, then reports bugs and design flaws with screenshots, root cause and a smallest-change fix, and applies the approved ones test-first. Use when the user says "UI 점검", "UI 감사", "ui audit", "UX 문제점", "화면이 이상해", "디자인 결함", "개선점 찾아줘", "컴퓨터 유즈로 테스트", or asks whether the app follows DESIGN.md. Do NOT use for core/io logic bugs (use bug-hunting), for reviewing a pull request (use pr-review), or for a pure code-structure cleanup (use refactoring-audit).
-argument-hint: "[area | scenario id | 'all']"
+argument-hint: "[area | scenario id | all]"
 metadata:
   author: tinysprite
   version: 0.1.0
