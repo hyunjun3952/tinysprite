@@ -52,7 +52,9 @@ TEST(hex_skips_comment_lines)
 {
     std::optional<Palette> p = palette_decode("; my palette\n#ff0000\n// second\n00ff00\n");
     ASSERT_TRUE(p.has_value());
-    ASSERT_EQ_INT(2, p->count());
+    if (p) {
+        ASSERT_EQ_INT(2, p->count());
+    }
     ASSERT_TRUE(!palette_decode("; only a comment\n"));
 }
 

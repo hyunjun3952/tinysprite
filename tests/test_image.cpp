@@ -269,7 +269,9 @@ TEST(an_animation_longer_than_the_frame_limit_is_cut_at_it)
     std::optional<Sprite> sprite = image_import(path);
     std::remove(path);
     ASSERT_TRUE(sprite.has_value());
-    ASSERT_EQ_INT(SPRITE_MAX_FRAMES, sprite->frameCount());
+    if (sprite) {
+        ASSERT_EQ_INT(SPRITE_MAX_FRAMES, sprite->frameCount());
+    }
 }
 
 int main()

@@ -122,6 +122,21 @@ bool parseFlag(Job &job, int argc, char **argv, int &i)
     return std::strcmp(name, "--layout") == 0 && parseLayout(value, job.sheetOptions.layout);
 }
 
+/* Whether the outputs and options given fit together: exactly one of --sheet, --image and --gif,
+ * --json only with a sheet, and a frame range only where it means something (a single image has
+ * --frame). */
+bool jobConsistent(const Job &job)
+{
+    int outputs = 0;
+    for (const std::string *out : {&job.sheet, &job.image, &job.gif}) {
+        outputs += out->empty() ? 0 : 1;
+    }
+    bool jsonOk = job.json.empty() || !job.sheet.empty();
+    bool rangeOk =
+        job.image.empty() || (job.sheetOptions.first == 0 && job.sheetOptions.last == -1);
+    return !job.input.empty() && outputs == 1 && jsonOk && rangeOk;
+}
+
 std::optional<Job> parseJob(int argc, char **argv)
 {
     Job job;
@@ -135,15 +150,7 @@ std::optional<Job> parseJob(int argc, char **argv)
             return std::nullopt;
         }
     }
-    int outputs = 0;
-    for (const std::string *out : {&job.sheet, &job.image, &job.gif}) {
-        outputs += out->empty() ? 0 : 1;
-    }
-    bool jsonOk = job.json.empty() || !job.sheet.empty();
-    /* a single image has --frame; a range of frames only means something to a sheet or a GIF */
-    bool rangeOk =
-        job.image.empty() || (job.sheetOptions.first == 0 && job.sheetOptions.last == -1);
-    if (job.input.empty() || outputs != 1 || !jsonOk || !rangeOk) {
+    if (!jobConsistent(job)) {
         return std::nullopt;
     }
     if (!job.layoutGiven && job.sheetOptions.columns > 0) {
