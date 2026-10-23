@@ -48,14 +48,14 @@ int32_t signed32(uint32_t value)
 Reader takeReader(Reader &in, size_t count)
 {
     const uint8_t *bytes = in.take(count);
-    return Reader(bytes, bytes + count);
+    return {bytes, bytes + count};
 }
 
 std::string readString(Reader &in)
 {
     uint32_t length = in.u16();
     const uint8_t *bytes = in.take(length);
-    return std::string(bytes, bytes + length);
+    return {bytes, bytes + length};
 }
 
 BlendMode blendFor(unsigned aseprite)
@@ -320,7 +320,7 @@ std::vector<uint8_t> AseDecoder::celPixels(Reader &chunk, size_t expected, bool 
 {
     if (!compressed) {
         const uint8_t *bytes = chunk.take(expected);
-        return std::vector<uint8_t>(bytes, bytes + expected);
+        return {bytes, bytes + expected};
     }
     size_t left = chunk.remaining();
     std::optional<std::vector<uint8_t>> pixels = zlib_inflate(chunk.take(left), left, expected);
