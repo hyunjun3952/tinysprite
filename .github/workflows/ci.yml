@@ -20,6 +20,9 @@ on:
       - '.pre-commit-config.yaml'
       - '.clang-format'
       - '.clang-tidy'
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsdl2-dev
       - uses: actions/cache@v6
@@ -42,8 +47,24 @@ jobs:
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Configure
         run: cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
+      # clang-tidy costs ~7 s per file, so a push or PR lints only the files it changed. Everything is linted
+      # on the weekly schedule, by hand, and when a header or a lint config changed (a header can affect
+      # files that were not touched).
       - name: Format and lint
-        run: pipx run pre-commit run --all-files --hook-stage manual --show-diff-on-failure
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          full=--all-files
+          if [ "${{ github.event_name }}" = push ] || [ "${{ github.event_name }}" = pull_request ]; then
+            if [ -n "$BASE" ] && ! echo "$BASE" | grep -q '^0*$' && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+              if git diff --name-only "$BASE" "$GITHUB_SHA" | grep -Eq '\.(h|hpp)$|^CMakeLists\.txt$|^\.clang-(tidy|format)$|^\.pre-commit-config\.yaml$'; then
+                echo "header or lint config changed: linting everything"
+              else
+                full="--from-ref $BASE --to-ref $GITHUB_SHA"
+              fi
+            fi
+          fi
+          pipx run pre-commit run $full --hook-stage manual --show-diff-on-failure
 
   linux:
     timeout-minutes: 20
