@@ -19,6 +19,19 @@ std::string safeName(const std::string &name)
     return out;
 }
 
+/* "<stem>_<base>.png", or "<stem>_<base>_<copy>.png" from the second copy on. */
+std::string imageName(const std::string &stem, const std::string &base, int copy)
+{
+    std::string name = stem;
+    name += '_';
+    name += base;
+    if (copy > 1) {
+        name += '_';
+        name += std::to_string(copy);
+    }
+    return name + ".png";
+}
+
 std::string number(long long value)
 {
     return std::to_string(value);
@@ -92,7 +105,7 @@ std::string tilemap_json(const Sprite &sprite, const std::vector<std::string> &i
         firstgids.push_back(next);
         next += ts.tileCount();
     }
-    const Tileset *first = sprite.tilesets().empty() ? nullptr : &sprite.tilesets()[0];
+    const Tileset *first = sprite.tilesets().empty() ? nullptr : sprite.tilesets().data();
     std::string layers = layersJson(sprite, firstgids, width, height);
     return "{\n  \"compressionlevel\": -1,\n  \"height\": " + number(height) +
            ",\n  \"infinite\": false,\n  \"layers\": [" + layers + "\n  ],\n  \"nextlayerid\": " +
@@ -115,9 +128,9 @@ std::vector<std::string> tilemap_image_names(const Sprite &sprite, const std::st
         if (base.empty()) {
             base = "tileset" + number(static_cast<long long>(i) + 1);
         }
-        std::string name = stem + "_" + base + ".png";
+        std::string name = imageName(stem, base, 1);
         for (int copy = 2; std::find(names.begin(), names.end(), name) != names.end(); copy++) {
-            name = stem + "_" + base + "_" + number(copy) + ".png";
+            name = imageName(stem, base, copy);
         }
         names.push_back(name);
     }

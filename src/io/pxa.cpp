@@ -684,29 +684,28 @@ void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &sl
     });
 }
 
-void writeTiles(std::vector<uint8_t> &out, const Sprite &sprite)
+void writeTilesets(std::vector<uint8_t> &out, const std::vector<Tileset> &tilesets)
 {
-    if (!sprite.tilesets().empty()) {
-        putChunk(out, "TSET", [&](std::vector<uint8_t> &o) {
-            putU16(o, static_cast<uint32_t>(sprite.tilesets().size()));
-            for (const Tileset &tileset : sprite.tilesets()) {
-                o.push_back(static_cast<uint8_t>(tileset.name.size()));
-                o.insert(o.end(), tileset.name.begin(), tileset.name.end());
-                for (int value : {tileset.tileWidth, tileset.tileHeight, tileset.atlas->width(),
-                                  tileset.atlas->height()}) {
-                    putU32(o, static_cast<uint32_t>(value));
-                }
-                const auto *raw = reinterpret_cast<const uint8_t *>(tileset.atlas->pixels());
-                o.insert(o.end(), raw, raw + pixelBytes(*tileset.atlas));
+    putChunk(out, "TSET", [&](std::vector<uint8_t> &o) {
+        putU16(o, static_cast<uint32_t>(tilesets.size()));
+        for (const Tileset &tileset : tilesets) {
+            o.push_back(static_cast<uint8_t>(tileset.name.size()));
+            o.insert(o.end(), tileset.name.begin(), tileset.name.end());
+            for (int value : {tileset.tileWidth, tileset.tileHeight, tileset.atlas->width(),
+                              tileset.atlas->height()}) {
+                putU32(o, static_cast<uint32_t>(value));
             }
-        });
-    }
-    if (sprite.tilemaps().empty()) {
-        return;
-    }
+            const auto *raw = reinterpret_cast<const uint8_t *>(tileset.atlas->pixels());
+            o.insert(o.end(), raw, raw + pixelBytes(*tileset.atlas));
+        }
+    });
+}
+
+void writeTilemaps(std::vector<uint8_t> &out, const std::vector<TileMap> &maps)
+{
     putChunk(out, "TMAP", [&](std::vector<uint8_t> &o) {
-        putU16(o, static_cast<uint32_t>(sprite.tilemaps().size()));
-        for (const TileMap &map : sprite.tilemaps()) {
+        putU16(o, static_cast<uint32_t>(maps.size()));
+        for (const TileMap &map : maps) {
             o.push_back(static_cast<uint8_t>(map.name.size()));
             o.insert(o.end(), map.name.begin(), map.name.end());
             for (int value : {map.tileset, map.columns, map.rows}) {
@@ -718,6 +717,16 @@ void writeTiles(std::vector<uint8_t> &out, const Sprite &sprite)
             }
         }
     });
+}
+
+void writeTiles(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    if (!sprite.tilesets().empty()) {
+        writeTilesets(out, sprite.tilesets());
+    }
+    if (!sprite.tilemaps().empty()) {
+        writeTilemaps(out, sprite.tilemaps());
+    }
 }
 
 } // namespace
