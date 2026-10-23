@@ -40,7 +40,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsdl2-dev
+        run: sudo apt-get install -y --no-install-recommends libsdl2-dev
       - uses: actions/cache@v6
         with:
           path: ~/.cache/pre-commit
@@ -72,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ccache libsdl2-dev
+        run: sudo apt-get install -y --no-install-recommends ccache libsdl2-dev
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
@@ -98,7 +98,8 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: true
+          update: false
+          cache: true
           install: >-
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
