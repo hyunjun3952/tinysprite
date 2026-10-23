@@ -102,6 +102,23 @@ std::optional<Tileset> tileset_from_cel(const Cel &cel, Rect area, int tileWidth
     return tileset;
 }
 
+namespace
+{
+
+/* Copies tile number `tile` of the tileset to the picture, its top-left corner at (x, y). */
+void drawTile(Cel &picture, const Tileset &tileset, int tile, int x, int y)
+{
+    int sx = tile % tileset.columns() * tileset.tileWidth;
+    int sy = tile / tileset.columns() * tileset.tileHeight;
+    for (int dy = 0; dy < tileset.tileHeight; dy++) {
+        for (int dx = 0; dx < tileset.tileWidth; dx++) {
+            picture.set(x + dx, y + dy, tileset.atlas->get(sx + dx, sy + dy));
+        }
+    }
+}
+
+} // namespace
+
 std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map)
 {
     if (!tileset_valid(tileset) || !tilemap_valid(map, {tileset})) {
@@ -113,21 +130,11 @@ std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map)
         return std::nullopt;
     }
     Cel picture(static_cast<int>(width), static_cast<int>(height));
-    const int atlasColumns = tileset.columns();
     for (int cy = 0; cy < map.rows; cy++) {
         for (int cx = 0; cx < map.columns; cx++) {
-            uint32_t cell = map.cell(cx, cy);
-            if (cell == 0) {
-                continue;
-            }
-            int tile = static_cast<int>(cell) - 1;
-            int sx = tile % atlasColumns * tileset.tileWidth;
-            int sy = tile / atlasColumns * tileset.tileHeight;
-            for (int y = 0; y < tileset.tileHeight; y++) {
-                for (int x = 0; x < tileset.tileWidth; x++) {
-                    picture.set(cx * tileset.tileWidth + x, cy * tileset.tileHeight + y,
-                                tileset.atlas->get(sx + x, sy + y));
-                }
+            if (uint32_t cell = map.cell(cx, cy)) {
+                drawTile(picture, tileset, static_cast<int>(cell) - 1, cx * tileset.tileWidth,
+                         cy * tileset.tileHeight);
             }
         }
     }

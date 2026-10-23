@@ -43,6 +43,8 @@ class TileStroke
 
     TileStroke(const TileStroke &) = delete;
     TileStroke &operator=(const TileStroke &) = delete;
+    TileStroke(TileStroke &&) = delete;
+    TileStroke &operator=(TileStroke &&) = delete;
     ~TileStroke();
 
     /* Returns false for a cell outside the map or a tile the tileset does not have. */
