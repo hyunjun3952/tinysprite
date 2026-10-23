@@ -12,7 +12,9 @@ static int opaque_count(const Cel &cel)
     int n = 0;
     for (int y = 0; y < cel.height(); y++) {
         for (int x = 0; x < cel.width(); x++) {
-            n += cel.get(x, y).a != 0;
+            if (cel.get(x, y).a != 0) {
+                n++;
+            }
         }
     }
     return n;
