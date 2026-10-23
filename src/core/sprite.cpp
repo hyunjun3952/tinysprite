@@ -288,3 +288,29 @@ bool Sprite::setSlices(std::vector<Slice> slices)
     slices_ = std::move(slices);
     return true;
 }
+
+bool Sprite::setTileData(std::vector<Tileset> tilesets, std::vector<TileMap> maps)
+{
+    if (!tile_data_valid(tilesets, maps)) {
+        return false;
+    }
+    tilesets_ = std::move(tilesets);
+    tilemaps_ = std::move(maps);
+    return true;
+}
+
+bool Sprite::setTile(int map, int x, int y, uint32_t cell)
+{
+    if (map < 0 || map >= static_cast<int>(tilemaps_.size())) {
+        return false;
+    }
+    TileMap &target = tilemaps_[static_cast<size_t>(map)];
+    const Tileset &tileset = tilesets_[static_cast<size_t>(target.tileset)];
+    if (x < 0 || y < 0 || x >= target.columns || y >= target.rows ||
+        cell > static_cast<uint32_t>(tileset.tileCount())) {
+        return false;
+    }
+    target.cells[static_cast<size_t>(y) * static_cast<size_t>(target.columns) +
+                 static_cast<size_t>(x)] = cell;
+    return true;
+}

@@ -9,6 +9,7 @@
 #include "tinysprite/layer.hpp"
 #include "tinysprite/palette.hpp"
 #include "tinysprite/rect.hpp"
+#include "tinysprite/tilemap.hpp"
 
 /* The order a range of frames plays in; a ping-pong turns at the ends without repeating them. */
 enum class PlayMode { Forward, Reverse, PingPong };
@@ -123,6 +124,26 @@ class Sprite
      * one of them is invalid. */
     bool setSlices(std::vector<Slice> slices);
 
+    /* The tilesets and tilemaps (tilemap.hpp); a map refers to its tileset by index. They do not
+     * move with frames or layers. */
+    const std::vector<Tileset> &tilesets() const
+    {
+        return tilesets_;
+    }
+    const std::vector<TileMap> &tilemaps() const
+    {
+        return tilemaps_;
+    }
+
+    /* Replaces all tilesets and maps together (an undo step restoring them, the .pxa reader).
+     * Returns false and changes nothing if one is invalid (tileset_valid / tilemap_valid against
+     * the new tilesets) or there are more than SPRITE_MAX_TILESETS / SPRITE_MAX_TILEMAPS. */
+    bool setTileData(std::vector<Tileset> tilesets, std::vector<TileMap> maps);
+
+    /* Sets one cell of map `map` (0: no tile, else tile + 1). Returns false for a map or cell out
+     * of range or a tile the tileset does not have. */
+    bool setTile(int map, int x, int y, uint32_t cell);
+
     /* A blank frame with the default duration, and a deep copy of `frame` (null cels if it is out
      * of range), both shaped for this sprite's layers. */
     Frame makeFrame() const;
@@ -199,6 +220,8 @@ class Sprite
     Palette palette_;
     std::vector<Tag> tags_;
     std::vector<Slice> slices_;
+    std::vector<Tileset> tilesets_;
+    std::vector<TileMap> tilemaps_;
     std::vector<std::unique_ptr<Layer>> layers_;
 };
 
