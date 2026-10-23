@@ -29,6 +29,12 @@ std::string path_to_utf8(const std::filesystem::path &path);
  *   TAGS  tag count (u16), then per tag: name length (u8) and name, first and last frame (u32
  *         each, both included) and direction (u8: 0 forward, 1 reverse, 2 ping-pong); optional,
  *         written after the layers only when the sprite has tags
+ *   TSET  tileset count (u16), then per tileset: name length (u8) and name, tile width, tile
+ * height, atlas width and atlas height (u32 each), then the atlas pixels (r, g, b, a); optional,
+ *         after the layers
+ *   TMAP  map count (u16), then per map: name length (u8) and name, tileset index, columns and rows
+ *         (u32 each), visible (u8) and one u32 per cell (0: no tile, else tile number + 1);
+ *         optional, after TSET. The reader keeps the tiles only if all of them are valid together
  *   PALT  color count (u16), then r, g, b, a per color
  *   LAYR  name length (u8) and name, visible (u8), opacity (u8), then the pixels of every frame
  *         (r, g, b, a, row-major); one chunk per layer, bottom to top */
@@ -163,6 +169,24 @@ std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &
  * `path`). Returns false if either file cannot be written; the image is written first. */
 bool spritesheet_export_with_json(const Sprite &sprite, const std::string &path,
                                   const std::string &jsonPath, const SheetOptions &options);
+
+/* Tilemap export in the JSON map format of the Tiled editor (.tmj), which game engines and
+ * loaders already read. Every tileset of the sprite is listed once with consecutive global tile
+ * ids (`firstgid` 1, then after the tiles of the one before), and every tilemap becomes a
+ * "tilelayer" with its name and visibility. The map is as big as the biggest layer, smaller layers
+ * are padded with empty cells, and its tile size is the first tileset's. A cell of 0 stays 0, any
+ * other becomes firstgid + tile number. `images` has the file name of each tileset's image, in
+ * order. */
+std::string tilemap_json(const Sprite &sprite, const std::vector<std::string> &images);
+
+/* The image file name of every tileset for a map file called `stem` ("level" -> "level_<tileset
+ * name>.png", with characters other than letters, digits, '-' and '_' turned into '_'; a tileset
+ * without a name is "tileset<N>"; a name used twice gets "_<N>" from its second use on). */
+std::vector<std::string> tilemap_image_names(const Sprite &sprite, const std::string &stem);
+
+/* Writes the map JSON to `path` and the atlas of each tileset as a PNG beside it, named by
+ * tilemap_image_names. Returns false if the sprite has no tilemap or a file cannot be written. */
+bool tilemap_export(const Sprite &sprite, const std::string &path);
 
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
  * image as its single layer and an empty palette. An animated GIF becomes one frame per GIF frame

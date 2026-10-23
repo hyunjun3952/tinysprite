@@ -21,7 +21,8 @@ constexpr const char *USAGE =
     "horizontal|vertical|grid|packed]\n"
     "          [--columns N] [--spacing N] [--scale N] [--first N] [--last N]\n"
     "       %s export <input> --image out.png [--frame N] [--scale N]\n"
-    "       %s export <input> --gif out.gif [--scale N]\n";
+    "       %s export <input> --gif out.gif [--scale N]\n"
+    "       %s export <input> --tilemap out.tmj\n";
 
 struct Job {
     std::string input;
@@ -29,6 +30,7 @@ struct Job {
     std::string json;
     std::string image;
     std::string gif;
+    std::string tilemap;
     int frame = 0;
     bool layoutGiven = false;
     SheetOptions sheetOptions;
@@ -70,7 +72,8 @@ std::string *pathFlag(Job &job, const char *name)
     } table[] = {{"--sheet", &Job::sheet},
                  {"--json", &Job::json},
                  {"--image", &Job::image},
-                 {"--gif", &Job::gif}};
+                 {"--gif", &Job::gif},
+                 {"--tilemap", &Job::tilemap}};
     for (const auto &row : table) {
         if (std::strcmp(name, row.flag) == 0) {
             return &(job.*row.member);
@@ -128,7 +131,7 @@ bool parseFlag(Job &job, int argc, char **argv, int &i)
 bool jobConsistent(const Job &job)
 {
     int outputs = 0;
-    for (const std::string *out : {&job.sheet, &job.image, &job.gif}) {
+    for (const std::string *out : {&job.sheet, &job.image, &job.gif, &job.tilemap}) {
         outputs += out->empty() ? 0 : 1;
     }
     bool jsonOk = job.json.empty() || !job.sheet.empty();
@@ -174,6 +177,9 @@ bool runJob(const Job &job, const Sprite &sprite)
     if (!job.image.empty()) {
         return image_export(sprite, job.frame, job.image, o.scale);
     }
+    if (!job.tilemap.empty()) {
+        return tilemap_export(sprite, job.tilemap);
+    }
     GifOptions gif;
     gif.first = o.first;
     gif.last = o.last;
@@ -187,7 +193,7 @@ int cli_export(int argc, char **argv)
 {
     std::optional<Job> job = parseJob(argc, argv);
     if (!job) {
-        std::fprintf(stderr, USAGE, argv[0], argv[0], argv[0]);
+        std::fprintf(stderr, USAGE, argv[0], argv[0], argv[0], argv[0]);
         return EXIT_USAGE;
     }
     std::optional<Sprite> sprite = loadInput(job->input);

@@ -146,6 +146,8 @@ version is still 1), and rejects other versions and truncated data.
 | `BLND` | optional, after the layers: count, then (layer index, blend mode byte) for each layer that is not Normal; an unknown mode reads as Normal |
 | `TAGS` | optional: count (u16), then per tag a name, first and last frame and a direction |
 | `SLCE` | optional, after `TAGS`: count (u16), then per slice a name (u8 length + bytes), x, y, width, height (u32 each), a flags byte (bit 0: a pivot follows as two u32, in cels from the slice's top-left corner). A slice that does not fit the sprite is dropped on reading; the pixels still load |
+| `TSET` | optional, after `SLCE`: count (u16), then per tileset a name (u8 length + bytes), tile width and height, atlas width and height (u32 each) and the atlas pixels (RGBA) |
+| `TMAP` | optional, after `TSET`: count (u16), then per map a name, tileset index, columns, rows (u32 each), a visible byte and one u32 per cell (0 empty, else tile + 1). The reader keeps the tile data only if every tileset and map is valid together; otherwise it drops it and the pixels still load |
 
 Every writer goes through `file_write_atomic` (temporary file plus rename), so a failed write never destroys an
 existing file. The authoritative description is the comment in `include/tinysprite/io.hpp`.

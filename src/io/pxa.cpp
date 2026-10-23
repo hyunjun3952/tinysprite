@@ -280,6 +280,71 @@ void readSlices(Reader &chunk, std::vector<Sprite::Slice> &slices)
     }
 }
 
+/* A TSET payload: the count, then per tileset its name, tile size, atlas size (u32 each) and the
+ * atlas pixels. The pixels are taken before the cel is made, so a header that promises more than
+ * the chunk holds never allocates. */
+void readTilesets(Reader &chunk, std::vector<Tileset> &tilesets)
+{
+    uint32_t count = chunk.u16();
+    for (uint32_t i = 0; i < count; i++) {
+        Tileset tileset;
+        uint32_t nameLength = chunk.u8();
+        const uint8_t *name = chunk.take(nameLength);
+        tileset.name.assign(name, name + nameLength);
+        uint32_t values[4];
+        for (uint32_t &value : values) {
+            value = chunk.u32();
+        }
+        if (nameLength > TILE_NAME_MAX || values[0] > TILE_SIZE_MAX || values[1] > TILE_SIZE_MAX ||
+            values[2] < 1 || values[3] < 1 || values[2] > CEL_MAX_DIMENSION ||
+            values[3] > CEL_MAX_DIMENSION) {
+            throw std::out_of_range("pxa: bad tileset");
+        }
+        const size_t bytes = static_cast<size_t>(values[2]) * values[3] * sizeof(Rgba);
+        const uint8_t *pixels = chunk.take(bytes);
+        auto sized =
+            std::make_shared<Cel>(static_cast<int>(values[2]), static_cast<int>(values[3]));
+        std::memcpy(sized->pixels(), pixels, bytes);
+        tileset.tileWidth = static_cast<int>(values[0]);
+        tileset.tileHeight = static_cast<int>(values[1]);
+        tileset.atlas = std::move(sized);
+        tilesets.push_back(std::move(tileset));
+    }
+}
+
+/* A TMAP payload: the count, then per map its name, tileset index, columns, rows (u32 each), a
+ * visible byte and one u32 per cell. */
+void readTilemaps(Reader &chunk, std::vector<TileMap> &maps)
+{
+    uint32_t count = chunk.u16();
+    for (uint32_t i = 0; i < count; i++) {
+        TileMap map;
+        uint32_t nameLength = chunk.u8();
+        const uint8_t *name = chunk.take(nameLength);
+        map.name.assign(name, name + nameLength);
+        uint32_t tileset = chunk.u32();
+        uint32_t columns = chunk.u32();
+        uint32_t rows = chunk.u32();
+        uint32_t visible = chunk.u8();
+        if (nameLength > TILE_NAME_MAX || tileset > INT32_MAX || columns < 1 || rows < 1 ||
+            columns > TILEMAP_MAX_DIMENSION || rows > TILEMAP_MAX_DIMENSION || visible > 1) {
+            throw std::out_of_range("pxa: bad tilemap");
+        }
+        map.tileset = static_cast<int>(tileset);
+        map.columns = static_cast<int>(columns);
+        map.rows = static_cast<int>(rows);
+        map.visible = visible == 1;
+        const size_t cells = static_cast<size_t>(columns) * rows;
+        const uint8_t *raw = chunk.take(cells * 4);
+        map.cells.resize(cells);
+        for (size_t c = 0; c < cells; c++) {
+            Reader one(raw + c * 4, raw + c * 4 + 4);
+            map.cells[c] = one.u32();
+        }
+        maps.push_back(std::move(map));
+    }
+}
+
 /* What the chunks read so far add up to. The chunks that fill the sprite (FRAM, LINK, BLND, TAGS)
  * are kept aside and applied in finish(), once the frames and layers they refer to exist. */
 class Decoder
@@ -302,6 +367,9 @@ class Decoder
             return std::nullopt;
         }
         keepValidSlices(*sprite_);
+        /* Tile data is all or nothing: maps point into the tilesets by index, so a part that is
+         * invalid costs the tiles but never the pixels. */
+        sprite_->setTileData(std::move(tilesets_), std::move(maps_));
         return std::move(sprite_);
     }
 
@@ -404,14 +472,28 @@ class Decoder
         return true;
     }
 
+    bool readTilesetChunk(Reader &chunk, uint32_t /*unused*/)
+    {
+        readTilesets(chunk, tilesets_);
+        return true;
+    }
+
+    bool readTilemapChunk(Reader &chunk, uint32_t /*unused*/)
+    {
+        readTilemaps(chunk, maps_);
+        return true;
+    }
+
     std::optional<Sprite> sprite_;
     int layers_ = 0;
     uint32_t frames_ = 1;
     std::vector<uint32_t> durations_;   /* from FRAM, applied once the frames exist */
     std::vector<Sprite::Tag> tags_;     /* from TAGS, checked against the frames at the end */
     std::vector<Sprite::Slice> slices_; /* from SLCE, checked against the size at the end */
-    std::vector<CelLink> links_;        /* from LINK, applied once the layers exist */
-    std::vector<LayerBlend> blends_;    /* from BLND, applied once the layers exist */
+    std::vector<Tileset> tilesets_;     /* from TSET and TMAP, checked together at the end */
+    std::vector<TileMap> maps_;
+    std::vector<CelLink> links_;     /* from LINK, applied once the layers exist */
+    std::vector<LayerBlend> blends_; /* from BLND, applied once the layers exist */
 };
 
 const Decoder::ChunkReader Decoder::CHUNKS[] = {
@@ -419,6 +501,7 @@ const Decoder::ChunkReader Decoder::CHUNKS[] = {
     {"PALT", &Decoder::readPaletteChunk}, {"LAYR", &Decoder::readLayerChunk},
     {"LINK", &Decoder::readLinkChunk},    {"BLND", &Decoder::readBlendChunk},
     {"TAGS", &Decoder::readTagChunk},     {"SLCE", &Decoder::readSliceChunk},
+    {"TSET", &Decoder::readTilesetChunk}, {"TMAP", &Decoder::readTilemapChunk},
 };
 
 bool Decoder::chunk(const uint8_t *tag, Reader &payload, uint32_t length)
@@ -601,6 +684,42 @@ void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &sl
     });
 }
 
+void writeTiles(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    if (!sprite.tilesets().empty()) {
+        putChunk(out, "TSET", [&](std::vector<uint8_t> &o) {
+            putU16(o, static_cast<uint32_t>(sprite.tilesets().size()));
+            for (const Tileset &tileset : sprite.tilesets()) {
+                o.push_back(static_cast<uint8_t>(tileset.name.size()));
+                o.insert(o.end(), tileset.name.begin(), tileset.name.end());
+                for (int value : {tileset.tileWidth, tileset.tileHeight, tileset.atlas->width(),
+                                  tileset.atlas->height()}) {
+                    putU32(o, static_cast<uint32_t>(value));
+                }
+                const auto *raw = reinterpret_cast<const uint8_t *>(tileset.atlas->pixels());
+                o.insert(o.end(), raw, raw + pixelBytes(*tileset.atlas));
+            }
+        });
+    }
+    if (sprite.tilemaps().empty()) {
+        return;
+    }
+    putChunk(out, "TMAP", [&](std::vector<uint8_t> &o) {
+        putU16(o, static_cast<uint32_t>(sprite.tilemaps().size()));
+        for (const TileMap &map : sprite.tilemaps()) {
+            o.push_back(static_cast<uint8_t>(map.name.size()));
+            o.insert(o.end(), map.name.begin(), map.name.end());
+            for (int value : {map.tileset, map.columns, map.rows}) {
+                putU32(o, static_cast<uint32_t>(value));
+            }
+            o.push_back(map.visible ? 1 : 0);
+            for (uint32_t cell : map.cells) {
+                putU32(o, cell);
+            }
+        }
+    });
+}
+
 } // namespace
 
 std::vector<uint8_t> pxa_encode(const Sprite &sprite)
@@ -617,6 +736,7 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
     writeBlends(out, sprite);
     writeTags(out, sprite.tags());
     writeSlices(out, sprite.slices());
+    writeTiles(out, sprite);
     return out;
 }
 

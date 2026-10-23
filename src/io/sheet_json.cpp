@@ -4,88 +4,11 @@
 #include <string>
 
 #include "frame_range.hpp"
+#include "json_text.hpp"
 #include "tinysprite/io.hpp"
 
 namespace
 {
-
-/* How long a sequence that starts with `lead` is: 1 for ASCII, 0 for a byte that starts none. */
-size_t utf8Length(unsigned char lead)
-{
-    if (lead < 0xC2 || lead > 0xF4) {
-        return lead < 0x80 ? 1 : 0;
-    }
-    if (lead >= 0xF0) {
-        return 4;
-    }
-    return lead >= 0xE0 ? 3 : 2;
-}
-
-/* The length of the well-formed UTF-8 sequence that starts at `at` (overlong forms, surrogates and
- * code points past U+10FFFF included as malformed), or 0 if there is none. */
-size_t utf8Sequence(const std::string &text, size_t at)
-{
-    const auto byte = [&](size_t i) { return static_cast<unsigned char>(text[i]); };
-    const unsigned char lead = byte(at);
-    const size_t length = utf8Length(lead);
-    if (length <= 1) {
-        return length;
-    }
-    if (at + length > text.size()) {
-        return 0; /* cut short */
-    }
-    for (size_t i = 1; i < length; i++) {
-        if ((byte(at + i) & 0xC0) != 0x80) {
-            return 0;
-        }
-    }
-    const unsigned char second = byte(at + 1);
-    const bool overlong = (lead == 0xE0 && second < 0xA0) || (lead == 0xF0 && second < 0x90);
-    const bool beyond = (lead == 0xF4 && second > 0x8F) || (lead == 0xED && second > 0x9F);
-    return overlong || beyond ? 0 : length;
-}
-
-/* One character below U+0020, a quote or a backslash as its JSON escape; empty for the rest. */
-std::string escapeAscii(char c)
-{
-    switch (c) {
-    case '"':
-        return "\\\"";
-    case '\\':
-        return "\\\\";
-    case '\n':
-        return "\\n";
-    case '\t':
-        return "\\t";
-    default:
-        break;
-    }
-    if (static_cast<unsigned char>(c) >= 0x20) {
-        return "";
-    }
-    char buf[8];
-    std::snprintf(buf, sizeof buf, "\\u%04x", static_cast<unsigned>(c));
-    return buf;
-}
-
-/* `text` as a JSON string literal (quotes included). A byte that is not valid UTF-8 (a name read
- * from a damaged or foreign .pxa) becomes U+FFFD, so the file stays valid UTF-8. */
-std::string quoted(const std::string &text)
-{
-    std::string out = "\"";
-    for (size_t i = 0; i < text.size();) {
-        const size_t length = utf8Sequence(text, i);
-        if (length == 0) {
-            out += "\\ufffd";
-            i++;
-            continue;
-        }
-        const std::string escaped = length == 1 ? escapeAscii(text[i]) : "";
-        out += escaped.empty() ? text.substr(i, length) : escaped;
-        i += length;
-    }
-    return out + "\"";
-}
 
 const char *directionName(PlayMode mode)
 {
@@ -140,7 +63,7 @@ std::string tagsJson(const Sprite &sprite, int first, int last)
             continue;
         }
         out += out.empty() ? "\n" : ",\n";
-        out += "    {\"name\": " + quoted(tag.name) +
+        out += "    {\"name\": " + json_quoted(tag.name) +
                ", \"from\": " + std::to_string(from - first) +
                ", \"to\": " + std::to_string(to - first) + R"(, "direction": ")" +
                directionName(tag.direction) + R"("})";
@@ -157,7 +80,7 @@ std::string slicesJson(const Sprite &sprite, int scale)
         Rect r = {slice.rect.x * scale, slice.rect.y * scale, slice.rect.w * scale,
                   slice.rect.h * scale};
         out += out.empty() ? "\n" : ",\n";
-        out += "    {\"name\": " + quoted(slice.name) + ", \"bounds\": " + rectJson(r);
+        out += "    {\"name\": " + json_quoted(slice.name) + ", \"bounds\": " + rectJson(r);
         if (slice.hasPivot) {
             out += R"(, "pivot": {"x": )" + std::to_string(slice.pivotX * scale) + R"(, "y": )" +
                    std::to_string(slice.pivotY * scale) + "}";
@@ -176,7 +99,7 @@ std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &
     std::string frames = framesJson(sprite, options.first, sheet, options.scale);
     std::string tags = tagsJson(sprite, options.first, last);
     std::string out =
-        "{\n  \"meta\": {\n    \"app\": \"tinysprite\",\n    \"image\": " + quoted(image) +
+        "{\n  \"meta\": {\n    \"app\": \"tinysprite\",\n    \"image\": " + json_quoted(image) +
         ",\n    \"size\": {\"w\": " + std::to_string(sheet.width) +
         ", \"h\": " + std::to_string(sheet.height) +
         "},\n    \"frameSize\": {\"w\": " + std::to_string(sprite.width() * options.scale) +

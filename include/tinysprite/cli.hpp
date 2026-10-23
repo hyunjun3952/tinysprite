@@ -8,7 +8,10 @@
  *                  [--columns N] [--spacing N] [--scale N] [--first N] [--last N]
  *   export <input> --image out.png [--frame N] [--scale N]
  *   export <input> --gif out.gif [--scale N]
+ *   export <input> --tilemap out.tmj
  *
+ * `--tilemap` writes the Tiled-style map and one PNG per tileset beside it (see tilemap_export);
+ * it fails when the file has no tilemap.
  * `--columns` without `--layout` lays the sheet out as a grid.
  * <input> is a .pxa file, or any image the editor can import. Returns 0 on success, 2 for a bad
  * command line (a message with the usage goes to stderr), 1 when the input cannot be read or an

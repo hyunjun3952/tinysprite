@@ -98,6 +98,28 @@ TEST(a_gif_honors_the_frame_range_and_an_image_refuses_one)
     std::remove("cli_o3.png");
 }
 
+TEST(a_tilemap_export_writes_the_map_and_its_tileset_images)
+{
+    Sprite s(4, 4);
+    Cel cel(4, 2);
+    cel.set(0, 0, Rgba{255, 0, 0, 255});
+    TileMap map = tilemap_blank("level", 0, 2, 2);
+    map.cells[0] = 1;
+    s.setTileData({*tileset_from_cel(cel, Rect{0, 0, 4, 2}, 2, 2, "tiles")}, {map});
+    pxa_save(s, "cli_tiles.pxa");
+    ASSERT_EQ_INT(0, run({"export", "cli_tiles.pxa", "--tilemap", "cli_map.tmj"}));
+    ASSERT_TRUE(slurp("cli_map.tmj").find("\"image\": \"cli_map_tiles.png\"") != std::string::npos);
+    ASSERT_TRUE(image_import("cli_map_tiles.png").has_value());
+    /* a file without a tilemap, or a tilemap together with another output, is not accepted */
+    make_input("cli_plain.pxa");
+    ASSERT_EQ_INT(1, run({"export", "cli_plain.pxa", "--tilemap", "cli_none.tmj"}));
+    ASSERT_EQ_INT(2, run({"export", "cli_tiles.pxa", "--tilemap", "a.tmj", "--gif", "a.gif"}));
+    std::remove("cli_tiles.pxa");
+    std::remove("cli_map.tmj");
+    std::remove("cli_map_tiles.png");
+    std::remove("cli_plain.pxa");
+}
+
 TEST(bad_input_fails_with_a_status)
 {
     ASSERT_EQ_INT(2, run({"export"}));
@@ -118,6 +140,7 @@ int main()
     RUN(the_packed_layout_trims_and_lists_the_trims_in_the_json);
     RUN(a_single_frame_png_export_works_too);
     RUN(a_gif_honors_the_frame_range_and_an_image_refuses_one);
+    RUN(a_tilemap_export_writes_the_map_and_its_tileset_images);
     RUN(bad_input_fails_with_a_status);
     return TEST_SUMMARY();
 }
