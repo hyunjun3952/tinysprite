@@ -94,9 +94,11 @@ TEST(exporting_writes_the_json_and_one_png_per_tileset)
     ASSERT_TRUE(std::filesystem::exists(folder + "/level.tmj"));
     ASSERT_TRUE(std::filesystem::exists(folder + "/level_terrain.png"));
     ASSERT_TRUE(std::filesystem::exists(folder + "/level_props.png"));
-    std::ifstream in(folder + "/level.tmj");
     std::stringstream text;
-    text << in.rdbuf();
+    {
+        std::ifstream in(folder + "/level.tmj");
+        text << in.rdbuf();
+    }
     ASSERT_TRUE(has(text.str(), "\"image\": \"level_terrain.png\""));
     std::optional<Sprite> image = image_import(folder + "/level_terrain.png");
     ASSERT_TRUE(image.has_value());

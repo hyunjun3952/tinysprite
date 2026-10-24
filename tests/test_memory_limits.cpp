@@ -6,8 +6,6 @@
 #include "tinysprite/layer_ops.hpp"
 #include "tinysprite/sprite.hpp"
 
-static const Rgba RED = {255, 0, 0, 255};
-
 TEST(the_default_cel_budget_is_what_a_big_sprite_can_still_grow_by)
 {
     Sprite s(4096, 4096);           /* 64 MiB a cel */

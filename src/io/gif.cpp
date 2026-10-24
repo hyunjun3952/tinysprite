@@ -23,10 +23,6 @@ uint32_t packRgb(Rgba c)
     return static_cast<uint32_t>(c.r) << 16 | static_cast<uint32_t>(c.g) << 8 | c.b;
 }
 
-/* A pixel of the GIF: a palette index, kTransparent for none (resolved once the palette is known).
- */
-constexpr int NOT_SHOWN = -1;
-
 /* The colors of the animation and how they map to palette entries. */
 struct GifPalette {
     std::vector<Rgba> entries; /* index 0 is transparent when `transparent` */

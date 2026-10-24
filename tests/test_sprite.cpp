@@ -47,7 +47,7 @@ TEST(add_many_layers_keeps_pointers_valid)
     Sprite s(4, 4);
     Layer *first = s.layer(0);
     for (int i = 0; i < 100; i++) {
-        ASSERT_TRUE(&s.addLayer("x") != nullptr);
+        s.addLayer("x");
     }
     ASSERT_EQ_INT(101, s.layerCount());
     ASSERT_TRUE(s.layer(0) == first);

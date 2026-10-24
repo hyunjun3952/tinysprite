@@ -6,8 +6,6 @@
 #include "minitest.hpp"
 #include "ui_editor_support.hpp"
 
-static const Rgba RED = {255, 0, 0, 255};
-
 /* An 8 x 6 editor whose cel has a red pixel at the top-left of each 4 x 3 tile. */
 static Editor *editor_with_tiles()
 {
