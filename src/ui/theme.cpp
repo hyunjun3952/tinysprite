@@ -249,6 +249,23 @@ bool mouse_near_menus(ImRect bar)
     return false;
 }
 
+/* A closed menu title opens when the mouse rests on it, unless a click on the title just closed it
+ * (`closedKey` remembers that until the mouse leaves) or another popup is open. */
+void open_on_hover(const char *label, ImGuiStorage *storage, ImGuiID closedKey, bool wasOpen)
+{
+    const bool hovered = ImGui::IsItemHovered();
+    if (wasOpen && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        storage->SetBool(closedKey, true); /* a click on the title closed it: leave it closed */
+    }
+    if (!hovered) {
+        storage->SetBool(closedKey, false);
+    }
+    if (hovered && !storage->GetBool(closedKey, false) &&
+        !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+        ImGui::OpenPopup(label);
+    }
+}
+
 } // namespace
 
 bool begin_menu(const char *label)
@@ -273,18 +290,7 @@ bool begin_menu(const char *label)
         }
     } else {
         away = 0.0f;
-        const bool hovered = ImGui::IsItemHovered();
-        if (wasOpen && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            storage->SetBool(closedKey, true); /* a click on the title closed it: leave it closed */
-        }
-        if (!hovered) {
-            storage->SetBool(closedKey, false);
-        }
-        if (hovered && !storage->GetBool(closedKey, false) &&
-            !ImGui::IsPopupOpen(nullptr,
-                                ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
-            ImGui::OpenPopup(label);
-        }
+        open_on_hover(label, storage, closedKey, wasOpen);
     }
     storage->SetFloat(key, away);
     storage->SetBool(openKey, open);
