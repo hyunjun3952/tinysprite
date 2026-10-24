@@ -247,6 +247,8 @@ namespace
 constexpr float BAR_GAP = 16.0f; /* between two groups of options */
 constexpr float BAR_SLIDER_WIDTH = 140.0f;
 constexpr float BAR_MIRROR_WIDTH = 190.0f; /* the room both mirror boxes need */
+constexpr float BAR_CUT_WIDTH = 28.0f;     /* the strip that marks a cut-off bar */
+constexpr float BAR_CUT_CHEVRON = 8.0f;
 
 /* A new group of options on the same row, a gap after the last one. */
 void barGap()
@@ -341,6 +343,26 @@ void ToolsPanel::barSymmetry()
                "Applies to pencil, eraser, shapes and bucket.");
 }
 
+/* When controls are hidden past the right end of the bar (it has no scrollbar), a strip of the
+ * bar's own color with a chevron covers the cut, so it reads as "more" and not as a missing option.
+ */
+void ToolsPanel::barCutMark(float width, float height)
+{
+    barCutOff_ = ImGui::GetScrollMaxX() - ImGui::GetScrollX() > 1.0f;
+    if (!barCutOff_) {
+        return;
+    }
+    const ImVec2 at = ImGui::GetWindowPos();
+    const float strip = theme::px(BAR_CUT_WIDTH);
+    ImDrawList *draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(ImVec2(at.x + width - strip, at.y),
+                        ImVec2(at.x + width, at.y + height - 1.0f),
+                        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::CANVAS)));
+    theme::chevron(draw, ImVec2(at.x + width - strip / 2.0f, at.y + height / 2.0f),
+                   theme::px(BAR_CUT_CHEVRON), false,
+                   ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::MUTE)));
+}
+
 void ToolsPanel::contextBar(float x, float y, float width, float height)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
@@ -372,6 +394,7 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
         if (group == ToolGroup::Brush || group == ToolGroup::Shape || group == ToolGroup::Fill) {
             barSymmetry();
         }
+        barCutMark(width, height);
         /* a hairline under the bar, like the one between the sections */
         ImVec2 at = ImGui::GetWindowPos();
         ImGui::GetWindowDrawList()->AddLine(

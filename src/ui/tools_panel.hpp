@@ -27,6 +27,13 @@ class ToolsPanel
     /* The bar above the canvas, drawn as its own window over [x, x + width] x [y, y + height]. */
     void contextBar(float x, float y, float width, float height);
 
+    /* True when the last contextBar had controls hidden past its right end (the bar has no
+     * scrollbar; it marks the cut with a chevron). */
+    bool barCutOff() const
+    {
+        return barCutOff_;
+    }
+
     /* True while the "Reset palette" confirmation is open, so the app's shortcuts stay quiet. */
     bool dialogOpen() const
     {
@@ -37,6 +44,7 @@ class ToolsPanel
     static ImGuiKey shortcutKey(ToolKind tool);
 
   private:
+    void barCutMark(float width, float height);
     void iconRow(const ToolIcon *first, size_t count);
     void toolGrid();
     void shapeButtons();
@@ -53,6 +61,7 @@ class ToolsPanel
     Editor *editor_;         /* the document shown; changed by setEditor */
     bool openReset_ = false; /* the confirmation still has to be opened */
     bool dialogOpen_ = false;
+    bool barCutOff_ = false;                  /* the options bar has controls past its right end */
     char fgHex_[theme::HEX_BUFFER_SIZE] = ""; /* what is typed in the picker's hex field */
     char bgHex_[theme::HEX_BUFFER_SIZE] = "";
 };
