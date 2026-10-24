@@ -20,6 +20,8 @@ enum class ToolKind {
     Cross,
     Slice,
     Pan,
+    Wand,
+    Lasso,
     Count,
 };
 
@@ -35,6 +37,8 @@ enum class ToolGroup {
     Select, /* drags out a selection, or moves the pixels inside it */
     Slice,  /* drags out a slice (a named rectangle for the game), or moves one */
     Pan,    /* drags the view (the canvas does it, as it does for Space + drag) */
+    Wand,   /* a click selects the pixels of one color (a selection of any shape) */
+    Lasso,  /* a dragged outline selects what it encloses */
     Count,
 };
 

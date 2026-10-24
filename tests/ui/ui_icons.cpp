@@ -11,7 +11,7 @@
 #include "theme.hpp"
 #include "ui_harness.hpp"
 
-/* The 15 tool and shape icons are bitmaps and the folder and the two chevrons are drawn with lines
+/* The 17 tool and shape icons are bitmaps and the folder and the two chevrons are drawn with lines
  * (they would need glyphs added to the font subset); they have no codepoint, every other icon is a
  * glyph. */
 TEST(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons)
@@ -20,10 +20,14 @@ TEST(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons)
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
         drawn += icons::is_drawn(static_cast<icons::Icon>(i)) ? 1 : 0;
     }
-    ASSERT_EQ_INT(18, drawn);
+    ASSERT_EQ_INT(20, drawn);
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Diamond));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Folder));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Pan));
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Wand));
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Lasso));
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Wand));
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Lasso));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::ChevronLeft));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::ChevronRight));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Slice));

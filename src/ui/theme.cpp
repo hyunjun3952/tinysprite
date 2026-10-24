@@ -624,7 +624,7 @@ void hint(const char *tooltip, bool enabled, const char *reason)
 
 ImVec2 fit_in_box(int width, int height, float box)
 {
-    const float longer = static_cast<float>(std::max(std::max(width, height), 1));
+    const float longer = static_cast<float>(std::max({width, height, 1}));
     const float scale = box / longer;
     const float w = std::max(2.0f, std::round(static_cast<float>(width) * scale));
     const float h = std::max(2.0f, std::round(static_cast<float>(height) * scale));

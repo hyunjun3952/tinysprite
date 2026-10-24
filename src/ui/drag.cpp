@@ -206,21 +206,15 @@ class MoveDrag : public StrokeDrag<MoveStroke>
         if (editor_.moveDx() == 0 && editor_.moveDy() == 0) {
             return HistoryAction{};
         }
-        Rect before = editor_.selection();
-        Rect moved = before;
-        moved.x += editor_.moveDx();
-        moved.y += editor_.moveDy();
-        return editor_.selectionAction(before, editor_.clippedSelection(moved));
+        return editor_.selectionAction(
+            editor_.selectionState(), editor_.selectionMovedBy(editor_.moveDx(), editor_.moveDy()));
     }
 
     /* The selection follows its pixels; the part that left the sprite is gone. */
     void onFinish(bool changed) override
     {
         if (changed) {
-            Rect moved = editor_.selection();
-            moved.x += editor_.moveDx();
-            moved.y += editor_.moveDy();
-            editor_.setSelectionClipped(moved);
+            editor_.setSelectionState(editor_.selectionMovedBy(editor_.moveDx(), editor_.moveDy()));
         }
         editor_.setMoveOffset(0, 0);
     }
@@ -371,13 +365,89 @@ std::unique_ptr<Drag> beginPick(Editor &editor, Cel * /*unused*/, int cx, int cy
     return std::make_unique<PickDrag>(editor, cx, cy);
 }
 
+/* The magic wand: a single click, no drag. Shift adds the picked pixels to the selection. */
+std::unique_ptr<Drag> beginWand(Editor &editor, Cel * /*unused*/, int cx, int cy)
+{
+    editor.selectRegion(
+        cx, cy, editor.shiftAtPress() ? Editor::SelectMode::Add : Editor::SelectMode::Replace);
+    return nullptr;
+}
+
+/* The lasso: the path of the mouse is shown while it is dragged and the area it encloses becomes
+ * the selection on release (Shift adds it to the selection that was there). A click, or a path with
+ * fewer than three distinct points, picks nothing: it only dismisses the selection. */
+class LassoDrag : public Drag
+{
+  public:
+    LassoDrag(Editor &editor, int cx, int cy)
+        : Drag(editor, clampX(editor, cx), clampY(editor, cy)), add_(editor.shiftAtPress())
+    {
+        editor_.clearLassoPath();
+        editor_.addLassoPoint(ToolPoint{anchorX_, anchorY_});
+    }
+
+    void update(int cx, int cy) override
+    {
+        const int x = clampX(editor_, cx);
+        const int y = clampY(editor_, cy);
+        if (x != lastX_ || y != lastY_) {
+            editor_.addLassoPoint(ToolPoint{x, y});
+            lastX_ = x;
+            lastY_ = y;
+        }
+    }
+
+    void finish() override
+    {
+        const std::vector<ToolPoint> path = editor_.lassoPath();
+        editor_.clearLassoPath();
+        if (distinctPoints(path) >= MIN_POINTS) {
+            editor_.selectPolygon(path,
+                                  add_ ? Editor::SelectMode::Add : Editor::SelectMode::Replace);
+        } else if (!add_) {
+            editor_.dropSelection();
+        }
+    }
+
+    void cancel() override
+    {
+        editor_.clearLassoPath();
+    }
+
+  private:
+    static constexpr int MIN_POINTS = 3;
+
+    /* How many different cels the path visits (a few repeats do not make a shape). */
+    static int distinctPoints(const std::vector<ToolPoint> &path)
+    {
+        std::vector<ToolPoint> seen;
+        for (const ToolPoint &point : path) {
+            if (std::none_of(seen.begin(), seen.end(), [&](const ToolPoint &other) {
+                    return other.x == point.x && other.y == point.y;
+                })) {
+                seen.push_back(point);
+            }
+        }
+        return static_cast<int>(seen.size());
+    }
+
+    bool add_; /* Shift was held at the press: join the selection instead of replacing it */
+};
+
+std::unique_ptr<Drag> beginLasso(Editor &editor, Cel * /*unused*/, int cx, int cy)
+{
+    return std::make_unique<LassoDrag>(editor, cx, cy);
+}
+
 std::unique_ptr<Drag> beginSelect(Editor &editor, Cel * /*unused*/, int cx, int cy)
 {
-    if (editor.hasSelection() && rect_contains(editor.selection(), cx, cy)) {
+    if (editor.selectionContains(cx, cy)) {
         /* On a locked or hidden layer the pixels cannot move: drag out a new selection instead. */
         if (Cel *cel = editor.editableCel()) {
+            std::shared_ptr<const Mask> mask = editor.selectionMask();
             std::unique_ptr<MoveStroke> stroke =
-                MoveStroke::begin(editor.history(), *cel, editor.selection());
+                mask ? MoveStroke::begin(editor.history(), *cel, *mask)
+                     : MoveStroke::begin(editor.history(), *cel, editor.selection());
             if (!stroke) {
                 return nullptr;
             }
@@ -451,7 +521,8 @@ using DragFactory = std::unique_ptr<Drag> (*)(Editor &editor, Cel *cel, int cx, 
 
 /* In ToolGroup order. */
 const std::array<DragFactory, static_cast<size_t>(ToolGroup::Count)> FACTORIES = {
-    beginPencil, fillBucket, beginPick, beginShape, beginSelect, beginSlice, beginPan,
+    beginPencil, fillBucket, beginPick, beginShape, beginSelect,
+    beginSlice,  beginPan,   beginWand, beginLasso,
 };
 
 } // namespace

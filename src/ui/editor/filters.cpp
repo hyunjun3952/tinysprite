@@ -44,7 +44,13 @@ bool Editor::applyFilter(const FilterParams &params, bool allFrames)
         return false;
     }
     bool done = false;
-    if (!guarded([&] { done = filter_apply_cels(history(), cels, params, selection_); })) {
+    /* A selection that is not a rectangle limits the filter to its pixels, as it limits a stroke.
+     */
+    history_.setClipMask(mask_);
+    const bool ran =
+        guarded([&] { done = filter_apply_cels(history(), cels, params, selection_); });
+    history_.setClipMask(nullptr);
+    if (!ran) {
         return false;
     }
     if (done) {

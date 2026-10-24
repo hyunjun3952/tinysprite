@@ -54,6 +54,8 @@ class Canvas
     void drawBrushPreview(ImDrawList *draw, ImVec2 origin) const;
     void drawHoverOutline(ImDrawList *draw, ImVec2 origin) const;
     void drawSelection(ImDrawList *draw, ImVec2 origin) const;
+    void drawMaskOutline(ImDrawList *draw, ImVec2 origin, const Mask &mask) const;
+    void drawLasso(ImDrawList *draw, ImVec2 origin) const;
     void drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const;
     void drawLoupe(ImVec2 origin, ImVec2 avail) const;
 

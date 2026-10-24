@@ -46,6 +46,8 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0,      /* Folder: drawn with lines */
     0,      /* Slice: a bitmap (icon_bitmaps.cpp) */
     0,      /* Pan: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Wand: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Lasso: a bitmap (icon_bitmaps.cpp) */
     0,      /* ChevronLeft: drawn with lines */
     0,      /* ChevronRight: drawn with lines */
 };

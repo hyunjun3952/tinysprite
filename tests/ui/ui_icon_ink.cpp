@@ -94,7 +94,7 @@ TEST(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box)
         ASSERT_TRUE(std::max(x1 - x0, y1 - y0) + 1 >= 11);
         ASSERT_TRUE(std::max(x1 - x0, y1 - y0) + 1 <= 14);
     }
-    ASSERT_EQ_INT(15, bitmaps);
+    ASSERT_EQ_INT(17, bitmaps);
 }
 
 /* The closed shapes are outlines of one weight: an empty middle (the star was a solid fill beside
