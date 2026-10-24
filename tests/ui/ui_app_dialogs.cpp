@@ -47,6 +47,10 @@ struct AppTestAccess {
     {
         return *app.editor_;
     }
+    SDL_Window *window()
+    {
+        return app.window_;
+    }
     bool dirty() const
     {
         return app.dirty();
@@ -342,6 +346,36 @@ TEST(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes)
     t.frame();
 }
 
+/* Tab as the window system delivers it: a key event the app reads before ImGui does. */
+static void push_tab(SDL_Window *window, bool down)
+{
+    SDL_Event event = {};
+    event.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+    event.key.scancode = SDL_SCANCODE_TAB;
+    event.key.key = SDLK_TAB;
+    event.key.down = down;
+    event.key.windowID = SDL_GetWindowID(window); /* the backend ignores a key for no window */
+    SDL_PushEvent(&event);
+}
+
+/* A keyboard-only user has to be able to get into the UI: Tab, with no mouse click before it, puts
+ * the focus (and its ring) on a control. The canvas, which has the focus at the start, has nothing
+ * to tab to. */
+TEST(tab_enters_the_ui_without_a_mouse_click)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    const ImGuiContext &g = *ImGui::GetCurrentContext();
+    ASSERT_TRUE(g.NavId == 0);
+    push_tab(t.window(), true);
+    t.frame();
+    push_tab(t.window(), false);
+    t.frame();
+    t.frame();
+    ASSERT_TRUE(g.NavId != 0);
+    ASSERT_TRUE(ImGui::GetIO().NavVisible);
+    ASSERT_TRUE(g.NavWindow != nullptr && std::strcmp(g.NavWindow->Name, "Tools") == 0);
+}
 TEST(ctrl_t_hides_and_shows_the_timeline)
 {
     AppTestAccess t;
@@ -535,6 +569,7 @@ int main()
     RUN(the_layer_chords_add_duplicate_and_move_layers);
     RUN(double_clicking_the_timeline_edge_restores_its_default_height);
     RUN(dragging_the_timeline_edge_resizes_folds_and_unfolds_it);
+    RUN(tab_enters_the_ui_without_a_mouse_click);
     RUN(ctrl_t_hides_and_shows_the_timeline);
     RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
     return TEST_SUMMARY();

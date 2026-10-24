@@ -11,6 +11,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
+#include "imgui_internal.h"
 #include "theme.hpp"
 #include "tinysprite/io.hpp"
 
@@ -329,6 +330,30 @@ bool App::saveScreenshot(const std::string &path) const
     return image_write_rgba(path, width, height, pixels);
 }
 
+/*
+ * Tab with nothing navigable focused: at the start the canvas has the focus, and it has no control
+ * to tab to, so Tab did nothing until a panel was clicked. Called with the frame's input queued
+ * and not yet read, it moves the focus to the tool bar when a Tab press is waiting there, so that
+ * same press lands on its first tool. The queue is what the window's key events and a script's
+ * both end up in.
+ */
+static void focusPanelForTab()
+{
+    const ImGuiContext &g = *ImGui::GetCurrentContext();
+    const bool onCanvas =
+        g.NavWindow != nullptr && std::strncmp(g.NavWindow->Name, "Canvas", 6) == 0;
+    if (g.NavId != 0 || !onCanvas) {
+        return;
+    }
+    for (const ImGuiInputEvent &event : g.InputEventsQueue) {
+        if (event.Type == ImGuiInputEventType_Key && event.Key.Key == ImGuiKey_Tab &&
+            event.Key.Down) {
+            ImGui::SetWindowFocus("Tools");
+            return;
+        }
+    }
+}
+
 /* Feeds the window's events to ImGui and handles the ones the app owns. */
 void App::pollEvents()
 {
@@ -341,8 +366,8 @@ void App::pollEvents()
             dropFile(event.drop.data);
         }
     }
+    focusPanelForTab();
 }
-
 /* Click handling of the timeline sash, after its invisible button was submitted. Returns whether
  * the sash is being dragged. */
 bool App::sashClicked(Editor::Overlays &overlays)
@@ -506,6 +531,7 @@ void App::run(const AppOptions &options)
         pollEvents();
         ScriptInput input = scripted ? script.next() : ScriptInput();
         script_feed(ImGui::GetIO(), input);
+        focusPanelForTab();
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();

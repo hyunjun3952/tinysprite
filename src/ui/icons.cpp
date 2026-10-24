@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 
+#include "imgui_internal.h"
 #include "theme.hpp"
 
 namespace icons
@@ -48,6 +49,16 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0,      /* ChevronLeft: drawn with lines */
     0,      /* ChevronRight: drawn with lines */
 };
+
+/*
+ * An invisible button the keyboard can reach: ImGui leaves an InvisibleButton out of Tab and arrow
+ * navigation unless it is asked to include it, and these icon buttons are drawn by hand, so their
+ * focus ring is drawn by hand as well (RenderNavCursor, after the picture).
+ */
+bool navigableButton(const char *id, ImVec2 size)
+{
+    return ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);
+}
 
 constexpr float ROUND = 6.0f;
 constexpr float GLYPH_SIZE_BASE = 20.0f;
@@ -224,7 +235,7 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
 bool round_button(Icon icon, const char *id, const char *tooltip, float diameter, bool enabled)
 {
     ImGui::BeginDisabled(!enabled);
-    bool clicked = ImGui::InvisibleButton(id, ImVec2(diameter, diameter));
+    bool clicked = navigableButton(id, ImVec2(diameter, diameter));
     ImGui::EndDisabled();
     const ImVec2 min = ImGui::GetItemRectMin();
     const ImVec2 max = ImGui::GetItemRectMax();
@@ -240,6 +251,7 @@ bool round_button(Icon icon, const char *id, const char *tooltip, float diameter
     drawGlyph(list, icon, min, max,
               enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f),
               round_glyph_size(theme::scale()));
+    ImGui::RenderNavCursor(ImRect(min, max), ImGui::GetItemID());
     theme::hint(tooltip, enabled);
     return clicked && enabled;
 }
@@ -258,7 +270,7 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
 
 bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec2 size)
 {
-    bool clicked = ImGui::InvisibleButton(id, size);
+    bool clicked = navigableButton(id, size);
     const ImVec2 min = ImGui::GetItemRectMin();
     const ImVec2 max = ImGui::GetItemRectMax();
     /* The fill eases between the resting, hovered and selected looks instead of snapping. */
@@ -275,13 +287,14 @@ bool choice(Icon icon, const char *id, const char *tooltip, bool selected, ImVec
     list->AddRectFilled(min, max, withAlpha(active ? theme::ACCENT_STRONG : theme::ACCENT, pick),
                         round);
     draw(list, icon, min, max, withAlpha(selected ? theme::ACCENT_TEXT : theme::INK, 1.0f));
+    ImGui::RenderNavCursor(ImRect(min, max), key);
     theme::tip(tooltip);
     return clicked;
 }
 
 bool toggle(Icon on, Icon off, const char *id, const char *tooltip, bool state, float size)
 {
-    bool clicked = ImGui::InvisibleButton(id, ImVec2(size, size));
+    bool clicked = navigableButton(id, ImVec2(size, size));
     ImVec2 min = ImGui::GetItemRectMin();
     ImVec2 max = ImGui::GetItemRectMax();
     ImDrawList *list = ImGui::GetWindowDrawList();
@@ -291,6 +304,7 @@ bool toggle(Icon on, Icon off, const char *id, const char *tooltip, bool state, 
     }
     draw(list, state ? on : off, min, max,
          state ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.7f));
+    ImGui::RenderNavCursor(ImRect(min, max), ImGui::GetItemID());
     theme::tip(tooltip);
     return clicked;
 }
