@@ -62,6 +62,14 @@ inline constexpr float SCALE_MIN = 1.0f;
 inline constexpr float SCALE_MAX = 3.0f;
 void setScale(float scale); /* clamped to SCALE_MIN..SCALE_MAX; call apply() afterwards */
 float scale();
+
+/* The scale last passed to setScale: what the user chose, which is what gets saved. scale() is the
+ * same unless cap_scale lowered it. */
+float requested_scale();
+
+/* Uses at most `largest` (never below SCALE_MIN) until the next setScale: a display too small for
+ * the layout at the requested scale. The requested scale stays. Call apply() afterwards. */
+void cap_scale(float largest);
 float px(float pixels); /* `pixels` at the current scale */
 
 /* A scale that suits the primary display's DPI (96 dpi = 1), rounded to quarters; 1 when the DPI is
@@ -144,6 +152,10 @@ std::string ellipsize(const std::string &text, float maxWidth);
 /* Width of one of `count` equal columns that fill the available width. */
 float columnWidth(int count);
 
+/* The color of a choice button's shortcut hint (an RGB token): mute at rest, body while the button
+ * is `pressed`, because mute is under 4.5:1 on the pressed fill. */
+unsigned hint_text(bool pressed);
+
 /* A left-aligned button with its keyboard shortcut at the right end. The selected one is drawn
  * inverted (off-white fill, dark text), the way the style marks the active choice. */
 bool choiceButton(const char *label, const char *hint, bool selected, float width,
@@ -186,6 +198,8 @@ inline constexpr ImU32 SLICE_SELECTED_FILL = IM_COL32(255, 183, 3, 34);
 inline constexpr ImU32 SLICE_PIVOT = IM_COL32(255, 92, 161, 255);
 inline constexpr ImU32 SLICE_SHADOW = IM_COL32(0, 0, 0, 200);
 inline constexpr ImU32 SLICE_LABEL_BACKGROUND = IM_COL32(0, 0, 0, 170);
+inline constexpr ImU32 TILE_GRID = IM_COL32(255, 255, 255, 85);   /* the tile picker's cell lines */
+inline constexpr ImU32 TILE_PICKED = IM_COL32(74, 210, 255, 255); /* the picked tile's outline */
 } // namespace overlay
 
 /* Small transitions. ease_toward moves `current` toward `target` at a steady rate that covers 0..1

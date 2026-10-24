@@ -199,7 +199,7 @@ One family, one size. Hierarchy comes from color (ink, body, mute) and position,
 |---|---|---|
 | `ui` | 14 px x scale | everything: labels, values, menus, tabs, buttons, status bar |
 | `shortcut-hint` | 14 px, `{colors.mute}` | the key at the right end of a choice button or menu row |
-| `icon-glyph` | about 20 px x scale | toolbar and layer icons (Material Symbols, range U+E000-U+F8FF) |
+| `icon-glyph` | about 20 px x scale | toolbar and layer icons (Material Symbols, range U+E000-U+F8FF); each glyph is drawn at the size that gives its ink a 15 px longer side (x scale, limited to 0.8-1.5 of 20 px), because the font pads its glyphs unevenly (`icons::fitted_glyph_size`) |
 
 - Font rendering is tuned for crispness at 14 px: whole-pixel glyph positions, one sample per pixel (`PixelSnapH`, `OversampleH/V = 1`). Do not enable oversampling or fractional positions; letter spacing goes uneven.
 - Numbers that count something show their unit (`100 ms`, `50%`), drawn inside the field so it stays while typing (`theme::input_int`, `theme::slider_int`).
@@ -282,7 +282,7 @@ Icons are Material Symbols Outlined (unfilled). Chevrons are drawn as two stroke
 ### Panels
 - **Tool bar**: one column of icon buttons, then the shapes. **Options bar**: only the options of the active tool, so it changes with the tool.
 - **Inspector**: Color, then Layers, then Slices (folded by default), then Properties. Panel settings keys are fixed (`panel.tools.*`, `panel.layers.*`), not derived from the title.
-- **Timeline**: toolbar, onion skin row, tag row, grid of cels. The playhead and the selected cells use the accent family; linked cels show a dot.
+- **Timeline**: toolbar, onion skin row, tag row, grid of cels. The playhead and the selected cells use the accent family; a cel with pixels shows a dot and a cel that shares its pixels with another (linked) shows a bar.
 - **Status bar**: 24 px, mute text: the active tool, cursor position, zoom and transient messages (check `statusbar.cpp` for the exact set).
 
 ### Canvas
@@ -331,9 +331,9 @@ A desktop tool: there are no breakpoints, but the layout must hold across window
 | Condition | Required behavior |
 |---|---|
 | Window at default 1100 x 720 | the layout above, nothing clipped |
-| Window narrower than default | the inspector keeps at least its 250 px minimum; the canvas shrinks first; the options bar scrolls or wraps, never overlaps |
+| Window narrower than default | the inspector keeps at least its 250 px minimum; the canvas shrinks first; the options bar scrolls (Shift + wheel) and marks the cut with a chevron at its right end, never overlaps |
 | Window short | the timeline folds before the canvas disappears; the layer list keeps 96 px |
-| UI scale 1.0 to 3.0 | every text, unit and icon fits its control; scale follows the display DPI (`scaleForDpi`, quarters) |
+| UI scale 1.0 to 3.0 | every text, unit and icon fits its control; scale follows the display DPI (`scaleForDpi`, quarters). A scale whose minimum window (640 x 420 x scale) does not fit the display is not used: the saved or DPI scale is capped at start (`window_max_scale`) and the UI scale menu disables it with the reason. An explicit `--scale` is taken as given. |
 | Many documents | tabs scroll or shrink; the active tab is always visible |
 | Large sprite / extreme zoom | the viewport clamps; the grid draws only from zoom 4; fit margin 16 px |
 
@@ -348,7 +348,7 @@ A desktop tool: there are no breakpoints, but the layout must hold across window
 
 ## Known gaps
 
-- Hover, focus and disabled treatments are described, but the exact contrast of `{colors.mute}` on `{colors.canvas-soft}` has not been measured yet; the `ui-audit` skill measures it.
+- Contrast of `{colors.mute}`: 5.86 on canvas, 5.13 on canvas-soft, 4.54 on hover, but 4.01 on pressed (below 4.5), so text that sits on the pressed fill uses `{colors.body}` (`theme::hint_text`, the selected hidden layer name).
 - No light theme exists. Everything above is dark-only.
 - The help window text is written by hand and is not covered by the theme helpers.
 - Only English strings; font subset covers Latin text, so other scripts in layer names may not render.

@@ -271,11 +271,17 @@ void App::uiScaleMenu()
     }
     static constexpr int PERCENTS[] = {100, 125, 150, 175, 200, 250, 300};
     int current = static_cast<int>(std::lround(theme::scale() * 100.0f));
+    const float largest = maxUiScale();
     for (int percent : PERCENTS) {
         char label[16];
         std::snprintf(label, sizeof(label), "%d%%", percent);
-        if (ImGui::MenuItem(label, nullptr, percent == current)) {
+        const bool fits = static_cast<float>(percent) / 100.0f <= largest;
+        if (ImGui::MenuItem(label, nullptr, percent == current, fits)) {
             setUiScale(static_cast<float>(percent) / 100.0f);
+        }
+        if (!fits && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+            ImGui::SetTooltip("Too large for this display: the layout needs a bigger window.");
         }
     }
     ImGui::EndMenu();

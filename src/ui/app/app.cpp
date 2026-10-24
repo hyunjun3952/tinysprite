@@ -53,13 +53,19 @@ App::~App()
     SDL_Quit();
 }
 
+/* The part of the display a window may cover (0 x 0 when unknown). */
+static WindowSize usableArea()
+{
+    SDL_Rect area = {0, 0, 0, 0};
+    SDL_GetDisplayUsableBounds(0, &area);
+    return WindowSize{area.w, area.h};
+}
+
 bool App::createWindow(int width, int height)
 {
     /* A window bigger than the screen (a small display, a large UI scale) would have its edges and
      * the status bar off screen, so the size is fitted to the usable area. */
-    SDL_Rect area = {0, 0, 0, 0};
-    SDL_GetDisplayUsableBounds(0, &area); /* stays 0 x 0 when unknown */
-    const WindowSize usable{area.w, area.h};
+    const WindowSize usable = usableArea();
     WindowSize fitted = window_fit(WindowSize{width, height}, usable);
     width = fitted.width;
     height = fitted.height;
@@ -127,8 +133,13 @@ void App::loadSettings(const SettingsMap &settings)
     settings_get_int(settings, "new.height", 1, CEL_MAX_DIMENSION, newHeight_);
 }
 
+float App::maxUiScale() const
+{
+    return window_max_scale(usableArea());
+}
+
 /* The scale comes from --scale, else the saved one, else what the display's DPI suggests. */
-static float initialScale(const AppOptions &options, const SettingsMap &settings)
+static float requestedScale(const AppOptions &options, const SettingsMap &settings)
 {
     if (options.uiScale > 0.0f) {
         return options.uiScale;
@@ -168,7 +179,12 @@ bool App::init(const AppOptions &options)
         configDir_ = config_dir();
     }
     SettingsMap settings = settings_load(configDir_);
-    theme::setScale(initialScale(options, settings));
+    /* The scale in use is kept to what the display can hold (a window cannot be smaller than the
+     * layout needs), except for an explicit --scale; the one asked for stays what is saved. */
+    theme::setScale(requestedScale(options, settings));
+    if (options.uiScale <= 0.0f) {
+        theme::cap_scale(window_max_scale(usableArea()));
+    }
     int windowWidth = 0;
     int windowHeight = 0;
     initialWindowSize(settings, windowWidth, windowHeight);
@@ -257,7 +273,7 @@ void App::shutdown()
     panels_.store(settings);
     settings_set_recent(settings, recent_);
     settings_set_int(settings, "export.scale", exportScale_);
-    settings_set_float(settings, "ui.scale", theme::scale());
+    settings_set_float(settings, "ui.scale", theme::requested_scale());
     settings["file.dir"] = lastDir_;
     settings_set_int(settings, "new.width", newWidth_);
     settings_set_int(settings, "new.height", newHeight_);

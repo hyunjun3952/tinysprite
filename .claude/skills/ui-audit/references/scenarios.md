@@ -74,3 +74,4 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 | X04 | rapid and repeated input | double-click, hold a shortcut, click during a fade | no double actions, no stuck hover, no dropped input |
 | X05 | contrast and legibility | screenshots of S01, S13, S18 | measure mute-on-soft and every text/icon pair against `heuristics.md` thresholds |
 | X06 | first-time user walkthrough | new sprite; "draw a 4-frame blink and export a GIF" using only what the UI shows | where do you stop and wonder; count dead ends and guesses |
+| X07 | icon consistency | zoom the tool bar, layer rows, timeline toolbar and palette buttons at scale 1 and 2 | the longer side of every icon's ink is about the same (15 px at scale 1); no icon looks heavier or lighter than its neighbours (the plus, the refresh arrow and the bucket were the outliers) |

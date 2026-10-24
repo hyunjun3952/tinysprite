@@ -27,3 +27,17 @@ WindowSize window_minimum(float scale)
     return WindowSize{static_cast<int>(std::lround(MIN_WIDTH * scale)),
                       static_cast<int>(std::lround(MIN_HEIGHT * scale))};
 }
+
+float window_max_scale(WindowSize usable)
+{
+    constexpr float NO_LIMIT = 1000.0f;
+    float widthLimit = NO_LIMIT;
+    float heightLimit = NO_LIMIT;
+    if (usable.width > 0) {
+        widthLimit = static_cast<float>(usable.width - WINDOW_FRAME_MARGIN) / MIN_WIDTH;
+    }
+    if (usable.height > 0) {
+        heightLimit = static_cast<float>(usable.height - WINDOW_FRAME_MARGIN) / MIN_HEIGHT;
+    }
+    return std::max(1.0f, std::min(widthLimit, heightLimit));
+}

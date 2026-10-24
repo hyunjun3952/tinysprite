@@ -18,4 +18,8 @@ WindowSize window_fit(WindowSize wanted, WindowSize usable);
  * all visible), at UI scale `scale`. */
 WindowSize window_minimum(float scale);
 
+/* The largest UI scale whose minimum window (window_minimum) still fits inside `usable`, never
+ * below 1. An unknown area (0 x 0) allows any scale. */
+float window_max_scale(WindowSize usable);
+
 #endif

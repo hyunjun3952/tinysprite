@@ -25,7 +25,8 @@ constexpr float ROUND_SMALL = 6.0f; /* buttons, inputs */
 constexpr float ROUND_CARD = 8.0f;  /* popups, child areas */
 
 /* The one UI scale, set at startup. */
-float uiScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+float uiScale = 1.0f;        // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+float requestedScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /* The fill of a slider field: lifts while hovered and again while dragged. */
 unsigned fieldFill(bool active, bool hovered)
@@ -45,12 +46,23 @@ ImU32 toU32(unsigned hex, float alpha = 1.0f)
 
 void setScale(float scale)
 {
-    uiScale = std::clamp(scale, SCALE_MIN, SCALE_MAX);
+    requestedScale = std::clamp(scale, SCALE_MIN, SCALE_MAX);
+    uiScale = requestedScale;
 }
 
 float scale()
 {
     return uiScale;
+}
+
+float requested_scale()
+{
+    return requestedScale;
+}
+
+void cap_scale(float largest)
+{
+    uiScale = std::clamp(std::min(requestedScale, largest), SCALE_MIN, SCALE_MAX);
 }
 
 float px(float pixels)
@@ -594,6 +606,11 @@ void hint(const char *tooltip, bool enabled)
     }
 }
 
+unsigned hint_text(bool pressed)
+{
+    return pressed ? BODY : MUTE;
+}
+
 bool choiceButton(const char *label, const char *hint, bool selected, float width,
                   const char *tooltip)
 {
@@ -612,7 +629,8 @@ bool choiceButton(const char *label, const char *hint, bool selected, float widt
         ImVec2 size = ImGui::CalcTextSize(hint);
         ImVec2 at(max.x - size.x - ImGui::GetStyle().FramePadding.x,
                   min.y + (max.y - min.y - size.y) / 2.0f);
-        ImGui::GetWindowDrawList()->AddText(at, selected ? toU32(CANVAS, 0.7f) : toU32(MUTE), hint);
+        ImGui::GetWindowDrawList()->AddText(
+            at, selected ? toU32(CANVAS, 0.7f) : toU32(hint_text(ImGui::IsItemActive())), hint);
     }
     if (selected) {
         ImGui::PopStyleColor(4);
