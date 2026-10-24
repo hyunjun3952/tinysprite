@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "minitest.hpp"
+#include "tinysprite/mask.hpp"
 #include "tinysprite/selection.hpp"
 
 /* Rows of letters: '.' is transparent, anything else is an opaque pixel whose red channel is the
@@ -101,6 +102,56 @@ TEST(copy_is_clipped_to_the_cel)
     ASSERT_TRUE(!Clip::copy(cel, Rect{0, 0, 0, 2}));
 }
 
+TEST(copy_with_a_mask_keeps_only_the_masked_pixels)
+{
+    Cel cel(6, 5);
+    fill(cel, 1, 1, 2, SAMPLE); /* "abc" / "d.f" */
+    Mask diagonal = Mask::fromPlot(6, 5, [](const RasterPlotFn &plot) {
+        plot(1, 1);
+        plot(3, 2);
+    });
+    std::optional<Clip> clip = Clip::copy(cel, diagonal);
+    ASSERT_TRUE(clip.has_value());
+    const char *const golden[] = {"a..", "..f"};
+    expect_clip(*clip, 2, golden);
+    ASSERT_TRUE(!Clip::copy(cel, Mask())); /* an empty mask copies nothing */
+    Mask outside = Mask::full(Rect{10, 10, 2, 2});
+    ASSERT_TRUE(!Clip::copy(cel, outside)); /* ... and so does one beyond the cel */
+}
+
+TEST(replacing_under_a_mask_clears_only_the_masked_pixels)
+{
+    History h;
+    Cel cel(6, 5);
+    fill(cel, 1, 1, 2, SAMPLE);
+    Mask left = Mask::full(Rect{1, 1, 1, 2}); /* the first column: "a" and "d" */
+    Clip clip = copy_of(cel, Rect{1, 1, 3, 2});
+    ASSERT_TRUE(clip_replace(h, cel, left, clip, 1, 3)); /* the whole clip, 2 rows down */
+    const char *const golden[] = {"..bc.", "...f.", ".abc.", ".d.f."};
+    expect_cel(cel, 0, 1, 4, golden);
+    ASSERT_TRUE(h.undo());
+    const char *const before[] = {".abc.", ".d.f.", ".....", "....."};
+    expect_cel(cel, 0, 1, 4, before);
+}
+
+TEST(clearing_a_mask_erases_its_pixels_in_one_step)
+{
+    History h;
+    Cel cel(6, 5);
+    fill(cel, 1, 1, 2, SAMPLE);
+    Mask corners = Mask::fromPlot(6, 5, [](const RasterPlotFn &plot) {
+        plot(1, 1);
+        plot(3, 2);
+    });
+    ASSERT_TRUE(clear_mask(h, cel, corners));
+    const char *const golden[] = {"..bc", ".d.."};
+    expect_cel(cel, 0, 1, 2, golden);
+    ASSERT_TRUE(h.undo());
+    const char *const before[] = {".abc", ".d.f"};
+    expect_cel(cel, 0, 1, 2, before);
+    ASSERT_TRUE(!h.canUndo());
+}
+
 TEST(flips_mirror_the_pixels)
 {
     Cel cel(6, 5);
@@ -195,6 +246,9 @@ int main()
     RUN(copy_captures_the_region);
     RUN(copy_is_a_snapshot);
     RUN(copy_is_clipped_to_the_cel);
+    RUN(copy_with_a_mask_keeps_only_the_masked_pixels);
+    RUN(replacing_under_a_mask_clears_only_the_masked_pixels);
+    RUN(clearing_a_mask_erases_its_pixels_in_one_step);
     RUN(flips_mirror_the_pixels);
     RUN(rotations_turn_a_non_square_clip);
     RUN(paste_skips_transparent_pixels_and_undoes_in_one_step);
