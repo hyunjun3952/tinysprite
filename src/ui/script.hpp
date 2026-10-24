@@ -31,6 +31,8 @@ struct ScriptInput {
  *     move X Y             put the mouse there
  *     click X Y            move, press and release the left button (rclick: the right one)
  *     drag X0 Y0 X1 Y1     press at the start, move in steps, release at the end
+ *     path X0 Y0 X1 Y1 ... press at the first point, move through the others, release at the
+ *                          last (a lasso, a curve)
  *     key ctrl+shift+Z     press and release a key, with modifiers held (ctrl, shift, alt); a
  *                          modified key takes 4 frames (ImGui reads a modifier change and the
  *                          key of one frame apart, so the modifiers go down first, up last)

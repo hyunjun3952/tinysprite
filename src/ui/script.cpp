@@ -135,6 +135,37 @@ bool addDrag(const Words &args, Frames &frames, std::string &why)
     return true;
 }
 
+/* path X0 Y0 X1 Y1 ...: press at the first point, move through the others, release at the last. */
+bool addPath(const Words &args, Frames &frames, std::string &why)
+{
+    constexpr size_t MIN_NUMBERS = 4; /* two points */
+    if (args.size() < MIN_NUMBERS || args.size() % 2 != 0) {
+        why = "needs at least two points, as pairs of numbers";
+        return false;
+    }
+    std::vector<float> n;
+    for (const std::string &word : args) {
+        float value = 0.0f;
+        if (!parseFloat(word, value)) {
+            why = "'" + word + "' is not a number";
+            return false;
+        }
+        n.push_back(value);
+    }
+    frames.push_back(pointerAt(n[0], n[1]));
+    frames.push_back(buttonAt(n[0], n[1], 0, true));
+    for (size_t i = 2; i < n.size(); i += 2) {
+        const float x0 = n[i - 2];
+        const float y0 = n[i - 1];
+        for (int step = 1; step <= DRAG_STEPS; step++) {
+            const float t = static_cast<float>(step) / static_cast<float>(DRAG_STEPS);
+            frames.push_back(pointerAt(x0 + (n[i] - x0) * t, y0 + (n[i + 1] - y0) * t));
+        }
+    }
+    frames.push_back(buttonAt(n[n.size() - 2], n[n.size() - 1], 0, false));
+    return true;
+}
+
 /* Reads "ctrl+shift+Z" into the modifiers and the key name. */
 bool parseKeySpec(const std::string &spec, ScriptInput &input)
 {
@@ -255,6 +286,9 @@ bool addCommand(const std::string &line, Frames &frames, std::string &why)
     }
     if (command == "drag") {
         return addDrag(args, frames, why);
+    }
+    if (command == "path") {
+        return addPath(args, frames, why);
     }
     if (command == "key") {
         return addKey(args, frames, why);
