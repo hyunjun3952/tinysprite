@@ -97,6 +97,28 @@ TEST(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box)
     ASSERT_EQ_INT(14, bitmaps);
 }
 
+/* The closed shapes are outlines of one weight: an empty middle (the star was a solid fill beside
+ * outlines) and about the same amount of ink (the diagonal ones had a stroke of 1.4 pixels where
+ * the square and the circle have 2, so they looked thin). */
+TEST(the_closed_shapes_are_outlines_of_one_weight)
+{
+    using icons::Icon;
+    const Icon shapes[] = {Icon::Rect,    Icon::Ellipse, Icon::Triangle, Icon::Diamond,
+                           Icon::Hexagon, Icon::Star,    Icon::Cross};
+    for (Icon icon : shapes) {
+        const icons::Bitmap *bitmap = icons::bitmap(icon);
+        ASSERT_TRUE(bitmap != nullptr);
+        int ink = 0;
+        for (int y = 0; y < icons::BITMAP_SIZE; y++) {
+            for (int x = 0; x < icons::BITMAP_SIZE; x++) {
+                ink += bitmap->rows[y][x] == '#' ? 1 : 0;
+            }
+        }
+        ASSERT_TRUE(bitmap->rows[8][8] == '.'); /* the middle is empty: an outline, not a fill */
+        ASSERT_TRUE(ink >= 58 && ink <= 90);
+    }
+}
+
 TEST(a_bitmap_cell_is_a_whole_number_of_pixels_and_at_least_one)
 {
     ASSERT_TRUE(icons::bitmap_cell(1.0f) == 1.0f);
@@ -112,6 +134,7 @@ int main()
     RUN(every_glyph_icon_has_about_the_same_ink_length_at_every_scale);
     RUN(only_the_tool_and_shape_icons_are_bitmaps);
     RUN(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box);
+    RUN(the_closed_shapes_are_outlines_of_one_weight);
     RUN(a_bitmap_cell_is_a_whole_number_of_pixels_and_at_least_one);
     return TEST_SUMMARY();
 }
