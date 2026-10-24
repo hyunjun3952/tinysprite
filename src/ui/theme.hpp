@@ -62,6 +62,14 @@ inline constexpr float SCALE_MIN = 1.0f;
 inline constexpr float SCALE_MAX = 3.0f;
 void setScale(float scale); /* clamped to SCALE_MIN..SCALE_MAX; call apply() afterwards */
 float scale();
+
+/* The scale last passed to setScale: what the user chose, which is what gets saved. scale() is the
+ * same unless cap_scale lowered it. */
+float requested_scale();
+
+/* Uses at most `largest` (never below SCALE_MIN) until the next setScale: a display too small for
+ * the layout at the requested scale. The requested scale stays. Call apply() afterwards. */
+void cap_scale(float largest);
 float px(float pixels); /* `pixels` at the current scale */
 
 /* A scale that suits the primary display's DPI (96 dpi = 1), rounded to quarters; 1 when the DPI is

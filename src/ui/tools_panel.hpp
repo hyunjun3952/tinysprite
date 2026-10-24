@@ -44,6 +44,7 @@ class ToolsPanel
     static ImGuiKey shortcutKey(ToolKind tool);
 
   private:
+    void barCutZone(float width, float height);
     void barCutMark(float width, float height);
     void iconRow(const ToolIcon *first, size_t count);
     void toolGrid();

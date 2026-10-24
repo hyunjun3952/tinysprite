@@ -138,19 +138,18 @@ float App::maxUiScale() const
     return window_max_scale(usableArea());
 }
 
-/* The scale comes from --scale (as given), else the saved one or what the display's DPI suggests,
- * kept to what the display can hold: a window cannot be smaller than the layout needs. */
-static float initialScale(const AppOptions &options, const SettingsMap &settings)
+/* The scale comes from --scale, else the saved one, else what the display's DPI suggests. */
+static float requestedScale(const AppOptions &options, const SettingsMap &settings)
 {
     if (options.uiScale > 0.0f) {
         return options.uiScale;
     }
     float scale = 1.0f;
-    if (!settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX, scale)) {
-        float dpi = 0.0f;
-        scale = SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
+    if (settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX, scale)) {
+        return scale;
     }
-    return std::min(scale, window_max_scale(usableArea()));
+    float dpi = 0.0f;
+    return SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
 }
 
 /* The saved window size; a default, scaled with the UI, when none was saved. */
@@ -180,7 +179,12 @@ bool App::init(const AppOptions &options)
         configDir_ = config_dir();
     }
     SettingsMap settings = settings_load(configDir_);
-    theme::setScale(initialScale(options, settings));
+    /* The scale in use is kept to what the display can hold (a window cannot be smaller than the
+     * layout needs), except for an explicit --scale; the one asked for stays what is saved. */
+    theme::setScale(requestedScale(options, settings));
+    if (options.uiScale <= 0.0f) {
+        theme::cap_scale(window_max_scale(usableArea()));
+    }
     int windowWidth = 0;
     int windowHeight = 0;
     initialWindowSize(settings, windowWidth, windowHeight);
@@ -269,7 +273,7 @@ void App::shutdown()
     panels_.store(settings);
     settings_set_recent(settings, recent_);
     settings_set_int(settings, "export.scale", exportScale_);
-    settings_set_float(settings, "ui.scale", theme::scale());
+    settings_set_float(settings, "ui.scale", theme::requested_scale());
     settings["file.dir"] = lastDir_;
     settings_set_int(settings, "new.width", newWidth_);
     settings_set_int(settings, "new.height", newHeight_);

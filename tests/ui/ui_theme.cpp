@@ -213,6 +213,22 @@ TEST(a_shortcut_hint_stays_readable_on_every_fill_a_button_takes)
     ASSERT_TRUE(contrast(theme::hint_text(true), theme::PRESSED) >= 4.5);
 }
 
+TEST(a_capped_scale_keeps_the_one_that_was_asked_for)
+{
+    theme::setScale(3.0f);
+    theme::cap_scale(1.5f);
+    ASSERT_TRUE(theme::scale() == 1.5f);
+    ASSERT_TRUE(theme::requested_scale() == 3.0f);
+    theme::cap_scale(10.0f); /* a cap above the request changes nothing */
+    ASSERT_TRUE(theme::scale() == 3.0f);
+    theme::cap_scale(0.2f); /* and never goes below the smallest scale */
+    ASSERT_TRUE(theme::scale() == theme::SCALE_MIN);
+    theme::setScale(2.0f); /* a new request lifts the cap */
+    ASSERT_TRUE(theme::scale() == 2.0f);
+    ASSERT_TRUE(theme::requested_scale() == 2.0f);
+    theme::setScale(1.0f);
+}
+
 int main()
 {
     RUN(a_closed_chevron_points_right_and_an_open_one_points_down);
@@ -229,6 +245,7 @@ int main()
     RUN(bad_hex_text_is_refused_and_changes_nothing);
     RUN(dialog_buttons_have_a_minimum_width_and_grow_with_their_label);
     RUN(a_hidden_layer_name_on_a_selected_row_stays_readable);
+    RUN(a_capped_scale_keeps_the_one_that_was_asked_for);
     RUN(a_shortcut_hint_stays_readable_on_every_fill_a_button_takes);
     return TEST_SUMMARY();
 }

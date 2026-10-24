@@ -25,7 +25,8 @@ constexpr float ROUND_SMALL = 6.0f; /* buttons, inputs */
 constexpr float ROUND_CARD = 8.0f;  /* popups, child areas */
 
 /* The one UI scale, set at startup. */
-float uiScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+float uiScale = 1.0f;        // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+float requestedScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /* The fill of a slider field: lifts while hovered and again while dragged. */
 unsigned fieldFill(bool active, bool hovered)
@@ -45,12 +46,23 @@ ImU32 toU32(unsigned hex, float alpha = 1.0f)
 
 void setScale(float scale)
 {
-    uiScale = std::clamp(scale, SCALE_MIN, SCALE_MAX);
+    requestedScale = std::clamp(scale, SCALE_MIN, SCALE_MAX);
+    uiScale = requestedScale;
 }
 
 float scale()
 {
     return uiScale;
+}
+
+float requested_scale()
+{
+    return requestedScale;
+}
+
+void cap_scale(float largest)
+{
+    uiScale = std::clamp(std::min(requestedScale, largest), SCALE_MIN, SCALE_MAX);
 }
 
 float px(float pixels)
