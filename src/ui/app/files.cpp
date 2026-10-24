@@ -33,17 +33,19 @@ constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the browse button af
 const App::FileActionInfo &App::fileInfo(FileAction action)
 {
     static const FileActionInfo TABLE[] = {
-        {"", "", "", nullptr, nullptr, ""},
+        {"", "", "", nullptr, nullptr, "", ""},
         {"Open", "", "Opened ", &App::runOpen, nullptr,
-         ".pxa .aseprite .ase .png .jpg .jpeg .bmp .tga .gif"},
-        {"Save as", ".pxa", "Saved ", &App::runSaveAs, nullptr, ".pxa"},
+         ".pxa .aseprite .ase .png .jpg .jpeg .bmp .tga .gif", "Open"},
+        {"Save as", ".pxa", "Saved ", &App::runSaveAs, nullptr, ".pxa", "Save"},
         {"Export image", ".png", "Exported ", &App::runExportImage, &App::imageOptions,
-         ".png .jpg .jpeg .bmp .tga"},
-        {"Import palette", "", "Imported palette ", &App::runImportPalette, nullptr, ".gpl .hex"},
-        {"Export palette", ".gpl", "Exported ", &App::runExportPalette, nullptr, ".gpl .hex"},
-        {"Export GIF", ".gif", "Exported ", &App::runExportGif, &App::gifOptions, ".gif"},
+         ".png .jpg .jpeg .bmp .tga", "Export"},
+        {"Import palette", "", "Imported palette ", &App::runImportPalette, nullptr, ".gpl .hex",
+         "Import"},
+        {"Export palette", ".gpl", "Exported ", &App::runExportPalette, nullptr, ".gpl .hex",
+         "Export"},
+        {"Export GIF", ".gif", "Exported ", &App::runExportGif, &App::gifOptions, ".gif", "Export"},
         {"Export sprite sheet", ".png", "Exported ", &App::runExportSheet, &App::sheetOptions,
-         ".png .jpg .jpeg .bmp .tga"},
+         ".png .jpg .jpeg .bmp .tga", "Export"},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(FileAction::Count),
                   "one FileActionInfo row per FileAction");
@@ -479,8 +481,8 @@ void App::fileDialog()
     fileDialogMessages();
     /* overwriting a file is the one thing here that destroys something: its button is red */
     const bool overwriting = !overwritePath_.empty();
-    const int clicked = theme::dialog_buttons({"Cancel", overwriting ? "Overwrite" : "OK"}, 1,
-                                              overwriting, path.empty() ? 2u : 0u);
+    const int clicked = theme::dialog_buttons({"Cancel", overwriting ? "Overwrite" : info.confirm},
+                                              1, overwriting, path.empty() ? 2u : 0u);
     bool done = (clicked == 1 || enter) && runFileAction(info, path);
     bool cancel = clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape);
     if (done || cancel) {

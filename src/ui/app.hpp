@@ -79,6 +79,7 @@ class App
         bool (App::*run)(const std::string &path);
         void (App::*options)(); /* the dialog fields beyond the path, or null */
         const char *filter;     /* the extensions the file list shows, e.g. ".png .gif"; "" = all */
+        const char *confirm;    /* the label of the button that does it: Open, Save, Export */
         bool writes() const;
     };
     static const FileActionInfo &fileInfo(FileAction action);

@@ -346,6 +346,21 @@ TEST(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes)
     t.frame();
 }
 
+/* The button that confirms a file dialog says what it does, not "OK": Open, Save, Export, Import.
+ */
+TEST(a_file_dialog_confirms_with_what_it_does)
+{
+    ASSERT_TRUE(std::string(App::fileInfo(App::FileAction::Open).confirm) == "Open");
+    ASSERT_TRUE(std::string(App::fileInfo(App::FileAction::SaveAs).confirm) == "Save");
+    ASSERT_TRUE(std::string(App::fileInfo(App::FileAction::ExportImage).confirm) == "Export");
+    ASSERT_TRUE(std::string(App::fileInfo(App::FileAction::ImportPalette).confirm) == "Import");
+    for (int i = static_cast<int>(App::FileAction::Open);
+         i < static_cast<int>(App::FileAction::Count); i++) {
+        const std::string confirm = App::fileInfo(static_cast<App::FileAction>(i)).confirm;
+        ASSERT_TRUE(!confirm.empty() && confirm != "OK");
+    }
+}
+
 /* Tab as the window system delivers it: a key event the app reads before ImGui does. */
 static void push_tab(SDL_Window *window, bool down)
 {
@@ -569,6 +584,7 @@ int main()
     RUN(the_layer_chords_add_duplicate_and_move_layers);
     RUN(double_clicking_the_timeline_edge_restores_its_default_height);
     RUN(dragging_the_timeline_edge_resizes_folds_and_unfolds_it);
+    RUN(a_file_dialog_confirms_with_what_it_does);
     RUN(tab_enters_the_ui_without_a_mouse_click);
     RUN(ctrl_t_hides_and_shows_the_timeline);
     RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
