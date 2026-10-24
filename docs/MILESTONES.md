@@ -57,9 +57,11 @@ adds the extension and asks before overwriting, and a Properties section (opacit
   `Editor::duplicateLayer` and `commitLayerOpacity` removed; every function in `src/` is at most 12 cognitive complexity
   (`pxa` encode / decode, timeline grid, GIF palette, dialogs and shortcuts were split), and clang-tidy now fails a function
   above 15.
-- Complexity audit: the "at most 12" above no longer held (a few functions were at 13 to 15). The ui ones were split
-  (`timelineSash`, `fileDialog`, `removeDocument`, `begin_menu`, `followTag`, `duplicateSelectedLayers`, `resizeEdge`);
-  four io functions stay at 13 (`touchesPixel`, `utf8Sequence`, `raise`, `palette_decode`): split one when it is edited next.
+- Complexity audit: the "at most 12" above no longer held (a few functions were at 13 to 15). All of them were split
+  (`timelineSash`, `fileDialog`, `removeDocument`, `begin_menu`, `followTag`, `duplicateSelectedLayers`, `resizeEdge`,
+  `touchesPixel`, `utf8Sequence`, `raise`, `palette_decode`); `readSlices` / `writeSlices` stay at 12. The `if (stroking())
+  return;` guard has no helper: a function cannot return for its caller, so only a macro would shorten it; reconsider if
+  `Editor` gets a command dispatch that can refuse in one place.
 
 ## UI polish 2 (ideas from Aseprite's ui library, MIT; the app's own skin is not reused)
 
