@@ -37,6 +37,19 @@ int dropHeight(const std::vector<Segment> &skyline, size_t first, int w, int she
     return y;
 }
 
+/* Replaces `skyline` by `runs` (sorted by x), joining neighbours of equal height. */
+void joinRuns(std::vector<Segment> &skyline, const std::vector<Segment> &runs)
+{
+    skyline.clear();
+    for (const Segment &s : runs) {
+        if (!skyline.empty() && skyline.back().y == s.y) {
+            skyline.back().w += s.w;
+        } else {
+            skyline.push_back(s);
+        }
+    }
+}
+
 /* Raises the skyline over [x, x + w) to `top`, cutting or removing the runs it covers, and joins
  * neighbours of equal height. */
 void raise(std::vector<Segment> &skyline, int x, int w, int top)
@@ -58,14 +71,7 @@ void raise(std::vector<Segment> &skyline, int x, int w, int top)
     next.push_back({x, top, w});
     std::sort(next.begin(), next.end(),
               [](const Segment &a, const Segment &b) { return a.x < b.x; });
-    skyline.clear();
-    for (const Segment &s : next) {
-        if (!skyline.empty() && skyline.back().y == s.y) {
-            skyline.back().w += s.w;
-        } else {
-            skyline.push_back(s);
-        }
-    }
+    joinRuns(skyline, next);
 }
 
 /* Packs the rectangles (each already grown by the padding) in `order` on a sheet `sheetWidth`
