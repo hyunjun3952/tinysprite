@@ -444,11 +444,9 @@ void ToolsPanel::colorBlock(const Panels &panels)
     if (panels.sectionVisible(PanelId::Layers, sections::COLOR) && theme::section("Color")) {
         colorWidget();
         paletteSwatches();
-        if (editor_->recent().size() > 0) {
-            ImGui::Spacing();
-            ImGui::TextDisabled("Recent");
-            recentColors();
-        }
+        ImGui::Spacing();
+        ImGui::TextDisabled("Recent");
+        recentColors();
     }
     resetDialog();
 }
@@ -505,11 +503,18 @@ void ToolsPanel::resetDialog()
     theme::end_modal();
 }
 
-/* The recent-colors row and the sprite palette swatches. Clicking a swatch makes it the foreground
- * color. */
+/* The recent-colors row. Clicking a swatch makes it the foreground color. Before any color has
+ * been drawn with it holds its place with a hint, so the first one does not push what is below it
+ * (the layers) down. */
 void ToolsPanel::recentColors()
 {
     if (editor_->recent().size() == 0) {
+        ImGui::Dummy(ImVec2(0.0f, 0.0f));
+        const float row = swatchSize();
+        const float top = ImGui::GetCursorPosY();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Colors you draw with show up here");
+        ImGui::SetCursorPosY(top + row);
         return;
     }
     /* Distinct from the palette swatches' IDs below. */
