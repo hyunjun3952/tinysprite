@@ -319,6 +319,39 @@ void App::pollEvents()
     }
 }
 
+/* Click handling of the timeline sash, after its invisible button was submitted. Returns whether
+ * the sash is being dragged. */
+bool App::sashClicked(Editor::Overlays &overlays)
+{
+    if (ImGui::IsItemActivated()) {
+        sashStartHeight_ = overlays.timeline_height; /* what folding must not lose */
+    }
+    /* Two quick clicks restore the default height (and show the timeline if it is folded). The
+     * first click already started a drag, which must not undo the reset while the button is
+     * still held. */
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        overlays.timeline = true;
+        overlays.timeline_height = TimelinePanel::BASE_HEIGHT;
+        sashIgnoreDrag_ = true;
+    }
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        sashIgnoreDrag_ = false;
+    }
+    return ImGui::IsItemActive() && !sashIgnoreDrag_;
+}
+
+/* The resize cursor and the accent line on the sash while it is hovered or dragged. */
+static void sashFeedback(float x, float width, float edgeY, bool active)
+{
+    if (!active && !ImGui::IsItemHovered()) {
+        return;
+    }
+    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+    ImGui::GetForegroundDrawList()->AddLine(
+        ImVec2(x, edgeY), ImVec2(x + width, edgeY),
+        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), theme::px(2.0f));
+}
+
 /* The edge of the timeline, like the edge of a VS Code panel: drag it up or down to resize the
  * timeline, drag it below the minimum to fold it away; while it is folded the same edge sits on
  * top of the status bar and dragging it up brings the timeline back. `bottomY` is where the
@@ -341,27 +374,8 @@ void App::timelineSash(float x, float width, float bottomY, float maxHeight)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(1.0f, 1.0f));
     if (ImGui::Begin("##timeline_sash", nullptr, FLAGS)) {
         ImGui::InvisibleButton("##sash", ImVec2(width, thickness));
-        if (ImGui::IsItemActivated()) {
-            sashStartHeight_ = overlays.timeline_height; /* what folding must not lose */
-        }
-        /* Two quick clicks restore the default height (and show the timeline if it is folded). The
-         * first click already started a drag, which must not undo the reset while the button is
-         * still held. */
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            overlays.timeline = true;
-            overlays.timeline_height = TimelinePanel::BASE_HEIGHT;
-            sashIgnoreDrag_ = true;
-        }
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-            sashIgnoreDrag_ = false;
-        }
-        const bool active = ImGui::IsItemActive() && !sashIgnoreDrag_;
-        if (active || ImGui::IsItemHovered()) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-            ImGui::GetForegroundDrawList()->AddLine(
-                ImVec2(x, edgeY), ImVec2(x + width, edgeY),
-                ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), theme::px(2.0f));
-        }
+        const bool active = sashClicked(overlays);
+        sashFeedback(x, width, edgeY, active);
         if (active) {
             /* the limits and the stored height are at UI scale 1 */
             const TimelineSize size = timeline_drag((bottomY - ImGui::GetMousePos().y) / scale,

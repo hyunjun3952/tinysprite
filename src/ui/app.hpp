@@ -133,6 +133,7 @@ class App
     void handleShortcuts();
     void layersWindow(float height);
     void timelineSash(float x, float width, float bottomY, float maxHeight);
+    bool sashClicked(Editor::Overlays &overlays);
     float sashStartHeight_ = 0.0f; /* the timeline height when the current sash drag began */
     bool sashIgnoreDrag_ = false;  /* a double click just reset the height: ignore the drag */
 
