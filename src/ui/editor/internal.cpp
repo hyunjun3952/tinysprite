@@ -63,6 +63,21 @@ int indexOfLayer(const Sprite &sprite, const Layer *layer)
     return -1;
 }
 
+/* For each tag of `longer`, its index in `shorter`, or -1 for an extra tag: each tag either is the
+ * next one of the shorter list or is extra. */
+static std::vector<int> tagPartners(const std::vector<Sprite::Tag> &longer,
+                                    const std::vector<Sprite::Tag> &shorter)
+{
+    std::vector<int> partner(longer.size(), -1);
+    size_t next = 0;
+    for (size_t i = 0; i < longer.size(); i++) {
+        if (next < shorter.size() && longer[i].name == shorter[next].name) {
+            partner[i] = static_cast<int>(next++);
+        }
+    }
+    return partner;
+}
+
 int followTag(const std::vector<Sprite::Tag> &before, const std::vector<Sprite::Tag> &after,
               int selected)
 {
@@ -72,26 +87,16 @@ int followTag(const std::vector<Sprite::Tag> &before, const std::vector<Sprite::
     if (before.size() == after.size()) {
         return selected; /* edited in place */
     }
-    /* Walk the longer list; each of its tags either is the next one of the shorter or is extra. */
+    /* Match the longer list against the shorter one. */
     const bool shrank = after.size() < before.size();
     const std::vector<Sprite::Tag> &longer = shrank ? before : after;
     const std::vector<Sprite::Tag> &shorter = shrank ? after : before;
-    std::vector<int> partner(longer.size(), -1); /* index in `shorter`, -1 for an extra tag */
-    size_t next = 0;
-    for (size_t i = 0; i < longer.size(); i++) {
-        if (next < shorter.size() && longer[i].name == shorter[next].name) {
-            partner[i] = static_cast<int>(next++);
-        }
-    }
+    const std::vector<int> partner = tagPartners(longer, shorter);
     if (shrank) {
         return partner[static_cast<size_t>(selected)];
     }
-    for (size_t i = 0; i < partner.size(); i++) {
-        if (partner[i] == selected) {
-            return static_cast<int>(i);
-        }
-    }
-    return -1;
+    const auto found = std::find(partner.begin(), partner.end(), selected);
+    return found == partner.end() ? -1 : static_cast<int>(found - partner.begin());
 }
 
 } // namespace editor_detail
