@@ -204,6 +204,15 @@ TEST(a_hidden_layer_name_on_a_selected_row_stays_readable)
     ASSERT_TRUE(contrast(theme::BODY, theme::PRESSED) >= 4.5);
 }
 
+TEST(a_shortcut_hint_stays_readable_on_every_fill_a_button_takes)
+{
+    /* mute is the resting color; while the button is pressed its fill is too light for mute */
+    ASSERT_EQ_INT(theme::MUTE, static_cast<int>(theme::hint_text(false)));
+    ASSERT_TRUE(contrast(theme::hint_text(false), theme::CANVAS_SOFT) >= 4.5);
+    ASSERT_TRUE(contrast(theme::hint_text(false), theme::HOVER) >= 4.5);
+    ASSERT_TRUE(contrast(theme::hint_text(true), theme::PRESSED) >= 4.5);
+}
+
 int main()
 {
     RUN(a_closed_chevron_points_right_and_an_open_one_points_down);
@@ -220,5 +229,6 @@ int main()
     RUN(bad_hex_text_is_refused_and_changes_nothing);
     RUN(dialog_buttons_have_a_minimum_width_and_grow_with_their_label);
     RUN(a_hidden_layer_name_on_a_selected_row_stays_readable);
+    RUN(a_shortcut_hint_stays_readable_on_every_fill_a_button_takes);
     return TEST_SUMMARY();
 }

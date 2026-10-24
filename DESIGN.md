@@ -282,7 +282,7 @@ Icons are Material Symbols Outlined (unfilled). Chevrons are drawn as two stroke
 ### Panels
 - **Tool bar**: one column of icon buttons, then the shapes. **Options bar**: only the options of the active tool, so it changes with the tool.
 - **Inspector**: Color, then Layers, then Slices (folded by default), then Properties. Panel settings keys are fixed (`panel.tools.*`, `panel.layers.*`), not derived from the title.
-- **Timeline**: toolbar, onion skin row, tag row, grid of cels. The playhead and the selected cells use the accent family; linked cels show a dot.
+- **Timeline**: toolbar, onion skin row, tag row, grid of cels. The playhead and the selected cells use the accent family; a cel with pixels shows a dot and a cel that shares its pixels with another (linked) shows a bar.
 - **Status bar**: 24 px, mute text: the active tool, cursor position, zoom and transient messages (check `statusbar.cpp` for the exact set).
 
 ### Canvas
@@ -348,7 +348,7 @@ A desktop tool: there are no breakpoints, but the layout must hold across window
 
 ## Known gaps
 
-- Hover, focus and disabled treatments are described, but the exact contrast of `{colors.mute}` on `{colors.canvas-soft}` has not been measured yet; the `ui-audit` skill measures it.
+- Contrast of `{colors.mute}`: 5.86 on canvas, 5.13 on canvas-soft, 4.54 on hover, but 4.01 on pressed (below 4.5), so text that sits on the pressed fill uses `{colors.body}` (`theme::hint_text`, the selected hidden layer name).
 - No light theme exists. Everything above is dark-only.
 - The help window text is written by hand and is not covered by the theme helpers.
 - Only English strings; font subset covers Latin text, so other scripts in layer names may not render.

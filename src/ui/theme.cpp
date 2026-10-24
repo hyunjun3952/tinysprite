@@ -594,6 +594,11 @@ void hint(const char *tooltip, bool enabled)
     }
 }
 
+unsigned hint_text(bool pressed)
+{
+    return pressed ? BODY : MUTE;
+}
+
 bool choiceButton(const char *label, const char *hint, bool selected, float width,
                   const char *tooltip)
 {
@@ -612,7 +617,8 @@ bool choiceButton(const char *label, const char *hint, bool selected, float widt
         ImVec2 size = ImGui::CalcTextSize(hint);
         ImVec2 at(max.x - size.x - ImGui::GetStyle().FramePadding.x,
                   min.y + (max.y - min.y - size.y) / 2.0f);
-        ImGui::GetWindowDrawList()->AddText(at, selected ? toU32(CANVAS, 0.7f) : toU32(MUTE), hint);
+        ImGui::GetWindowDrawList()->AddText(
+            at, selected ? toU32(CANVAS, 0.7f) : toU32(hint_text(ImGui::IsItemActive())), hint);
     }
     if (selected) {
         ImGui::PopStyleColor(4);

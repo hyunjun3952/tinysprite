@@ -144,6 +144,10 @@ std::string ellipsize(const std::string &text, float maxWidth);
 /* Width of one of `count` equal columns that fill the available width. */
 float columnWidth(int count);
 
+/* The color of a choice button's shortcut hint (an RGB token): mute at rest, body while the button
+ * is `pressed`, because mute is under 4.5:1 on the pressed fill. */
+unsigned hint_text(bool pressed);
+
 /* A left-aligned button with its keyboard shortcut at the right end. The selected one is drawn
  * inverted (off-white fill, dark text), the way the style marks the active choice. */
 bool choiceButton(const char *label, const char *hint, bool selected, float width,
