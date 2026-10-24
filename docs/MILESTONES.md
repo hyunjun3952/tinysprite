@@ -1,7 +1,6 @@
 # Milestones
 
 Phase 1 = drawing-tool core (MVP). Animation is phase 2, game pipeline is phase 3.
-Every step is TDD: failing test first, then implementation, then refactor.
 Rules: `.rules`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Phase 1

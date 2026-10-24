@@ -25,14 +25,8 @@ Check the diff against `.rules`: section 1 (layering, document model, undo, file
 
 ## Correctness and risk
 
-- Off-by-one and bounds on pixel, frame and layer indexes; empty sprite, 1x1 sprite, 0 frames.
-- Integer overflow in width * height * 4, and in index math with `int` vs `size_t`.
-- Lifetime: references to vector elements kept across a push_back; lambdas capturing `this` stored in history.
-- Undo/redo symmetry: redo after undo gives the same state; undo of the last step leaves nothing behind.
-- Stroke `begin()` returning null is handled by the caller.
-- UI: `markDirty` / `markAllDirty` called after every mutation, otherwise the canvas is stale.
-- Error paths: file I/O failure, truncated or hostile `.pxa`, huge declared lengths (no allocation before validation).
-- Behavior on Windows (MinGW): paths, `%APPDATA%`, line endings.
+Look for what `../../bug-hunting/references/hotspots.md` lists (document model and history, raster and tools, I/O, UI, memory and arithmetic),
+and for what it marks as likely false alarms.
 
 ## Tests
 

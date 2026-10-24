@@ -3,13 +3,8 @@
 Use as prompts while looking at each screenshot. A check that fails becomes a finding only after Step 3b.
 
 ## 1. DESIGN.md rules
-- Chrome has no hue other than the accent family and danger; the sprite is the only colorful thing.
-- Controls have a fill, not a border; hairlines are 1 px; windows are square, controls 6 px, cards/popups 8 px.
-- The accent marks only what is selected or focused; danger only on destructive primaries.
-- One font size; emphasis by ink / body / mute. Units are shown on number fields. Chevrons, not filled triangles.
-- No shadows or gradients. Dialogs fade in; nothing else animates longer than 0.12 s.
-- Layout widths: tool bar 52, options bar 40, inspector 250-480, status bar 24 (at scale 1, times the scale).
-- Every icon-only control has a tooltip with its shortcut; a disabled control still explains itself.
+The contract is `DESIGN.md` itself: Colors, Typography, Layout (widths, hit targets), Shapes, Components, Interaction principles, Do's and Don'ts,
+Responsive behavior. Check each screenshot against them and cite the rule that is broken; this file does not restate them.
 
 ## 2. Usability heuristics (Nielsen) applied to this app
 1. **Visibility of status**: active tool, layer, frame, tag, zoom, playback and unsaved state are visible without opening anything.

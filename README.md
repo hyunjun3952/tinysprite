@@ -35,15 +35,13 @@ default; `-DTINYSPRITE_SANITIZE=OFF` turns them off.
 
 ## Contributing
 
-Development is test-first; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the code. Format and lint run as git hooks (clang-format on commit, clang-tidy on push, both pinned in `.pre-commit-config.yaml`):
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the code and [.rules](.rules) has every rule for changing it (tests, code, lint, commits, branches). Format and lint run as git hooks (clang-format on commit, clang-tidy on push, both pinned in `.pre-commit-config.yaml`):
 
 ```sh
 pip install pre-commit && pre-commit install       # once per clone
 cmake -S . -B build                                # clang-tidy reads build/compile_commands.json
 pre-commit run --all-files --hook-stage manual    # everything, as CI does
 ```
-
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/), e.g. `feat(core): add flood fill`.
 
 On Windows, work in WSL 2 (VS Code "WSL: Reopen Folder in WSL"): run `sudo apt install libsdl2-dev pipx` once,
 then build, test, format and lint there. The UI window shows up from WSL (WSLg). For clangd, point it at

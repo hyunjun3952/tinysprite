@@ -6,23 +6,16 @@ tinysprite is a pixel art / 2D sprite animation editor written in C++17 (core, I
 
 ## Commands
 
-```sh
-cmake -S . -B build            # ASan/UBSan are ON by default (-DTINYSPRITE_SANITIZE=OFF to disable)
-cmake --build build
-ctest --test-dir build --output-on-failure
-ctest --test-dir build -R history          # one test (ctest name = file name minus "test_")
-./build/tests/test_history                 # or run a test binary directly
-# One build/ dir: the SDL2/ImGui frontend is built whenever libsdl2-dev is installed
-cmake -S . -B build -DTINYSPRITE_BUILD_UI=OFF    # core + io + tests only (no SDL2 needed)
-```
-
-Format/lint (K&R style, 4-space indent, config in `.clang-format` / `.clang-tidy`). Both tools are pinned once, in `.pre-commit-config.yaml` (pip wheels, so local and CI run the same version); there are no helper scripts:
+Build, test, run, and installing the hooks: `README.md` (Build, Contributing). Not there:
 
 ```sh
-pre-commit install                                # once per clone: clang-format on commit, a fast clang-tidy on push
-pre-commit run --all-files --hook-stage manual    # format + lint everything, exactly what CI runs
+ctest --test-dir build -R history                 # one test (ctest name = file name minus "test_")
+./build/tests/test_history                        # or run a test binary directly
+cmake -S . -B build -DTINYSPRITE_BUILD_UI=OFF     # core + io + tests only (no SDL2 needed); one build/ dir, the UI is built whenever libsdl2-dev is installed
 pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp   # one file (needs build/compile_commands.json)
 ```
+
+clang-format and clang-tidy are pinned once, in `.pre-commit-config.yaml` (pip wheels, so local and CI run the same version), configured in `.clang-format` / `.clang-tidy`; there are no helper scripts.
 
 CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above; a push or PR lints only the changed files, everything when a header or lint config changed, and weekly or by hand on `schedule` / `workflow_dispatch`), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json`. `thirdparty/` is excluded from both tools.
 
