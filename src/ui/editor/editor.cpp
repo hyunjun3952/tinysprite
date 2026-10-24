@@ -177,6 +177,10 @@ void Editor::release()
 
 void Editor::cancelDrag()
 {
+    if (tileStroke_) {
+        tileStroke_.reset(); /* cancels itself and puts the cells back */
+        tilesRevision_++;
+    }
     if (!drag_) {
         return;
     }
@@ -239,6 +243,9 @@ void Editor::afterHistoryStep(const Layer *active, const std::vector<Sprite::Tag
 
 void Editor::undo()
 {
+    if (stroking()) {
+        return; /* an open tile stroke is not in the history, which would not refuse */
+    }
     stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
     const std::vector<Sprite::Tag> tags = sprite().tags();
@@ -249,6 +256,9 @@ void Editor::undo()
 
 void Editor::redo()
 {
+    if (stroking()) {
+        return; /* an open tile stroke is not in the history, which would not refuse */
+    }
     stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
     const std::vector<Sprite::Tag> tags = sprite().tags();

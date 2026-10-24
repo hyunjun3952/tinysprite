@@ -418,13 +418,14 @@ class Editor
     void drag(int cx, int cy, bool shift = false);
     void release();
 
-    /* Aborts the current drag, reverting its pixels. Does nothing when no drag is active. */
+    /* Aborts the current drag or tile stroke, reverting it. Does nothing when none is active. */
     void cancelDrag();
 
-    /* True while a tool is being dragged (undo / redo / layer changes are held off meanwhile). */
+    /* True while a tool is being dragged or tiles are being painted (undo / redo / layer changes
+     * are held off meanwhile). */
     bool stroking() const
     {
-        return drag_ != nullptr;
+        return drag_ != nullptr || tileStroke_ != nullptr;
     }
 
     /* Counts the calls of markDirty / markAllDirty, i.e. every change of what the layers show, so

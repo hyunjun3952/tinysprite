@@ -112,13 +112,15 @@ void App::filterDialog()
     if (!filterShown_) {
         return;
     }
+    /* Enter in a hex field commits its text; it must not also press Apply */
+    const bool typing = ImGui::GetIO().WantTextInput;
     ImGui::TextUnformatted(title(filter_.kind));
     ImGui::Spacing();
     filterFields();
     ImGui::TextDisabled(editor_->hasSelection() ? "Inside the selection." : "The whole cel.");
     bool close = false;
     const int clicked = theme::dialog_buttons({"Cancel", "Apply"}, 1);
-    if ((clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) && runFilter()) {
+    if ((clicked == 1 || (!typing && ImGui::IsKeyPressed(ImGuiKey_Enter))) && runFilter()) {
         close = true;
     }
     if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {

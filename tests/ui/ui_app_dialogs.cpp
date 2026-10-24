@@ -276,6 +276,45 @@ TEST(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step)
     ASSERT_TRUE(editor.activeCel()->get(0, 0) == Rgba({255, 0, 0, 255}));
 }
 
+TEST(enter_in_the_hex_field_of_the_filter_dialog_only_commits_the_color)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(0, 0, Rgba{255, 0, 0, 255});
+    const float red[4] = {1, 0, 0, 1};
+    const float blue[4] = {0, 0, 1, 1};
+    t.openFilter(FilterParams::Kind::ReplaceColor);
+    t.setFilterColors(red, blue);
+    for (int i = 0; i < 4; i++) {
+        t.frame();
+    }
+    ImGuiWindow *w = ImGui::FindWindowByName("Filter");
+    ASSERT_TRUE(w != nullptr);
+    ImGuiID hex =
+        ImGui::GetIDWithSeed("##hex", nullptr, ImGui::GetIDWithSeed("from_hex", nullptr, w->ID));
+    ImGuiIO &io = ImGui::GetIO();
+    bool found = false;
+    for (float y = w->Pos.y; y < w->Pos.y + w->Size.y && !found; y += 3.0f) {
+        io.AddMousePosEvent(w->Pos.x + w->Size.x * 0.6f, y);
+        t.frame();
+        io.AddMouseButtonEvent(0, true);
+        t.frame();
+        io.AddMouseButtonEvent(0, false);
+        t.frame();
+        found = ImGui::GetCurrentContext()->ActiveId == hex;
+    }
+    ASSERT_TRUE(found);
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    t.frame();
+    io.AddKeyEvent(ImGuiKey_Enter, false);
+    t.frame();
+    t.frame();
+    /* the dialog should still be open and nothing recolored: the user has not pressed Apply */
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    ASSERT_TRUE(editor.activeCel()->get(0, 0) == Rgba({255, 0, 0, 255}));
+}
+
 TEST(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes)
 {
     AppTestAccess t;
@@ -491,6 +530,7 @@ int main()
     RUN(the_filter_dialog_opens_and_escape_closes_it);
     RUN(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes);
     RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);
+    RUN(enter_in_the_hex_field_of_the_filter_dialog_only_commits_the_color);
     RUN(hovering_a_menu_title_opens_the_menu);
     RUN(the_layer_chords_add_duplicate_and_move_layers);
     RUN(double_clicking_the_timeline_edge_restores_its_default_height);

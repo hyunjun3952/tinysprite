@@ -142,6 +142,39 @@ TEST(tile_edits_are_held_off_while_a_tool_is_dragged)
     delete e;
 }
 
+TEST(undo_and_redo_are_held_off_while_tiles_are_painted)
+{
+    Editor *e = editor_with_tiles();
+    ASSERT_TRUE(e->addTilesetFromCel(4, 3));
+    ASSERT_TRUE(e->addTilemap(0, 2, 2));
+    ASSERT_TRUE(e->paintTile(0, 0, 1));
+    ASSERT_TRUE(e->endTilePaint());
+    ASSERT_TRUE(e->paintTile(0, 0, 2));
+    ASSERT_TRUE(e->stroking());
+    e->undo(); /* Ctrl+Z with the mouse still held: nothing happens */
+    ASSERT_EQ_INT(1, e->sprite().tilemaps().size());
+    ASSERT_TRUE(e->endTilePaint());
+    ASSERT_TRUE(!e->stroking());
+    e->undo();
+    ASSERT_EQ_INT(1, e->sprite().tilemaps()[0].cell(0, 0));
+    e->undo();
+    ASSERT_EQ_INT(0, e->sprite().tilemaps()[0].cell(0, 0));
+    delete e;
+}
+
+TEST(cancelling_puts_the_painted_tiles_back)
+{
+    Editor *e = editor_with_tiles();
+    ASSERT_TRUE(e->addTilesetFromCel(4, 3));
+    ASSERT_TRUE(e->addTilemap(0, 2, 2));
+    ASSERT_TRUE(e->paintTile(1, 1, 2));
+    e->cancelDrag();
+    ASSERT_TRUE(!e->tilePainting());
+    ASSERT_TRUE(!e->stroking());
+    ASSERT_EQ_INT(0, e->sprite().tilemaps()[0].cell(1, 1));
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -156,6 +189,8 @@ int main()
     RUN(removing_and_resizing_maps_and_tilesets);
     RUN(the_revision_changes_with_every_tile_edit_and_undo);
     RUN(tile_edits_are_held_off_while_a_tool_is_dragged);
+    RUN(undo_and_redo_are_held_off_while_tiles_are_painted);
+    RUN(cancelling_puts_the_painted_tiles_back);
     ui_quit();
     return TEST_SUMMARY();
 }
