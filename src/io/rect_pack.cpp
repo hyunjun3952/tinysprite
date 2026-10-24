@@ -1,4 +1,4 @@
-#include "tinysprite/pack.hpp"
+#include "tinysprite/rect_pack.hpp"
 
 #include <algorithm>
 #include <cmath>

@@ -1,6 +1,8 @@
 /* The layer list driven with synthetic input: double-click a row to rename the layer in place. */
+#include <algorithm>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 #include "editor.hpp"
 #include "layers_panel.hpp"
@@ -143,29 +145,51 @@ TEST(dragging_a_row_moves_the_layer)
     ASSERT_TRUE(names(f) == "Layer 1,Layer 2,Layer 3");
 }
 
-/* Rows of the list whose pixel at x is the accent color that marks the drop position. */
-static int ink_rows(Fixture &f, int x)
+/* The pixels of column x down the list. */
+static std::vector<unsigned> column(Fixture &f, int x)
 {
-    int count = 0;
+    std::vector<unsigned> pixels;
     for (int y = 40; y < 260; y++) {
-        unsigned c = f.h.pixel(x, y);
-        if (c == theme::ACCENT) {
-            count++;
+        pixels.push_back(f.h.pixel(x, y));
+    }
+    return pixels;
+}
+
+static int green(unsigned color)
+{
+    return static_cast<int>((color >> 8) & 0xff);
+}
+
+/* How many pixel rows thick the accent line at column x is: each row counts by the share of the
+ * accent it shows over what the same row showed in `before`. The line is anti-aliased, so its
+ * edge rows are partly covered and a renderer may blend them differently. */
+static double ink_rows(Fixture &f, int x, const std::vector<unsigned> &before)
+{
+    double thickness = 0.0;
+    std::vector<unsigned> now = column(f, x);
+    for (size_t i = 0; i < now.size(); i++) {
+        double range = green(theme::ACCENT) - green(before[i]);
+        if (range > 0.0) {
+            thickness += std::clamp((green(now[i]) - green(before[i])) / range, 0.0, 1.0);
         }
     }
-    return count;
+    return thickness;
 }
 
 TEST(dragging_a_row_shows_a_line_where_it_will_land)
 {
     Fixture f;
     add_layers(f, 3);
-    /* a column of the list with no icon or text in it: nothing else is that color there */
+    /* a column of the list with no icon or text in it: nothing else is the accent color there */
     int x = 900;
-    while (x < 990 && ink_rows(f, x) != 0) {
-        x++;
+    for (; x < 990; x++) {
+        const std::vector<unsigned> pixels = column(f, x);
+        if (std::count(pixels.begin(), pixels.end(), theme::ACCENT) == 0) {
+            break;
+        }
     }
     ASSERT_TRUE(x < 990);
+    const std::vector<unsigned> before = column(f, x);
     /* Hold the top row and move over the bottom one: the layer would end at the bottom. */
     f.h.frame(ROW_X, row_y(0), false);
     f.h.frame(ROW_X, row_y(0), true);
@@ -174,12 +198,12 @@ TEST(dragging_a_row_shows_a_line_where_it_will_land)
     }
     f.h.frame(ROW_X, row_y(2), true);
     f.h.frame(ROW_X, row_y(2), true);
-    ASSERT_TRUE(ink_rows(f, x) >= 2); /* a line about 2 px thick */
-    ASSERT_TRUE(ink_rows(f, x) <= 4);
+    ASSERT_TRUE(ink_rows(f, x, before) >= 1.5); /* a line about 2 px thick */
+    ASSERT_TRUE(ink_rows(f, x, before) <= 4.0);
     /* Over its own row nothing would change, so no line. */
     f.h.frame(ROW_X, row_y(0), true);
     f.h.frame(ROW_X, row_y(0), true);
-    ASSERT_EQ_INT(0, ink_rows(f, x));
+    ASSERT_TRUE(ink_rows(f, x, before) < 0.1);
     f.h.frame(ROW_X, row_y(0), false);
 }
 

@@ -1,5 +1,5 @@
-#ifndef TINYSPRITE_PACK_HPP
-#define TINYSPRITE_PACK_HPP
+#ifndef TINYSPRITE_RECT_PACK_HPP
+#define TINYSPRITE_RECT_PACK_HPP
 
 #include <optional>
 #include <vector>

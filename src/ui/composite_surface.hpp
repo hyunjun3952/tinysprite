@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_COMPOSITE_SURFACE_HPP
 #define TINYSPRITE_UI_COMPOSITE_SURFACE_HPP
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <memory>
 #include <vector>

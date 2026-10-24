@@ -1,6 +1,6 @@
 /* The per-layer thumbnail cache: textures are made at the fitted size, rebuilt only when the
  * revision changes, and dropped with their layers. Runs under SDL_VIDEODRIVER=dummy. */
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "layer/layer_thumbnails.hpp"
 #include "minitest.hpp"
@@ -11,8 +11,7 @@ namespace
 struct Renderer {
     SDL_Window *window;
     SDL_Renderer *renderer;
-    Renderer()
-        : window(initWindow()), renderer(SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE))
+    Renderer() : window(initWindow()), renderer(SDL_CreateRenderer(window, SDL_SOFTWARE_RENDERER))
     {
     }
     Renderer(const Renderer &) = delete;
@@ -22,7 +21,7 @@ struct Renderer {
     static SDL_Window *initWindow()
     {
         SDL_Init(SDL_INIT_VIDEO);
-        return SDL_CreateWindow("test", 0, 0, 100, 100, 0);
+        return SDL_CreateWindow("test", 100, 100, 0);
     }
     ~Renderer()
     {

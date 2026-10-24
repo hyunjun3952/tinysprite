@@ -1,4 +1,4 @@
-#include "commands.hpp"
+#include "command_table.hpp"
 
 const Command COMMANDS[COMMAND_COUNT] = {
     {"New...", nullptr, CommandId::New, {{ImGuiKey_N, ShiftRule::NotHeld}}, false},

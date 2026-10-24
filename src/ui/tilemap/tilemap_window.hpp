@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_TILEMAP_WINDOW_HPP
 #define TINYSPRITE_UI_TILEMAP_WINDOW_HPP
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <cstdint>
 

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <string>
 
-#include "commands.hpp"
+#include "command_table.hpp"
 #include "minitest.hpp"
 
 static const Command &command(CommandId id)

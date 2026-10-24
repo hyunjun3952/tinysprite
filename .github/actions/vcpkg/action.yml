@@ -1,0 +1,27 @@
+name: vcpkg
+description: vcpkg at the baseline commit named in vcpkg.json, with its binary cache restored. Sets VCPKG_ROOT.
+
+runs:
+  using: composite
+  steps:
+    - name: Binary cache
+      uses: actions/cache@v6
+      with:
+        path: ${{ runner.temp }}/vcpkg-cache
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+    - name: Get vcpkg
+      shell: bash
+      run: |
+        baseline=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")
+        root="$RUNNER_TEMP/vcpkg"
+        git init -q "$root"
+        git -C "$root" fetch -q --depth 1 https://github.com/microsoft/vcpkg "$baseline"
+        git -C "$root" checkout -q FETCH_HEAD
+        if [ "$RUNNER_OS" = Windows ]; then
+          (cd "$root" && cmd //c bootstrap-vcpkg.bat -disableMetrics)
+        else
+          "$root/bootstrap-vcpkg.sh" -disableMetrics
+        fi
+        mkdir -p "$RUNNER_TEMP/vcpkg-cache"
+        echo "VCPKG_ROOT=$root" >> "$GITHUB_ENV"
+        echo "VCPKG_DEFAULT_BINARY_CACHE=$RUNNER_TEMP/vcpkg-cache" >> "$GITHUB_ENV"

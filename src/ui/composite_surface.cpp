@@ -22,7 +22,7 @@ std::unique_ptr<CompositeSurface> CompositeSurface::create(SDL_Renderer *rendere
         return nullptr;
     }
     SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
-    SDL_SetTextureScaleMode(texture.get(), SDL_ScaleModeNearest);
+    SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_NEAREST);
     return std::unique_ptr<CompositeSurface>(
         new CompositeSurface(std::move(texture), width, height));
 }

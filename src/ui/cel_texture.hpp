@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_CEL_TEXTURE_HPP
 #define TINYSPRITE_UI_CEL_TEXTURE_HPP
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "tinysprite/cel.hpp"
 

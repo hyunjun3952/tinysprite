@@ -8,6 +8,8 @@ on:
       - 'include/**'
       - 'tests/**'
       - 'CMakeLists.txt'
+      - 'vcpkg.json'
+      - '.github/actions/**'
       - '.pre-commit-config.yaml'
       - '.clang-format'
       - '.clang-tidy'
@@ -17,6 +19,8 @@ on:
       - 'include/**'
       - 'tests/**'
       - 'CMakeLists.txt'
+      - 'vcpkg.json'
+      - '.github/actions/**'
       - '.pre-commit-config.yaml'
       - '.clang-format'
       - '.clang-tidy'
@@ -41,14 +45,17 @@ jobs:
           fetch-depth: 0
       - uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
-          packages: libsdl2-dev
+          packages: autoconf autoconf-archive automake libtool libx11-dev libxft-dev libxext-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libibus-1.0-dev
           version: 1
+      - uses: ./.github/actions/vcpkg
       - uses: actions/cache@v6
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Configure
-        run: cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
+        run: >-
+          cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
+          -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
       # clang-tidy costs ~7 s per file, so a push or PR lints only the files it changed. Everything is linted
       # on the weekly schedule, by hand, and when a header or a lint config changed (a header can affect
       # files that were not touched).
@@ -75,8 +82,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
-          packages: ccache libsdl2-dev
+          packages: ccache autoconf autoconf-archive automake libtool libx11-dev libxft-dev libxext-dev libwayland-dev libxkbcommon-dev libegl1-mesa-dev libibus-1.0-dev
           version: 1
+      - uses: ./.github/actions/vcpkg
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
@@ -86,6 +94,7 @@ jobs:
         run: >-
           cmake -S . -B build -DTINYSPRITE_BUILD_UI=ON -DTINYSPRITE_WERROR=ON
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
       - name: Build
         run: cmake --build build
       - name: Test
@@ -94,11 +103,9 @@ jobs:
   windows:
     timeout-minutes: 30
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/vcpkg
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -108,11 +115,18 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-SDL2
-      # MinGW has no ASan/UBSan; the Linux job runs them.
+            mingw-w64-x86_64-pkg-config
+      # MinGW has no ASan/UBSan; the Linux job runs them. vcpkg builds the libraries static (x64-mingw-static),
+      # so there is no DLL to ship.
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYSPRITE_SANITIZE=OFF -DTINYSPRITE_BUILD_UI=ON
+        shell: msys2 {0}
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTINYSPRITE_SANITIZE=OFF -DTINYSPRITE_BUILD_UI=ON
+          -DCMAKE_TOOLCHAIN_FILE="$(cygpath -m "$VCPKG_ROOT")/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-mingw-static -DVCPKG_HOST_TRIPLET=x64-mingw-static
       - name: Build
+        shell: msys2 {0}
         run: cmake --build build
       - name: Test
+        shell: msys2 {0}
         run: ctest --test-dir build --output-on-failure

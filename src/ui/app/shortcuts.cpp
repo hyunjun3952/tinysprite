@@ -79,7 +79,8 @@ bool App::modalOpen() const
            openRecover_ || newShown_ || openFilter_ || filterShown_ || recoverShown_;
 }
 
-/* Ctrl+key shortcuts: the commands of commands.hpp (file, zoom, undo / redo, the clipboard). */
+/* Ctrl+key shortcuts: the commands of command_table.hpp (file, zoom, undo / redo, the clipboard).
+ */
 void App::ctrlShortcuts()
 {
     const Command *command = find_command(

@@ -106,17 +106,16 @@ TEST(the_wheel_zooms_at_the_cursor)
     ASSERT_TRUE(!f.editor->view().auto_fit);
 }
 
-/* Holds the middle button still at (x, y) for `seconds` of real time (the hold is timed by the
- * clock, not by frames). */
+/* Holds the middle button still at (x, y) for `seconds` of ImGui time (the harness counts each
+ * frame as FRAME_SECONDS). */
 static void hold_middle(Fixture &f, float x, float y, double seconds)
 {
     f.h.button = 2;
     f.h.frame(x, y, false);
-    Uint32 start = SDL_GetTicks();
+    const double start = ImGui::GetTime();
     do {
         f.h.frame(x, y, true);
-        SDL_Delay(5);
-    } while (SDL_GetTicks() - start < static_cast<Uint32>(seconds * 1000.0));
+    } while (ImGui::GetTime() - start < seconds);
 }
 
 TEST(middle_drag_pans_the_view)

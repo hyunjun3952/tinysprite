@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <string>
 
-#include "editor/internal.hpp"
+#include "editor/detail.hpp"
 #include "tinysprite/cel_ops.hpp"
 #include "tinysprite/frame_ops.hpp"
 #include "tinysprite/tag_ops.hpp"

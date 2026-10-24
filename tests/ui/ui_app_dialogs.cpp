@@ -10,8 +10,8 @@
 #include <string>
 
 #include "app.hpp"
-#include "backends/imgui_impl_sdl2.h"
-#include "backends/imgui_impl_sdlrenderer2.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 #include "imgui_internal.h"
 #include "minitest.hpp"
 #include "theme.hpp"
@@ -37,8 +37,8 @@ struct AppTestAccess {
     void frame()
     {
         app.pollEvents();
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
         app.buildUi();
         ImGui::Render();

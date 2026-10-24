@@ -3,13 +3,13 @@
 
 /* A window, a renderer and an ImGui context with no display (SDL_VIDEODRIVER=dummy), driven by
  * synthetic input, for tests of the panels. */
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <functional>
 
-#include "backends/imgui_impl_sdl2.h"
-#include "backends/imgui_impl_sdlrenderer2.h"
 #include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 #include "imgui_internal.h"
 #include "panels.hpp"
 
@@ -17,6 +17,7 @@ namespace test_ui
 {
 
 constexpr float PANEL_HEIGHT = 600.0f;
+constexpr float FRAME_SECONDS = 1.0f / 60.0f; /* what every harness frame counts for */
 
 struct Harness {
     SDL_Window *window = nullptr;
@@ -31,20 +32,17 @@ struct Harness {
     Harness()
     {
         SDL_Init(SDL_INIT_VIDEO);
-        window = SDL_CreateWindow("test", 0, 0, 1000, 700, 0);
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+        window = SDL_CreateWindow("test", 1000, 700, 0);
+        renderer = SDL_CreateRenderer(window, SDL_SOFTWARE_RENDERER);
         ImGui::CreateContext();
         ImGui::GetIO().IniFilename = nullptr;
-        /* Frames are slow under the sanitizers, so give the double click all the time it needs. */
-        ImGui::GetIO().MouseSingleClickDelay = 20.0f;
-        ImGui::GetIO().MouseDoubleClickTime = 10.0f;
-        ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-        ImGui_ImplSDLRenderer2_Init(renderer);
+        ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+        ImGui_ImplSDLRenderer3_Init(renderer);
     }
     ~Harness()
     {
-        ImGui_ImplSDLRenderer2_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
+        ImGui_ImplSDLRenderer3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
@@ -59,8 +57,9 @@ struct Harness {
         ImGuiIO &io = ImGui::GetIO();
         io.AddMousePosEvent(x, y);
         io.AddMouseButtonEvent(button, down);
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        io.DeltaTime = FRAME_SECONDS; /* ImGui's clock is frames, however slow the machine is */
         io.DisplaySize = ImVec2(1000.0f, 700.0f);
         ImGui::NewFrame();
         float left = 0.0f;
@@ -76,7 +75,7 @@ struct Harness {
             body();
         }
         ImGui::Render();
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     }
 
     /* Drags from (x0, y0) to (x1, y1) in small steps and releases there. */
@@ -105,8 +104,12 @@ struct Harness {
     unsigned pixel(int x, int y) const
     {
         SDL_Rect rect = {x, y, 1, 1};
-        Uint32 value = 0;
-        SDL_RenderReadPixels(renderer, &rect, SDL_PIXELFORMAT_ARGB8888, &value, sizeof(value));
+        SDL_Surface *read = SDL_RenderReadPixels(renderer, &rect);
+        SDL_Surface *argb =
+            read != nullptr ? SDL_ConvertSurface(read, SDL_PIXELFORMAT_ARGB8888) : nullptr;
+        SDL_DestroySurface(read);
+        Uint32 value = argb != nullptr ? *static_cast<const Uint32 *>(argb->pixels) : 0;
+        SDL_DestroySurface(argb);
         return value & 0xffffffu;
     }
 

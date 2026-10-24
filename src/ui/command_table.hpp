@@ -1,5 +1,5 @@
-#ifndef TINYSPRITE_UI_COMMANDS_HPP
-#define TINYSPRITE_UI_COMMANDS_HPP
+#ifndef TINYSPRITE_UI_COMMAND_TABLE_HPP
+#define TINYSPRITE_UI_COMMAND_TABLE_HPP
 
 #include <functional>
 #include <string>

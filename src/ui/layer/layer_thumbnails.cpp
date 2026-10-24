@@ -31,7 +31,7 @@ LayerThumbnails::Thumb LayerThumbnails::get(const Layer &layer, int frame, int m
             return {};
         }
         SDL_SetTextureBlendMode(entry.texture.get(), SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(entry.texture.get(), SDL_ScaleModeNearest);
+        SDL_SetTextureScaleMode(entry.texture.get(), SDL_SCALEMODE_NEAREST);
         entry.width = width;
         entry.height = height;
     }

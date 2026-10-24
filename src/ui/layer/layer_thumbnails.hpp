@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_LAYER_THUMBNAILS_HPP
 #define TINYSPRITE_UI_LAYER_THUMBNAILS_HPP
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <cstdint>
 #include <memory>

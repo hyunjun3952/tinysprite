@@ -1,0 +1,10 @@
+{
+  "name": "tinysprite",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "sdl3",
+    { "name": "imgui", "features": ["sdl3-binding", "sdl3-renderer-binding"] },
+    "stb"
+  ],
+  "builtin-baseline": "0c2a9ace1964b818b15f7ae50ba1c42404918a7b"
+}

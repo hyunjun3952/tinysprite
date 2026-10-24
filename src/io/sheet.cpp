@@ -4,7 +4,7 @@
 #include "frame_range.hpp"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/io.hpp"
-#include "tinysprite/pack.hpp"
+#include "tinysprite/rect_pack.hpp"
 #include "write_error.hpp"
 
 namespace
