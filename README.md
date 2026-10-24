@@ -31,6 +31,9 @@ ctest --test-dir build --output-on-failure
 ./build/src/ui/tinysprite [file | width [height]]
 ```
 
+`CMakePresets.json` offers the same steps as presets (`cmake --preset dev`, `cmake --build --preset dev`, `ctest --preset dev`; also `core` and
+`release`), which is what an IDE such as CLion reads. They need `VCPKG_ROOT` set.
+
 The first configure builds the libraries (a few minutes; vcpkg caches them). On Debian and Ubuntu, vcpkg needs
 `sudo apt install autoconf autoconf-archive automake libtool libx11-dev libxft-dev libxext-dev libwayland-dev
 libxkbcommon-dev libegl1-mesa-dev libibus-1.0-dev` for the window system and the input method. vcpkg's version of

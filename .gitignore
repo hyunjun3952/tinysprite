@@ -1,5 +1,6 @@
 build/
 build3/
+build-release/
 compile_commands.json
 .cache/
 .vscode/
