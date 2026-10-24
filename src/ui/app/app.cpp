@@ -479,6 +479,24 @@ void App::buildUi()
     updateTitle();
 }
 
+/* Whether the frame just rendered is the last: the --frames count is reached or the script ran out.
+ */
+static bool isLastFrame(const AppOptions &options, int frame, bool scriptDone)
+{
+    return (options.maxFrames > 0 && frame + 1 >= options.maxFrames) || scriptDone;
+}
+
+/* The image to save after this frame: the script's `shot`, else --screenshot on the last frame; ""
+
+ * * for none. */
+static std::string shotPath(const ScriptInput &input, const AppOptions &options, bool lastFrame)
+{
+    if (!input.shot.empty()) {
+        return input.shot;
+    }
+    return lastFrame ? options.screenshot : std::string();
+}
+
 void App::run(const AppOptions &options)
 {
     int frames = 0;
@@ -498,9 +516,8 @@ void App::run(const AppOptions &options)
         SDL_RenderClear(renderer_);
         ImGui::Render();
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer_);
-        bool lastFrame = (options.maxFrames > 0 && frames + 1 >= options.maxFrames) ||
-                         (scripted && script.done());
-        std::string shot = !input.shot.empty() ? input.shot : (lastFrame ? options.screenshot : "");
+        const bool lastFrame = isLastFrame(options, frames, scripted && script.done());
+        const std::string shot = shotPath(input, options, lastFrame);
         if (!shot.empty() && !saveScreenshot(shot)) {
             std::fprintf(stderr, "cannot save %s\n", shot.c_str());
         }

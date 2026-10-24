@@ -179,7 +179,7 @@ bool addKey(const Words &args, Frames &frames, std::string &why)
     frames.push_back(down);
     frames.push_back(up);
     if (modified) {
-        frames.push_back(ScriptInput());
+        frames.emplace_back();
     }
     return true;
 }

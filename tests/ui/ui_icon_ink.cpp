@@ -109,10 +109,8 @@ TEST(the_closed_shapes_are_outlines_of_one_weight)
         const icons::Bitmap *bitmap = icons::bitmap(icon);
         ASSERT_TRUE(bitmap != nullptr);
         int ink = 0;
-        for (int y = 0; y < icons::BITMAP_SIZE; y++) {
-            for (int x = 0; x < icons::BITMAP_SIZE; x++) {
-                ink += bitmap->rows[y][x] == '#' ? 1 : 0;
-            }
+        for (const char *row : bitmap->rows) {
+            ink += static_cast<int>(std::count(row, row + std::strlen(row), '#'));
         }
         ASSERT_TRUE(bitmap->rows[8][8] == '.'); /* the middle is empty: an outline, not a fill */
         ASSERT_TRUE(ink >= 58 && ink <= 90);

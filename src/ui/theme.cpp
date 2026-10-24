@@ -628,7 +628,7 @@ ImVec2 fit_in_box(int width, int height, float box)
     const float scale = box / longer;
     const float w = std::max(2.0f, std::round(static_cast<float>(width) * scale));
     const float h = std::max(2.0f, std::round(static_cast<float>(height) * scale));
-    return ImVec2(std::min(w, box), std::min(h, box));
+    return {std::min(w, box), std::min(h, box)};
 }
 
 void size_preview(int width, int height, float box)
