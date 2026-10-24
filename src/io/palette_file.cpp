@@ -172,6 +172,12 @@ static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl)
     return ok ? std::optional<Rgba>(color) : std::nullopt;
 }
 
+/* Whether a line carries no color: blank, or a metadata line (GPL) or a comment (hex). */
+static bool isNoise(const std::string &line, bool gpl)
+{
+    return line.empty() || (gpl ? isGplMetadata(line) : isHexComment(line));
+}
+
 std::optional<Palette> palette_decode(const std::string &text)
 {
     static const std::string bom = "\xEF\xBB\xBF"; /* Notepad and others start a file with it */
@@ -185,7 +191,7 @@ std::optional<Palette> palette_decode(const std::string &text)
     bool gpl = *header == "GIMP Palette";
     Palette palette;
     for (auto it = gpl ? header + 1 : header; it != all.end(); ++it) {
-        if (it->empty() || (gpl && isGplMetadata(*it)) || (!gpl && isHexComment(*it))) {
+        if (isNoise(*it, gpl)) {
             continue;
         }
         std::optional<Rgba> color = parseColorLine(*it, gpl);
