@@ -241,6 +241,8 @@ class App
     void activateDocument(int index);
     /* Moves tab `from` so it ends up at `to`; the active tab stays the same document. */
     void moveDocument(int from, int to);
+    bool validIndex(int index) const;
+    bool keepOneDocument();
     /* Takes tab `index` away without asking; a last tab is replaced by a blank one. */
     void removeDocument(int index);
     /* Closes tab `index`, asking first when it has unsaved changes. */

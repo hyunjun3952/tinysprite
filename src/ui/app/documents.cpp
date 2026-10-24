@@ -71,7 +71,7 @@ int App::findDocument(const std::string &path) const
 
 void App::activateDocument(int index)
 {
-    if (index < 0 || index >= static_cast<int>(docs_.size()) || (editor_ && editor_->stroking())) {
+    if (!validIndex(index) || (editor_ && editor_->stroking())) {
         return;
     }
     Editor *next = docs_[static_cast<size_t>(index)].editor.get();
@@ -147,22 +147,32 @@ void App::moveDocument(int from, int to)
     }
 }
 
+bool App::validIndex(int index) const
+{
+    return index >= 0 && index < static_cast<int>(docs_.size());
+}
+
+/* The app always has a document: with only one tab left, a blank one is added before it goes. */
+bool App::keepOneDocument()
+{
+    if (docs_.size() != 1 || addBlankDocument(newWidth_, newHeight_)) {
+        return true;
+    }
+    toast("Not enough memory to close this document", true);
+    return false;
+}
+
 void App::removeDocument(int index)
 {
-    if (index < 0 || index >= static_cast<int>(docs_.size()) ||
-        (index == active_ && editor_->stroking())) {
+    if (!validIndex(index) || (index == active_ && editor_->stroking())) {
         return; /* the active document cannot be left while a tool is being dragged */
     }
     const Editor *going = docs_[static_cast<size_t>(index)].editor.get();
     if (split_ && (going == pane_[0] || going == pane_[1])) {
         unsplit(); /* a pane would be left without its document */
     }
-    if (docs_.size() == 1) {
-        if (!addBlankDocument(newWidth_, newHeight_)) { /* the app always has a document */
-            toast("Not enough memory to close this document", true);
-            return;
-        }
-        index = 0;
+    if (!keepOneDocument()) {
+        return;
     }
     if (index == active_) {
         activateDocument(index + 1 < static_cast<int>(docs_.size()) ? index + 1 : index - 1);
@@ -194,7 +204,7 @@ void App::removeEditor(const Editor *editor)
 
 void App::closeDocument(int index)
 {
-    if (index < 0 || index >= static_cast<int>(docs_.size()) || editor_->stroking()) {
+    if (!validIndex(index) || editor_->stroking()) {
         return;
     }
     if (!dirty(docs_[static_cast<size_t>(index)])) {
