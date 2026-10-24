@@ -622,6 +622,39 @@ void hint(const char *tooltip, bool enabled, const char *reason)
     }
 }
 
+ImVec2 fit_in_box(int width, int height, float box)
+{
+    const float longer = static_cast<float>(std::max(std::max(width, height), 1));
+    const float scale = box / longer;
+    const float w = std::max(2.0f, std::round(static_cast<float>(width) * scale));
+    const float h = std::max(2.0f, std::round(static_cast<float>(height) * scale));
+    return ImVec2(std::min(w, box), std::min(h, box));
+}
+
+void size_preview(int width, int height, float box)
+{
+    constexpr float CHECKER_CELLS = 12.0f; /* tiles across the box */
+    ImGui::Dummy(ImVec2(box, box));
+    const ImVec2 well = ImGui::GetItemRectMin();
+    ImDrawList *list = ImGui::GetWindowDrawList();
+    list->AddRectFilled(well, ImVec2(well.x + box, well.y + box), toU32(WORKSPACE),
+                        ImGui::GetStyle().FrameRounding);
+    const ImVec2 size = fit_in_box(width, height, box - 2.0f * px(6.0f));
+    const float x0 = std::floor(well.x + (box - size.x) / 2.0f);
+    const float y0 = std::floor(well.y + (box - size.y) / 2.0f);
+    list->AddRectFilled(ImVec2(x0, y0), ImVec2(x0 + size.x, y0 + size.y), overlay::CHECKER_LIGHT);
+    const float tile = std::max(2.0f, std::round(box / CHECKER_CELLS));
+    for (float ty = 0.0f; ty * tile < size.y; ty += 1.0f) {
+        for (float tx = (std::fmod(ty, 2.0f) == 0.0f ? 1.0f : 0.0f); tx * tile < size.x;
+             tx += 2.0f) {
+            list->AddRectFilled(ImVec2(x0 + tx * tile, y0 + ty * tile),
+                                ImVec2(std::min(x0 + (tx + 1.0f) * tile, x0 + size.x),
+                                       std::min(y0 + (ty + 1.0f) * tile, y0 + size.y)),
+                                overlay::CHECKER_TILE);
+        }
+    }
+}
+
 void why_disabled(bool enabled, const char *reason)
 {
     constexpr ImGuiHoveredFlags HOVER = ImGuiHoveredFlags_AllowWhenDisabled;

@@ -96,15 +96,19 @@ void App::openOrAsk(const std::string &path)
 }
 
 /* "New sprite": a size, then a blank document. */
-/* The size presets and the width / height fields of the New dialog. */
+/* The size presets and the width / height fields of the New dialog, with a preview of the shape
+ * they make beside them. The preset that matches the size is shown selected. */
 void App::newSizeFields()
 {
+    constexpr float PREVIEW_BOX = 96.0f; /* at scale 1 */
+    ImGui::BeginGroup();
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Presets");
     for (int size : {16, 32, 64, 128, 256}) {
         ImGui::SameLine();
         ImGui::PushID(size);
-        if (ImGui::Button(std::to_string(size).c_str())) {
+        const bool chosen = newWidth_ == size && newHeight_ == size;
+        if (theme::choiceButton(std::to_string(size).c_str(), nullptr, chosen, 0.0f)) {
             newWidth_ = size;
             newHeight_ = size;
         }
@@ -118,8 +122,12 @@ void App::newSizeFields()
     ImGui::TextUnformatted("Height");
     ImGui::SameLine();
     theme::input_int("##new_height", &newHeight_, 1, 16, " px");
+    ImGui::EndGroup();
     newWidth_ = std::clamp(newWidth_, 1, CEL_MAX_DIMENSION);
     newHeight_ = std::clamp(newHeight_, 1, CEL_MAX_DIMENSION);
+    ImGui::SameLine(0.0f, theme::px(16.0f));
+    theme::size_preview(newWidth_, newHeight_, theme::px(PREVIEW_BOX));
+    theme::tip("The shape of the new sprite.");
 }
 
 void App::newDialog()

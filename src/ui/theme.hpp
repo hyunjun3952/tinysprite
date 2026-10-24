@@ -154,6 +154,16 @@ void hint(const char *tooltip, bool enabled, const char *reason = nullptr);
  * dead end. Nothing while it is enabled. Call right after the item. */
 void why_disabled(bool enabled, const char *reason);
 
+/* The size a `width` x `height` sprite is drawn at in a square preview box of `box` pixels: the
+ * longer side fills the box and the other keeps the ratio, at least 2 pixels so a very thin sprite
+ * is still a sliver. */
+ImVec2 fit_in_box(int width, int height, float box);
+
+/* A preview of a sprite's shape: a well `box` pixels square with the sprite's rectangle (a
+ * transparency checkerboard) centered in it, scaled by fit_in_box. Takes the place of an item of
+ * that size. */
+void size_preview(int width, int height, float box);
+
 /* `text` cut at a UTF-8 character boundary and ended with "..." so that it is at most `maxWidth`
  * wide (as drawn by the current font); text that fits comes back unchanged. */
 std::string ellipsize(const std::string &text, float maxWidth);

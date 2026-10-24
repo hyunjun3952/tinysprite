@@ -33,6 +33,23 @@ double contrast(unsigned a, unsigned b)
 
 } // namespace
 
+/* The preview of a sprite's size in the New dialog: the longer side fills the box, the other keeps
+ * the ratio, and a very thin sprite is still a visible sliver. */
+TEST(a_size_preview_fits_the_box_and_keeps_the_ratio)
+{
+    ImVec2 square = theme::fit_in_box(64, 64, 96.0f);
+    ASSERT_TRUE(square.x == 96.0f && square.y == 96.0f);
+    ImVec2 wide = theme::fit_in_box(128, 64, 96.0f);
+    ASSERT_TRUE(wide.x == 96.0f && wide.y == 48.0f);
+    ImVec2 tall = theme::fit_in_box(16, 64, 96.0f);
+    ASSERT_TRUE(tall.x == 24.0f && tall.y == 96.0f);
+    ImVec2 small =
+        theme::fit_in_box(1, 1, 96.0f); /* a tiny sprite is shown as large as a big one */
+    ASSERT_TRUE(small.x == 96.0f && small.y == 96.0f);
+    ImVec2 thin = theme::fit_in_box(1, 4000, 96.0f);
+    ASSERT_TRUE(thin.y == 96.0f && thin.x >= 2.0f && thin.x <= 3.0f);
+}
+
 TEST(text_on_a_filled_dialog_button_reaches_the_4_5_contrast_ratio)
 {
     ASSERT_TRUE(contrast(theme::INK, theme::DANGER) >= 4.5);
@@ -294,6 +311,7 @@ int main()
     RUN(the_ui_font_has_the_hangul_glyphs_next_to_the_latin_ones);
     RUN(a_pixel_image_is_sampled_nearest_and_the_sampler_is_restored_after_it);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
+    RUN(a_size_preview_fits_the_box_and_keeps_the_ratio);
     RUN(text_on_a_filled_dialog_button_reaches_the_4_5_contrast_ratio);
     RUN(a_control_fill_is_visibly_lighter_than_the_panel);
     RUN(an_int_format_appends_the_unit_and_escapes_percent);
