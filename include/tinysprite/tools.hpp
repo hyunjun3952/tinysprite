@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "tinysprite/history.hpp"
+#include "tinysprite/raster.hpp"
 #include "tinysprite/sprite.hpp"
 #include "tinysprite/symmetry.hpp"
 
@@ -161,11 +162,13 @@ class ShapeStroke : public LiveStroke
     ToolPoint anchor_;
 };
 
-/* Replaces the 4-connected region of exactly-equal pixels around (x, y) with `color` as one undo
- * step; with symmetry the region under each reflection of (x, y) is filled too. Filling with the
- * color the region already has records nothing. Returns false if (x, y) is out of bounds or a
- * stroke is active (the cel is then left unchanged). */
-bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry);
+/* Replaces the pixels that match the one at (x, y) with `color` as one undo step: by default the
+ * 4-connected region of exactly-equal pixels, or with `options` every such pixel of the cel and/or
+ * the ones within a tolerance (see FillOptions). With symmetry the region under each reflection of
+ * (x, y) is filled too. Filling with the color the region already has records nothing. Returns
+ * false if (x, y) is out of bounds or a stroke is active (the cel is then left unchanged). */
+bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry,
+                 const FillOptions &options = FillOptions());
 
 /* Reads the color at (x, y) of a single cel. Returns nothing if (x, y) is out of bounds. */
 std::optional<Rgba> eyedropper_pick_cel(const Cel &cel, int x, int y);

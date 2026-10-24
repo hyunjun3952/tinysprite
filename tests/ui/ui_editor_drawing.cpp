@@ -30,6 +30,48 @@ TEST(mirrored_shape_and_bucket_are_symmetric)
     delete e;
 }
 
+/* A wall of foreground pixels down column 3 of the 8 x 6 cel, for the bucket tests. */
+static void draw_wall(Editor *e)
+{
+    e->selectTool(ToolKind::Line);
+    e->press(3, 0);
+    e->drag(3, 5);
+    e->release();
+}
+
+TEST(the_bucket_fills_only_what_is_connected_unless_it_is_set_to_fill_everywhere)
+{
+    Editor *e = make_editor();
+    draw_wall(e);
+    e->selectTool(ToolKind::Bucket);
+    click(e, 0, 0);
+    ASSERT_EQ_INT(255, alpha(e, 0, 0));
+    ASSERT_EQ_INT(0, alpha(e, 7, 0)); /* the other side of the wall */
+    e->undo();
+    e->options().fill_contiguous = false;
+    click(e, 0, 0);
+    ASSERT_EQ_INT(255, alpha(e, 0, 0));
+    ASSERT_EQ_INT(255, alpha(e, 7, 0)); /* every transparent pixel */
+    delete e;
+}
+
+TEST(the_bucket_tolerance_is_a_percent_of_the_channel_range)
+{
+    Editor *e = make_editor();
+    draw_wall(e);
+    e->selectTool(ToolKind::Bucket);
+    e->options().fill_tolerance = 50; /* the wall differs from the empty cels by 255: too far */
+    e->setForeground(Rgba{0, 0, 255, 255});
+    click(e, 0, 0);
+    ASSERT_EQ_INT(0, alpha(e, 7, 0));
+    e->undo();
+    e->options().fill_tolerance = 100; /* every pixel is within reach, the wall included */
+    click(e, 0, 0);
+    ASSERT_EQ_INT(255, alpha(e, 7, 0));
+    ASSERT_EQ_INT(255, alpha(e, 3, 2));
+    delete e;
+}
+
 TEST(brush_size_steps_and_stays_within_its_limits)
 {
     Editor *e = make_editor();
@@ -277,6 +319,8 @@ int main()
         return 1;
     }
     RUN(mirrored_shape_and_bucket_are_symmetric);
+    RUN(the_bucket_fills_only_what_is_connected_unless_it_is_set_to_fill_everywhere);
+    RUN(the_bucket_tolerance_is_a_percent_of_the_channel_range);
     RUN(brush_size_steps_and_stays_within_its_limits);
     RUN(temp_pick_switches_to_the_picker_and_back);
     RUN(temp_pick_keeps_the_picker_when_it_is_already_active);

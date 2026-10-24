@@ -250,19 +250,26 @@ void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
 namespace
 {
 
+/* Whether `pixel` is within `tolerance` of `target` in every channel. */
+bool within(Rgba pixel, Rgba target, int tolerance)
+{
+    return std::abs(pixel.r - target.r) <= tolerance && std::abs(pixel.g - target.g) <= tolerance &&
+           std::abs(pixel.b - target.b) <= tolerance && std::abs(pixel.a - target.a) <= tolerance;
+}
+
 /* The state of one flood fill: which pixels were taken and which still match the clicked color. */
 class FloodRegion
 {
   public:
-    FloodRegion(const Cel &cel, Rgba target)
-        : cel_(cel), target_(target),
+    FloodRegion(const Cel &cel, Rgba target, int tolerance)
+        : cel_(cel), target_(target), tolerance_(tolerance),
           seen_(static_cast<size_t>(cel.width()) * static_cast<size_t>(cel.height()), 0)
     {
     }
 
     bool fillable(int x, int y) const
     {
-        return seen_[cel_.indexOf(x, y)] == 0 && cel_.get(x, y) == target_;
+        return seen_[cel_.indexOf(x, y)] == 0 && within(cel_.get(x, y), target_, tolerance_);
     }
     bool taken(int x, int y) const
     {
@@ -306,17 +313,42 @@ class FloodRegion
   private:
     const Cel &cel_;
     Rgba target_;
+    int tolerance_;
     std::vector<unsigned char> seen_;
 };
 
+/* Reports every pixel of the cel that matches the clicked color, connected or not. */
+void plotMatching(const Cel &cel, int x, int y, int tolerance, const RasterPlotFn &plot)
+{
+    const Rgba target = cel.get(x, y);
+    std::vector<std::pair<int, int>> matching;
+    for (int r = 0; r < cel.height(); r++) {
+        for (int c = 0; c < cel.width(); c++) {
+            if (within(cel.get(c, r), target, tolerance)) {
+                matching.emplace_back(c, r);
+            }
+        }
+    }
+    /* Known before the first plot, so the callback can edit the cel it came from. */
+    for (const auto &[c, r] : matching) {
+        plot(c, r);
+    }
+}
+
 } // namespace
 
-bool raster_flood_fill(const Cel &cel, int x, int y, const RasterPlotFn &plot)
+bool raster_flood_fill(const Cel &cel, int x, int y, const RasterPlotFn &plot,
+                       const FillOptions &options)
 {
     if (!cel.inBounds(x, y)) {
         return false;
     }
-    FloodRegion region(cel, cel.get(x, y));
+    const int tolerance = std::clamp(options.tolerance, 0, 255);
+    if (!options.contiguous) {
+        plotMatching(cel, x, y, tolerance, plot);
+        return true;
+    }
+    FloodRegion region(cel, cel.get(x, y), tolerance);
     std::vector<std::pair<int, int>> stack = {{x, y}};
     while (!stack.empty()) {
         auto [sx, sy] = stack.back();

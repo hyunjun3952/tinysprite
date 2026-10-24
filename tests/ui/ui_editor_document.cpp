@@ -93,6 +93,8 @@ TEST(preferences_round_trip_through_the_settings)
     a->options().brush_round = true;
     a->options().pixel_perfect = true;
     a->options().shape_filled = true;
+    a->options().fill_contiguous = false;
+    a->options().fill_tolerance = 35;
     a->options().symmetry.mirror_x = true;
     a->setForeground(Rgba{10, 20, 30, 255});
     a->selectTool(ToolKind::Star);
@@ -112,6 +114,8 @@ TEST(preferences_round_trip_through_the_settings)
     ASSERT_EQ_INT(5, b->options().brush_size);
     ASSERT_TRUE(b->options().brush_round && b->options().pixel_perfect &&
                 b->options().shape_filled);
+    ASSERT_TRUE(!b->options().fill_contiguous);
+    ASSERT_EQ_INT(35, b->options().fill_tolerance);
     ASSERT_TRUE(!b->options().symmetry.mirror_x); /* symmetry always starts off */
     ASSERT_TRUE(b->foreground() == (Rgba{10, 20, 30, 255}));
     ASSERT_TRUE(b->tool() == ToolKind::Star);

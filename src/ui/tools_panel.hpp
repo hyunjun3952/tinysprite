@@ -51,6 +51,7 @@ class ToolsPanel
     void shapeButtons();
     void barSize(const char *tip);
     void barBrush();
+    void barFill();
     void barShape(ToolKind tool);
     void barSelection();
     void barSymmetry();

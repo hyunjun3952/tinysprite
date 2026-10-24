@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <iterator>
 
@@ -33,7 +34,9 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Pencil", "B", ImGuiKey_B,
      "Draw pixels. Shift+click draws a straight line from where the last stroke ended."},
     {"Eraser", "E", ImGuiKey_E, "Erase pixels to transparent. Uses the brush size."},
-    {"Bucket", "G", ImGuiKey_G, "Fill the connected area of one color with the foreground color."},
+    {"Bucket", "G", ImGuiKey_G,
+     "Fill an area of one color with the foreground color. Contiguous and Tolerance are in the "
+     "options bar."},
     {"Eyedropper", "I", ImGuiKey_I,
      "Pick the color under the cursor as the foreground color.\nHold the middle mouse button to "
      "use it with any tool."},
@@ -301,6 +304,24 @@ void ToolsPanel::barShape(ToolKind tool)
     }
 }
 
+/* The bucket: connected or everywhere, and how close a color must be to the clicked one. */
+void ToolsPanel::barFill()
+{
+    Editor::ToolOptions &options = editor_->options();
+    barGap();
+    ImGui::Checkbox("Contiguous", &options.fill_contiguous);
+    theme::tip("Fill only the pixels connected to the click. Off, every pixel of that color in the "
+               "cel is filled.");
+    barGap();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("Tolerance");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(theme::px(BAR_SLIDER_WIDTH));
+    theme::slider_int("##bar_tolerance", &options.fill_tolerance, 0, 100, "%");
+    theme::tip("How different from the clicked color a pixel may be and still be filled. 0 takes "
+               "the exact color only.");
+}
+
 /* Flip and turn the selected pixels (the Edit menu has the same actions). */
 void ToolsPanel::barSelection()
 {
@@ -414,6 +435,8 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
             barBrush();
         } else if (group == ToolGroup::Shape) {
             barShape(tool);
+        } else if (group == ToolGroup::Fill) {
+            barFill();
         } else if (group == ToolGroup::Slice) {
             ImGui::SameLine();
             ImGui::TextDisabled(
@@ -509,12 +532,15 @@ void ToolsPanel::resetDialog()
 void ToolsPanel::recentColors()
 {
     if (editor_->recent().size() == 0) {
-        ImGui::Dummy(ImVec2(0.0f, 0.0f));
-        const float row = swatchSize();
-        const float top = ImGui::GetCursorPosY();
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Colors you draw with show up here");
-        ImGui::SetCursorPosY(top + row);
+        /* An item as tall as a swatch row (so the window grows with it), the hint drawn on it. */
+        const char *hint = "Colors you draw with show up here";
+        ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, swatchSize()));
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        const float lineHeight = ImGui::GetTextLineHeight();
+        ImGui::GetWindowDrawList()->AddText(
+            ImVec2(min.x, std::floor(min.y + (max.y - min.y - lineHeight) / 2.0f)),
+            ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::MUTE)), hint);
         return;
     }
     /* Distinct from the palette swatches' IDs below. */

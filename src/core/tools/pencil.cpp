@@ -209,14 +209,15 @@ void PencilStroke::extend(int x, int y)
     lastY_ = y;
 }
 
-bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry)
+bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry,
+                 const FillOptions &options)
 {
     if (!cel.inBounds(x, y) || !history.beginStroke(cel)) {
         return false;
     }
     RasterPlotFn plot = history_plot(history, cel, color);
     for (ToolPoint seed : symmetry_points(symmetry, cel.width(), cel.height(), {x, y})) {
-        raster_flood_fill(cel, seed.x, seed.y, plot);
+        raster_flood_fill(cel, seed.x, seed.y, plot, options);
     }
     return history.endStroke();
 }

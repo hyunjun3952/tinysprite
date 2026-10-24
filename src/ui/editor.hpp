@@ -73,8 +73,8 @@ class Editor
     /*
      * Tool options. pixel_perfect applies to the pencil and eraser; brush_size and brush_round to
      * the pencil and eraser and to the outline of a line or an unfilled shape; shape_filled to
-     * every closed shape; symmetry also reaches shapes and the bucket. Edited directly by the
-     * tools panel and the shortcuts.
+     * every closed shape; fill_contiguous and fill_tolerance to the bucket; symmetry also reaches
+     * shapes and the bucket. Edited directly by the tools panel and the shortcuts.
      */
     struct ToolOptions {
         int brush_size = 1; /* 1..PENCIL_BRUSH_MAX */
@@ -82,6 +82,17 @@ class Editor
         bool pixel_perfect = false;
         Symmetry symmetry = {};
         bool shape_filled = false;
+        bool fill_contiguous = true; /* the bucket: only what is connected to the click */
+        int fill_tolerance = 0;      /* the bucket: how close a color must be, 0..100 percent */
+
+        /* The bucket's view of these options (the tolerance as a difference per channel). */
+        FillOptions fill() const
+        {
+            FillOptions options;
+            options.contiguous = fill_contiguous;
+            options.tolerance = (fill_tolerance * 255 + 50) / 100;
+            return options;
+        }
 
         /* The pencil / eraser's view of these options. */
         PencilOptions pencil() const

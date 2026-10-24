@@ -61,6 +61,8 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "brush.round", options_.brush_round);
     settings_set_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
     settings_set_bool(settings, "shape.filled", options_.shape_filled);
+    settings_set_bool(settings, "bucket.contiguous", options_.fill_contiguous);
+    settings_set_int(settings, "bucket.tolerance", options_.fill_tolerance);
     settings["color.fg"] = colorText(foreground());
     settings["color.bg"] =
         colorText(Rgba{editor_detail::toByte(bgColor_[0]), editor_detail::toByte(bgColor_[1]),
@@ -113,6 +115,8 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "brush.round", options_.brush_round);
     settings_get_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
     settings_get_bool(settings, "shape.filled", options_.shape_filled);
+    settings_get_bool(settings, "bucket.contiguous", options_.fill_contiguous);
+    settings_get_int(settings, "bucket.tolerance", 0, 100, options_.fill_tolerance);
     Rgba color;
     if (auto it = settings.find("color.fg");
         it != settings.end() && parseColor(it->second, color)) {

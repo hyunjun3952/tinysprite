@@ -40,9 +40,20 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
 void raster_polygon(const std::vector<std::pair<int, int>> &points, bool filled,
                     const RasterPlotFn &plot, const Rect *clip = nullptr);
 
-/* Reports the 4-connected region of cel pixels sharing the exact color of (x, y), in row-major
- * order. The cel is only read, so the callback may edit it. Returns false (reporting nothing) if
- * (x, y) is out of bounds. */
-bool raster_flood_fill(const Cel &cel, int x, int y, const RasterPlotFn &plot);
+/* Which pixels a flood fill takes besides the exact color of the clicked one. */
+struct FillOptions {
+    /* true: only the 4-connected region around the click; false: every pixel of the cel that
+     * matches (a global replace of one color). */
+    bool contiguous = true;
+    /* The largest difference in any one channel (red, green, blue, alpha; 0 to 255) a pixel may
+     * have from the clicked color and still be taken; 0 means the exact color. */
+    int tolerance = 0;
+};
+
+/* Reports the cel pixels that match the color of (x, y) (see FillOptions; by default the
+ * 4-connected region of exactly that color), in row-major order. The cel is only read, so the
+ * callback may edit it. Returns false (reporting nothing) if (x, y) is out of bounds. */
+bool raster_flood_fill(const Cel &cel, int x, int y, const RasterPlotFn &plot,
+                       const FillOptions &options = FillOptions());
 
 #endif

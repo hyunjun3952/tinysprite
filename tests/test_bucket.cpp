@@ -50,6 +50,50 @@ TEST(fills_the_connected_region_only)
     expect_rows(c, golden);
 }
 
+TEST(a_global_fill_takes_every_pixel_of_the_color_not_just_the_connected_ones)
+{
+    History h;
+    Cel c(W, H);
+    build_wall(h, c);
+    FillOptions options;
+    options.contiguous = false;
+    ASSERT_TRUE(bucket_fill(h, c, 0, 0, BLUE, Symmetry{}, options));
+    const char *golden[H] = {"bbrbbb", "bbrbbb", "bbrbbb", "bbrbbb"};
+    expect_rows(c, golden);
+    ASSERT_TRUE(h.undo()); /* still one undo step */
+    const char *after_undo[H] = {"..r...", "..r...", "..r...", "..r..."};
+    expect_rows(c, after_undo);
+}
+
+TEST(a_tolerance_takes_colors_close_to_the_clicked_one)
+{
+    History h;
+    Cel c(W, H);
+    build_wall(h, c);
+    c.set(3, 0, Rgba{250, 5, 0, 255}); /* almost the wall's red, next to it */
+    c.set(4, 0, Rgba{200, 0, 0, 255}); /* further off */
+    ASSERT_TRUE(bucket_fill(h, c, 2, 1, BLUE, Symmetry{}));
+    ASSERT_TRUE(c.get(3, 0).r == 250); /* exact match only: the near red stays */
+    ASSERT_TRUE(h.undo());
+    FillOptions options;
+    options.tolerance = 10;
+    ASSERT_TRUE(bucket_fill(h, c, 2, 1, BLUE, Symmetry{}, options));
+    ASSERT_TRUE(c.get(3, 0).b == 255 && c.get(3, 0).r == 0); /* within 10 of the wall: filled */
+    ASSERT_TRUE(c.get(4, 0).r == 200);                       /* 55 off: left alone */
+}
+
+TEST(a_tolerance_counts_the_alpha_too)
+{
+    History h;
+    Cel c(W, H);
+    c.set(0, 0, Rgba{255, 0, 0, 255});
+    c.set(1, 0, Rgba{255, 0, 0, 200}); /* the same red, 55 less opaque */
+    FillOptions options;
+    options.tolerance = 10;
+    ASSERT_TRUE(bucket_fill(h, c, 0, 0, BLUE, Symmetry{}, options));
+    ASSERT_TRUE(c.get(1, 0).a == 200);
+}
+
 TEST(fill_is_one_undo_step)
 {
     History h;
@@ -147,6 +191,9 @@ TEST(mirror_x_with_four_corners_fills_four_regions)
 int main()
 {
     RUN(fills_the_connected_region_only);
+    RUN(a_global_fill_takes_every_pixel_of_the_color_not_just_the_connected_ones);
+    RUN(a_tolerance_takes_colors_close_to_the_clicked_one);
+    RUN(a_tolerance_counts_the_alpha_too);
     RUN(fill_is_one_undo_step);
     RUN(filling_with_the_same_color_records_nothing);
     RUN(fill_replaces_with_transparent_too);

@@ -417,7 +417,8 @@ std::unique_ptr<Drag> fillBucket(Editor &editor, Cel *cel, int cx, int cy)
     if (cel->inBounds(cx, cy)) {
         editor.recordRecent(color);
     }
-    if (bucket_fill(editor.history(), *cel, cx, cy, color, editor.options().symmetry)) {
+    if (bucket_fill(editor.history(), *cel, cx, cy, color, editor.options().symmetry,
+                    editor.options().fill())) {
         editor.markAllDirty();
     }
     return nullptr;
