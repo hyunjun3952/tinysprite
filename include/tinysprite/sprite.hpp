@@ -20,8 +20,11 @@ inline constexpr int SLICE_NAME_MAX = 63; /* bytes */
 inline constexpr int FRAME_DURATION_DEFAULT = 100; /* milliseconds */
 inline constexpr int FRAME_DURATION_MAX = 65535;
 
-/* The most frames one sprite may have: the timeline shows a column per frame and ImGui tables stop
- * at 511 columns. Operations, the .pxa reader and the GIF import stay within it. */
+/*
+ * The most frames one sprite may have. The timeline is an ImGui table with a column per frame plus
+ * one for the layer names, and a table has at most 512 columns. Operations, the .pxa reader and
+ * the GIF import stay within it.
+ */
 inline constexpr int SPRITE_MAX_FRAMES = 500;
 
 /* The most memory the cels of one sprite may take: width x height x 4 bytes for every layer and
@@ -144,21 +147,27 @@ class Sprite
      * of range or a tile the tileset does not have. */
     bool setTile(int map, int x, int y, uint32_t cell);
 
-    /* A blank frame with the default duration, and a deep copy of `frame` (null cels if it is out
-     * of range), both shaped for this sprite's layers. */
+    /*
+     * A blank frame with the default duration, and a deep copy of the frame at `index` (blank
+     * cels and the default duration if `index` is out of range), both with a cel for every layer.
+     */
     Frame makeFrame() const;
     Frame copyFrame(int index) const;
 
-    /* Inserts `frame` so it ends up at `index`, shifting the later frames up. Returns false (and
-     * leaves `frame` untouched) if index is outside 0..frameCount, or frame has no cel per layer
-     * or an invalid duration. */
-    bool insertFrame(int index, Frame frame);
+    /*
+     * Inserts `frame` so it ends up at `index`, shifting the later frames up. Returns false, and
+     * leaves `frame` as it was (the caller may try again), if index is outside 0..frameCount, the
+     * sprite already has SPRITE_MAX_FRAMES frames, the duration is invalid, or the frame has no
+     * cel of this sprite's size for a layer.
+     */
+    bool insertFrame(int index, Frame &&frame);
 
     /* Takes the frame at `index` out and hands it to the caller (its cels stay valid). Nothing if
      * index is out of range or it is the only frame. */
     std::optional<Frame> detachFrame(int index);
 
-    /* Moves the frame at `from` so it ends up at `to`. Returns false if either is out of range. */
+    /* Moves the frame at `from` so it ends up at `to`. Returns false if either is out of range.
+     * The tags stay where they are: only inserting and removing frames adjusts them. */
     bool moveFrame(int from, int to);
 
     Palette &palette()
@@ -175,7 +184,8 @@ class Sprite
         return static_cast<int>(layers_.size());
     }
 
-    /* Whether `moreLayers` layers and `moreFrames` frames more would still fit the cel budget. */
+    /* Whether `moreLayers` layers and `moreFrames` frames more would still fit the cel budget and
+     * SPRITE_MAX_FRAMES. */
     bool fitsCels(int moreLayers, int moreFrames) const;
 
     /* Replaces the cel budget (SPRITE_MAX_CEL_BYTES by default); a sprite already over it keeps

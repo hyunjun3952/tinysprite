@@ -47,19 +47,20 @@ class Clip
     friend bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, int x,
                              int y, HistoryAction also);
 
-    /* Draws the opaque pixels with their top-left corner at (x, y); those landing outside the cel
-     * are skipped. */
+    /* Draws the pixels that are not fully transparent, as they are (no blending), with their
+     * top-left corner at (x, y); those landing outside the cel are skipped. */
     void writeTo(History &history, const Cel &cel, int x, int y) const;
 
     int width_, height_;
     std::vector<Rgba> pixels_; /* row-major, width * height */
 };
 
-/* Writes the clip with its top-left corner at (x, y) as one undo step: opaque pixels land over
- * whatever is there, transparent ones leave the destination alone, and pixels outside the cel are
- * skipped. Returns true on success (including a paste that changed nothing), false if a stroke is
- * active. `also` runs along with the undo / redo of the step (History::endStroke), for state that
- * moves with the pixels, such as the selection. */
+/* Writes the clip with its top-left corner at (x, y) as one undo step: pixels that are not fully
+ * transparent replace whatever is there as they are (no blending), fully transparent ones leave
+ * the destination alone, and pixels outside the cel are skipped. Returns true on success (including
+ * a paste that changed nothing), false if a stroke is active. `also` runs along with the undo /
+ * redo of the step (History::endStroke), for state that moves with the pixels, such as the
+ * selection. */
 bool clip_paste(History &history, Cel &cel, const Clip &clip, int x, int y,
                 HistoryAction also = {});
 

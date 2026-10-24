@@ -386,8 +386,11 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
     barCutOff_ = false; /* set again below while the bar is drawn */
     ImGui::SetNextWindowPos(ImVec2(x, y));
     ImGui::SetNextWindowSize(ImVec2(width, height));
-    /* No scrollbar, so a narrow window cuts the controls off cleanly; Shift + wheel (or a sideways
-     * wheel) still scrolls them. */
+    /*
+     * No scrollbar: a narrow window cuts the controls off, and barCutMark covers the cut with a
+     * chevron that scrolls the bar on when clicked. Shift + wheel (or a sideways wheel) scrolls
+     * too.
+     */
     constexpr ImGuiWindowFlags FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                        ImGuiWindowFlags_NoSavedSettings |
                                        ImGuiWindowFlags_NoBringToFrontOnFocus;

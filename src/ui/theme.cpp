@@ -24,8 +24,9 @@ constexpr float HEX_HASH_SCALE = 1.4f; /* the # of the hex field, times the text
 constexpr float ROUND_SMALL = 6.0f; /* buttons, inputs */
 constexpr float ROUND_CARD = 8.0f;  /* popups, child areas */
 
-/* The one UI scale, set at startup. */
-float uiScale = 1.0f;        // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/* The UI scale in use: requestedScale, or less when cap_scale fitted it to the display. */
+float uiScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/* The scale last passed to setScale: what the user chose, and what is saved. */
 float requestedScale = 1.0f; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /* The fill of a slider field: lifts while hovered and again while dragged. */

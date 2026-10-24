@@ -10,9 +10,10 @@
 #include "tinysprite/rect.hpp"
 
 /* A non-pixel edit with its own undo / redo (layer operations). The callables are destroyed
- * exactly once when the step is dropped (a new edit discards it from the redo side, or the history
- * goes away), so state they own is released with them. That must not touch objects other steps
- * refer to, since steps are dropped oldest-first. Either callable may be empty. */
+ * exactly once when the step is dropped (a new edit discards it from the redo side, the history's
+ * limit drops it as one of the oldest, forgetCel removes it, or the history goes away), so state
+ * they own is released with them. That must not touch objects other steps refer to, since steps
+ * are dropped oldest-first. Either callable may be empty. */
 struct HistoryAction {
     std::function<void()> undo;
     std::function<void()> redo;
@@ -31,7 +32,7 @@ inline constexpr size_t HISTORY_MAX_BYTES = size_t{512} << 20;
 class History
 {
   public:
-    /* Starts a stroke on `cel`. Returns false if a stroke is already active. */
+    /* Starts a stroke on `cel`. Returns false if a stroke or a group is already open. */
     bool beginStroke(Cel &cel);
 
     /* Writes a pixel into the active stroke's cel and records the delta. Writing the color a pixel

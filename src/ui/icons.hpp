@@ -51,8 +51,10 @@ unsigned codepoint(Icon icon);
  * the Folder and the Slice (their glyphs are not in the font subset). */
 bool is_drawn(Icon icon);
 
-/* The pixel size an icon glyph is drawn at for a UI scale: 20 px at scale 1, whole pixels so the
- * strokes stay on the pixel grid. */
+/*
+ * The nominal pixel size of an icon glyph for a UI scale: 20 px at scale 1, in whole pixels so
+ * the strokes stay on the pixel grid. draw() adjusts it per icon (fitted_glyph_size).
+ */
 float glyph_size(float uiScale);
 
 /* The longer side of an icon's ink at scale 1, in pixels. The font draws the bucket 17 px long and

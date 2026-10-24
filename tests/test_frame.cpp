@@ -68,6 +68,19 @@ TEST(insert_frame_rejects_bad_input)
     ASSERT_EQ_INT(1, s.frameCount());
 }
 
+TEST(a_refused_insert_leaves_the_frame_with_the_caller)
+{
+    /* Slot::attach() tries again with the same frame, so a refusal must not take its cels. */
+    Sprite s(2, 2);
+    Sprite::Frame frame = s.makeFrame();
+    std::shared_ptr<Cel> first = frame.cels[0];
+    ASSERT_TRUE(!s.insertFrame(5, std::move(frame)));
+    ASSERT_EQ_INT(1, static_cast<int>(frame.cels.size()));
+    ASSERT_TRUE(frame.cels[0] == first);
+    ASSERT_TRUE(s.insertFrame(1, std::move(frame)));
+    ASSERT_EQ_INT(2, s.frameCount());
+}
+
 TEST(copy_frame_is_a_deep_copy_with_the_duration)
 {
     Sprite s(2, 2);
@@ -142,6 +155,7 @@ int main()
     RUN(new_sprite_has_one_frame_with_default_duration);
     RUN(duration_is_limited);
     RUN(insert_frame_adds_a_cel_to_every_layer);
+    RUN(a_refused_insert_leaves_the_frame_with_the_caller);
     RUN(insert_frame_in_the_middle_keeps_order);
     RUN(insert_frame_rejects_bad_input);
     RUN(copy_frame_is_a_deep_copy_with_the_duration);

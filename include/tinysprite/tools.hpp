@@ -127,10 +127,13 @@ struct ShapeStyle {
     bool brush_round = false;
 };
 
-/* Where a shape dragged from `anchor` to `to` ends when it is held to even proportions (Shift): a
- * line snaps to the nearest of horizontal, vertical and 45 degrees; every other shape gets a square
- * box (so the rectangle is a square, the ellipse a circle) whose side is the longer of the two
- * drag distances. */
+/*
+ * Where a shape dragged from `anchor` to `to` ends when it is held to even proportions (Shift).
+ * A line becomes horizontal when the drag is more than twice as wide as it is tall, vertical when
+ * it is more than twice as tall as wide, and 45 degrees otherwise. Every other shape gets a
+ * square box (so the rectangle is a square, the ellipse a circle) whose side is the longer of
+ * the two drag distances.
+ */
 ToolPoint shape_constrain(ShapeKind kind, ToolPoint anchor, ToolPoint to);
 
 /* Draws the shape spanning `from`-`to` as one undo step. Pixels outside the cel are skipped.

@@ -74,8 +74,9 @@ std::optional<Tileset> tileset_from_cel(const Cel &cel, Rect area, int tileWidth
                                         const std::string &name);
 
 /* The map drawn as one picture of (columns x tile width) x (rows x tile height) pixels; empty
- * cells stay transparent. Returns nothing if the map does not fit the tileset or the picture would
- * be wider or taller than CEL_MAX_DIMENSION. */
+ * cells stay transparent. `tileset` is the one the map refers to; the map's own tileset index (its
+ * slot in the sprite) is not used. Returns nothing if the grid is not valid or a cell names a tile
+ * the tileset does not have, or the picture would be wider or taller than CEL_MAX_DIMENSION. */
 std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map);
 
 #endif

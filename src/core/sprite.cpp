@@ -123,7 +123,7 @@ Sprite::Frame Sprite::copyFrame(int index) const
     return frame;
 }
 
-bool Sprite::insertFrame(int index, Frame frame)
+bool Sprite::insertFrame(int index, Frame &&frame)
 {
     if (index < 0 || index > frameCount_ || frameCount_ >= SPRITE_MAX_FRAMES ||
         frame.cels.size() != layers_.size() || frame.duration < 1 ||

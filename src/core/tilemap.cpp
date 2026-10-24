@@ -36,6 +36,17 @@ bool gridOk(int size)
     return size >= 1 && size <= TILEMAP_MAX_DIMENSION;
 }
 
+/* Whether the grid is a legal size with one cell per tile, each cell empty or a tile number + 1 of
+ * a tileset with `tileCount` tiles. Does not look at which tileset the map refers to. */
+bool gridFits(const TileMap &map, int tileCount)
+{
+    return gridOk(map.columns) && gridOk(map.rows) &&
+           map.cells.size() == static_cast<size_t>(map.columns) * static_cast<size_t>(map.rows) &&
+           std::all_of(
+               map.cells.begin(), map.cells.end(),
+               [tiles = static_cast<uint32_t>(tileCount)](uint32_t cell) { return cell <= tiles; });
+}
+
 } // namespace
 
 bool tileset_valid(const Tileset &tileset)
@@ -47,14 +58,10 @@ bool tileset_valid(const Tileset &tileset)
 
 bool tilemap_valid(const TileMap &map, const std::vector<Tileset> &tilesets)
 {
-    if (!gridOk(map.columns) || !gridOk(map.rows) || map.tileset < 0 ||
-        map.tileset >= static_cast<int>(tilesets.size()) ||
-        map.cells.size() != static_cast<size_t>(map.columns) * static_cast<size_t>(map.rows)) {
+    if (map.tileset < 0 || map.tileset >= static_cast<int>(tilesets.size())) {
         return false;
     }
-    auto tiles = static_cast<uint32_t>(tilesets[static_cast<size_t>(map.tileset)].tileCount());
-    return std::all_of(map.cells.begin(), map.cells.end(),
-                       [tiles](uint32_t cell) { return cell <= tiles; });
+    return gridFits(map, tilesets[static_cast<size_t>(map.tileset)].tileCount());
 }
 
 bool tile_data_valid(const std::vector<Tileset> &tilesets, const std::vector<TileMap> &maps)
@@ -121,7 +128,7 @@ void drawTile(Cel &picture, const Tileset &tileset, int tile, int x, int y)
 
 std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map)
 {
-    if (!tileset_valid(tileset) || !tilemap_valid(map, {tileset})) {
+    if (!tileset_valid(tileset) || !gridFits(map, tileset.tileCount())) {
         return std::nullopt;
     }
     long long width = static_cast<long long>(map.columns) * tileset.tileWidth;

@@ -115,6 +115,18 @@ TEST(rendering_draws_each_cell_with_its_tile)
     ASSERT_TRUE(picture.get(5, 1) == GREEN);
 }
 
+TEST(rendering_does_not_depend_on_which_tileset_slot_the_map_refers_to)
+{
+    /* The caller hands over the tileset the map refers to, whatever its index in the sprite. */
+    Tileset ts = two_tiles();
+    TileMap map = tilemap_blank("m", 3, 2, 1);
+    map.cells = {2, 1};
+    Cel picture = must_have(tilemap_render(ts, map));
+    ASSERT_EQ_INT(4, picture.width());
+    ASSERT_TRUE(picture.get(0, 0) == GREEN);
+    ASSERT_TRUE(picture.get(2, 1) == RED);
+}
+
 TEST(rendering_refuses_a_map_that_does_not_fit)
 {
     Tileset ts = two_tiles();
@@ -172,6 +184,7 @@ int main()
     RUN(a_blank_map_has_empty_cells_and_checks_its_size);
     RUN(a_map_is_valid_only_for_tiles_that_exist);
     RUN(rendering_draws_each_cell_with_its_tile);
+    RUN(rendering_does_not_depend_on_which_tileset_slot_the_map_refers_to);
     RUN(rendering_refuses_a_map_that_does_not_fit);
     RUN(a_sprite_keeps_tilesets_and_maps_that_fit_together);
     RUN(a_sprite_refuses_tile_data_that_does_not_fit_and_keeps_what_it_had);
