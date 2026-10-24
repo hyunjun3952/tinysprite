@@ -1,5 +1,4 @@
 #include "app.hpp"
-#include "window_size.hpp"
 
 #include <algorithm>
 #include <cstdio>

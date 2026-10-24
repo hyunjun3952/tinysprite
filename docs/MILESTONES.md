@@ -98,7 +98,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   tree (`app/file_browser_ui.cpp`): a folder's name picks it as the place to save to, its arrow opens it, a double click on
   a file in a dialog that reads opens it. The search goes 6 levels deep (300 hits); "Expand all" opens up to 4 levels (400
   folders). Hidden names are left out.
-- **Narrow windows**: the window opens inside the display's usable area with a minimum size (`window_size.hpp`); docked
+- **Narrow windows**: the window opens inside the display's usable area with a minimum size (`settings.hpp`); docked
   panels are drawn narrower so the canvas keeps `PANELS_CANVAS_MIN`; the timeline scrolls sideways; the options bar has no
   scrollbar but marks a cut with a chevron (click it, or Shift + wheel, to scroll). A saved or detected UI scale is capped
   to what the display can hold (`window_max_scale`); an explicit `--scale` is taken as given.

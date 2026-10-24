@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <optional>
 
-#include "slice_overlay.hpp"
 #include "theme.hpp"
 
 namespace
@@ -73,6 +72,93 @@ ImVec2 loupePosition(ImVec2 mouse, ImVec2 origin, ImVec2 avail)
         y, origin.y + LOUPE_PAD,
         std::max(origin.y + avail.y - LOUPE_SIZE - LOUPE_LABEL - LOUPE_PAD, origin.y + LOUPE_PAD));
     return {x, y};
+}
+
+constexpr ImU32 COLOR_SLICE = theme::overlay::SLICE; /* an unselected slice */
+constexpr ImU32 COLOR_SELECTED =
+    theme::overlay::SLICE_SELECTED; /* the selected one, and a new one */
+constexpr ImU32 COLOR_PIVOT = theme::overlay::SLICE_PIVOT;
+constexpr ImU32 COLOR_SHADOW = theme::overlay::SLICE_SHADOW;
+constexpr float LABEL_MIN_WIDTH =
+    28.0f; /* no label on a slice that is smaller than this on screen */
+
+struct ScreenBox {
+    ImVec2 min;
+    ImVec2 max;
+};
+
+ScreenBox boxOf(const Editor &editor, ImVec2 origin, Rect r)
+{
+    const Viewport &view = editor.view().viewport;
+    const ImVec2 min(origin.x + view.celToScreenX(r.x), origin.y + view.celToScreenY(r.y));
+    return {min, ImVec2(min.x + static_cast<float>(r.w) * view.zoom,
+                        min.y + static_cast<float>(r.h) * view.zoom)};
+}
+
+void outline(ImDrawList *draw, const ScreenBox &box, ImU32 color, float thickness)
+{
+    draw->AddRect(ImVec2(box.min.x - 1.0f, box.min.y - 1.0f),
+                  ImVec2(box.max.x + 1.0f, box.max.y + 1.0f), COLOR_SHADOW, 0.0f, 0, thickness);
+    draw->AddRect(box.min, box.max, color, 0.0f, 0, thickness);
+}
+
+/* The name above the top-left corner, on a dark strip so it reads over any pixels. */
+void label(ImDrawList *draw, const ScreenBox &box, const std::string &name, ImU32 color)
+{
+    if (box.max.x - box.min.x < theme::px(LABEL_MIN_WIDTH)) {
+        return;
+    }
+    const ImVec2 size = ImGui::CalcTextSize(name.c_str());
+    const ImVec2 at(box.min.x, box.min.y - size.y - 3.0f);
+    draw->AddRectFilled(ImVec2(at.x - 1.0f, at.y - 1.0f),
+                        ImVec2(at.x + size.x + 3.0f, at.y + size.y + 1.0f),
+                        theme::overlay::SLICE_LABEL_BACKGROUND);
+    draw->AddText(ImVec2(at.x + 1.0f, at.y), color, name.c_str());
+}
+
+/* A plus sign on the pivot: the grid point `pivotX`, `pivotY` cels from the slice's top-left
+ * corner, which is the point the sheet JSON gives (times the export scale). `at` is where the slice
+ * is drawn (it differs from its rectangle while it is being moved). */
+void pivot(ImDrawList *draw, ImVec2 origin, const Editor &editor, const Sprite::Slice &slice,
+           Rect at)
+{
+    const Viewport &view = editor.view().viewport;
+    const float half = std::max(4.0f, view.zoom * 0.5f);
+    const float cx = origin.x + view.celToScreenX(at.x + slice.pivotX);
+    const float cy = origin.y + view.celToScreenY(at.y + slice.pivotY);
+    draw->AddLine(ImVec2(cx - half, cy), ImVec2(cx + half, cy), COLOR_SHADOW, 3.0f);
+    draw->AddLine(ImVec2(cx, cy - half), ImVec2(cx, cy + half), COLOR_SHADOW, 3.0f);
+    draw->AddLine(ImVec2(cx - half, cy), ImVec2(cx + half, cy), COLOR_PIVOT, 1.0f);
+    draw->AddLine(ImVec2(cx, cy - half), ImVec2(cx, cy + half), COLOR_PIVOT, 1.0f);
+}
+
+/* Draws the sprite's slices over the canvas: an outline and the name for each (the selected one in
+ * another color and lightly filled), a cross at a pivot, and the rectangle being dragged out.
+ * `origin` is the top-left of the canvas window; the editor's viewport maps cels to it. */
+void drawSlices(ImDrawList *draw, ImVec2 origin, const Editor &editor)
+{
+    const std::vector<Sprite::Slice> &slices = editor.sprite().slices();
+    for (int i = 0; i < static_cast<int>(slices.size()); i++) {
+        const Sprite::Slice &slice = slices[static_cast<size_t>(i)];
+        const bool selected = i == editor.selectedSlice();
+        const ImU32 color = selected ? COLOR_SELECTED : COLOR_SLICE;
+        /* a slice that is being moved is drawn where the drag has it */
+        const Rect at = editor.sliceMovePreview(i).value_or(slice.rect);
+        const ScreenBox box = boxOf(editor, origin, at);
+        if (selected) {
+            draw->AddRectFilled(box.min, box.max, theme::overlay::SLICE_SELECTED_FILL);
+        }
+        outline(draw, box, color, selected ? 2.0f : 1.0f);
+        label(draw, box, slice.name, color);
+        if (slice.hasPivot) {
+            pivot(draw, origin, editor, slice, at);
+        }
+    }
+    if (const std::optional<Rect> preview = editor.slicePreview()) {
+        const ScreenBox box = boxOf(editor, origin, *preview);
+        draw->AddRectFilled(box.min, box.max, theme::overlay::SLICE_SELECTED_FILL);
+        outline(draw, box, COLOR_SELECTED, 1.0f);
+    }
 }
 
 } // namespace
@@ -387,7 +473,7 @@ void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
     }
     drawSelection(draw, origin);
     if (editor_->overlays().slices) {
-        draw_slices(draw, origin, *editor_);
+        drawSlices(draw, origin, *editor_);
     }
     if (editor_->overlays().cursor) {
         drawHoverOutline(draw, origin);

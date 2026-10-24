@@ -121,7 +121,7 @@ identity) and `CompositeSurface` (the CPU buffer, its texture and the dirty rect
 
 Tools are a table, not switches: `tool.cpp` has one `ToolTraits` row per `ToolKind` (its `ToolGroup` and, for the shape
 tools, which `ShapeKind` it draws), and the editor, canvas and tools panel ask it instead of comparing tool kinds.
-`Editor::press` asks `beginDrag` (`drags.cpp`) for a `Drag`, which picks a factory by the tool's group: pencil, bucket,
+`Editor::press` asks `beginDrag` (`drag.cpp`) for a `Drag`, which picks a factory by the tool's group: pencil, bucket,
 eyedropper, shape, select (which also moves), slice. The editor holds at most one. `Canvas` calls `update` every frame
 while the button is down, then `finish` on release or `cancel` on Esc, which is how one drag becomes exactly one undo
 step.

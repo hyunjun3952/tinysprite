@@ -5,12 +5,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "frame_range.hpp"
-#include "path_util.hpp"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/io.hpp"
 #include "tinysprite/playback.hpp"
-#include "write_error.hpp"
+#include "util.hpp"
 
 namespace
 {
