@@ -75,6 +75,13 @@ TEST(no_two_commands_claim_the_same_keys)
     }
 }
 
+/* The Export submenu lists the three ways out by what they make, not by "Export ..." again: the
+ * submenu is already called Export. */
+TEST(the_export_image_command_is_named_for_what_it_makes)
+{
+    ASSERT_TRUE(std::string(command_of(CommandId::ExportImage).label) == "Image...");
+}
+
 TEST(the_hint_is_derived_from_the_first_shortcut)
 {
     ASSERT_TRUE(command_hint(command(CommandId::New)) == "Ctrl+N");
@@ -179,6 +186,7 @@ int main()
     RUN(every_command_id_has_one_row);
     RUN(rows_are_in_id_order_so_command_of_can_index);
     RUN(no_two_commands_claim_the_same_keys);
+    RUN(the_export_image_command_is_named_for_what_it_makes);
     RUN(the_hint_is_derived_from_the_first_shortcut);
     RUN(the_layer_commands_have_their_own_chords);
     RUN(the_frame_commands_have_their_own_chords);

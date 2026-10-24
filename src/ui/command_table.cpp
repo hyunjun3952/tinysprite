@@ -5,7 +5,7 @@ const Command COMMANDS[COMMAND_COUNT] = {
     {"Open...", nullptr, CommandId::Open, {{ImGuiKey_O}}, false},
     {"Save", nullptr, CommandId::Save, {{ImGuiKey_S, ShiftRule::NotHeld}}, false},
     {"Save as...", nullptr, CommandId::SaveAs, {{ImGuiKey_S, ShiftRule::Held}}, false},
-    {"Export image...", nullptr, CommandId::ExportImage, {{ImGuiKey_E}}, false},
+    {"Image...", nullptr, CommandId::ExportImage, {{ImGuiKey_E}}, false},
     {"Undo",
      nullptr,
      CommandId::Undo,

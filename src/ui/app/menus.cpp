@@ -142,6 +142,8 @@ void App::editMenu()
     if (ImGui::MenuItem("Clear", "Delete", false, selected)) {
         editor_->deleteSelection();
     }
+    theme::tip("Clear the selected pixels. The Delete key does this unless the layer list has "
+               "focus.");
     theme::why_disabled(selected, SELECT_FIRST);
     selectionMenu();
     ImGui::EndMenu();
@@ -153,9 +155,11 @@ void App::layerEditItems()
     commandItem(CommandId::NewLayer);
     commandItem(CommandId::DuplicateLayer);
     const bool removable = editor_->canRemoveSelectedLayers();
-    if (ImGui::MenuItem("Delete layer...", "Delete", false, removable)) {
+    if (ImGui::MenuItem("Delete layer...", nullptr, false, removable)) {
         layersPanel_->askToDelete();
     }
+    theme::tip("Delete the selected layers, after asking. The Delete key does this while the layer "
+               "list has focus.");
     theme::why_disabled(removable, "A sprite needs at least one layer.");
     ImGui::Separator();
     const bool several = editor_->selectedLayers().size() > 1;
