@@ -168,7 +168,7 @@ class Editor
         bool tilemap_window = false; /* the tilemap editor window; not remembered */
         bool slices = true;   /* the outlines, names and pivots of the slices on the canvas */
         bool timeline = true; /* the timeline strip along the bottom of the window */
-        float timeline_height = 246.0f;      /* at UI scale 1; set by dragging its top edge */
+        float timeline_height = 214.0f;      /* at UI scale 1; set by dragging its top edge */
         bool options_bar = true;             /* the options of the active tool, above the canvas */
         unsigned status_items = 0x7FFFFFFFu; /* a bit per StatusItem (statusbar.hpp): which show */
     };

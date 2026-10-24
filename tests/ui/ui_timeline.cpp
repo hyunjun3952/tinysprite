@@ -1,8 +1,10 @@
 /* The timeline driven with synthetic input: cels select their frame and layer, frame numbers move
  * frames, and the buttons edit them. */
+
 #include <memory>
 
 #include "editor.hpp"
+
 #include "minitest.hpp"
 #include "timeline_panel.hpp"
 #include "ui_harness.hpp"
@@ -40,6 +42,34 @@ struct Fixture {
 };
 
 } // namespace
+
+/* The strip starts compact so the canvas keeps the room: two layers fit under the controls with
+ * the bottom padding a scrollbar-free grid needs (measured on the app at 214: a row ending 11 px
+ * above the edge scrolled, 15 px did not), and a third does not, so no height is spent on an empty
+ * grid. */
+TEST(the_default_height_fits_two_layers_and_no_more)
+{
+    constexpr float PADDING = 14.0f; /* what a row's bottom needs below it not to scroll */
+    constexpr float TOP = 500.0f;    /* where the fixture places the strip */
+    Fixture f;
+    f.editor->addLayer();
+    for (int i = 0; i < 3; i++) {
+        f.h.frame(0.0f, 0.0f, false);
+    }
+    ASSERT_TRUE(TimelinePanel::BASE_HEIGHT <= 220.0f);
+    ASSERT_TRUE(f.timeline->cellRect(0, 0).max.y + PADDING <= TOP + TimelinePanel::BASE_HEIGHT);
+    f.editor->addLayer();
+    for (int i = 0; i < 3; i++) {
+        f.h.frame(0.0f, 0.0f, false);
+    }
+    ASSERT_TRUE(f.timeline->cellRect(0, 0).max.y + PADDING > TOP + TimelinePanel::BASE_HEIGHT);
+}
+TEST(the_tag_hint_is_only_for_a_sprite_that_has_tags)
+{
+    ASSERT_TRUE(TimelinePanel::tagHint(0) == nullptr);
+    ASSERT_TRUE(TimelinePanel::tagHint(1) != nullptr);
+    ASSERT_TRUE(TimelinePanel::tagHint(3) != nullptr);
+}
 
 TEST(the_grid_has_a_cel_per_layer_and_frame)
 {
@@ -185,6 +215,8 @@ int main()
     RUN(a_drag_sets_the_height_within_the_limits);
     RUN(a_drag_below_the_hide_limit_folds_the_timeline_and_keeps_its_height);
     RUN(a_window_too_short_for_the_minimum_gets_the_largest_height_that_fits);
+    RUN(the_default_height_fits_two_layers_and_no_more);
+    RUN(the_tag_hint_is_only_for_a_sprite_that_has_tags);
     RUN(the_grid_has_a_cel_per_layer_and_frame);
     RUN(clicking_a_cel_selects_its_frame_and_layer);
     RUN(clicking_a_frame_number_selects_the_frame);

@@ -31,11 +31,15 @@ class TimelinePanel
   public:
     /* The height a new window starts with, the smallest height a drag leaves it, and the height
      * below which a drag folds it away; at UI scale 1. */
-    static constexpr float BASE_HEIGHT = 246.0f;
+    static constexpr float BASE_HEIGHT = 214.0f; /* the controls and two layers, no empty grid */
     static constexpr float MIN_HEIGHT = 96.0f;
     static constexpr float HIDE_BELOW = 60.0f;
 
     explicit TimelinePanel(Editor &editor);
+
+    /* The line beside the "+ Tag" button while no tag is selected: how to pick one, which only a
+     * sprite that has tags (`tagCount`) can use; null for a sprite with none. */
+    static const char *tagHint(size_t tagCount);
 
     /* Shows another document from now on (a tab was picked); what the panel remembers about the
      * old one is dropped. */

@@ -275,6 +275,11 @@ bool TimelinePanel::tagNameField(Sprite::Tag &tag)
     return committed;
 }
 
+const char *TimelinePanel::tagHint(size_t tagCount)
+{
+    return tagCount == 0 ? nullptr : "Click a tag band to edit it or to play just its frames";
+}
+
 /* The third toolbar row: a button that tags the current frame and, for the selected tag, its
  * name, range and direction. */
 void TimelinePanel::tagControls()
@@ -287,9 +292,12 @@ void TimelinePanel::tagControls()
     }
     int selected = editor_->selectedTag();
     if (selected < 0 || selected >= static_cast<int>(sprite.tags().size())) {
-        ImGui::SameLine();
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Click a tag band to edit it or to play just its frames");
+        const char *hint = tagHint(sprite.tags().size());
+        if (hint != nullptr) {
+            ImGui::SameLine();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("%s", hint);
+        }
         tagNameActive_ = false;
         return;
     }
