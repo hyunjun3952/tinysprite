@@ -441,7 +441,7 @@ std::unique_ptr<Drag> beginShape(Editor &editor, Cel *cel, int cx, int cy)
 }
 
 /* The Pan tool starts no drag: the canvas moves the view itself while the button is down. */
-std::unique_ptr<Drag> beginPan(Editor &, Cel *, int, int)
+std::unique_ptr<Drag> beginPan(Editor & /*editor*/, Cel * /*cel*/, int /*cx*/, int /*cy*/)
 {
     return nullptr;
 }
