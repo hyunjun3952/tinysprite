@@ -55,6 +55,22 @@ bool is_drawn(Icon icon);
  * strokes stay on the pixel grid. */
 float glyph_size(float uiScale);
 
+/* The longer side of an icon's ink at scale 1, in pixels. The font draws the bucket 17 px long and
+ * the plus 9 px at the same size, so each glyph is drawn at the size that brings its ink to this
+ * length (ink_fit), within INK_FIT_MIN..INK_FIT_MAX of the nominal size so a tiny glyph such as the
+ * minus sign is not blown up into a heavy one. */
+inline constexpr float INK_TARGET = 15.0f;
+inline constexpr float INK_FIT_MIN = 0.8f;
+inline constexpr float INK_FIT_MAX = 1.5f;
+
+/* The factor to draw a glyph by, so its ink (`inkWidth` x `inkHeight` at the nominal size) gets a
+ * longer side of `target`; 1 when it has no ink. */
+float ink_fit(float inkWidth, float inkHeight, float target);
+
+/* `size` for `icon` after ink_fit, in whole pixels, measured in `font`. The target scales with
+ * `size` (INK_TARGET at the 20 px of scale 1). */
+float fitted_glyph_size(ImFont *font, Icon icon, float size);
+
 /* The glyph size inside a round button: 80% of glyph_size, so the glyph sits comfortably in a
  * circle. */
 float round_glyph_size(float uiScale);

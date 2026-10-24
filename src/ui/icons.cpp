@@ -65,6 +65,26 @@ std::array<char, 4> utf8(unsigned codepoint)
 
 } // namespace
 
+float ink_fit(float inkWidth, float inkHeight, float target)
+{
+    const float longest = std::max(inkWidth, inkHeight);
+    if (!(longest > 0.0f)) {
+        return 1.0f;
+    }
+    return std::clamp(target / longest, INK_FIT_MIN, INK_FIT_MAX);
+}
+
+float fitted_glyph_size(ImFont *font, Icon icon, float size)
+{
+    const ImFontGlyph *glyph =
+        font->GetFontBaked(size)->FindGlyph(static_cast<ImWchar>(codepoint(icon)));
+    if (glyph == nullptr || !glyph->Visible) {
+        return size;
+    }
+    const float target = INK_TARGET * size / GLYPH_SIZE_BASE;
+    return std::round(size * ink_fit(glyph->X1 - glyph->X0, glyph->Y1 - glyph->Y0, target));
+}
+
 unsigned codepoint(Icon icon)
 {
     return CODEPOINTS[static_cast<size_t>(icon)];
@@ -147,10 +167,12 @@ void drawSliceIcon(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
 namespace
 {
 
-/* The glyph of `icon` at `size` pixels, centered in [min, max] by its ink. */
+/* The glyph of `icon` at about `size` pixels (see fitted_glyph_size), centered in [min, max] by its
+ * ink. */
 void drawGlyph(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color, float size)
 {
     ImFont *font = ImGui::GetFont();
+    size = fitted_glyph_size(font, icon, size);
     const ImFontGlyph *glyph =
         font->GetFontBaked(size)->FindGlyph(static_cast<ImWchar>(codepoint(icon)));
     if (glyph == nullptr || !glyph->Visible) {
