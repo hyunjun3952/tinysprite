@@ -7,8 +7,10 @@ if(WIN32)
   target_link_libraries(tinysprite_test_support INTERFACE -mconsole)
 endif()
 
-# One executable per test file: tests/test_<name>.cpp -> ctest "<name>"
-file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp)
+# One executable per test file: tests/test_<name>.cpp -> ctest "<name>". A group of four or more files
+# with one feature prefix lives in a folder of that name (tests/tilemap/test_tilemap_*.cpp); the folder
+# does not change the ctest name, so test file names stay unique across the tree.
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp)
 foreach(src ${TEST_SOURCES})
   get_filename_component(base ${src} NAME_WE)
   string(REGEX REPLACE "^test_" "" name ${base})
@@ -18,13 +20,14 @@ foreach(src ${TEST_SOURCES})
   add_test(NAME ${name} COMMAND ${base})
 endforeach()
 
-# UI tests: tests/ui/ui_<name>.cpp -> ctest "ui_<name>". They need SDL, on the dummy video driver (no display).
+# UI tests: tests/ui/ui_<name>.cpp (or tests/ui/<group>/ui_<name>.cpp) -> ctest "ui_<name>". They need SDL,
+# on the dummy video driver (no display).
 if(TINYSPRITE_BUILD_UI)
-  file(GLOB UI_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ui/ui_*.cpp)
+  file(GLOB_RECURSE UI_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ui/ui_*.cpp)
   foreach(src ${UI_TEST_SOURCES})
     get_filename_component(base ${src} NAME_WE)
     add_executable(test_${base} ${src})
-    target_include_directories(test_${base} PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/thirdparty/imgui)
+    target_include_directories(test_${base} PRIVATE ${PROJECT_SOURCE_DIR}/src/ui ${PROJECT_SOURCE_DIR}/thirdparty/imgui ${CMAKE_CURRENT_SOURCE_DIR}/ui)
     target_link_libraries(test_${base} PRIVATE tinysprite_ui tinysprite_test_support)
     add_test(NAME ${base} COMMAND test_${base})
     set_tests_properties(${base} PROPERTIES ENVIRONMENT "SDL_VIDEODRIVER=dummy")

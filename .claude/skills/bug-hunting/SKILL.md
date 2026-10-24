@@ -39,7 +39,7 @@ Say the scope back in one line. A big scope is split by module and done one at a
 
 **Target files are fixed to three groups; nothing else is read for bugs, even if the request names a wider area:**
 
-- Test code: `tests/*.cpp`, `tests/ui/*.cpp`, and the test helpers they include (`tests/minitest.hpp`, `tests/ui/*.hpp`).
+- Test code: `tests/**/*.cpp` (feature groups live in folders such as `tests/tilemap/`, `tests/ui/editor/`), and the test helpers they include (`tests/minitest.hpp`, `tests/ui/*.hpp`).
 - Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,hpp}` and the public headers in `include/tinysprite/*.hpp`.
 
 Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
