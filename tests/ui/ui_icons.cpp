@@ -10,19 +10,19 @@
 #include "theme.hpp"
 #include "ui_harness.hpp"
 
-/* Material Symbols has no plain rhombus (its "diamond" is a gem), so that icon is drawn with lines
- * and has no codepoint, and so is the folder (it would need a glyph added to the font subset);
- * every other icon is a glyph. */
-TEST(the_diamond_the_folder_and_the_slice_are_the_drawn_icons)
+/* The 14 tool and shape icons are bitmaps and the folder is drawn with lines (it would need a glyph
+ * added to the font subset); they have no codepoint, every other icon is a glyph. */
+TEST(the_tool_and_shape_bitmaps_and_the_folder_are_the_drawn_icons)
 {
     int drawn = 0;
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
         drawn += icons::is_drawn(static_cast<icons::Icon>(i)) ? 1 : 0;
     }
-    ASSERT_EQ_INT(3, drawn);
+    ASSERT_EQ_INT(15, drawn);
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Diamond));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Folder));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Slice));
+    ASSERT_TRUE(!icons::is_drawn(icons::Icon::Eye));
 }
 
 TEST(every_icon_has_its_own_private_use_codepoint_except_the_drawn_ones)
@@ -120,7 +120,7 @@ TEST(a_disabled_icon_button_shows_a_blocked_cursor_and_no_tooltip)
 
 int main()
 {
-    RUN(the_diamond_the_folder_and_the_slice_are_the_drawn_icons);
+    RUN(the_tool_and_shape_bitmaps_and_the_folder_are_the_drawn_icons);
     RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_ones);
     RUN(every_icon_glyph_is_in_the_embedded_font);
     RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);

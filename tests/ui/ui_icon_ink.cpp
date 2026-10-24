@@ -2,6 +2,7 @@
  * ink of the bucket is 17 px and the plus is 9 px. Each icon is drawn at the size that brings the
  * longer side of its ink to the same length, within limits, so the icons read as one set. */
 #include <algorithm>
+#include <cstring>
 
 #include "icons.hpp"
 #include "imgui.h"
@@ -49,10 +50,68 @@ TEST(every_glyph_icon_has_about_the_same_ink_length_at_every_scale)
     ImGui::DestroyContext();
 }
 
+/* The tool icons are bitmaps on one 16 x 16 grid, so their size does not depend on a font. */
+static bool tool_icon(icons::Icon icon)
+{
+    return icons::bitmap(icon) != nullptr;
+}
+
+TEST(only_the_tool_and_shape_icons_are_bitmaps)
+{
+    ASSERT_TRUE(tool_icon(icons::Icon::Pencil));
+    ASSERT_TRUE(tool_icon(icons::Icon::Slice));
+    ASSERT_TRUE(tool_icon(icons::Icon::Diamond));
+    ASSERT_TRUE(!tool_icon(icons::Icon::Eye));
+    ASSERT_TRUE(!tool_icon(icons::Icon::Folder));
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Pencil));
+}
+
+TEST(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box)
+{
+    int bitmaps = 0;
+    for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
+        const icons::Bitmap *bitmap = icons::bitmap(static_cast<icons::Icon>(i));
+        if (bitmap == nullptr) {
+            continue;
+        }
+        bitmaps++;
+        int x0 = icons::BITMAP_SIZE;
+        int y0 = icons::BITMAP_SIZE;
+        int x1 = -1;
+        int y1 = -1;
+        for (int y = 0; y < icons::BITMAP_SIZE; y++) {
+            ASSERT_EQ_INT(icons::BITMAP_SIZE, static_cast<int>(std::strlen(bitmap->rows[y])));
+            for (int x = 0; x < icons::BITMAP_SIZE; x++) {
+                if (bitmap->rows[y][x] == '#') {
+                    x0 = std::min(x0, x);
+                    y0 = std::min(y0, y);
+                    x1 = std::max(x1, x);
+                    y1 = std::max(y1, y);
+                }
+            }
+        }
+        ASSERT_TRUE(x1 >= 0);
+        ASSERT_TRUE(std::max(x1 - x0, y1 - y0) + 1 >= 11);
+        ASSERT_TRUE(std::max(x1 - x0, y1 - y0) + 1 <= 14);
+    }
+    ASSERT_EQ_INT(14, bitmaps);
+}
+
+TEST(a_bitmap_cell_is_a_whole_number_of_pixels_and_at_least_one)
+{
+    ASSERT_TRUE(icons::bitmap_cell(1.0f) == 1.0f);
+    ASSERT_TRUE(icons::bitmap_cell(1.5f) == 2.0f);
+    ASSERT_TRUE(icons::bitmap_cell(2.0f) == 2.0f);
+    ASSERT_TRUE(icons::bitmap_cell(0.5f) == 1.0f);
+}
+
 int main()
 {
     RUN(the_fit_brings_the_longer_side_to_the_target);
     RUN(the_fit_is_limited_so_a_tiny_glyph_is_not_blown_up);
     RUN(every_glyph_icon_has_about_the_same_ink_length_at_every_scale);
+    RUN(only_the_tool_and_shape_icons_are_bitmaps);
+    RUN(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box);
+    RUN(a_bitmap_cell_is_a_whole_number_of_pixels_and_at_least_one);
     return TEST_SUMMARY();
 }

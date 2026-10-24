@@ -24,26 +24,26 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0xe14d, /* Copy: content_copy */
     0xe92e, /* Trash: delete */
     0xe258, /* Merge: vertical_align_bottom */
-    0xf41e, /* Line: diagonal_line */
-    0xe3c6, /* Rect: crop_square */
-    0xe836, /* Ellipse: radio_button_unchecked */
-    0xe86b, /* Triangle: change_history */
-    0,      /* Diamond: drawn with lines, Material Symbols has no plain rhombus */
-    0xeb39, /* Hexagon: hexagon */
-    0xf09a, /* Star: star */
-    0xf2c3, /* Cross: health_cross */
+    0,      /* Line: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Rect: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Ellipse: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Triangle: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Diamond: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Hexagon: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Star: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Cross: a bitmap (icon_bitmaps.cpp) */
     0xe15b, /* Minus: remove */
     0xe5d5, /* Reset: refresh */
     0xe5d8, /* ArrowUp: arrow_upward */
     0xe5db, /* ArrowDown: arrow_downward */
-    0xf097, /* Pencil: edit */
-    0xe6d0, /* Eraser: ink_eraser */
-    0xe23a, /* Bucket: format_color_fill */
-    0xe3b8, /* Eyedropper: colorize */
-    0xef52, /* Select: highlight_alt */
+    0,      /* Pencil: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Eraser: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Bucket: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Eyedropper: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Select: a bitmap (icon_bitmaps.cpp) */
     0xe8d4, /* Swap: swap_horiz */
     0,      /* Folder: drawn with lines */
-    0,      /* Slice: drawn with lines */
+    0,      /* Slice: a bitmap (icon_bitmaps.cpp) */
 };
 
 constexpr float ROUND = 6.0f;
@@ -92,7 +92,12 @@ unsigned codepoint(Icon icon)
 
 bool is_drawn(Icon icon)
 {
-    return icon == Icon::Diamond || icon == Icon::Folder || icon == Icon::Slice;
+    return icon == Icon::Folder || bitmap(icon) != nullptr;
+}
+
+float bitmap_cell(float uiScale)
+{
+    return std::max(1.0f, std::round(uiScale));
 }
 
 float glyph_size(float uiScale)
@@ -109,18 +114,6 @@ ImVec2 glyph_origin(ImVec2 min, ImVec2 max, float x0, float y0, float x1, float 
 {
     return {std::floor((min.x + max.x) / 2.0f - (x0 + x1) / 2.0f),
             std::floor((min.y + max.y) / 2.0f - (y0 + y1) / 2.0f)};
-}
-
-/* A rhombus outline, as thick as a Material Symbols stroke at the same size. */
-void drawDiamond(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
-{
-    const float size = glyph_size(theme::scale());
-    const float half = std::round(size * 0.36f);
-    const float cx = std::floor((min.x + max.x) / 2.0f) + 0.5f;
-    const float cy = std::floor((min.y + max.y) / 2.0f) + 0.5f;
-    const ImVec2 points[4] = {ImVec2(cx, cy - half), ImVec2(cx + half, cy), ImVec2(cx, cy + half),
-                              ImVec2(cx - half, cy)};
-    list->AddPolyline(points, 4, color, ImDrawFlags_Closed, size * 0.07f);
 }
 
 /* A folder outline (a body with a tab), as thick as a Material Symbols stroke at the same size. */
@@ -143,29 +136,35 @@ void drawFolder(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
     list->AddPolyline(points, 6, color, ImDrawFlags_Closed, size * 0.07f);
 }
 
-/* Four corner brackets around a small square: a rectangle cut out of the picture. */
-void drawSliceIcon(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
-{
-    const float size = glyph_size(theme::scale());
-    const float half = std::round(size * 0.38f);
-    const float arm = std::round(size * 0.22f);
-    const float cx = std::floor((min.x + max.x) / 2.0f) + 0.5f;
-    const float cy = std::floor((min.y + max.y) / 2.0f) + 0.5f;
-    const float thickness = size * 0.07f;
-    for (int sx = -1; sx <= 1; sx += 2) {
-        for (int sy = -1; sy <= 1; sy += 2) {
-            const float x = cx + static_cast<float>(sx) * half;
-            const float y = cy + static_cast<float>(sy) * half;
-            const ImVec2 points[3] = {ImVec2(x - static_cast<float>(sx) * arm, y), ImVec2(x, y),
-                                      ImVec2(x, y - static_cast<float>(sy) * arm)};
-            list->AddPolyline(points, 3, color, ImDrawFlags_None, thickness);
-        }
-    }
-    list->AddRectFilled(ImVec2(cx - 1.5f, cy - 1.5f), ImVec2(cx + 1.5f, cy + 1.5f), color);
-}
-
 namespace
 {
+
+/*
+ * Draws `picture` centered in [min, max], one square per cell of ink, a row of ink as one
+ * rectangle. Every corner is a whole pixel, so the edges are sharp.
+ */
+void drawBitmap(ImDrawList *list, const Bitmap &picture, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    const float cell = bitmap_cell(theme::scale());
+    const float left = std::floor((min.x + max.x) / 2.0f - cell * BITMAP_SIZE / 2.0f);
+    const float top = std::floor((min.y + max.y) / 2.0f - cell * BITMAP_SIZE / 2.0f);
+    for (int y = 0; y < BITMAP_SIZE; y++) {
+        int x = 0;
+        while (x < BITMAP_SIZE) {
+            if (picture.rows[y][x] != '#') {
+                x++;
+                continue;
+            }
+            const int start = x;
+            while (x < BITMAP_SIZE && picture.rows[y][x] == '#') {
+                x++;
+            }
+            const float y0 = top + cell * static_cast<float>(y);
+            list->AddRectFilled(ImVec2(left + cell * static_cast<float>(start), y0),
+                                ImVec2(left + cell * static_cast<float>(x), y0 + cell), color);
+        }
+    }
+}
 
 /* The glyph of `icon` at about `size` pixels (see fitted_glyph_size), centered in [min, max] by its
  * ink. */
@@ -187,16 +186,12 @@ void drawGlyph(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color,
 
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
 {
-    if (icon == Icon::Diamond) {
-        drawDiamond(list, min, max, color);
+    if (const Bitmap *picture = bitmap(icon)) {
+        drawBitmap(list, *picture, min, max, color);
         return;
     }
     if (icon == Icon::Folder) {
         drawFolder(list, min, max, color);
-        return;
-    }
-    if (icon == Icon::Slice) {
-        drawSliceIcon(list, min, max, color);
         return;
     }
     drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));

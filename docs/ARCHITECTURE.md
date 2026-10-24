@@ -140,7 +140,8 @@ the active one with `setEditor`, and `Editor::adoptPreferences` carries the tool
 frame that closes a tab must not free its textures before the frame is rendered: see `App::retired_`.
 
 Icons are Material Symbols glyphs merged into the UI font (`icons.cpp`), each drawn at the size that gives its ink the
-same length. Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an
+same length; the 14 tool and shape icons are instead 16 x 16 bitmaps (`icon_bitmaps.cpp`) drawn one square per cell at a
+whole-pixel scale, so they are the same size whatever the font does. Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an
 autosave copy of each document with unsaved changes (one file per document); the next start offers to recover them.
 Neither is touched by `--frames` smoke runs unless `--config-dir` is given.
 

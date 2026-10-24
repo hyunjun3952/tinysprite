@@ -47,9 +47,25 @@ enum class Icon {
  * drawn with lines instead (see is_drawn). */
 unsigned codepoint(Icon icon);
 
-/* Whether `icon` is drawn with lines and has no glyph: the Diamond (the set has no plain rhombus),
- * the Folder and the Slice (their glyphs are not in the font subset). */
+/* Whether `icon` is drawn by this module and has no glyph: the tool and shape icons (bitmaps) and
+ * the Folder (lines). */
 bool is_drawn(Icon icon);
+
+/* The side of a tool icon bitmap, in cells. */
+inline constexpr int BITMAP_SIZE = 16;
+
+/* A tool icon as a picture on a BITMAP_SIZE square grid: row y, column x is ink when
+ * rows[y][x] == '#'. */
+struct Bitmap {
+    const char *rows[BITMAP_SIZE];
+};
+
+/* The bitmap of `icon`, or null for an icon that is a font glyph or drawn with lines. */
+const Bitmap *bitmap(Icon icon);
+
+/* The side of one bitmap cell for a UI scale: whole pixels (at least one), so the picture keeps
+ * its pixel grid and every icon of the set is the same size. */
+float bitmap_cell(float uiScale);
 
 /*
  * The nominal pixel size of an icon glyph for a UI scale: 20 px at scale 1, in whole pixels so

@@ -199,7 +199,7 @@ One family, one size. Hierarchy comes from color (ink, body, mute) and position,
 |---|---|---|
 | `ui` | 14 px x scale | everything: labels, values, menus, tabs, buttons, status bar |
 | `shortcut-hint` | 14 px, `{colors.mute}` | the key at the right end of a choice button or menu row |
-| `icon-glyph` | about 20 px x scale | toolbar and layer icons (Material Symbols, range U+E000-U+F8FF); each glyph is drawn at the size that gives its ink a 15 px longer side (x scale, limited to 0.8-1.5 of 20 px), because the font pads its glyphs unevenly (`icons::fitted_glyph_size`) |
+| `icon-glyph` | about 20 px x scale | layer and button icons (Material Symbols, range U+E000-U+F8FF); each glyph is drawn at the size that gives its ink a 15 px longer side (x scale, limited to 0.8-1.5 of 20 px), because the font pads its glyphs unevenly (`icons::fitted_glyph_size`) |
 
 - Font rendering is tuned for crispness at 14 px: whole-pixel glyph positions, one sample per pixel (`PixelSnapH`, `OversampleH/V = 1`). Do not enable oversampling or fractional positions; letter spacing goes uneven.
 - Numbers that count something show their unit (`100 ms`, `50%`), drawn inside the field so it stays while typing (`theme::input_int`, `theme::slider_int`).
@@ -256,7 +256,7 @@ No drop shadows. A popup is told from the panel behind it by its hairline border
 | `{rounded.card}` | 8 px | popups, modals, child areas |
 | `{rounded.full}` | pill / circle | the swap-colors button, dots |
 
-Icons are Material Symbols Outlined (unfilled). Chevrons are drawn as two strokes (">" closed, "v" open), never as filled triangles.
+Icons are Material Symbols Outlined (unfilled), except the tool and shape icons, which are 16 x 16 pixel bitmaps (`icon_bitmaps.cpp`): shapes 12-14 px across with a 2 px stroke, tools a 1 px outline. Chevrons are drawn as two strokes (">" closed, "v" open), never as filled triangles.
 
 ## Components
 
