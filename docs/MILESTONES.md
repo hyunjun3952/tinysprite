@@ -197,7 +197,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - Rasterizers clip no pixels; the caller bounds-checks (filled ones take an optional clip rect that only skips fill rows
   and columns outside it). A selection is one rectangle.
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
-- No native file chooser (a path dialog instead); one UI font (a Geist subset), no mono font and no CJK glyphs.
+- No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
 - The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
 - Not done: HiDPI window flags (the UI scale follows the display's content scale instead).
 - The Windows (MinGW) job is not built locally.

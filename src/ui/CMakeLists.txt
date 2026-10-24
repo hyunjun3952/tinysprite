@@ -8,7 +8,8 @@ add_library(tinysprite_ui STATIC
   canvas.cpp statusbar.cpp file/file_paths.cpp file/file_browser.cpp panels.cpp tools_panel.cpp layers_panel.cpp slices_panel.cpp tilemap/tilemap_panel.cpp tilemap/tilemap_window.cpp cel_texture.cpp timeline_panel.cpp layer/layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(tinysprite_ui PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/geist
-                                                  ${PROJECT_SOURCE_DIR}/thirdparty/material-symbols)
+                                                  ${PROJECT_SOURCE_DIR}/thirdparty/material-symbols
+                                                  ${PROJECT_SOURCE_DIR}/thirdparty/noto-sans-kr)
 target_link_libraries(tinysprite_ui PUBLIC tinysprite_core tinysprite_io imgui::imgui SDL3::SDL3)
 
 add_executable(tinysprite main.cpp)

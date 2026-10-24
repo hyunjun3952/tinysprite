@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 
+#include "icons.hpp"
 #include "imgui.h"
 #include "minitest.hpp"
 #include "theme.hpp"
@@ -52,6 +53,18 @@ TEST(load_fonts_adds_the_embedded_font_at_the_base_size)
     ASSERT_EQ_INT(1, static_cast<int>(io.Fonts->Sources[0].OversampleV));
     theme::apply();
     ASSERT_TRUE(ImGui::GetStyle().FontSizeBase == theme::FONT_SIZE);
+    ImGui::DestroyContext();
+}
+
+TEST(the_ui_font_has_the_hangul_glyphs_next_to_the_latin_ones)
+{
+    ImGui::CreateContext();
+    ASSERT_TRUE(theme::load_fonts());
+    ImFont *font = ImGui::GetIO().Fonts->Fonts[0];
+    ASSERT_TRUE(font->IsGlyphInFont(0xD55C)); /* a syllable */
+    ASSERT_TRUE(font->IsGlyphInFont(0x3131)); /* a compatibility jamo */
+    ASSERT_TRUE(font->IsGlyphInFont('A'));
+    ASSERT_TRUE(font->IsGlyphInFont(static_cast<ImWchar>(icons::codepoint(icons::Icon::Eye))));
     ImGui::DestroyContext();
 }
 
@@ -235,6 +248,7 @@ int main()
     RUN(ease_toward_moves_at_a_steady_rate_and_never_overshoots);
     RUN(mix_blends_two_colors_per_channel);
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);
+    RUN(the_ui_font_has_the_hangul_glyphs_next_to_the_latin_ones);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
     RUN(text_on_a_filled_dialog_button_reaches_the_4_5_contrast_ratio);
     RUN(a_control_fill_is_visibly_lighter_than_the_panel);

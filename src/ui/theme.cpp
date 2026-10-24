@@ -9,6 +9,7 @@
 #include "geist_regular_subset.hpp"
 #include "imgui_internal.h"
 #include "material_symbols_outlined_subset.hpp"
+#include "noto_sans_kr_subset.hpp"
 
 namespace theme
 {
@@ -109,6 +110,20 @@ bool load_fonts()
     io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(MATERIAL_SYMBOLS_OUTLINED_SUBSET),
                                    static_cast<int>(sizeof(MATERIAL_SYMBOLS_OUTLINED_SUBSET)), 0.0f,
                                    &icons, ICON_RANGE);
+    /* Korean: the Hangul subset merged in after the Latin font, so Latin keeps Geist's shapes. */
+    static const ImWchar HANGUL_RANGE[] = {0x00B7, 0x00B7, 0x2018, 0x201D, 0x2026, 0x2026,
+                                           0x203B, 0x203B, 0x3001, 0x3002, 0x300C, 0x300F,
+                                           0x3131, 0x3163, 0xAC00, 0xD7A3, 0};
+    ImFontConfig korean;
+    korean.FontDataOwnedByAtlas = false;
+    korean.MergeMode = true;
+    korean.PixelSnapH = true;
+    korean.OversampleH = 1;
+    korean.OversampleV = 1;
+    std::snprintf(korean.Name, sizeof(korean.Name), "Noto Sans KR");
+    io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(NOTO_SANS_KR_SUBSET),
+                                   static_cast<int>(sizeof(NOTO_SANS_KR_SUBSET)), 0.0f, &korean,
+                                   HANGUL_RANGE);
     ImGui::GetStyle().FontSizeBase = FONT_SIZE;
     return true;
 }
