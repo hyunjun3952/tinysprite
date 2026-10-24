@@ -1,30 +1,5 @@
-build/
-build3/
-build-release/
+build*/
+vcpkg_installed/
 compile_commands.json
 .cache/
-.vscode/
-
-# Files the editor and its tests produce
-*.pxa
-*.pxa.tmp
-*.autosave
-screenshot*.png
-shot*.png
-ui-*-actual.png
-ui-*-expected.png
-ui-*-after.png
-
-# Logs, crash dumps and sanitizer output
-*.log
-/core
-/core.*
-vgcore.*
-*.profraw
-
-# Local tooling
 .claude/settings.local.json
-.idea/
-*.swp
-.DS_Store
-Thumbs.db
