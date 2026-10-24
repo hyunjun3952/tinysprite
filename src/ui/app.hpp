@@ -1,7 +1,7 @@
 #ifndef TINYSPRITE_UI_APP_HPP
 #define TINYSPRITE_UI_APP_HPP
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <functional>
 #include <map>
@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "canvas.hpp"
-#include "commands.hpp"
+#include "command_table.hpp"
 #include "editor.hpp"
 #include "file/file_browser.hpp"
 #include "layers_panel.hpp"
@@ -115,7 +115,8 @@ class App
     void celLinkItems(bool idle);
     void frameStepItems(bool idle);
     void viewMenu();
-    /* The commands of commands.hpp: what each does, whether it can run now, and its menu item. */
+    /* The commands of command_table.hpp: what each does, whether it can run now, and its menu item.
+     */
     struct CommandAction {
         void (*run)(App &app);
         bool (*enabled)(const App &app);
@@ -330,8 +331,8 @@ class App
     int newWidth_ = 64;
     int newHeight_ = 64;
     int exportScale_ = 1;     /* the Export dialogs' enlargement */
-    Uint32 lastAutosave_ = 0; /* SDL_GetTicks of the last autosave check */
-    Uint32 lastTick_ = 0;     /* SDL_GetTicks of the previous frame, for playback */
+    Uint64 lastAutosave_ = 0; /* SDL_GetTicks of the last autosave check */
+    Uint64 lastTick_ = 0;     /* SDL_GetTicks of the previous frame, for playback */
 
     SDL_Window *window_ = nullptr;
     SDL_Renderer *renderer_ = nullptr;

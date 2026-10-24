@@ -1,0 +1,54 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "dev",
+            "displayName": "Debug, ASan/UBSan, UI",
+            "description": "Needs VCPKG_ROOT set (see README). Same options as the linux CI job.",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "TINYSPRITE_BUILD_UI": "ON",
+                "TINYSPRITE_WERROR": "ON"
+            }
+        },
+        {
+            "name": "core",
+            "displayName": "Core and io only (no SDL3)",
+            "inherits": "dev",
+            "cacheVariables": {
+                "TINYSPRITE_BUILD_UI": "OFF"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release, no sanitizers",
+            "inherits": "dev",
+            "binaryDir": "${sourceDir}/build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "TINYSPRITE_SANITIZE": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "dev", "configurePreset": "dev" },
+        { "name": "core", "configurePreset": "core" },
+        { "name": "release", "configurePreset": "release" }
+    ],
+    "testPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev",
+            "output": { "outputOnFailure": true },
+            "environment": { "SDL_VIDEODRIVER": "dummy" }
+        },
+        {
+            "name": "core",
+            "configurePreset": "core",
+            "output": { "outputOnFailure": true }
+        }
+    ]
+}

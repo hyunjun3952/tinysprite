@@ -1,4 +1,4 @@
-/* App: what the menu commands do (their labels and keys are in commands.cpp). */
+/* App: what the menu commands do (their labels and keys are in command_table.cpp). */
 
 #include "app.hpp"
 
@@ -7,7 +7,7 @@
 #include "imgui.h"
 
 /* What each command does and when it can run, one row per CommandId in the same order as COMMANDS
- * (commands.cpp holds the labels and keys). A new command is a row here, not a case in two
+ * (command_table.cpp holds the labels and keys). A new command is a row here, not a case in two
  * switches. */
 const App::CommandAction &App::commandAction(CommandId id)
 {

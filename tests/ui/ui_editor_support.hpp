@@ -3,7 +3,7 @@
 
 /* What the ui_editor_* tests share: an SDL window and renderer on the dummy video driver (no
  * display), and small helpers that drive an Editor without ImGui frames. */
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <cstdio>
 
@@ -15,12 +15,12 @@ inline SDL_Renderer *renderer;
 /* Returns false (after printing why) if SDL cannot be set up. */
 inline bool ui_init()
 {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::printf("SDL_Init: %s\n", SDL_GetError());
         return false;
     }
-    window = SDL_CreateWindow("test", 0, 0, 64, 64, 0);
-    renderer = window ? SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE) : nullptr;
+    window = SDL_CreateWindow("test", 64, 64, 0);
+    renderer = window ? SDL_CreateRenderer(window, SDL_SOFTWARE_RENDERER) : nullptr;
     if (!renderer) {
         std::printf("SDL renderer: %s\n", SDL_GetError());
         return false;

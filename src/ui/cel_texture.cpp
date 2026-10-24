@@ -10,12 +10,12 @@ bool CelTexture::set(SDL_Renderer *renderer, const Cel &cel)
             return false;
         }
         SDL_SetTextureBlendMode(texture_, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(texture_, SDL_ScaleModeNearest);
+        SDL_SetTextureScaleMode(texture_, SDL_SCALEMODE_NEAREST);
         width_ = cel.width();
         height_ = cel.height();
     }
     return SDL_UpdateTexture(texture_, nullptr, cel.pixels(),
-                             cel.width() * static_cast<int>(sizeof(Rgba))) == 0;
+                             cel.width() * static_cast<int>(sizeof(Rgba)));
 }
 
 void CelTexture::release()

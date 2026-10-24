@@ -3,6 +3,7 @@
 #include <cstdlib>
 
 #include "history_plot.hpp"
+#include "tinysprite/composite.hpp"
 #include "tinysprite/raster.hpp"
 
 bool pencil_stroke(History &history, Cel &cel, const std::vector<ToolPoint> &points, Rgba color)
@@ -206,4 +207,33 @@ void PencilStroke::extend(int x, int y)
     raster_line(lastX_, lastY_, x, y, [this](int px, int py) { plotPixel(px, py); });
     lastX_ = x;
     lastY_ = y;
+}
+
+bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry)
+{
+    if (!cel.inBounds(x, y) || !history.beginStroke(cel)) {
+        return false;
+    }
+    RasterPlotFn plot = history_plot(history, cel, color);
+    for (ToolPoint seed : symmetry_points(symmetry, cel.width(), cel.height(), {x, y})) {
+        raster_flood_fill(cel, seed.x, seed.y, plot);
+    }
+    return history.endStroke();
+}
+
+std::optional<Rgba> eyedropper_pick_cel(const Cel &cel, int x, int y)
+{
+    if (!cel.inBounds(x, y)) {
+        return std::nullopt;
+    }
+    return cel.get(x, y);
+}
+
+std::optional<Rgba> eyedropper_pick_sprite(const Sprite &sprite, int frame, int x, int y)
+{
+    if (frame < 0 || frame >= sprite.frameCount() || x < 0 || y < 0 || x >= sprite.width() ||
+        y >= sprite.height()) {
+        return std::nullopt;
+    }
+    return composite_pixel(sprite, frame, x, y);
 }

@@ -1,11 +1,10 @@
 #include <algorithm>
 #include <cmath>
 
-#include "frame_range.hpp"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/io.hpp"
-#include "tinysprite/pack.hpp"
-#include "write_error.hpp"
+#include "tinysprite/rect_pack.hpp"
+#include "util.hpp"
 
 namespace
 {

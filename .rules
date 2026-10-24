@@ -59,8 +59,8 @@ done there:
 - Keep every function in `src/` at a cognitive complexity of 15 or less (not applied to `tests/`). Split by
   what the branches decide, not by line count (examples: `pxa.cpp`'s `Decoder`, `timeline_panel.cpp`'s
   `grid`). [CLAUDE.md] [.clang-tidy]
-- Record dependency name, pinned version and license in `thirdparty/README.md` when adding anything to
-  `thirdparty/`. [CLAUDE.md]
+- A library is declared in `vcpkg.json`, never copied into the repo; record its name, version and license in
+  `thirdparty/README.md`. A font or other asset kept in `thirdparty/` also has its license beside it. [CLAUDE.md]
 - Strings in the UI are English, sentence case, no trailing period on labels (`DESIGN.md`).
 
 **Comments** follow chapter 8 of the Linux kernel coding style

@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "editor/internal.hpp"
+#include "editor/detail.hpp"
 
 namespace
 {

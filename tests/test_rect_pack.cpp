@@ -1,7 +1,7 @@
 #include <vector>
 
 #include "minitest.hpp"
-#include "tinysprite/pack.hpp"
+#include "tinysprite/rect_pack.hpp"
 
 static Rect size(int w, int h)
 {

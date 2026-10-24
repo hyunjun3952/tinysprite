@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <SDL3/SDL_main.h> /* the platform entry point, here and nowhere else */
+
 #include "app.hpp"
 #include "tinysprite/cel.hpp"
 #include "tinysprite/cli.hpp"

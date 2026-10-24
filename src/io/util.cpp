@@ -1,6 +1,8 @@
-#include "json_text.hpp"
+#include "util.hpp"
 
 #include <cstdio>
+
+#include "tinysprite/io.hpp"
 
 namespace
 {
@@ -97,4 +99,14 @@ std::string quotedText(const std::string &text)
 std::string json_quoted(const std::string &text)
 {
     return quotedText(text);
+}
+
+std::filesystem::path path_from_utf8(const std::string &path)
+{
+    return std::filesystem::u8path(path);
+}
+
+std::string path_to_utf8(const std::filesystem::path &path)
+{
+    return path.u8string();
 }

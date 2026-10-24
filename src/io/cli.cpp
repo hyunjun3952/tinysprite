@@ -7,8 +7,8 @@
 #include <optional>
 #include <string>
 
-#include "path_util.hpp"
 #include "tinysprite/io.hpp"
+#include "util.hpp"
 
 namespace
 {

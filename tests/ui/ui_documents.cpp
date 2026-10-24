@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "app.hpp"
-#include "backends/imgui_impl_sdl2.h"
-#include "backends/imgui_impl_sdlrenderer2.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 #include "imgui_internal.h"
 #include "minitest.hpp"
 #include "recovery.hpp"
@@ -36,8 +36,8 @@ struct AppTestAccess {
     void frame()
     {
         app.pollEvents();
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
         app.buildUi();
         ImGui::Render();
@@ -214,7 +214,7 @@ struct AppTestAccess {
     /* Makes the next frame see `ms` milliseconds since the previous one, whatever the real time. */
     void ageNextFrame(int ms)
     {
-        app.lastTick_ = SDL_GetTicks() - static_cast<Uint32>(ms);
+        app.lastTick_ = SDL_GetTicks() - static_cast<Uint64>(ms);
     }
     /* A click in the middle of a window of that name. */
     void clickWindow(const char *name)

@@ -14,7 +14,7 @@ repos:
         stages: [pre-commit, manual]
 
   # Needs build/compile_commands.json: `cmake -S . -B build`. src/ui and tests/ui are in the database
-  # only when the UI is built (libsdl2-dev). clang-tidy is slow (~9 s per file, ~1.2 s of it parsing),
+  # only when the UI is built (SDL3 from vcpkg). clang-tidy is slow (~9 s per file, ~1.2 s of it parsing),
   # so it runs in two tiers. --checks is appended to the Checks of .clang-tidy.
   #   clang-tidy       on push: the files being pushed, without the groups that cost the most
   #                    (bugprone, clang-analyzer, misc, modernize; ~3 s per file).

@@ -7,18 +7,26 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(TINYSPRITE_SANITIZE "Build with ASan/UBSan" ON)
-# The UI is built whenever SDL2 is installed; -DTINYSPRITE_BUILD_UI=OFF gives a core-only build.
-find_package(SDL2 QUIET)
-option(TINYSPRITE_BUILD_UI "Build the SDL2 + ImGui frontend" ${SDL2_FOUND})
+# The dependencies (SDL3, Dear ImGui, stb) are declared in vcpkg.json: configure with
+# -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake (see README).
+# The UI is built whenever SDL3 is found; -DTINYSPRITE_BUILD_UI=OFF gives a core + io build.
+find_package(SDL3 CONFIG QUIET)
+option(TINYSPRITE_BUILD_UI "Build the SDL3 + ImGui frontend" ${SDL3_FOUND})
 if(NOT TINYSPRITE_BUILD_UI)
-  message(STATUS "tinysprite: UI not built (SDL2 not found, or TINYSPRITE_BUILD_UI=OFF)")
+  message(STATUS "tinysprite: UI not built (SDL3 not found, or TINYSPRITE_BUILD_UI=OFF)")
+endif()
+
+# stb_image / stb_image_write (header-only; vcpkg's "stb" or the system's libstb-dev).
+find_path(STB_INCLUDE_DIR stb_image.h PATH_SUFFIXES stb)
+if(NOT STB_INCLUDE_DIR)
+  message(FATAL_ERROR "stb_image.h not found: configure with the vcpkg toolchain (see README) or install libstb-dev")
 endif()
 
 option(TINYSPRITE_WERROR "Treat compiler warnings as errors (CI)" OFF)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 if(TINYSPRITE_WERROR)
-  # Vendored code (stb, ImGui) is built with -w, which still wins over this.
+  # The stb implementation is built with -w, which still wins over this.
   add_compile_options(-Werror)
 endif()
 if(TINYSPRITE_SANITIZE AND NOT MSVC)
@@ -36,9 +44,9 @@ endif()
 
 file(GLOB_RECURSE IO_SOURCES CONFIGURE_DEPENDS src/io/*.cpp)
 add_library(tinysprite_io STATIC ${IO_SOURCES})
-target_include_directories(tinysprite_io PRIVATE thirdparty/stb)
+target_include_directories(tinysprite_io PRIVATE ${STB_INCLUDE_DIR})
 target_link_libraries(tinysprite_io PUBLIC tinysprite_core)
-# stb is third-party code: compile its implementation without our warnings.
+# stb's implementation is third-party code: compile it without our warnings.
 set_source_files_properties(src/io/stb_impl.cpp PROPERTIES COMPILE_OPTIONS -w)
 
 if(TINYSPRITE_BUILD_UI)

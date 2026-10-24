@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-tinysprite is a pixel art / 2D sprite animation editor written in C++17 (core, I/O and UI; SDL2 + Dear ImGui for the frontend). The project is built incrementally by milestone; progress, remaining steps and known gotchas are tracked in `docs/MILESTONES.md` (update it when a milestone finishes). A map of the modules and data flow is in `docs/ARCHITECTURE.md`. Phases 1 (drawing tools) and 2 (animation) are done; the game pipeline (tilemaps, JSON export, headless CLI) is phase 3.
+tinysprite is a pixel art / 2D sprite animation editor written in C++17 (core, I/O and UI; SDL3 + Dear ImGui for the frontend). The project is built incrementally by milestone; progress, remaining steps and known gotchas are tracked in `docs/MILESTONES.md` (update it when a milestone finishes). A map of the modules and data flow is in `docs/ARCHITECTURE.md`. Phases 1 (drawing tools) and 2 (animation) are done; the game pipeline (tilemaps, JSON export, headless CLI) is phase 3.
 
 ## Commands
 
@@ -11,13 +11,13 @@ Build, test, run, and installing the hooks: `README.md` (Build, Contributing). N
 ```sh
 ctest --test-dir build -R history                 # one test (ctest name = file name minus "test_")
 ./build/tests/test_history                        # or run a test binary directly
-cmake -S . -B build -DTINYSPRITE_BUILD_UI=OFF     # core + io + tests only (no SDL2 needed); one build/ dir, the UI is built whenever libsdl2-dev is installed
+cmake -S . -B build -DTINYSPRITE_BUILD_UI=OFF     # core + io + tests only (no SDL3 needed); one build/ dir, the UI is built whenever SDL3 is found
 pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp   # one file (needs build/compile_commands.json)
 ```
 
 clang-format and clang-tidy are pinned once, in `.pre-commit-config.yaml` (pip wheels, so local and CI run the same version), configured in `.clang-format` / `.clang-tidy`; there are no helper scripts.
 
-CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above; a push or PR lints only the changed files, everything when a header or lint config changed, and weekly or by hand on `schedule` / `workflow_dispatch`), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json`. `thirdparty/` is excluded from both tools.
+CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `vcpkg.json`, `.github/actions/`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above; a push or PR lints only the changed files, everything when a header or lint config changed, and weekly or by hand on `schedule` / `workflow_dispatch`), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json`. `thirdparty/` is excluded from both tools.
 
 ## Rules
 

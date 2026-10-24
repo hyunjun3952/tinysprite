@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "editor/internal.hpp"
+#include "editor/detail.hpp"
 
 bool LayerSelection::contains(const Sprite &sprite, int index) const
 {

@@ -1,7 +1,7 @@
 /* The window size the app opens with is kept inside the part of the display a window can use, so a
  * small screen or a large UI scale never opens a window whose edges are off the screen. */
 #include "minitest.hpp"
-#include "window_size.hpp"
+#include "settings.hpp"
 
 TEST(a_window_that_fits_is_left_alone)
 {

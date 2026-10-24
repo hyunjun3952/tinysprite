@@ -1,16 +1,16 @@
 #include "app.hpp"
-#include "window_size.hpp"
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "backends/imgui_impl_sdl2.h"
-#include "backends/imgui_impl_sdlrenderer2.h"
 #include "icons.hpp"
 #include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 #include "theme.hpp"
 #include "tinysprite/io.hpp"
 
@@ -19,7 +19,7 @@ namespace
 
 constexpr int WINDOW_WIDTH = 1100;
 constexpr int WINDOW_HEIGHT = 720;
-constexpr Uint32 AUTOSAVE_INTERVAL_MS = 30000;
+constexpr Uint64 AUTOSAVE_INTERVAL_MS = 30000;
 constexpr float OPTIONS_BAR_HEIGHT = 40.0f; /* at scale 1 */
 constexpr float SASH_THICKNESS = 8.0f;      /* the grab area on the timeline's edge */
 constexpr float TIMELINE_MAX_SHARE = 0.7f;  /* of the canvas area, the timeline's largest height */
@@ -38,8 +38,8 @@ App::~App()
     docs_.clear();
     editor_ = nullptr;
     if (backends_) {
-        ImGui_ImplSDLRenderer2_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
+        ImGui_ImplSDLRenderer3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
     }
     if (imguiContext_) {
         ImGui::DestroyContext();
@@ -57,7 +57,7 @@ App::~App()
 static WindowSize usableArea()
 {
     SDL_Rect area = {0, 0, 0, 0};
-    SDL_GetDisplayUsableBounds(0, &area);
+    SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &area);
     return WindowSize{area.w, area.h};
 }
 
@@ -69,15 +69,16 @@ bool App::createWindow(int width, int height)
     WindowSize fitted = window_fit(WindowSize{width, height}, usable);
     width = fitted.width;
     height = fitted.height;
-    window_ = SDL_CreateWindow("tinysprite", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width,
-                               height, SDL_WINDOW_RESIZABLE);
+    window_ = SDL_CreateWindow("tinysprite", width, height, SDL_WINDOW_RESIZABLE);
     if (window_) {
         WindowSize smallest = window_fit(window_minimum(theme::scale()), usable);
         SDL_SetWindowMinimumSize(window_, smallest.width, smallest.height);
-        renderer_ =
-            SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        renderer_ = SDL_CreateRenderer(window_, nullptr);
         if (!renderer_) {
-            renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_SOFTWARE);
+            renderer_ = SDL_CreateRenderer(window_, SDL_SOFTWARE_RENDERER);
+        }
+        if (renderer_) {
+            SDL_SetRenderVSync(renderer_, 1);
         }
     }
     if (!renderer_) {
@@ -94,11 +95,11 @@ bool App::initImGui()
     ImGui::GetIO().IniFilename = nullptr;
     theme::load_fonts(); /* on failure the built-in font stays */
     theme::apply();
-    if (!ImGui_ImplSDL2_InitForSDLRenderer(window_, renderer_)) {
+    if (!ImGui_ImplSDL3_InitForSDLRenderer(window_, renderer_)) {
         return false;
     }
-    if (!ImGui_ImplSDLRenderer2_Init(renderer_)) {
-        ImGui_ImplSDL2_Shutdown();
+    if (!ImGui_ImplSDLRenderer3_Init(renderer_)) {
+        ImGui_ImplSDL3_Shutdown();
         return false;
     }
     backends_ = true;
@@ -148,8 +149,8 @@ static float requestedScale(const AppOptions &options, const SettingsMap &settin
     if (settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX, scale)) {
         return scale;
     }
-    float dpi = 0.0f;
-    return SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
+    /* the content scale is 1 at 96 dpi, and 0 when unknown */
+    return theme::scaleForDpi(SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay()) * 96.0f);
 }
 
 /* The saved window size; a default, scaled with the UI, when none was saved. */
@@ -167,7 +168,7 @@ static void initialWindowSize(const SettingsMap &settings, int &width, int &heig
 
 bool App::init(const AppOptions &options)
 {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return false;
     }
@@ -242,7 +243,7 @@ void App::autosave()
     if (!persist_ || !recovered_.empty()) {
         return;
     }
-    const Uint32 now = SDL_GetTicks();
+    const Uint64 now = SDL_GetTicks();
     const bool due = now - lastAutosave_ >= AUTOSAVE_INTERVAL_MS;
     bool wrote = false;
     for (Document &document : docs_) {
@@ -301,21 +302,27 @@ void App::layersWindow(float height)
  * development aid for checking the look without a display). */
 bool App::saveScreenshot(const std::string &path) const
 {
-    int width = 0;
-    int height = 0;
-    if (SDL_GetRendererOutputSize(renderer_, &width, &height) != 0) {
+    SDL_Surface *read = SDL_RenderReadPixels(renderer_, nullptr);
+    if (read == nullptr) {
         return false;
     }
-    std::vector<Uint32> argb(static_cast<size_t>(width) * static_cast<size_t>(height));
-    if (SDL_RenderReadPixels(renderer_, nullptr, SDL_PIXELFORMAT_ARGB8888, argb.data(),
-                             width * static_cast<int>(sizeof(Uint32))) != 0) {
+    SDL_Surface *rgba = SDL_ConvertSurface(read, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(read);
+    if (rgba == nullptr) {
         return false;
     }
-    std::vector<Rgba> pixels;
-    pixels.reserve(argb.size());
-    for (Uint32 value : argb) {
-        pixels.push_back({static_cast<uint8_t>(value >> 16), static_cast<uint8_t>(value >> 8),
-                          static_cast<uint8_t>(value), 255});
+    const int width = rgba->w;
+    const int height = rgba->h;
+    std::vector<Rgba> pixels(static_cast<size_t>(width) * static_cast<size_t>(height));
+    for (int y = 0; y < height; y++) {
+        const auto *row = static_cast<const uint8_t *>(rgba->pixels) +
+                          static_cast<size_t>(y) * static_cast<size_t>(rgba->pitch);
+        std::memcpy(&pixels[static_cast<size_t>(y) * static_cast<size_t>(width)], row,
+                    static_cast<size_t>(width) * sizeof(Rgba));
+    }
+    SDL_DestroySurface(rgba);
+    for (Rgba &pixel : pixels) {
+        pixel.a = 255; /* the window is opaque */
     }
     return image_write_rgba(path, width, height, pixels);
 }
@@ -324,13 +331,12 @@ bool App::saveScreenshot(const std::string &path) const
 void App::pollEvents()
 {
     SDL_Event event;
-    while (SDL_PollEvent(&event) != 0) {
-        ImGui_ImplSDL2_ProcessEvent(&event);
-        if (event.type == SDL_QUIT) {
+    while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
+        if (event.type == SDL_EVENT_QUIT) {
             quit();
-        } else if (event.type == SDL_DROPFILE) {
-            dropFile(event.drop.file);
-            SDL_free(event.drop.file);
+        } else if (event.type == SDL_EVENT_DROP_FILE) {
+            dropFile(event.drop.data);
         }
     }
 }
@@ -419,7 +425,7 @@ void App::buildUi()
     toolsPanel_->show(panels_, body);
     layersWindow(body);
     /* Every document a pane shows plays on; a tab that is not shown stands still. */
-    Uint32 now = SDL_GetTicks();
+    Uint64 now = SDL_GetTicks();
     const int elapsed = static_cast<int>(now - lastTick_);
     pane_[0]->tick(elapsed);
     if (pane_[1] != nullptr && pane_[1] != pane_[0]) {
@@ -476,8 +482,8 @@ void App::run(const AppOptions &options)
     int frames = 0;
     while (running_) {
         pollEvents();
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
         buildUi();
 
@@ -485,7 +491,7 @@ void App::run(const AppOptions &options)
                                (theme::WORKSPACE >> 8) & 0xff, theme::WORKSPACE & 0xff, 255);
         SDL_RenderClear(renderer_);
         ImGui::Render();
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer_);
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer_);
         bool lastFrame = options.maxFrames > 0 && frames + 1 >= options.maxFrames;
         if (lastFrame && !options.screenshot.empty() && !saveScreenshot(options.screenshot)) {
             std::fprintf(stderr, "cannot save %s\n", options.screenshot.c_str());

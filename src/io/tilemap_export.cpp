@@ -2,8 +2,8 @@
 #include <filesystem>
 #include <string>
 
-#include "json_text.hpp"
 #include "tinysprite/io.hpp"
+#include "util.hpp"
 
 namespace
 {
