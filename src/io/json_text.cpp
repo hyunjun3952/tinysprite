@@ -17,6 +17,17 @@ size_t utf8Length(unsigned char lead)
     return lead >= 0xE0 ? 3 : 2;
 }
 
+/* Whether the `length - 1` bytes after the lead byte at `at` are all continuation bytes. */
+bool hasContinuations(const std::string &text, size_t at, size_t length)
+{
+    for (size_t i = 1; i < length; i++) {
+        if ((static_cast<unsigned char>(text[at + i]) & 0xC0) != 0x80) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /* The length of the well-formed UTF-8 sequence that starts at `at` (overlong forms, surrogates and
  * code points past U+10FFFF included as malformed), or 0 if there is none. */
 size_t utf8Sequence(const std::string &text, size_t at)
@@ -30,10 +41,8 @@ size_t utf8Sequence(const std::string &text, size_t at)
     if (at + length > text.size()) {
         return 0; /* cut short */
     }
-    for (size_t i = 1; i < length; i++) {
-        if ((byte(at + i) & 0xC0) != 0x80) {
-            return 0;
-        }
+    if (!hasContinuations(text, at, length)) {
+        return 0;
     }
     const unsigned char second = byte(at + 1);
     const bool overlong = (lead == 0xE0 && second < 0xA0) || (lead == 0xF0 && second < 0x90);
