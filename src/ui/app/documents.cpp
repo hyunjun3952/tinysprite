@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "app.hpp"
-#include "file_paths.hpp"
+#include "file/file_paths.hpp"
 #include "recovery.hpp"
 #include "tinysprite/io.hpp"
 

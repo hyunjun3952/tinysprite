@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-#include "file_paths.hpp"
+#include "file/file_paths.hpp"
 #include "icons.hpp"
 #include "imgui.h"
 #include "theme.hpp"

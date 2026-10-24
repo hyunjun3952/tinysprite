@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "composite_surface.hpp"
-#include "layer_selection.hpp"
+#include "layer/layer_selection.hpp"
 #include "settings.hpp"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/filter_ops.hpp"

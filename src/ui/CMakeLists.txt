@@ -16,9 +16,9 @@ target_compile_options(tinysprite_imgui PRIVATE -w)
 
 add_library(tinysprite_ui STATIC
   editor/editor.cpp editor/internal.cpp editor/layers.cpp editor/frames.cpp editor/palette.cpp editor/selection.cpp editor/settings.cpp editor/slices.cpp editor/filters.cpp editor/tilemaps.cpp
-  drags.cpp tool.cpp layer_selection.cpp composite_surface.cpp commands.cpp
+  drags.cpp tool.cpp layer/layer_selection.cpp composite_surface.cpp commands.cpp
   app/app.cpp app/menus.cpp app/commands.cpp app/shortcuts.cpp app/dialogs.cpp app/filter_dialog.cpp app/files.cpp app/file_browser_ui.cpp app/documents.cpp app/tabs.cpp app/split.cpp
-  canvas.cpp slice_overlay.cpp statusbar.cpp file_paths.cpp file_browser.cpp window_size.cpp panels.cpp tools_panel.cpp layers_panel.cpp slices_panel.cpp tilemap_panel.cpp tilemap_window.cpp cel_texture.cpp timeline_panel.cpp layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
+  canvas.cpp slice_overlay.cpp statusbar.cpp file/file_paths.cpp file/file_browser.cpp window_size.cpp panels.cpp tools_panel.cpp layers_panel.cpp slices_panel.cpp tilemap/tilemap_panel.cpp tilemap/tilemap_window.cpp cel_texture.cpp timeline_panel.cpp layer/layer_thumbnails.cpp theme.cpp icons.cpp settings.cpp recovery.cpp)
 target_include_directories(tinysprite_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(tinysprite_ui PRIVATE ${PROJECT_SOURCE_DIR}/thirdparty/geist
                                                   ${PROJECT_SOURCE_DIR}/thirdparty/material-symbols)

@@ -4,7 +4,7 @@
 #include <string>
 
 #include "editor.hpp"
-#include "file_paths.hpp"
+#include "file/file_paths.hpp"
 #include "imgui_internal.h"
 #include "minitest.hpp"
 #include "statusbar.hpp"

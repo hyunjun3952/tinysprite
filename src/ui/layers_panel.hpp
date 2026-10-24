@@ -8,10 +8,10 @@
 #include <vector>
 
 #include "editor.hpp"
-#include "layer_thumbnails.hpp"
+#include "layer/layer_thumbnails.hpp"
 #include "panels.hpp"
 #include "slices_panel.hpp"
-#include "tilemap_panel.hpp"
+#include "tilemap/tilemap_panel.hpp"
 
 /* Layer list (top layer first): each row shows what is painted on the layer, with visibility and
  * lock toggles (double-click a row to rename it in place), plus the opacity of the active layer and

@@ -1,4 +1,4 @@
-#include "tilemap_panel.hpp"
+#include "tilemap/tilemap_panel.hpp"
 
 #include <algorithm>
 #include <cfloat>

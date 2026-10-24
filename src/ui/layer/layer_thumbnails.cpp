@@ -1,4 +1,4 @@
-#include "layer_thumbnails.hpp"
+#include "layer/layer_thumbnails.hpp"
 
 #include <vector>
 

@@ -23,17 +23,17 @@ condition, `return true / false`, `.size() == 0`, `int` -> `float`).
   are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path. [CLAUDE.md]
 - File format `.pxa` is versioned and chunked (length-prefixed): see `docs/ARCHITECTURE.md#file-format`.
   [CLAUDE.md]
-- **A group of four or more modules with the same feature prefix in one `src/` folder lives in a subfolder
-  of that name.** A module is a `.cpp` with its `.hpp`, counted once; the prefix is the part before the
-  first `_` (`app_*`, `editor_*`). Examples: `src/ui/app/`, `src/ui/editor/`, `src/core/tools/`. Today no
-  group qualifies (`src/ui` has two modules each of `tilemap_*`, `file_*` and `layer_*`), so none is
-  moved. When a fourth module joins a group, move the whole group in that change with `git mv` (a header
-  that other folders include stays where it is, or its includes are updated), update the source list in
-  `src/ui/CMakeLists.txt` (`src/core` and `src/io` are globbed) and the includes, and re-run cmake. The
-  tests stay flat in `tests/` and `tests/ui/`.
+- **A group of four or more files with the same prefix in one `src/` folder lives in a subfolder of that
+  name.** Count every file (a `.cpp` and its `.hpp` are two); the prefix is the part of the name before
+  the first `_`. Examples: `src/ui/app/`, `src/ui/editor/`, `src/ui/tilemap/`, `src/ui/file/`,
+  `src/ui/layer/`, `src/core/tools/`. Move the whole group in the change that adds the fourth file, with
+  `git mv`; update the includes (`"tilemap/tilemap_panel.hpp"`, relative to `src/ui`, which is on the
+  include path), the source list in `src/ui/CMakeLists.txt` (`src/core` and `src/io` are globbed), and
+  re-run cmake. The tests stay flat in `tests/` and `tests/ui/`. `layers_panel` has the prefix `layers`,
+  not `layer`, so it stays where it is.
 - **Keep directories shallow: `src/<layer>/<group>/` is the deepest level** (`src/ui/app/`,
   `src/core/tools/`). Never create a folder inside a group folder and never a group folder for fewer than
-  four modules; a group that keeps growing is split by renaming its prefix into two groups at the same
+  four files; a group that keeps growing is split by renaming its prefix into two groups at the same
   level, not by nesting.
 - Everything drawn in pixels goes through `theme::px()`, every color is a `theme.hpp` token, every shared
   widget is a `theme::` helper (`DESIGN.md`).

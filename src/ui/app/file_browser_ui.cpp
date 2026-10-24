@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "app.hpp"
-#include "file_browser.hpp"
-#include "file_paths.hpp"
+#include "file/file_browser.hpp"
+#include "file/file_paths.hpp"
 #include "imgui.h"
 #include "theme.hpp"
 #include "tinysprite/io.hpp"

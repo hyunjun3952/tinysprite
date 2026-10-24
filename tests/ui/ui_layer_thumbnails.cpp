@@ -2,7 +2,7 @@
  * revision changes, and dropped with their layers. Runs under SDL_VIDEODRIVER=dummy. */
 #include <SDL.h>
 
-#include "layer_thumbnails.hpp"
+#include "layer/layer_thumbnails.hpp"
 #include "minitest.hpp"
 
 namespace

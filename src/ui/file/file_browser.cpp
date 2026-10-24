@@ -1,4 +1,4 @@
-#include "file_browser.hpp"
+#include "file/file_browser.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -7,7 +7,7 @@
 #include <iterator>
 #include <sstream>
 
-#include "file_paths.hpp"
+#include "file/file_paths.hpp"
 #include "tinysprite/io.hpp"
 
 namespace fs = std::filesystem;

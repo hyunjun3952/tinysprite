@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 
-#include "file_browser.hpp"
+#include "file/file_browser.hpp"
 #include "minitest.hpp"
 
 namespace fs = std::filesystem;
