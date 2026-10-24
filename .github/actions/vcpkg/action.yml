@@ -9,6 +9,7 @@ runs:
       with:
         path: ${{ runner.temp }}/vcpkg-cache
         key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+        restore-keys: vcpkg-${{ runner.os }}-
     - name: Get vcpkg
       shell: bash
       run: |
