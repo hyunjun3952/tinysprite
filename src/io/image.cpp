@@ -163,13 +163,21 @@ bool fitsCel(int width, int height)
     return width >= 1 && height >= 1 && width <= CEL_MAX_DIMENSION && height <= CEL_MAX_DIMENSION;
 }
 
-/* The frames of an animated GIF as a sprite (one layer, a cel and duration per frame); nothing if
- * the file is not a GIF with more than one frame, so the caller falls back to the plain loader. */
-std::optional<Sprite> importAnimatedGif(const std::string &path)
+/* The bytes of the file at `path` (UTF-8), empty if it cannot be read. stb_image opens a path with
+ * the narrow fopen, which on Windows reads it in the ANSI code page, so the bytes are read here
+ * and decoded from memory. */
+std::vector<unsigned char> readFile(const std::string &path)
 {
     std::ifstream file(path_from_utf8(path), std::ios::binary);
-    std::vector<unsigned char> data((std::istreambuf_iterator<char>(file)),
-                                    std::istreambuf_iterator<char>());
+    return std::vector<unsigned char>((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+}
+
+/* The frames of an animated GIF in `data` as a sprite (one layer, a cel and duration per frame);
+ * nothing if it is not a GIF with more than one frame, so the caller falls back to the plain
+ * loader. */
+std::optional<Sprite> importAnimatedGif(const std::vector<unsigned char> &data)
+{
     if (data.size() < 6 || std::memcmp(data.data(), "GIF8", 4) != 0) {
         return std::nullopt;
     }
@@ -218,17 +226,20 @@ std::optional<Sprite> image_import(const std::string &path)
     if (std::optional<Sprite> aseprite = aseprite_load(path)) {
         return aseprite;
     }
-    if (std::optional<Sprite> animation = importAnimatedGif(path)) {
+    const std::vector<unsigned char> data = readFile(path);
+    if (std::optional<Sprite> animation = importAnimatedGif(data)) {
         return animation;
     }
     int width = 0;
     int height = 0;
     int channels = 0;
-    if (stbi_info(path.c_str(), &width, &height, &channels) == 0 || !fitsCel(width, height)) {
+    const int size = static_cast<int>(data.size());
+    if (stbi_info_from_memory(data.data(), size, &width, &height, &channels) == 0 ||
+        !fitsCel(width, height)) {
         return std::nullopt;
     }
     std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(
-        stbi_load(path.c_str(), &width, &height, &channels, 4), &stbi_image_free);
+        stbi_load_from_memory(data.data(), size, &width, &height, &channels, 4), &stbi_image_free);
     if (!pixels || !fitsCel(width, height)) {
         return std::nullopt;
     }

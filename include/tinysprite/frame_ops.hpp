@@ -9,10 +9,12 @@
  * then undone) stays alive inside the history, so the pixel steps recorded on its cels remain
  * valid; the history frees it when the step is dropped. */
 
-/* Inserts a blank frame so it ends up at `index` (0..frameCount). */
+/* Inserts a blank frame so it ends up at `index` (0..frameCount). Returns false for another index
+ * or when the sprite is at its frame limit or cel budget (Sprite::fitsCels). */
 bool frame_op_add(History &history, Sprite &sprite, int index);
 
 /* Inserts a copy of the frame at `index` (pixels of every layer, and its duration) just after it.
+ * Returns false for an index out of range or when the sprite is at its frame limit or cel budget.
  */
 bool frame_op_duplicate(History &history, Sprite &sprite, int index);
 

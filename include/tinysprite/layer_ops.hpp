@@ -13,7 +13,8 @@
  * valid; the history frees it when the step is dropped. A property op that would not change the
  * value returns true and records nothing. */
 
-/* Appends a layer on top. Returns it, or null on a stroke in progress. */
+/* Appends a layer on top. Returns it, or null on a stroke in progress or when the sprite's cel
+ * budget (Sprite::fitsCels) has no room for another layer. */
 Layer *layer_op_add(History &history, Sprite &sprite, const std::string &name);
 
 /* Returns false if index is out of range, only one layer is left, or a stroke is active. */
@@ -23,9 +24,11 @@ bool layer_op_remove(History &history, Sprite &sprite, int index);
  * if either index is out of range or a stroke is active. */
 bool layer_op_move(History &history, Sprite &sprite, int from, int to);
 
-/* Inserts a copy of the layer at `index` (name + " copy", same visibility, opacity, blend mode and
- * pixels in every frame) just above it. Returns the copy, or null if index is out of range or a
- * stroke is active. */
+/* Inserts a copy of the layer at `index` just above it: the name plus " copy" (the name is cut so
+ * the whole stays within LAYER_NAME_MAX), the same visibility, opacity and blend mode, and the
+ * pixels of every frame, where frames that share a cel in the layer share its copy too. The copy is
+ * not locked. Returns the copy, or null if index is out of range, a stroke is active or the cel
+ * budget has no room for another layer. */
 Layer *layer_op_duplicate(History &history, Sprite &sprite, int index);
 
 /* Whether `upper` can be drawn onto `lower`: both are visible and `lower` is not locked (`upper` is

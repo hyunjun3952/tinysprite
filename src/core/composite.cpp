@@ -56,7 +56,6 @@ int blendChannel(BlendMode mode, int cb, int cs)
     return cs;
 }
 
-/* The layer's cel on `frame`, or null when the layer does not show up in the flattened image. */
 /* Calls visit(x, y) for every cell of the rectangle, row by row. */
 template <class Visit> void for_each_cell(const Rect &r, Visit visit)
 {
@@ -67,6 +66,7 @@ template <class Visit> void for_each_cell(const Rect &r, Visit visit)
     }
 }
 
+/* The layer's cel on `frame`, or null when the layer does not show up in the flattened image. */
 const Cel *drawnCel(const Layer &layer, int frame)
 {
     return layer.visible() ? layer.cel(frame) : nullptr;

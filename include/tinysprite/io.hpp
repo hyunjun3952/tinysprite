@@ -18,26 +18,36 @@
 std::filesystem::path path_from_utf8(const std::string &path);
 std::string path_to_utf8(const std::filesystem::path &path);
 
-/* The .pxa file format: a magic number and a version, then chunks (4-byte tag, 4-byte little-endian
- * length, payload). A reader skips tags it does not know, so later versions can add chunks.
+/*
+ * The .pxa file format: a magic number and a version (PXA_VERSION), then chunks (4-byte tag, 4-byte
+ * little-endian length, payload), written in the order below. A reader skips tags it does not know,
+ * so later versions can add chunks, and rejects other versions and truncated data.
  *   HEAD  width, height, frame count (u32 each); must come first
  *   FRAM  the duration of every frame in milliseconds (u16 each); optional, written only when a
- *         frame has other than FRAME_DURATION_DEFAULT, and before the first LAYR
+ *         frame has other than FRAME_DURATION_DEFAULT; must come before the first LAYR
+ *   PALT  color count (u16), then r, g, b, a per color
+ *   LAYR  name length (u8) and name, flags (u8: bit 0 visible, bit 1 locked), opacity (u8), then
+ *         the pixels of every frame (r, g, b, a, row-major); one chunk per layer, bottom to top
  *   LINK  a layer index (u32), a pair count (u32), then (frame, source) pairs of u32: the frame
  *         shows the same cel as the earlier frame `source` (a linked cel); optional, one chunk per
- *         layer that has links, after the layers
+ *         layer that has links
+ *   BLND  entry count (u32), then per entry a layer index (u32) and a blend mode (u8, BlendMode);
+ *         optional, lists only the layers that are not Normal; a mode this version does not know
+ *         reads as Normal
  *   TAGS  tag count (u16), then per tag: name length (u8) and name, first and last frame (u32
- *         each, both included) and direction (u8: 0 forward, 1 reverse, 2 ping-pong); optional,
- *         written after the layers only when the sprite has tags
+ *         each, both included) and direction (u8: 0 forward, 1 reverse, 2 ping-pong); optional
+ *   SLCE  slice count (u16), then per slice: name length (u8) and name, x, y, width and height (u32
+ *         each) and flags (u8: 0 no pivot, 1 a pivot follows as two u32, in cels from the slice's
+ *         top-left corner; any other value makes the file invalid); optional. A slice that does
+ *         not fit the sprite is dropped on reading and the pixels still load
  *   TSET  tileset count (u16), then per tileset: name length (u8) and name, tile width, tile
- * height, atlas width and atlas height (u32 each), then the atlas pixels (r, g, b, a); optional,
- *         after the layers
+ *         height, atlas width and atlas height (u32 each), then the atlas pixels (r, g, b, a);
+ *         optional
  *   TMAP  map count (u16), then per map: name length (u8) and name, tileset index, columns and rows
  *         (u32 each), visible (u8) and one u32 per cell (0: no tile, else tile number + 1);
- *         optional, after TSET. The reader keeps the tiles only if all of them are valid together
- *   PALT  color count (u16), then r, g, b, a per color
- *   LAYR  name length (u8) and name, visible (u8), opacity (u8), then the pixels of every frame
- *         (r, g, b, a, row-major); one chunk per layer, bottom to top */
+ *         optional. The reader keeps the tile data only if every tileset and map is valid together,
+ *         else it drops it and the pixels still load
+ */
 inline constexpr uint32_t PXA_VERSION = 1;
 
 std::vector<uint8_t> pxa_encode(const Sprite &sprite);
@@ -57,11 +67,14 @@ bool file_write_atomic(const std::string &path, const std::string &data);
  * directory"); empty if it succeeded. */
 std::string file_write_error();
 
-/* Palette files. A .hex file has one color per line as RRGGBB or RRGGBBAA (an optional leading # is
- * accepted); a .gpl file is the GIMP palette format, which has no alpha: an export drops it. The
- * decoder tells the two apart by the "GIMP Palette" header, ignores blank lines and keeps the first
- * PALETTE_MAX_COLORS colors. It returns nothing for text without a valid color or with an invalid
- * line. */
+/*
+ * Palette files. A .hex file has one color per line as RRGGBB or RRGGBBAA (an optional leading # is
+ * accepted; a line starting with ; or // is a comment). A .gpl file is the GIMP palette format,
+ * which has no alpha (an export drops it): the "GIMP Palette" header, then "R G B name" lines, with
+ * # comments and the Name: and Columns: lines skipped. The decoder tells the two apart by the
+ * header, ignores a UTF-8 byte order mark and blank lines, and keeps the first PALETTE_MAX_COLORS
+ * colors. It returns nothing for text without a valid color or with an invalid line.
+ */
 std::string palette_encode_hex(const Palette &palette);
 std::string palette_encode_gpl(const Palette &palette, const std::string &name);
 std::optional<Palette> palette_decode(const std::string &text);
@@ -201,7 +214,8 @@ std::optional<Sprite> aseprite_load(const std::string &path);
 
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
  * image as its single layer and an empty palette. An animated GIF becomes one frame per GIF frame
- * (each with its delay as the duration), and an Aseprite file is read by aseprite_load. Returns
+ * (each with its delay as the duration; at most SPRITE_MAX_FRAMES), and an Aseprite file is read by
+ * aseprite_load. Returns
  * nothing if the file is not a readable image or exceeds CEL_MAX_DIMENSION. */
 std::optional<Sprite> image_import(const std::string &path);
 

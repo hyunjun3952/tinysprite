@@ -17,9 +17,12 @@ struct Symmetry {
 /* How many copies of a drawing the enabled axes produce: 1, 2 or 4. */
 int symmetry_count(Symmetry symmetry);
 
-/* Copy `index` (0 .. symmetry_count - 1) of `point` in a width x height cel; copy 0 is the point
- * itself. Shapes reflect both of their end points with the same index, which reflects the whole
- * shape. */
+/*
+ * Copy `index` (0 .. symmetry_count - 1) of `point` in a width x height cel; copy 0 is the point
+ * itself. The drawing tools reflect every pixel they plot with each index; a box (the UI's
+ * preview outline of a shape) is reflected by reflecting both of its end points with the same
+ * index.
+ */
 ToolPoint symmetry_copy(Symmetry symmetry, int width, int height, ToolPoint point, int index);
 
 /* The distinct copies of one point, the point itself first. A point on an axis is its own

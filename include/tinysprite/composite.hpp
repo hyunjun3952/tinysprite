@@ -31,8 +31,8 @@ inline constexpr Rgba ONION_PAST_TINT = {230, 60, 60, 255};
 inline constexpr Rgba ONION_FUTURE_TINT = {60, 120, 230, 255};
 
 /* Like composite_sprite, but with the onion skin ghosts of `frame` below it: the current frame is
- * drawn over them, so they show only where it is transparent. Does nothing if out is null or the
- * frame is out of range. */
+ * drawn over them, so they show through its transparent and translucent pixels. Does nothing if out
+ * is null or the frame is out of range. */
 void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rect region,
                      Rgba *out);
 

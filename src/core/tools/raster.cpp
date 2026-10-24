@@ -176,7 +176,6 @@ void raster_ellipse(int x0, int y0, int x1, int y1, bool filled, const RasterPlo
     ellipse_tips(lx, rx, up, dn, b, filled, plot, clip);
 }
 
-/* Scanline fill: for every row, the crossings with the edges, paired up into spans. */
 /* The x where each polygon edge crosses the scanline y, sorted. Edges are half-open in y, so a
  * vertex shared by two edges counts once. */
 static void scanline_crossings(const std::vector<std::pair<int, int>> &points, int y,
@@ -195,6 +194,7 @@ static void scanline_crossings(const std::vector<std::pair<int, int>> &points, i
     std::sort(crossings.begin(), crossings.end());
 }
 
+/* Scanline fill: for every row, the crossings with the edges, paired up into spans (even-odd). */
 static void fill_polygon(const std::vector<std::pair<int, int>> &points, const RasterPlotFn &plot,
                          const Rect *clip)
 {

@@ -38,6 +38,23 @@ TEST(export_then_import_round_trips_the_flattened_image)
     ASSERT_EQ_INT(0, b.layer(0)->cel(0)->get(1, 1).a); /* hidden layers are not exported */
 }
 
+TEST(an_image_with_a_korean_file_name_imports)
+{
+    /* Paths are UTF-8; on Windows the narrow file APIs would read them in the ANSI code page. */
+    Sprite s(2, 2);
+    s.layer(0)->cel(0)->set(1, 1, RED);
+    std::string path = "test_image_\xED\x95\x9C\xEA\xB8\x80.png";
+    ASSERT_TRUE(image_export(s, 0, path));
+    std::optional<Sprite> back = image_import(path);
+    std::remove(path.c_str());
+    if (!back) {
+        MT_FAIL("no sprite");
+        return;
+    }
+    ASSERT_EQ_INT(2, back->width());
+    ASSERT_TRUE(back->layer(0)->cel(0)->get(1, 1) == RED);
+}
+
 TEST(write_rgba_saves_raw_pixels_as_png)
 {
     std::vector<Rgba> pixels = {RED, BLUE, BLUE, RED, RED, BLUE};
@@ -307,6 +324,7 @@ int main()
     RUN(a_failed_image_write_leaves_no_file_behind);
     RUN(export_then_import_round_trips_the_flattened_image);
     RUN(lossless_formats_round_trip);
+    RUN(an_image_with_a_korean_file_name_imports);
     RUN(write_rgba_saves_raw_pixels_as_png);
     RUN(jpeg_keeps_the_size_and_shows_transparency_as_white);
     RUN(unknown_extension_is_refused);
