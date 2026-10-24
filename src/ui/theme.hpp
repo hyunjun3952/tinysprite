@@ -190,6 +190,8 @@ inline constexpr ImU32 SLICE_SELECTED_FILL = IM_COL32(255, 183, 3, 34);
 inline constexpr ImU32 SLICE_PIVOT = IM_COL32(255, 92, 161, 255);
 inline constexpr ImU32 SLICE_SHADOW = IM_COL32(0, 0, 0, 200);
 inline constexpr ImU32 SLICE_LABEL_BACKGROUND = IM_COL32(0, 0, 0, 170);
+inline constexpr ImU32 TILE_GRID = IM_COL32(255, 255, 255, 85);   /* the tile picker's cell lines */
+inline constexpr ImU32 TILE_PICKED = IM_COL32(74, 210, 255, 255); /* the picked tile's outline */
 } // namespace overlay
 
 /* Small transitions. ease_toward moves `current` toward `target` at a steady rate that covers 0..1

@@ -11,9 +11,6 @@
 namespace
 {
 
-constexpr ImU32 GRID_COLOR = 0x55ffffffU;
-constexpr ImU32 PICKED_COLOR = 0xffffd24aU;
-constexpr ImU32 BACKDROP_COLOR = 0xff1d1e21U;
 constexpr float PICKER_HEIGHT = 130.0f; /* at UI scale 1 */
 
 ImTextureRef textureRef(const CelTexture &t)
@@ -27,11 +24,13 @@ void drawGrid(ImDrawList *draw, ImVec2 origin, int columns, int rows, float cell
     const float height = static_cast<float>(rows) * cellH;
     for (int x = 0; x <= columns; x++) {
         const float px = origin.x + static_cast<float>(x) * cellW;
-        draw->AddLine(ImVec2(px, origin.y), ImVec2(px, origin.y + height), GRID_COLOR);
+        draw->AddLine(ImVec2(px, origin.y), ImVec2(px, origin.y + height),
+                      theme::overlay::TILE_GRID);
     }
     for (int y = 0; y <= rows; y++) {
         const float py = origin.y + static_cast<float>(y) * cellH;
-        draw->AddLine(ImVec2(origin.x, py), ImVec2(origin.x + width, py), GRID_COLOR);
+        draw->AddLine(ImVec2(origin.x, py), ImVec2(origin.x + width, py),
+                      theme::overlay::TILE_GRID);
     }
 }
 
@@ -121,7 +120,8 @@ void TilemapWindow::picker(Editor &editor, const Tileset &tileset)
         const int tileRow = tile / columns;
         const ImVec2 a(origin.x + static_cast<float>(tileColumn) * cellW,
                        origin.y + static_cast<float>(tileRow) * cellH);
-        draw->AddRect(a, ImVec2(a.x + cellW, a.y + cellH), PICKED_COLOR, 0.0f, 0, 2.0f);
+        draw->AddRect(a, ImVec2(a.x + cellW, a.y + cellH), theme::overlay::TILE_PICKED, 0.0f, 0,
+                      2.0f);
     }
     ImGui::EndChild();
 }
@@ -175,7 +175,8 @@ void TilemapWindow::mapView(Editor &editor, const Tileset &tileset, const TileMa
     ImGui::InvisibleButton("##map_area", size,
                            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
     ImDrawList *draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y), BACKDROP_COLOR);
+    draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y),
+                        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::CANVAS_SOFT)));
     if (picture_.texture()) {
         draw->AddImage(textureRef(picture_), origin, ImVec2(origin.x + size.x, origin.y + size.y));
     }
