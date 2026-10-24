@@ -40,6 +40,8 @@ enum class Icon {
     Swap,
     Folder,
     Slice,
+    ChevronLeft,
+    ChevronRight,
     Count
 };
 
@@ -48,8 +50,13 @@ enum class Icon {
 unsigned codepoint(Icon icon);
 
 /* Whether `icon` is drawn by this module and has no glyph: the tool and shape icons (bitmaps) and
- * the Folder (lines). */
+ * the Folder and the two chevrons (lines). */
 bool is_drawn(Icon icon);
+
+/* The three points of a ChevronLeft or ChevronRight (the two strokes meet at the middle one) for
+ * the box [min, max]: whole pixels, centered across and along the box. The tip points the way the
+ * icon is named. */
+void chevron_points(Icon icon, ImVec2 min, ImVec2 max, ImVec2 (&points)[3]);
 
 /* The side of a tool icon bitmap, in cells. */
 inline constexpr int BITMAP_SIZE = 16;
@@ -103,8 +110,10 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
 
 /* A framed button with the icon centered, like the other buttons. `id` must be unique in the ID
  * scope and start with "##" (there is no label). While disabled it shows the "not allowed" cursor
- * instead of the tooltip. Returns true when clicked. */
-bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled = true);
+ * instead of the tooltip, and `reason` (why it is disabled) as a tooltip when it has one. Returns
+ * true when clicked. */
+bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled = true,
+            const char *reason = nullptr);
 
 /* A circular button (a filled disc in the button colors) with the icon centered, for a small
  * secondary action such as swapping the colors. `diameter` is in pixels; the rest is as button().

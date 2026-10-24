@@ -155,11 +155,14 @@ void TimelinePanel::toolbar()
         editor_->togglePlayback();
     }
     ImGui::SameLine();
-    if (theme::actionButton("<", "Previous frame (,)", theme::px(26.0f), current > 0)) {
+    const ImVec2 stepSize(theme::px(26.0f), ImGui::GetFrameHeight());
+    if (icons::button(Icon::ChevronLeft, "##prevframe", "Previous frame (,)", stepSize, current > 0,
+                      "This is the first frame.")) {
         editor_->setFrame(current - 1);
     }
     ImGui::SameLine();
-    if (theme::actionButton(">", "Next frame (.)", theme::px(26.0f), current + 1 < count)) {
+    if (icons::button(Icon::ChevronRight, "##nextframe", "Next frame (.)", stepSize,
+                      current + 1 < count, "This is the last frame.")) {
         editor_->setFrame(current + 1);
     }
     ImGui::SameLine();
@@ -174,7 +177,8 @@ void TimelinePanel::toolbar()
         editor_->duplicateFrame();
     }
     ImGui::SameLine();
-    if (icons::button(Icon::Trash, "##delframe", "Delete this frame", iconSize, count > 1)) {
+    if (icons::button(Icon::Trash, "##delframe", "Delete this frame", iconSize, count > 1,
+                      "A sprite needs at least one frame.")) {
         editor_->removeFrame(current);
     }
 

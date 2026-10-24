@@ -145,8 +145,9 @@ bool hex_field(const char *id, float *rgba, char (&buffer)[HEX_BUFFER_SIZE]);
 void tip(const char *text);
 
 /* For the item just drawn, a button that can be disabled: its tooltip while it is enabled, and
- * while it is disabled no tooltip but the "not allowed" mouse cursor. */
-void hint(const char *tooltip, bool enabled);
+ * while it is disabled the "not allowed" mouse cursor and, when `reason` says why, that as the
+ * tooltip (without one, no tooltip: the action's own tip would not tell why it is blocked). */
+void hint(const char *tooltip, bool enabled, const char *reason = nullptr);
 
 /* For the item just drawn, while it is disabled (`enabled` false): the "not allowed" mouse cursor
  * and, after a moment, `reason` as a tooltip (null: the cursor only), so a greyed item is never a
@@ -169,8 +170,10 @@ unsigned hint_text(bool pressed);
 bool choiceButton(const char *label, const char *hint, bool selected, float width,
                   const char *tooltip = nullptr);
 
-/* A plain button with a tooltip that also shows while it is disabled. */
-bool actionButton(const char *label, const char *tooltip, float width, bool enabled = true);
+/* A plain button with a tooltip. While it is disabled the tooltip is `reason` (why it is blocked),
+ * or none if there is none, and the mouse cursor says "not allowed". */
+bool actionButton(const char *label, const char *tooltip, float width, bool enabled = true,
+                  const char *reason = nullptr);
 
 /* Colors for the canvas area, as ImU32. */
 ImU32 workspaceColor();

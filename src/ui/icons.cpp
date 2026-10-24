@@ -44,6 +44,8 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0xe8d4, /* Swap: swap_horiz */
     0,      /* Folder: drawn with lines */
     0,      /* Slice: a bitmap (icon_bitmaps.cpp) */
+    0,      /* ChevronLeft: drawn with lines */
+    0,      /* ChevronRight: drawn with lines */
 };
 
 constexpr float ROUND = 6.0f;
@@ -92,7 +94,21 @@ unsigned codepoint(Icon icon)
 
 bool is_drawn(Icon icon)
 {
-    return icon == Icon::Folder || bitmap(icon) != nullptr;
+    return icon == Icon::Folder || icon == Icon::ChevronLeft || icon == Icon::ChevronRight ||
+           bitmap(icon) != nullptr;
+}
+
+void chevron_points(Icon icon, ImVec2 min, ImVec2 max, ImVec2 (&points)[3])
+{
+    const float size = glyph_size(theme::scale());
+    const float reach = std::round(size * 0.15f); /* from the middle of the box to the tip */
+    const float rise = std::round(size * 0.3f);   /* from the tip's row to each end's row */
+    const float cx = std::floor((min.x + max.x) / 2.0f) + 0.5f;
+    const float cy = std::floor((min.y + max.y) / 2.0f) + 0.5f;
+    const float toward = icon == Icon::ChevronRight ? 1.0f : -1.0f;
+    points[0] = ImVec2(cx - toward * reach, cy - rise);
+    points[1] = ImVec2(cx + toward * reach, cy);
+    points[2] = ImVec2(cx - toward * reach, cy + rise);
 }
 
 float bitmap_cell(float uiScale)
@@ -194,6 +210,13 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
         drawFolder(list, min, max, color);
         return;
     }
+    if (icon == Icon::ChevronLeft || icon == Icon::ChevronRight) {
+        ImVec2 points[3];
+        chevron_points(icon, min, max, points);
+        list->AddPolyline(points, 3, color, ImDrawFlags_None,
+                          std::max(1.0f, std::round(glyph_size(theme::scale()) * 0.1f)));
+        return;
+    }
     drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));
 }
 
@@ -220,14 +243,15 @@ bool round_button(Icon icon, const char *id, const char *tooltip, float diameter
     return clicked && enabled;
 }
 
-bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled)
+bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool enabled,
+            const char *reason)
 {
     ImGui::BeginDisabled(!enabled);
     bool clicked = ImGui::Button(id, size);
     ImGui::EndDisabled();
     draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
          enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f));
-    theme::hint(tooltip, enabled);
+    theme::hint(tooltip, enabled, reason);
     return clicked && enabled;
 }
 

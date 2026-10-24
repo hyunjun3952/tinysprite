@@ -12,6 +12,8 @@
 namespace
 {
 
+constexpr const char *SELECT_FIRST = "Select an area first."; /* why a selection button is grey */
+constexpr const char *PICK_A_SWATCH = "Click a swatch to select it first.";
 constexpr float COLOR_SWATCH_BASE = 36.0f;        /* all four at scale 1; see the helpers below */
 constexpr float COLOR_SWATCH_OFFSET_BASE = 18.0f; /* how far the background swatch peeks out */
 constexpr float SWAP_BUTTON_GAP_BASE = 12.0f;
@@ -304,19 +306,23 @@ void ToolsPanel::barSelection()
 {
     const bool enabled = editor_->hasSelection() && !editor_->stroking();
     barGap();
-    if (theme::actionButton("Flip H", "Flip the selection horizontally", 0.0f, enabled)) {
+    if (theme::actionButton("Flip H", "Flip the selection horizontally", 0.0f, enabled,
+                            SELECT_FIRST)) {
         editor_->flipSelection(true);
     }
     ImGui::SameLine();
-    if (theme::actionButton("Flip V", "Flip the selection vertically", 0.0f, enabled)) {
+    if (theme::actionButton("Flip V", "Flip the selection vertically", 0.0f, enabled,
+                            SELECT_FIRST)) {
         editor_->flipSelection(false);
     }
     ImGui::SameLine();
-    if (theme::actionButton("Rotate CW", "Rotate the selection clockwise", 0.0f, enabled)) {
+    if (theme::actionButton("Rotate CW", "Rotate the selection clockwise", 0.0f, enabled,
+                            SELECT_FIRST)) {
         editor_->rotateSelection(true);
     }
     ImGui::SameLine();
-    if (theme::actionButton("Rotate CCW", "Rotate the selection counterclockwise", 0.0f, enabled)) {
+    if (theme::actionButton("Rotate CCW", "Rotate the selection counterclockwise", 0.0f, enabled,
+                            SELECT_FIRST)) {
         editor_->rotateSelection(false);
     }
     if (!editor_->hasSelection()) {
@@ -541,24 +547,29 @@ void ToolsPanel::paletteSwatches()
     ImGui::PopID();
     ImVec2 size(theme::columnWidth(4), ImGui::GetFrameHeight() + 6.0f);
     if (icons::button(icons::Icon::Plus, "##palette_add", "Add the foreground color to the palette",
-                      size, editor_->paletteCanAdd())) {
+                      size, editor_->paletteCanAdd(),
+                      "The color is already in the palette, or the palette is full.")) {
         editor_->paletteAdd();
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Minus, "##palette_remove", "Remove the selected swatch", size,
-                      editor_->paletteSelected() >= 0)) {
+                      editor_->paletteSelected() >= 0, PICK_A_SWATCH)) {
         editor_->paletteRemove(editor_->paletteSelected());
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Swap, "##palette_replace",
                       "Replace the selected swatch with the foreground color", size,
-                      editor_->paletteCanReplace())) {
+                      editor_->paletteCanReplace(),
+                      editor_->paletteSelected() < 0
+                          ? PICK_A_SWATCH
+                          : "The foreground color is already in the palette.")) {
         editor_->paletteReplaceSelected();
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Reset, "##palette_reset",
                       "Reset the palette to the default colors (cannot be undone)", size,
-                      !editor_->paletteIsDefault())) {
+                      !editor_->paletteIsDefault(),
+                      "The palette already has the default colors.")) {
         openReset_ = true; /* asks first: it throws the palette's colors away */
     }
 }

@@ -613,12 +613,12 @@ std::string ellipsize(const std::string &text, float maxWidth)
     return "...";
 }
 
-void hint(const char *tooltip, bool enabled)
+void hint(const char *tooltip, bool enabled, const char *reason)
 {
     if (enabled) {
         tip(tooltip);
-    } else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+    } else {
+        why_disabled(false, reason);
     }
 }
 
@@ -667,12 +667,13 @@ bool choiceButton(const char *label, const char *hint, bool selected, float widt
     return clicked;
 }
 
-bool actionButton(const char *label, const char *tooltip, float width, bool enabled)
+bool actionButton(const char *label, const char *tooltip, float width, bool enabled,
+                  const char *reason)
 {
     ImGui::BeginDisabled(!enabled);
     bool clicked = ImGui::Button(label, ImVec2(width, 0.0f));
     ImGui::EndDisabled();
-    hint(tooltip, enabled);
+    hint(tooltip, enabled, reason);
     return clicked && enabled;
 }
 
