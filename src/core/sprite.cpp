@@ -136,10 +136,12 @@ bool Sprite::insertFrame(int index, Frame &&frame)
             return false;
         }
     }
+    /* Everything is checked: from here on the frame is ours and nothing can refuse it. */
+    Frame taken = std::move(frame);
     for (size_t i = 0; i < layers_.size(); i++) {
-        layers_[i]->insertCel(index, std::move(frame.cels[i]));
+        layers_[i]->insertCel(index, std::move(taken.cels[i]));
     }
-    durations_.insert(durations_.begin() + index, frame.duration);
+    durations_.insert(durations_.begin() + index, taken.duration);
     frameCount_++;
     for (Tag &tag : tags_) {
         if (index <= tag.from) {

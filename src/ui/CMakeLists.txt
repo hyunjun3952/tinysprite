@@ -4,7 +4,6 @@ find_package(SDL2 REQUIRED)
 set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/thirdparty/imgui)
 add_library(tinysprite_imgui STATIC
   ${IMGUI_DIR}/imgui.cpp
-  ${IMGUI_DIR}/imgui_demo.cpp
   ${IMGUI_DIR}/imgui_draw.cpp
   ${IMGUI_DIR}/imgui_tables.cpp
   ${IMGUI_DIR}/imgui_widgets.cpp
@@ -13,6 +12,8 @@ add_library(tinysprite_imgui STATIC
 target_include_directories(tinysprite_imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 target_link_libraries(tinysprite_imgui PUBLIC SDL2::SDL2)
 target_compile_options(tinysprite_imgui PRIVATE -w)
+# The demo window is not used: without it ImGui drops imgui_demo.cpp (11 k lines).
+target_compile_definitions(tinysprite_imgui PUBLIC IMGUI_DISABLE_DEMO_WINDOWS)
 
 add_library(tinysprite_ui STATIC
   editor/editor.cpp editor/internal.cpp editor/layers.cpp editor/frames.cpp editor/palette.cpp editor/selection.cpp editor/settings.cpp editor/slices.cpp editor/filters.cpp editor/tilemaps.cpp

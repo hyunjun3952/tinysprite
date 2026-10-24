@@ -169,8 +169,9 @@ bool fitsCel(int width, int height)
 std::vector<unsigned char> readFile(const std::string &path)
 {
     std::ifstream file(path_from_utf8(path), std::ios::binary);
-    return std::vector<unsigned char>((std::istreambuf_iterator<char>(file)),
-                                      std::istreambuf_iterator<char>());
+    std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(file)),
+                                     std::istreambuf_iterator<char>());
+    return bytes;
 }
 
 /* The frames of an animated GIF in `data` as a sprite (one layer, a cel and duration per frame);
@@ -187,6 +188,14 @@ std::optional<Sprite> importAnimatedGif(const std::vector<unsigned char> &data)
     if (stbi_info_from_memory(data.data(), static_cast<int>(data.size()), &headerWidth,
                               &headerHeight, &headerChannels) == 0 ||
         !fitsCel(headerWidth, headerHeight)) {
+        return std::nullopt;
+    }
+    /* stb_image decodes every frame before SPRITE_MAX_FRAMES can cut them, so refuse here an
+     * animation whose frames alone would not fit the cel budget. */
+    const unsigned long long decoded = static_cast<unsigned long long>(gif_frame_count(data)) *
+                                       static_cast<unsigned long long>(headerWidth) *
+                                       static_cast<unsigned long long>(headerHeight) * sizeof(Rgba);
+    if (decoded > SPRITE_MAX_CEL_BYTES) {
         return std::nullopt;
     }
     int *delays = nullptr;

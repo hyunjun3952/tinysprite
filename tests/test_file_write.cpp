@@ -1,5 +1,7 @@
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <optional>
 #include <string>
 
@@ -36,8 +38,21 @@ TEST(a_utf8_path_round_trips_and_a_file_there_can_be_written_and_read)
     std::filesystem::remove_all(path_from_utf8(folder));
 }
 
+TEST(bytes_are_written_without_a_string_copy)
+{
+    const uint8_t bytes[] = {0, 1, 2, 255};
+    ASSERT_TRUE(file_write_atomic("test_file_write.bytes", bytes, sizeof bytes));
+    std::ifstream file("test_file_write.bytes", std::ios::binary);
+    std::string back((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+    std::remove("test_file_write.bytes");
+    ASSERT_EQ_INT(4, static_cast<int>(back.size()));
+    ASSERT_EQ_INT(255, static_cast<uint8_t>(back[3]));
+}
+
 int main()
 {
+    RUN(bytes_are_written_without_a_string_copy);
     RUN(a_failed_write_says_why);
     RUN(a_successful_write_clears_the_reason);
     RUN(a_utf8_path_round_trips_and_a_file_there_can_be_written_and_read);

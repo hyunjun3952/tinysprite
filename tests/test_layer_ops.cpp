@@ -564,6 +564,23 @@ TEST(merge_down_is_refused_when_the_lower_layer_is_not_fully_opaque)
     ASSERT_EQ_INT(255, composite_pixel(s, 0, 0, 0).a);
 }
 
+TEST(removed_layers_count_toward_the_history_limit)
+{
+    /* A removed layer stays alive in its step, so the step must weigh its pixels. */
+    Sprite s(16, 16);
+    History h;
+    h.setLimit(4096); /* a 16 x 16 cel is 1024 bytes */
+    for (int round = 0; round < 20; round++) {
+        ASSERT_TRUE(layer_op_add(h, s, "x") != nullptr);
+        ASSERT_TRUE(layer_op_remove(h, s, s.layerCount() - 1));
+    }
+    int undone = 0;
+    while (h.undo()) {
+        undone++;
+    }
+    ASSERT_TRUE(undone < 40); /* the oldest steps were dropped */
+}
+
 int main()
 {
     RUN(add_is_undoable);
@@ -602,5 +619,6 @@ int main()
     RUN(merge_down_with_a_blend_mode_needs_nothing_visible_below_the_lower_layer);
     RUN(merge_down_onto_a_blended_layer_needs_nothing_visible_below_it_either);
     RUN(merge_down_with_a_blend_mode_looks_like_the_stack_when_allowed);
+    RUN(removed_layers_count_toward_the_history_limit);
     return TEST_SUMMARY();
 }

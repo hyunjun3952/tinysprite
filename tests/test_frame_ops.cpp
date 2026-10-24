@@ -191,6 +191,22 @@ TEST(undoing_a_removal_at_the_limit_still_works)
     ASSERT_EQ_INT(SPRITE_MAX_FRAMES, s.frameCount());
 }
 
+TEST(removed_frames_count_toward_the_history_limit)
+{
+    Sprite s(16, 16);
+    History h;
+    h.setLimit(4096);
+    for (int round = 0; round < 20; round++) {
+        ASSERT_TRUE(frame_op_add(h, s, 1));
+        ASSERT_TRUE(frame_op_remove(h, s, 1));
+    }
+    int undone = 0;
+    while (h.undo()) {
+        undone++;
+    }
+    ASSERT_TRUE(undone < 40);
+}
+
 int main()
 {
     RUN(add_is_undoable);
@@ -206,5 +222,6 @@ int main()
     RUN(a_removed_layer_comes_back_with_the_frames_it_had);
     RUN(adding_or_duplicating_stops_at_the_frame_limit);
     RUN(undoing_a_removal_at_the_limit_still_works);
+    RUN(removed_frames_count_toward_the_history_limit);
     return TEST_SUMMARY();
 }

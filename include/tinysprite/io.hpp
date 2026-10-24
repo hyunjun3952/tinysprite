@@ -62,6 +62,7 @@ std::optional<Sprite> pxa_load(const std::string &path);
 /* Writes `data` to `path` through a temporary file next to it and a rename, so a failed write never
  * destroys an existing file. Returns false (leaving nothing behind) if it cannot be written. */
 bool file_write_atomic(const std::string &path, const std::string &data);
+bool file_write_atomic(const std::string &path, const uint8_t *data, size_t size);
 
 /* Why the last file_write_atomic on this thread failed, as the system words it ("No such file or
  * directory"); empty if it succeeded. */
@@ -113,7 +114,7 @@ bool image_write_rgba(const std::string &path, int width, int height, std::vecto
  * slow. A GIF has at most 256 colors and no partial transparency: a pixel at least half opaque is
  * shown in its color, any other is transparent; when the sprite uses more colors than fit they are
  * reduced to the closest palette (median cut). `scale` enlarges by whole pixels like image_export.
- * The animation loops forever unless `loop` is false. */
+ * The animation loops forever unless `loop` is false (a single frame has nothing to loop). */
 struct GifOptions {
     int first = 0;
     int last = -1;
@@ -121,6 +122,11 @@ struct GifOptions {
     int scale = 1;
     bool loop = true;
 };
+
+/* How many images a GIF holds, counted from its block structure without decoding any pixel; 0 for
+ * data that is not a well-formed GIF. image_import uses it to refuse an animation whose frames
+ * would not fit in memory before stb_image decodes them all. */
+int gif_frame_count(const std::vector<uint8_t> &data);
 
 /* The file's bytes, or nothing (an empty vector) for a bad range or scale. */
 std::vector<uint8_t> gif_encode(const Sprite &sprite, const GifOptions &options);

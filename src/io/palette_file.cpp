@@ -36,6 +36,11 @@ void file_write_error_clear()
 
 bool file_write_atomic(const std::string &path, const std::string &data)
 {
+    return file_write_atomic(path, reinterpret_cast<const uint8_t *>(data.data()), data.size());
+}
+
+bool file_write_atomic(const std::string &path, const uint8_t *data, size_t size)
+{
     /* Write beside the target and rename, so a failed write never destroys an existing file. */
     last_write_error().clear();
     std::string temp = path + ".tmp";
@@ -46,7 +51,7 @@ bool file_write_atomic(const std::string &path, const std::string &data)
             last_write_error() = errno != 0 ? std::strerror(errno) : "cannot create the file";
             return false;
         }
-        file.write(data.data(), static_cast<std::streamsize>(data.size()));
+        file.write(reinterpret_cast<const char *>(data), static_cast<std::streamsize>(size));
         file.flush();
         file.close();
         if (file.fail()) {

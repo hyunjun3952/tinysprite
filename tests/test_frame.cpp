@@ -75,9 +75,12 @@ TEST(a_refused_insert_leaves_the_frame_with_the_caller)
     Sprite::Frame frame = s.makeFrame();
     std::shared_ptr<Cel> first = frame.cels[0];
     ASSERT_TRUE(!s.insertFrame(5, std::move(frame)));
+    /* The refused frame was only passed as an rvalue reference, so it is still whole. */
+    // NOLINTBEGIN(bugprone-use-after-move)
     ASSERT_EQ_INT(1, static_cast<int>(frame.cels.size()));
     ASSERT_TRUE(frame.cels[0] == first);
     ASSERT_TRUE(s.insertFrame(1, std::move(frame)));
+    // NOLINTEND(bugprone-use-after-move)
     ASSERT_EQ_INT(2, s.frameCount());
 }
 

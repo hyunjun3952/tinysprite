@@ -35,14 +35,21 @@ struct Membership {
     }
 };
 
+/* The pixels a step keeps alive while its layer is out of the sprite (counted by the history). */
+size_t layerBytes(const Layer &layer)
+{
+    const Cel &cel = *layer.cel(0);
+    return static_cast<size_t>(layer.frameCount()) * cel.width() * cel.height() * sizeof(Rgba);
+}
+
 HistoryAction layerAdded(const std::shared_ptr<Membership> &m)
 {
-    return HistoryAction{[m] { m->detach(); }, [m] { m->attach(); }};
+    return HistoryAction{[m] { m->detach(); }, [m] { m->attach(); }, layerBytes(*m->layer)};
 }
 
 HistoryAction layerRemoved(const std::shared_ptr<Membership> &m)
 {
-    return HistoryAction{[m] { m->attach(); }, [m] { m->detach(); }};
+    return HistoryAction{[m] { m->attach(); }, [m] { m->detach(); }, layerBytes(*m->layer)};
 }
 
 } // namespace

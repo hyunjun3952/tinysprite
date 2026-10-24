@@ -722,7 +722,7 @@ std::optional<Sprite> pxa_decode(const std::vector<uint8_t> &data)
 bool pxa_save(const Sprite &sprite, const std::string &path)
 {
     std::vector<uint8_t> data = pxa_encode(sprite);
-    return file_write_atomic(path, std::string(data.begin(), data.end()));
+    return file_write_atomic(path, data.data(), data.size());
 }
 
 std::optional<Sprite> pxa_load(const std::string &path)

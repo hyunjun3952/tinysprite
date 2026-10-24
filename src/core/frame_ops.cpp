@@ -50,6 +50,9 @@ bool recordSlot(History &history, Sprite &sprite, const std::shared_ptr<Slot> &s
         sprite.setTags(undoing ? tags->before : tags->after);
     };
     HistoryAction action;
+    /* the frame is kept alive while it is out of the sprite: one cel per layer */
+    action.bytes =
+        static_cast<size_t>(sprite.layerCount()) * sprite.width() * sprite.height() * sizeof(Rgba);
     if (inserting) {
         action.undo = [detach] { detach(true); };
         action.redo = [attach] { attach(false); };

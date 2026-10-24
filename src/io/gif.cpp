@@ -467,6 +467,59 @@ std::vector<uint8_t> gif_encode(const Sprite &sprite, const GifOptions &options)
     return out;
 }
 
+namespace
+{
+
+/* Moves `at` past the data sub-blocks that start there (each a length byte and that many bytes,
+ * ended by a zero length); false if the data ends first. */
+bool skipSubBlocks(const std::vector<uint8_t> &data, size_t &at)
+{
+    while (at < data.size()) {
+        const size_t length = data[at++];
+        if (length == 0) {
+            return true;
+        }
+        at += length;
+    }
+    return false;
+}
+
+/* The size of a color table whose presence and size are in `flags` (bit 7, bits 0-2). */
+size_t colorTableBytes(uint8_t flags)
+{
+    return (flags & 0x80) != 0 ? size_t{3} << ((flags & 7) + 1) : 0;
+}
+
+} // namespace
+
+int gif_frame_count(const std::vector<uint8_t> &data)
+{
+    constexpr size_t SCREEN_END = 13; /* "GIF89a", the screen descriptor */
+    if (data.size() < SCREEN_END || data[0] != 'G' || data[1] != 'I' || data[2] != 'F') {
+        return 0;
+    }
+    size_t at = SCREEN_END + colorTableBytes(data[10]);
+    int frames = 0;
+    while (at < data.size() && data[at] != 0x3B) {
+        const uint8_t kind = data[at++];
+        if (kind == 0x21) { /* an extension: its label, then its sub-blocks */
+            at++;
+        } else if (kind == 0x2C) { /* an image: the descriptor, a color table, the LZW data */
+            if (at + 9 > data.size()) {
+                return 0;
+            }
+            at += 9 + colorTableBytes(data[at + 8]) + 1;
+            frames++;
+        } else {
+            return 0;
+        }
+        if (!skipSubBlocks(data, at)) {
+            return 0;
+        }
+    }
+    return frames;
+}
+
 bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions &options)
 {
     file_write_error_clear();
@@ -474,5 +527,5 @@ bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions 
         return false;
     }
     std::vector<uint8_t> data = gif_encode(sprite, options);
-    return !data.empty() && file_write_atomic(path, std::string(data.begin(), data.end()));
+    return !data.empty() && file_write_atomic(path, data.data(), data.size());
 }

@@ -357,6 +357,24 @@ TEST(a_broken_gif_is_refused)
     }
 }
 
+TEST(the_frame_count_of_a_gif_is_read_without_decoding_it)
+{
+    /* header, a 4096 x 4096 screen with no color table, then three 1 x 1 images */
+    std::vector<uint8_t> gif = {'G', 'I', 'F', '8', '9', 'a', 0x00, 0x10, 0x00, 0x10, 0, 0, 0};
+    for (int i = 0; i < 3; i++) {
+        const uint8_t image[] = {
+            0x21, 0xF9, 4,    0,    10, 0, 0, 0,       /* a graphic control extension */
+            0x2C, 0,    0,    0,    0,  1, 0, 1, 0, 0, /* an image descriptor */
+            2,    2,    0x44, 0x01, 0};                /* LZW size and one sub-block */
+        gif.insert(gif.end(), image, image + sizeof image);
+    }
+    gif.push_back(0x3B);
+    ASSERT_EQ_INT(3, gif_frame_count(gif));
+    gif.resize(20); /* cut inside the first extension */
+    ASSERT_EQ_INT(0, gif_frame_count(gif));
+    ASSERT_EQ_INT(0, gif_frame_count({'P', 'N', 'G'}));
+}
+
 int main()
 {
     RUN(a_gif_has_the_header_and_all_frames);
@@ -380,5 +398,6 @@ int main()
     RUN(an_exported_animation_imports_as_frames_with_durations);
     RUN(a_single_frame_gif_imports_as_before);
     RUN(a_broken_gif_is_refused);
+    RUN(the_frame_count_of_a_gif_is_read_without_decoding_it);
     return TEST_SUMMARY();
 }
