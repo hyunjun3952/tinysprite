@@ -93,7 +93,9 @@ bool App::initImGui()
     ImGui::CreateContext();
     imguiContext_ = true;
     ImGui::GetIO().IniFilename = nullptr;
-    theme::load_fonts(); /* on failure the built-in font stays */
+    ImGui::GetIO().ConfigFlags |=
+        ImGuiConfigFlags_NavEnableKeyboard; /* Tab and arrows move focus */
+    theme::load_fonts();                    /* on failure the built-in font stays */
     theme::apply();
     if (!ImGui_ImplSDL3_InitForSDLRenderer(window_, renderer_)) {
         return false;
@@ -172,8 +174,8 @@ bool App::init(const AppOptions &options)
         std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return false;
     }
-    /* Smoke runs (--frames) neither read nor write the user's settings and autosave. */
-    persist_ = options.maxFrames == 0 || !options.configDir.empty();
+    /* Smoke runs (--frames, --script) neither read nor write the user's settings and autosave. */
+    persist_ = (options.maxFrames == 0 && options.scriptPath.empty()) || !options.configDir.empty();
     if (!options.configDir.empty()) {
         configDir_ = options.configDir;
     } else if (persist_) {
@@ -480,8 +482,12 @@ void App::buildUi()
 void App::run(const AppOptions &options)
 {
     int frames = 0;
+    Script script = options.script;
+    const bool scripted = !options.scriptPath.empty();
     while (running_) {
         pollEvents();
+        ScriptInput input = scripted ? script.next() : ScriptInput();
+        script_feed(ImGui::GetIO(), input);
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
@@ -492,11 +498,16 @@ void App::run(const AppOptions &options)
         SDL_RenderClear(renderer_);
         ImGui::Render();
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer_);
-        bool lastFrame = options.maxFrames > 0 && frames + 1 >= options.maxFrames;
-        if (lastFrame && !options.screenshot.empty() && !saveScreenshot(options.screenshot)) {
-            std::fprintf(stderr, "cannot save %s\n", options.screenshot.c_str());
+        bool lastFrame = (options.maxFrames > 0 && frames + 1 >= options.maxFrames) ||
+                         (scripted && script.done());
+        std::string shot = !input.shot.empty() ? input.shot : (lastFrame ? options.screenshot : "");
+        if (!shot.empty() && !saveScreenshot(shot)) {
+            std::fprintf(stderr, "cannot save %s\n", shot.c_str());
         }
         SDL_RenderPresent(renderer_);
+        if (input.sleepMs > 0) {
+            SDL_Delay(static_cast<Uint32>(input.sleepMs));
+        }
 
         frames++;
         running_ = running_ && !lastFrame;

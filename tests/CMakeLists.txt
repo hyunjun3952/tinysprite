@@ -39,6 +39,17 @@ if(TINYSPRITE_BUILD_UI)
   set_tests_properties(ui_screenshot_write PROPERTIES FIXTURES_REQUIRED shot_clean FIXTURES_SETUP shot_written ENVIRONMENT "SDL_VIDEODRIVER=dummy")
   set_tests_properties(ui_screenshot_check PROPERTIES FIXTURES_REQUIRED shot_written)
 
+  # --script feeds input commands to the app (tests/ui/smoke.script), one per frame, and ends with
+  # them; its `shot` command writes the rendered frame like --screenshot does.
+  set(SCRIPT_SHOT ${CMAKE_CURRENT_BINARY_DIR}/ui_script.png)
+  add_test(NAME ui_script_run COMMAND ${CMAKE_COMMAND} -E remove ${SCRIPT_SHOT})
+  add_test(NAME ui_script_write COMMAND tinysprite 16 --script ${CMAKE_CURRENT_SOURCE_DIR}/ui/smoke.script)
+  add_test(NAME ui_script_check
+    COMMAND ${CMAKE_COMMAND} -DFILE=${SCRIPT_SHOT} -DPNG=ON -P ${CMAKE_CURRENT_SOURCE_DIR}/check_file.cmake)
+  set_tests_properties(ui_script_run PROPERTIES FIXTURES_SETUP script_clean)
+  set_tests_properties(ui_script_write PROPERTIES FIXTURES_REQUIRED script_clean FIXTURES_SETUP script_written ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+  set_tests_properties(ui_script_check PROPERTIES FIXTURES_REQUIRED script_written)
+
   # A run with --config-dir leaves its settings behind on exit; the second test looks for them.
   set(PERSIST_DIR ${CMAKE_CURRENT_BINARY_DIR}/persist_config)
   add_test(NAME ui_persist_run

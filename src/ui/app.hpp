@@ -17,6 +17,7 @@
 #include "layers_panel.hpp"
 #include "panels.hpp"
 #include "recovery.hpp"
+#include "script.hpp"
 #include "settings.hpp"
 #include "statusbar.hpp"
 #include "theme.hpp"
@@ -34,6 +35,9 @@ struct AppOptions {
     float uiScale = 0.0f;   /* the UI scale to use instead of the saved / detected one; 0 = none */
     std::string configDir;  /* keep settings / autosave here (also in a --frames run); "" = the
                              * user's config directory, which a --frames run leaves alone */
+    std::string scriptPath; /* the --script file, "" for none: input commands run instead of the
+                             * user (a smoke run like --frames, and it ends with the script) */
+    Script script;          /* the commands of scriptPath, parsed */
 };
 
 /* Owns the window, the ImGui context and the editor, and runs the main loop. Everything it sets up

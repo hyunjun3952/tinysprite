@@ -2,12 +2,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 #include <SDL3/SDL_main.h> /* the platform entry point, here and nowhere else */
 
 #include "app.hpp"
 #include "tinysprite/cel.hpp"
 #include "tinysprite/cli.hpp"
+#include "tinysprite/io.hpp"
 
 namespace
 {
@@ -26,7 +30,7 @@ bool parseNumber(const char *text, int min, int max, int &out)
 
 constexpr const char *USAGE =
     "usage: %s [file | width [height]] [--frames N [--screenshot "
-    "out.png]] [--config-dir DIR] [--scale PERCENT] [--help]\n"
+    "out.png]] [--script FILE] [--config-dir DIR] [--scale PERCENT] [--help]\n"
     "       %s export <input> --sheet|--image|--gif out [...]  (no window)\n";
 
 /* The command line, one argument at a time; a flag takes the argument after it as its value. */
@@ -68,7 +72,8 @@ Flag parseFlag(Args &args, AppOptions &options)
 {
     const char *name = args.current();
     bool known = std::strcmp(name, "--frames") == 0 || std::strcmp(name, "--config-dir") == 0 ||
-                 std::strcmp(name, "--scale") == 0 || std::strcmp(name, "--screenshot") == 0;
+                 std::strcmp(name, "--scale") == 0 || std::strcmp(name, "--screenshot") == 0 ||
+                 std::strcmp(name, "--script") == 0;
     if (!known) {
         return Flag::NotAFlag;
     }
@@ -85,6 +90,8 @@ Flag parseFlag(Args &args, AppOptions &options)
         int percent = 0; /* given as a percent */
         ok = parseNumber(value, 100, 300, percent);
         options.uiScale = static_cast<float>(percent) / 100.0f;
+    } else if (std::strcmp(name, "--script") == 0) {
+        options.scriptPath = value;
     } else {
         options.screenshot = value;
     }
@@ -133,6 +140,27 @@ bool parseOptions(int argc, char **argv, AppOptions &options)
     return true;
 }
 
+/* Reads and parses the --script file into `options`, if one was given; says why when it cannot. */
+bool loadScript(AppOptions &options)
+{
+    if (options.scriptPath.empty()) {
+        return true;
+    }
+    std::ifstream file(path_from_utf8(options.scriptPath), std::ios::binary);
+    if (!file) {
+        std::fprintf(stderr, "cannot read %s\n", options.scriptPath.c_str());
+        return false;
+    }
+    std::stringstream text;
+    text << file.rdbuf();
+    std::string error;
+    if (!options.script.parse(text.str(), error)) {
+        std::fprintf(stderr, "%s: %s\n", options.scriptPath.c_str(), error.c_str());
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -149,6 +177,9 @@ int main(int argc, char **argv)
     AppOptions options;
     if (!parseOptions(argc, argv, options)) {
         std::fprintf(stderr, USAGE, argv[0], argv[0]);
+        return 2;
+    }
+    if (!loadScript(options)) {
         return 2;
     }
     App app;

@@ -1,0 +1,10 @@
+# Runs through the app with scripted input (the ui_script_* ctest): picks a tool, draws a stroke on
+# the canvas, undoes it, opens a menu, and saves what it rendered. Cwd is the build's tests folder.
+wait 3
+click 25 105
+drag 300 200 360 260
+key ctrl+Z
+click 22 11
+wait 3
+sleep 50
+shot ui_script.png
