@@ -68,12 +68,14 @@ TEST(closing_a_floating_panel_hides_it)
 {
     Harness h;
     h.frame(500, 300, false);
-    h.drag(40, 8, 400, 250);
-    ImVec2 pos = h.windowPos("Tools");
-    float width = ImGui::FindWindowByName("Tools")->Size.x;
+    ImVec2 docked = h.windowPos("Inspector");
+    h.drag(docked.x + 40.0f, 8, 300, 150);
+    ASSERT_TRUE(h.panels.floating(PanelId::Layers));
+    ImVec2 pos = h.windowPos("Inspector");
+    float width = ImGui::FindWindowByName("Inspector")->Size.x;
     /* The close button sits at the right end of the title bar. */
     h.drag(pos.x + width - 14.0f, pos.y + 8.0f, pos.x + width - 14.0f, pos.y + 8.0f);
-    ASSERT_TRUE(!h.panels.visible(PanelId::Tools));
+    ASSERT_TRUE(!h.panels.visible(PanelId::Layers));
     h.frame(500, 300, false);
     h.frame(500, 300, false);
 }
@@ -186,6 +188,41 @@ TEST(the_tool_bar_has_a_fixed_width)
     ASSERT_TRUE(after == before);
 }
 
+/* A floating tool bar has neither a close button nor a collapse arrow, so its title has the room
+ * the docked one has. */
+TEST(a_floating_tool_bar_has_no_close_button)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.drag(40, 8, 100, 60);
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    ASSERT_TRUE(h.panels.floating(PanelId::Tools));
+    ASSERT_TRUE(!ImGui::FindWindowByName("Tools")->HasCloseButton);
+    ASSERT_TRUE((ImGui::FindWindowByName("Tools")->Flags & ImGuiWindowFlags_NoCollapse) != 0);
+}
+
+/* A floating tool bar keeps its size too: dragging its bottom right corner changes nothing. */
+TEST(a_floating_tool_bar_cannot_be_resized)
+{
+    Harness h;
+    h.frame(500, 300, false);
+    h.drag(40, 8, 100, 60);
+    h.frame(500, 300, false);
+    h.frame(500, 300, false);
+    ASSERT_TRUE(h.panels.floating(PanelId::Tools));
+    ImVec2 pos = h.windowPos("Tools");
+    ImVec2 before = ImGui::FindWindowByName("Tools")->Size;
+    float cornerX = pos.x + before.x - 2.0f;
+    float cornerY = pos.y + before.y - 2.0f;
+    h.frame(cornerX, cornerY, false);
+    h.frame(cornerX, cornerY, false);
+    h.drag(cornerX, cornerY, cornerX + 80.0f, cornerY + 30.0f);
+    h.frame(cornerX + 80.0f, cornerY + 30.0f, false);
+    ImVec2 after = ImGui::FindWindowByName("Tools")->Size;
+    ASSERT_TRUE(after.x == before.x && after.y == before.y);
+}
+
 TEST(the_inspector_stays_between_its_minimum_and_maximum_width)
 {
     Harness h;
@@ -246,6 +283,8 @@ int main()
     RUN(docked_panels_give_the_canvas_room_in_a_narrow_window);
     RUN(closing_a_floating_panel_hides_it);
     RUN(the_tool_bar_has_a_fixed_width);
+    RUN(a_floating_tool_bar_has_no_close_button);
+    RUN(a_floating_tool_bar_cannot_be_resized);
     RUN(the_inspector_stays_between_its_minimum_and_maximum_width);
     RUN(double_clicking_a_panel_edge_restores_its_default_width);
     RUN(the_right_panel_is_named_for_what_it_holds);

@@ -281,7 +281,16 @@ bool Panels::begin(PanelId id, float height)
     ImGui::SetNextWindowSize(ImVec2(panel.width, height * 0.8f), ImGuiCond_FirstUseEver);
     bool open = true;
     windowOpen_ = true;
-    bool shown = ImGui::Begin(panel.title, &open);
+    /*
+     * A panel of fixed width is too narrow for a collapse arrow and a close button next to its
+     * title, which would hide the title: it floats without them, as it is docked, and is hidden
+     * from the Window menu.
+     */
+    bool fixed = !panel.resizable();
+    constexpr ImGuiWindowFlags FIXED_FLAGS =
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+    bool shown = ImGui::Begin(panel.title, fixed ? nullptr : &open,
+                              fixed ? FIXED_FLAGS : ImGuiWindowFlags_None);
     if (!open) {
         panel.visible = false;
     }
