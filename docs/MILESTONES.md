@@ -179,7 +179,7 @@ Several documents open at once, as tabs, and two of them side by side. Done on `
   `LayerThumbnails::graveyard_`): the frame being built may already have drawn their textures, which are rendered at its
   end. A tab cannot be closed or left while a tool is being dragged (quit cancels the drag first), and a middle-button
   pick ends when the tab changes.
-- Known limits: the split is not saved between runs; playback runs only in the active document.
+- Known limit: the split is not saved between runs (nor are the open tabs; the autosave recovery covers unsaved work). An animation plays in every pane a split shows; a tab that is no longer shown stops.
 
 ## Phase 2b: layer blend modes
 
@@ -426,9 +426,8 @@ candidates listed under UI polish.
 ## Known limits (what is left)
 - The model does not enforce layer locks; the `Editor` does (`editableCel`).
 - Rasterizers clip no pixels; the caller bounds-checks. Filled ones take an optional clip rect that only skips fill rows and columns outside it (a shape dragged far past the cel stays cheap), and shapes draw once and reflect each plotted pixel for symmetry. A selection is one rectangle, and pixels moved off the sprite are
-  lost. Merging needs both layers visible.
+  lost. Merging needs both layers visible, the lower one unlocked and a stack that looks the same afterwards (`layer_can_merge_down`).
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); one UI font (a Geist subset), no mono font and no CJK glyphs.
 - The Windows (MinGW) job is not built locally.
-- A GIF has no partial transparency and at most 256 colors; the sprite sheet is a plain grid / strip (no packing or JSON
-  yet, that is phase 3).
+- A GIF has no partial transparency and at most 256 colors (the format's limit).

@@ -211,6 +211,11 @@ struct AppTestAccess {
         }
         return -1;
     }
+    /* Makes the next frame see `ms` milliseconds since the previous one, whatever the real time. */
+    void ageNextFrame(int ms)
+    {
+        app.lastTick_ = SDL_GetTicks() - static_cast<Uint32>(ms);
+    }
     /* A click in the middle of a window of that name. */
     void clickWindow(const char *name)
     {
@@ -506,6 +511,41 @@ TEST(a_split_needs_a_second_document_and_shows_it_beside_the_first)
     ASSERT_EQ_INT(0, t.paneDoc(0));
 }
 
+TEST(an_animation_plays_in_both_panes_of_a_split)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    ASSERT_TRUE(t.addBlank(8, 8));
+    for (int document = 0; document < 2; document++) {
+        t.editorOf(document).addFrame();
+        t.editorOf(document).addFrame(); /* three frames of 100 ms each */
+        t.editorOf(document).setFrame(0);
+    }
+    t.activate(0);
+    t.editorOf(0).togglePlayback();
+    ASSERT_TRUE(t.splitView(true));
+    t.activate(1); /* a click in the second pane: the first one is still on show */
+    ASSERT_TRUE(t.editorOf(0).playing());
+    t.editorOf(1).togglePlayback();
+    t.ageNextFrame(120); /* one whole frame and a bit */
+    t.frame();
+    ASSERT_EQ_INT(1, t.editorOf(0).frame());
+    ASSERT_EQ_INT(1, t.editorOf(1).frame());
+}
+
+TEST(a_document_that_leaves_the_screen_stops_playing)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    ASSERT_TRUE(t.addBlank(8, 8));
+    t.editorOf(0).addFrame();
+    t.activate(0);
+    t.editorOf(0).togglePlayback();
+    ASSERT_TRUE(t.editorOf(0).playing());
+    t.activate(1); /* no split: tab 0 is no longer shown */
+    ASSERT_TRUE(!t.editorOf(0).playing());
+}
+
 TEST(a_stacked_split_gives_both_panes_the_full_width)
 {
     AppTestAccess t;
@@ -784,6 +824,8 @@ int main()
     RUN(switching_tabs_ends_a_middle_button_pick);
     RUN(a_closed_tabs_editor_is_kept_until_the_next_frame);
     RUN(a_split_needs_a_second_document_and_shows_it_beside_the_first);
+    RUN(a_document_that_leaves_the_screen_stops_playing);
+    RUN(an_animation_plays_in_both_panes_of_a_split);
     RUN(a_stacked_split_gives_both_panes_the_full_width);
     RUN(clicking_a_pane_makes_its_document_the_active_one);
     RUN(picking_a_tab_fills_the_active_pane_and_a_tab_in_the_other_pane_just_focuses_it);

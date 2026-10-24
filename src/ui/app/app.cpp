@@ -418,8 +418,13 @@ void App::buildUi()
     float body = viewport->WorkSize.y - status; /* above the status bar */
     toolsPanel_->show(panels_, body);
     layersWindow(body);
+    /* Every document a pane shows plays on; a tab that is not shown stands still. */
     Uint32 now = SDL_GetTicks();
-    editor_->tick(static_cast<int>(now - lastTick_));
+    const int elapsed = static_cast<int>(now - lastTick_);
+    pane_[0]->tick(elapsed);
+    if (pane_[1] != nullptr && pane_[1] != pane_[0]) {
+        pane_[1]->tick(elapsed);
+    }
     lastTick_ = now;
     if (editor_->takeFramesFull()) {
         toast("A sprite can have at most " + std::to_string(SPRITE_MAX_FRAMES) + " frames", true);

@@ -94,7 +94,9 @@ void App::activateDocument(int index)
     }
     if (previous) {
         export_.tag = -1; /* an index into the other document's tags means nothing here */
-        previous->stopPlayback();
+        if (previous != pane_[0] && previous != pane_[1]) {
+            previous->stopPlayback(); /* a tab that is no longer shown stands still */
+        }
         previous->tempPick(false); /* a middle-button pick must not stay stuck in the old tab */
         next->adoptPreferences(*previous);
     }
