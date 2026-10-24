@@ -674,6 +674,8 @@ class Editor
     }
     void abandonedForMemory();
     void refusedFrame();
+    const Layer *duplicateLayers(const std::vector<int> &selected,
+                                 std::vector<const Layer *> &copies);
 
     /* The editable selected pixels, copied, with the cel and area they came from; nullopt when
      * there is no selection or the cel cannot be edited. */

@@ -127,14 +127,12 @@ void Editor::removeSelectedLayers()
     afterHistoryStep();
 }
 
-void Editor::duplicateSelectedLayers()
+/* Duplicates the layers at `selected` as one history step, pushing each copy to `copies`. Returns
+ * the copy of the active layer, or null when it was not among them. */
+const Layer *Editor::duplicateLayers(const std::vector<int> &selected,
+                                     std::vector<const Layer *> &copies)
 {
-    if (stroking()) {
-        return;
-    }
     const Layer *activeCopy = nullptr;
-    std::vector<const Layer *> copies;
-    std::vector<int> selected = selectedLayers();
     history().beginGroup();
     /* From the top down, so the indexes still to be copied do not move. */
     guarded([&] {
@@ -149,6 +147,16 @@ void Editor::duplicateSelectedLayers()
         }
     });
     history().endGroup();
+    return activeCopy;
+}
+
+void Editor::duplicateSelectedLayers()
+{
+    if (stroking()) {
+        return;
+    }
+    std::vector<const Layer *> copies;
+    const Layer *activeCopy = duplicateLayers(selectedLayers(), copies);
     if (copies.empty()) {
         return;
     }
