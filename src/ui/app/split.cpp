@@ -33,7 +33,7 @@ bool App::splitView(int rightDocument, bool sideBySide)
             second = (active_ + 1) % count;
         }
         pane_[0] = editor_;
-        pane_[1] = docs_[static_cast<size_t>(second)].editor.get();
+        pane_[1] = doc(second).editor.get();
         activePane_ = 0;
         split_ = true;
         if (!canvas2_) {
@@ -41,7 +41,7 @@ bool App::splitView(int rightDocument, bool sideBySide)
             canvas2_->setOnPress([this] { focusPane(1); });
         }
     } else if (rightDocument >= 0 && rightDocument < count && rightDocument != active_) {
-        pane_[1 - activePane_] = docs_[static_cast<size_t>(rightDocument)].editor.get();
+        pane_[1 - activePane_] = doc(rightDocument).editor.get();
     }
     splitSideBySide_ = sideBySide;
     bindPanes();

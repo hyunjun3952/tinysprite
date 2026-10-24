@@ -74,7 +74,7 @@ void App::activateDocument(int index)
     if (!validIndex(index) || (editor_ && editor_->stroking())) {
         return;
     }
-    Editor *next = docs_[static_cast<size_t>(index)].editor.get();
+    Editor *next = doc(index).editor.get();
     Editor *previous = editor_;
     active_ = index;
     editor_ = next;
@@ -137,11 +137,11 @@ void App::moveDocument(int from, int to)
         return;
     }
     const Editor *shown = editor_;
-    Document moved = std::move(docs_[static_cast<size_t>(from)]);
+    Document moved = std::move(doc(from));
     docs_.erase(docs_.begin() + from);
     docs_.insert(docs_.begin() + to, std::move(moved));
     for (int i = 0; i < count; i++) {
-        if (docs_[static_cast<size_t>(i)].editor.get() == shown) {
+        if (doc(i).editor.get() == shown) {
             active_ = i;
         }
     }
@@ -167,7 +167,7 @@ void App::removeDocument(int index)
     if (!validIndex(index) || (index == active_ && editor_->stroking())) {
         return; /* the active document cannot be left while a tool is being dragged */
     }
-    const Editor *going = docs_[static_cast<size_t>(index)].editor.get();
+    const Editor *going = doc(index).editor.get();
     if (split_ && (going == pane_[0] || going == pane_[1])) {
         unsplit(); /* a pane would be left without its document */
     }
@@ -177,10 +177,10 @@ void App::removeDocument(int index)
     if (index == active_) {
         activateDocument(index + 1 < static_cast<int>(docs_.size()) ? index + 1 : index - 1);
     }
-    if (docs_[static_cast<size_t>(index)].recovery) {
-        recovery_clear_slot(configDir_, docs_[static_cast<size_t>(index)].serial);
+    if (doc(index).recovery) {
+        recovery_clear_slot(configDir_, doc(index).serial);
     }
-    retired_.push_back(std::move(docs_[static_cast<size_t>(index)].editor));
+    retired_.push_back(std::move(doc(index).editor));
     docs_.erase(docs_.begin() + index);
     if (index < active_) {
         active_--;
@@ -190,7 +190,7 @@ void App::removeDocument(int index)
 int App::indexOf(const Editor *editor) const
 {
     for (int i = 0; i < static_cast<int>(docs_.size()); i++) {
-        if (docs_[static_cast<size_t>(i)].editor.get() == editor) {
+        if (doc(i).editor.get() == editor) {
             return i;
         }
     }
@@ -207,13 +207,13 @@ void App::closeDocument(int index)
     if (!validIndex(index) || editor_->stroking()) {
         return;
     }
-    if (!dirty(docs_[static_cast<size_t>(index)])) {
+    if (!dirty(doc(index))) {
         removeDocument(index);
         return;
     }
     /* the question is about the active document, so show the one being closed first */
     activateDocument(index);
-    const Editor *closing = docs_[static_cast<size_t>(index)].editor.get();
+    const Editor *closing = doc(index).editor.get();
     guardUnsaved([this, closing] { removeEditor(closing); });
 }
 
@@ -230,7 +230,7 @@ void App::quit()
     }
     const int index = static_cast<int>(unsaved - docs_.begin());
     activateDocument(index);
-    const Editor *closing = docs_[static_cast<size_t>(index)].editor.get();
+    const Editor *closing = doc(index).editor.get();
     /* each document with unsaved changes asks once; Cancel anywhere stops the quit */
     guardUnsaved([this, closing] {
         removeEditor(closing);

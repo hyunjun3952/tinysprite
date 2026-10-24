@@ -212,13 +212,21 @@ class App
 
     /* The documents (app/documents.cpp). The active one is docs_[active_] and editor_ points at
      * its Editor. */
+    Document &doc(int index)
+    {
+        return docs_[static_cast<size_t>(index)];
+    }
+    const Document &doc(int index) const
+    {
+        return docs_[static_cast<size_t>(index)];
+    }
     Document &doc()
     {
-        return docs_[static_cast<size_t>(active_)];
+        return doc(active_);
     }
     const Document &doc() const
     {
-        return docs_[static_cast<size_t>(active_)];
+        return doc(active_);
     }
     std::string &filePath()
     {

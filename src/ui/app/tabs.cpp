@@ -43,12 +43,12 @@ void App::tabMenu(int index, int &closeRequest)
     ImGui::Separator();
     ImGui::BeginDisabled(docs_.size() < 2);
     if (ImGui::MenuItem("Close others")) {
-        closeOthers_ = docs_[static_cast<size_t>(index)].editor.get();
+        closeOthers_ = doc(index).editor.get();
     }
     ImGui::EndDisabled();
     ImGui::BeginDisabled(index + 1 >= static_cast<int>(docs_.size()));
     if (ImGui::MenuItem("Close to the right")) {
-        closeRightOf_ = docs_[static_cast<size_t>(index)].editor.get();
+        closeRightOf_ = doc(index).editor.get();
     }
     ImGui::EndDisabled();
     ImGui::EndPopup();
@@ -82,7 +82,7 @@ void App::syncTabOrder(const std::vector<ImGuiID> &ids)
  * `closeRequest`. */
 void App::tabItem(int index, bool forced, int &picked, int &closeRequest, ImGuiID &id)
 {
-    const Document &document = docs_[static_cast<size_t>(index)];
+    const Document &document = doc(index);
     ImGuiTabItemFlags flags = ImGuiTabItemFlags_NoPushId;
     if (dirty(document)) {
         flags |= ImGuiTabItemFlags_UnsavedDocument;
@@ -173,7 +173,7 @@ int App::nextToClose(const Editor *keep, bool rightOnly) const
 {
     bool seenKeep = false;
     for (int i = 0; i < static_cast<int>(docs_.size()); i++) {
-        if (docs_[static_cast<size_t>(i)].editor.get() == keep) {
+        if (doc(i).editor.get() == keep) {
             seenKeep = true;
         } else if (!rightOnly || seenKeep) {
             return i;
@@ -188,9 +188,9 @@ void App::closeAfter(const Editor *keep, bool rightOnly)
 {
     for (int index = nextToClose(keep, rightOnly); index >= 0;
          index = nextToClose(keep, rightOnly)) {
-        if (dirty(docs_[static_cast<size_t>(index)])) {
+        if (dirty(doc(index))) {
             activateDocument(index);
-            const Editor *closing = docs_[static_cast<size_t>(index)].editor.get();
+            const Editor *closing = doc(index).editor.get();
             guardUnsaved([this, closing, keep, rightOnly] {
                 removeEditor(closing);
                 closeAfter(keep, rightOnly);
