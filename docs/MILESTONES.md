@@ -47,7 +47,9 @@ adds the extension and asks before overwriting, and a Properties section (opacit
 
 - Tables instead of switches: `App::fileInfo` (one row per `FileAction`), `App::commandAction` (one row per
   `CommandId`) and the extension tables in `src/io` (`image_write_formats`, `palette_formats` feed the error texts).
-- Not done: HiDPI window flags, the OS reason for image exports (only `.pxa` saves show it, via `file_write_error`).
+- Not done: HiDPI window flags. The OS reason (`file_write_error`) now shows for every write: the image, GIF, sheet and
+  palette exports too (the image encoders hand their bytes to `file_write_atomic`, and each exporter clears the reason first, so a
+  refusal that never reaches the disk shows the file-name hint instead).
 - Left from the pattern survey: an `Editor` change observer, a `theme::labeledRow` helper, merging the tool tables,
   declarative settings bindings; also a guard helper for `if (stroking()) return;` (about forty times in `Editor`), one holder
   for `Slot` and `Membership`, and a `Playback` State if a fourth mode is added.
@@ -266,7 +268,7 @@ branch and PR.
       `SPRITE_MAX_FRAMES`. Writing Aseprite files is not planned.
 
 Backlog, not scheduled (each is large or needs a design decision first): indexed color mode, several-rectangle
-selection, a TTF font and HiDPI, the OS reason in failed-write messages, the refactoring
+selection, a TTF font and HiDPI, the refactoring
 candidates listed under UI polish.
 
 ## Decisions and gotchas

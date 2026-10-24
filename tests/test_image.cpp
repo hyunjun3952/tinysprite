@@ -274,8 +274,37 @@ TEST(an_animation_longer_than_the_frame_limit_is_cut_at_it)
     }
 }
 
+TEST(a_failed_image_write_says_why)
+{
+    Sprite s(2, 2);
+    ASSERT_TRUE(!image_export(s, 0, "/nonexistent-tinysprite-dir/out.png"));
+    ASSERT_TRUE(!file_write_error().empty());
+}
+
+TEST(a_refused_image_clears_an_older_reason)
+{
+    Sprite s(2, 2);
+    image_export(s, 0, "/nonexistent-tinysprite-dir/out.png");
+    ASSERT_TRUE(!image_export(s, 0, "out.xyz"));
+    ASSERT_TRUE(file_write_error().empty());
+    ASSERT_TRUE(!image_export(s, 0, "out.png", 0));
+    ASSERT_TRUE(file_write_error().empty());
+}
+
+TEST(a_failed_image_write_leaves_no_file_behind)
+{
+    Sprite s(2, 2);
+    ASSERT_TRUE(image_export(s, 0, "test_image_atomic.png"));
+    std::ifstream file("test_image_atomic.png.tmp");
+    ASSERT_TRUE(!file.good());
+    std::remove("test_image_atomic.png");
+}
+
 int main()
 {
+    RUN(a_failed_image_write_says_why);
+    RUN(a_refused_image_clears_an_older_reason);
+    RUN(a_failed_image_write_leaves_no_file_behind);
     RUN(export_then_import_round_trips_the_flattened_image);
     RUN(lossless_formats_round_trip);
     RUN(write_rgba_saves_raw_pixels_as_png);

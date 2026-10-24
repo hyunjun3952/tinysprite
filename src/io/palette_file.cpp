@@ -11,6 +11,7 @@
 
 #include "path_util.hpp"
 #include "tinysprite/io.hpp"
+#include "write_error.hpp"
 
 namespace
 {
@@ -26,6 +27,11 @@ std::string &last_write_error()
 std::string file_write_error()
 {
     return last_write_error();
+}
+
+void file_write_error_clear()
+{
+    last_write_error().clear();
 }
 
 bool file_write_atomic(const std::string &path, const std::string &data)
@@ -227,6 +233,7 @@ const PaletteFormat *paletteFormat(const std::string &path)
 
 bool palette_save(const Palette &palette, const std::string &path)
 {
+    file_write_error_clear();
     const PaletteFormat *format = paletteFormat(path);
     if (!format) {
         return false;

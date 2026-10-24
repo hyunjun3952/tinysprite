@@ -11,6 +11,7 @@
 #include "stb_image_write.h"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/io.hpp"
+#include "write_error.hpp"
 
 namespace
 {
@@ -44,6 +45,7 @@ std::vector<Rgba> enlarge(const std::vector<Rgba> &source, int width, int scale)
 
 bool image_export(const Sprite &sprite, int frame, const std::string &path, int scale)
 {
+    file_write_error_clear();
     if (frame < 0 || frame >= sprite.frameCount() || scale < 1 || scale > IMAGE_EXPORT_MAX_SCALE ||
         sprite.width() * scale > IMAGE_EXPORT_MAX_SIZE ||
         sprite.height() * scale > IMAGE_EXPORT_MAX_SIZE) {
@@ -70,27 +72,51 @@ struct RasterFormat {
     bool (*write)(const char *file, int width, int height, std::vector<Rgba> &pixels);
 };
 
+void appendChunk(void *context, void *data, int size)
+{
+    static_cast<std::string *>(context)->append(static_cast<const char *>(data),
+                                                static_cast<size_t>(size));
+}
+
+/* Hands the encoded bytes to file_write_atomic, so a failure has a reason and never leaves a
+ * half-written image. */
+bool writeEncoded(const char *file, bool encoded, const std::string &bytes)
+{
+    return encoded && !bytes.empty() && file_write_atomic(file, bytes);
+}
+
 bool writePng(const char *file, int width, int height, std::vector<Rgba> &pixels)
 {
-    return stbi_write_png(file, width, height, 4, pixels.data(),
-                          width * static_cast<int>(sizeof(Rgba))) != 0;
+    std::string bytes;
+    const bool ok = stbi_write_png_to_func(appendChunk, &bytes, width, height, 4, pixels.data(),
+                                           width * static_cast<int>(sizeof(Rgba))) != 0;
+    return writeEncoded(file, ok, bytes);
 }
 
 bool writeBmp(const char *file, int width, int height, std::vector<Rgba> &pixels)
 {
-    return stbi_write_bmp(file, width, height, 4, pixels.data()) != 0;
+    std::string bytes;
+    const bool ok =
+        stbi_write_bmp_to_func(appendChunk, &bytes, width, height, 4, pixels.data()) != 0;
+    return writeEncoded(file, ok, bytes);
 }
 
 bool writeTga(const char *file, int width, int height, std::vector<Rgba> &pixels)
 {
-    return stbi_write_tga(file, width, height, 4, pixels.data()) != 0;
+    std::string bytes;
+    const bool ok =
+        stbi_write_tga_to_func(appendChunk, &bytes, width, height, 4, pixels.data()) != 0;
+    return writeEncoded(file, ok, bytes);
 }
 
 /* JPEG has no alpha: the transparent parts show as white. */
 bool writeJpg(const char *file, int width, int height, std::vector<Rgba> &pixels)
 {
     flattenOnWhite(pixels);
-    return stbi_write_jpg(file, width, height, 4, pixels.data(), JPEG_QUALITY) != 0;
+    std::string bytes;
+    const bool ok = stbi_write_jpg_to_func(appendChunk, &bytes, width, height, 4, pixels.data(),
+                                           JPEG_QUALITY) != 0;
+    return writeEncoded(file, ok, bytes);
 }
 
 const RasterFormat RASTER_FORMATS[] = {
@@ -102,6 +128,7 @@ const RasterFormat RASTER_FORMATS[] = {
 
 bool image_write_rgba(const std::string &path, int width, int height, std::vector<Rgba> &pixels)
 {
+    file_write_error_clear();
     for (const RasterFormat &format : RASTER_FORMATS) {
         if (path_has_extension(path, format.extension)) {
             return format.write(path.c_str(), width, height, pixels);

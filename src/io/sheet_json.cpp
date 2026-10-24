@@ -6,6 +6,7 @@
 #include "frame_range.hpp"
 #include "json_text.hpp"
 #include "tinysprite/io.hpp"
+#include "write_error.hpp"
 
 namespace
 {
@@ -115,6 +116,7 @@ std::string spritesheet_metadata_json(const Sprite &sprite, const SheetOptions &
 bool spritesheet_export_with_json(const Sprite &sprite, const std::string &path,
                                   const std::string &jsonPath, const SheetOptions &options)
 {
+    file_write_error_clear();
     std::optional<SpriteSheet> sheet = spritesheet_render(sprite, options);
     if (!sheet || !image_write_rgba(path, sheet->width, sheet->height, sheet->pixels)) {
         return false;

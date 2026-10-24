@@ -192,7 +192,7 @@ class App
     void exportRange(int &first, int &last, PlayMode &direction) const;
 
     /* "Cannot write <path>" plus the OS reason of the last failed file write, if there is one. */
-    static std::string cannotWrite(const std::string &path);
+    static std::string cannotWrite(const std::string &path, const std::string &hint);
 
     /* One open document, shown as a tab. Every document has its own Editor (history, selection,
      * view, texture); `editor_` points at the active one's, which the panels and menus work on. */

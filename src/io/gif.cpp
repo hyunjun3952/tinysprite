@@ -10,6 +10,7 @@
 #include "tinysprite/composite.hpp"
 #include "tinysprite/io.hpp"
 #include "tinysprite/playback.hpp"
+#include "write_error.hpp"
 
 namespace
 {
@@ -468,6 +469,7 @@ std::vector<uint8_t> gif_encode(const Sprite &sprite, const GifOptions &options)
 
 bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions &options)
 {
+    file_write_error_clear();
     if (!path_has_extension(path, ".gif")) {
         return false;
     }

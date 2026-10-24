@@ -81,11 +81,15 @@ void App::askForPath(FileAction action)
     std::snprintf(pathInput_, sizeof(pathInput_), "%s", start.c_str());
 }
 
-/* "Cannot write <path>" plus the reason the last file write gave, if it has one. */
-std::string App::cannotWrite(const std::string &path)
+/* "Cannot write <path>" plus the reason the last file write gave, if it has one, else `hint` (what
+ * the file name or size may have got wrong). */
+std::string App::cannotWrite(const std::string &path, const std::string &hint)
 {
     std::string reason = file_write_error();
-    return "Cannot write " + path + (reason.empty() ? "" : ": " + reason);
+    if (!reason.empty()) {
+        return "Cannot write " + path + ": " + reason;
+    }
+    return "Cannot write " + path + (hint.empty() ? "" : " (" + hint + ")");
 }
 
 std::string App::existingOutput(const std::string &path) const
@@ -132,7 +136,7 @@ void App::save()
         askForPath(FileAction::SaveAs);
     } else if (!pxa_save(editor_->sprite(), filePath())) {
         askForPath(FileAction::SaveAs);
-        fileError_ = cannotWrite(filePath());
+        fileError_ = cannotWrite(filePath(), "");
         toast(fileError_, true);
     } else {
         editor_->markSaved();
@@ -180,7 +184,7 @@ bool App::runSaveAs(const std::string &path)
         return false;
     }
     if (!pxa_save(editor_->sprite(), path)) {
-        fileError_ = cannotWrite(path);
+        fileError_ = cannotWrite(path, "");
         return false;
     }
     filePath() = path;
@@ -192,8 +196,8 @@ bool App::runSaveAs(const std::string &path)
 bool App::runExportImage(const std::string &path)
 {
     if (!image_export(editor_->sprite(), editor_->frame(), path, exportScale_)) {
-        fileError_ = "Cannot write " + path + " (use " + image_write_formats() +
-                     "; the image can be up to 16384 px)";
+        fileError_ =
+            cannotWrite(path, "use " + image_write_formats() + "; the image can be up to 16384 px");
         return false;
     }
     return true;
@@ -206,7 +210,7 @@ bool App::runExportGif(const std::string &path)
     options.scale = exportScale_;
     options.loop = export_.loop;
     if (!gif_export(editor_->sprite(), path, options)) {
-        fileError_ = "Cannot write " + path + " (use a .gif file name; up to 16384 px)";
+        fileError_ = cannotWrite(path, "use a .gif file name; up to 16384 px");
         return false;
     }
     return true;
@@ -226,8 +230,8 @@ bool App::runExportSheet(const std::string &path)
                                                     with_replaced_extension(path, ".json"), options)
                      : spritesheet_export(editor_->sprite(), path, options);
     if (!written) {
-        fileError_ = "Cannot write " + path + " (use " + image_write_formats() +
-                     "; the sheet can be up to 16384 px)";
+        fileError_ =
+            cannotWrite(path, "use " + image_write_formats() + "; the sheet can be up to 16384 px");
         return false;
     }
     return true;
@@ -247,7 +251,7 @@ bool App::runImportPalette(const std::string &path)
 bool App::runExportPalette(const std::string &path)
 {
     if (!palette_save(editor_->sprite().palette(), path)) {
-        fileError_ = "Cannot write " + path + " (use a " + palette_formats() + " file name)";
+        fileError_ = cannotWrite(path, "use a " + palette_formats() + " file name");
         return false;
     }
     return true;
