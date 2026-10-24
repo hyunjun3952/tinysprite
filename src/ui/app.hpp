@@ -147,6 +147,7 @@ class App
     void fileDone(const std::string &path);
     void save();
     void fileDialog();
+    std::string dialogTarget(const FileActionInfo &info);
     void fileDialogMessages();
     bool runFileAction(const FileActionInfo &info, const std::string &path);
     void closeFileDialog();

@@ -442,6 +442,21 @@ std::string App::dialogPath(const FileActionInfo &info, const std::string &typed
                                              : with_default_extension(path, info.extension);
 }
 
+/* The path the dialog will write: a name typed without an extension gets the one the dialog
+ * writes, and the difference is shown. */
+std::string App::dialogTarget(const FileActionInfo &info)
+{
+    const std::string typed = expand_home(pathInput_);
+    std::string path = dialogPath(info, pathInput_);
+    if (path != overwritePath_) {
+        overwritePath_.clear(); /* the warning was for another name */
+    }
+    if (path != typed) {
+        ImGui::TextDisabled("Will be written as %s", file_name_of(path).c_str());
+    }
+    return path;
+}
+
 void App::fileDialog()
 {
     const FileActionInfo &info = fileInfo(fileAction_);
@@ -457,15 +472,7 @@ void App::fileDialog()
     if (browserOpen_) {
         enter = fileBrowser(info) || enter;
     }
-    /* A name typed without an extension gets the one the dialog writes. */
-    const std::string typed = expand_home(pathInput_);
-    const std::string path = dialogPath(info, pathInput_);
-    if (path != overwritePath_) {
-        overwritePath_.clear(); /* the warning was for another name */
-    }
-    if (path != typed) {
-        ImGui::TextDisabled("Will be written as %s", file_name_of(path).c_str());
-    }
+    const std::string path = dialogTarget(info);
     if (info.options) {
         (this->*info.options)();
     }
