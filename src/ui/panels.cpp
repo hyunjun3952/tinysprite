@@ -210,6 +210,12 @@ static bool onGrabStrip(bool leftDocked, float edge)
     return inside && mouse.x >= grabX0 && mouse.x <= grabX0 + theme::px(RESIZE_GRAB);
 }
 
+/* The width a docked panel gets while its inner edge is dragged to `mouseX`. */
+static float draggedWidth(bool leftDocked, float dockX, float shown, float mouseX)
+{
+    return leftDocked ? mouseX - dockX : dockX + shown - mouseX;
+}
+
 /* Drag the inner edge of a docked panel to change its width. */
 void Panels::resizeEdge(Panel &panel)
 {
@@ -233,8 +239,7 @@ void Panels::resizeEdge(Panel &panel)
     panel.resizing = panel.resizing && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     if (panel.resizing) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-        float width = panel.side == DockSide::Left ? mouse.x - panel.dockX
-                                                   : panel.dockX + panel.shown - mouse.x;
+        float width = draggedWidth(panel.side == DockSide::Left, panel.dockX, panel.shown, mouse.x);
         panel.width = std::clamp(width, theme::px(panel.minWidth), theme::px(panel.maxWidth));
     }
     if (hovered || panel.resizing) {
