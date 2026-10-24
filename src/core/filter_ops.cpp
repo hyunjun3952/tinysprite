@@ -26,15 +26,19 @@ template <class F> bool paint(History &history, Cel &cel, std::optional<Rect> ar
     return true;
 }
 
+/* Whether (dx, dy) is a neighbour to look at: not the pixel itself, and a diagonal one only when
+ * `diagonals`. */
+bool isNeighbour(int dx, int dy, bool diagonals)
+{
+    const bool diagonal = dx != 0 && dy != 0;
+    return (dx != 0 || dy != 0) && (diagonals || !diagonal);
+}
+
 bool touchesPixel(const Cel &cel, int x, int y, bool diagonals)
 {
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
-            bool diagonal = dx != 0 && dy != 0;
-            if ((dx == 0 && dy == 0) || (diagonal && !diagonals)) {
-                continue;
-            }
-            if (cel.get(x + dx, y + dy).a != 0) {
+            if (isNeighbour(dx, dy, diagonals) && cel.get(x + dx, y + dy).a != 0) {
                 return true;
             }
         }
