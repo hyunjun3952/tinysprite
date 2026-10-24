@@ -137,7 +137,7 @@ void TilemapWindow::paint(Editor &editor, const Tileset &tileset, const TileMap 
         if (editor.tilePainting()) {
             editor.endTilePaint();
         }
-        lastX_ = -1;
+        hasLast_ = false;
         return;
     }
     const auto zoom = static_cast<float>(zoom_);
@@ -147,13 +147,14 @@ void TilemapWindow::paint(Editor &editor, const Tileset &tileset, const TileMap 
     const int cy = static_cast<int>(
         std::floor((mouse.y - y0) / (static_cast<float>(tileset.tileHeight) * zoom)));
     const uint32_t cell = left ? editor.selectedTile() : 0;
-    const int fromX = lastX_ < 0 ? cx : lastX_;
-    const int fromY = lastX_ < 0 ? cy : lastY_;
+    const int fromX = hasLast_ ? lastX_ : cx;
+    const int fromY = hasLast_ ? lastY_ : cy;
     raster_line(fromX, fromY, cx, cy, [&](int x, int y) {
         if (x >= 0 && y >= 0 && x < map.columns && y < map.rows) {
             editor.paintTile(x, y, cell);
         }
     });
+    hasLast_ = true;
     lastX_ = cx;
     lastY_ = cy;
 }

@@ -105,6 +105,27 @@ HistoryAction Editor::selectionAction(std::optional<Rect> before, std::optional<
                          [this, after] { selection_ = after; }};
 }
 
+namespace
+{
+
+/* Whether two clips hold the same pixels; an edit that leaves them so changes nothing. */
+bool sameClip(const Clip &a, const Clip &b)
+{
+    if (a.width() != b.width() || a.height() != b.height()) {
+        return false;
+    }
+    for (int y = 0; y < a.height(); y++) {
+        for (int x = 0; x < a.width(); x++) {
+            if (a.get(x, y) != b.get(x, y)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+} // namespace
+
 std::optional<Editor::SelectionEdit> Editor::beginSelectionEdit()
 {
     Cel *cel = editableCel();
@@ -125,10 +146,14 @@ void Editor::flipSelection(bool horizontal)
         return;
     }
     Rect r = edit->rect;
+    const Clip original = edit->clip;
     if (horizontal) {
         edit->clip.flipHorizontal();
     } else {
         edit->clip.flipVertical();
+    }
+    if (sameClip(original, edit->clip)) {
+        return; /* nothing moved: no step, the document stays as saved */
     }
     if (clip_replace(history(), edit->cel, r, edit->clip, r.x, r.y, selectionAction(r, r))) {
         markDirty(r);
@@ -142,9 +167,13 @@ void Editor::rotateSelection(bool clockwise)
         return;
     }
     Rect r = edit->rect;
+    const Clip original = edit->clip;
     edit->clip.rotate(clockwise);
     /* The turned rectangle shares the old one's center. */
     Rect turned = {r.x + (r.w - r.h) / 2, r.y + (r.h - r.w) / 2, r.h, r.w};
+    if (r.w == r.h && sameClip(original, edit->clip)) {
+        return; /* a square of identical pixels turns into itself */
+    }
     if (clip_replace(history(), edit->cel, r, edit->clip, turned.x, turned.y,
                      selectionAction(r, clippedSelection(turned)))) {
         markDirty(r);
@@ -169,7 +198,12 @@ bool Editor::nudgeSelection(int dx, int dy)
         return false;
     }
     stroke->update(dx, dy);
-    if (!stroke->end(selectionAction(had, after))) {
+    /* With no selection (or one that stays put) the stroke is only worth a step if pixels moved. */
+    const bool selectionMoves =
+        had.has_value() && after.has_value()
+            ? (had->x != after->x || had->y != after->y || had->w != after->w || had->h != after->h)
+            : had.has_value() != after.has_value();
+    if (!stroke->end(selectionMoves ? selectionAction(had, after) : HistoryAction{})) {
         return false;
     }
     markDirty(before);

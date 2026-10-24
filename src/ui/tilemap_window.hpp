@@ -35,6 +35,7 @@ class TilemapWindow
     int shownMap_ = -1;
     const Cel *shownAtlas_ = nullptr;
     int zoom_ = 3;
+    bool hasLast_ = false; /* lastX_/lastY_ are set (a cell can lie left of the map: negative) */
     int lastX_ = -1; /* the cell the last paint step reached, for joining the steps with a line */
     int lastY_ = -1;
 };

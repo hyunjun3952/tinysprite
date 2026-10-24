@@ -195,6 +195,9 @@ void Editor::removeTag(int index)
     } else if (selectedTag_ > index) {
         selectedTag_--;
     }
+    if (playing()) {
+        startPlayback(); /* the tag it ran over may be the one that went */
+    }
 }
 
 void Editor::stopPlayback()

@@ -282,7 +282,7 @@ TEST(rotating_an_empty_selection_is_still_undoable)
 TEST(undoing_a_flip_selects_the_flipped_area_again)
 {
     Editor *e = make_editor();
-    dot(e, 1, 1);
+    dot(e, 0, 1);
     select_rect(e, 0, 0, 2, 2);
     e->flipSelection(true);
     select_rect(e, 5, 3, 6, 4); /* the user picks another area */
@@ -393,6 +393,20 @@ TEST(nudge_off_the_sprite_clips_the_selection)
     delete e;
 }
 
+TEST(an_edit_that_changes_nothing_records_no_step)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->nudgeSelection(1, 0)); /* the arrow key on an empty cel */
+    ASSERT_TRUE(!e->history().canUndo());
+    ASSERT_TRUE(e->history().atSavePoint());
+    select_rect(e, 0, 0, 3, 3);
+    e->flipSelection(true);
+    e->rotateSelection(true); /* square: the selection stays where it is */
+    ASSERT_TRUE(!e->history().canUndo());
+    ASSERT_TRUE(e->history().atSavePoint());
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -422,6 +436,7 @@ int main()
     RUN(nudge_moves_the_selected_pixels_and_the_selection_in_one_undo_step);
     RUN(nudge_without_a_selection_moves_the_whole_cel);
     RUN(nudge_changes_nothing_for_a_zero_offset);
+    RUN(an_edit_that_changes_nothing_records_no_step);
     RUN(nudge_off_the_sprite_clips_the_selection);
     ui_quit();
     return TEST_SUMMARY();

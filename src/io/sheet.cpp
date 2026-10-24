@@ -88,7 +88,8 @@ std::vector<Rgba> cutOut(const std::vector<Rgba> &pixels, int width, Rect area)
 std::optional<SpriteSheet> renderPacked(const Sprite &sprite, const SheetOptions &options,
                                         int count)
 {
-    std::vector<std::vector<Rgba>> frames;
+    std::vector<std::vector<Rgba>>
+        pieces;              /* the kept part of each frame, one at a time in memory */
     std::vector<Rect> kept;  /* the trimmed part of each frame, in cels */
     std::vector<Rect> sizes; /* those pieces as drawn on the sheet, scaled */
     const Rect whole{0, 0, sprite.width(), sprite.height()};
@@ -97,8 +98,8 @@ std::optional<SpriteSheet> renderPacked(const Sprite &sprite, const SheetOptions
                                 static_cast<size_t>(sprite.height()));
         composite_sprite(sprite, options.first + i, whole, frame.data());
         kept.push_back(opaqueBounds(frame, sprite.width(), sprite.height()));
+        pieces.push_back(cutOut(frame, sprite.width(), kept.back()));
         sizes.push_back(Rect{0, 0, kept.back().w * options.scale, kept.back().h * options.scale});
-        frames.push_back(std::move(frame));
     }
     const std::optional<PackedRects> placed =
         pack_rects(sizes, options.spacing, IMAGE_EXPORT_MAX_SIZE);
@@ -117,8 +118,7 @@ std::optional<SpriteSheet> renderPacked(const Sprite &sprite, const SheetOptions
         sheet.frames.push_back(packed.rects[at]);
         sheet.trims.push_back(
             Rect{kept[at].x * options.scale, kept[at].y * options.scale, sizes[at].w, sizes[at].h});
-        blitScaled(sheet, cutOut(frames[at], sprite.width(), kept[at]), kept[at].w,
-                   packed.rects[at], options.scale);
+        blitScaled(sheet, pieces[at], kept[at].w, packed.rects[at], options.scale);
     }
     return sheet;
 }

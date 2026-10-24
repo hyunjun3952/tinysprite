@@ -626,6 +626,30 @@ TEST(linking_is_held_off_while_stroking_and_stops_playback)
     delete e;
 }
 
+TEST(removing_the_playing_tag_makes_playback_cover_all_frames)
+{
+    Editor *e = make_editor();
+    for (int i = 0; i < 3; i++) {
+        e->addFrame();
+    }
+    e->setFrame(0);
+    Sprite::Tag tag;
+    tag.name = "a";
+    tag.from = 0;
+    tag.to = 1;
+    ASSERT_TRUE(e->sprite().addTag(tag));
+    e->selectTag(0);
+    e->togglePlayback();
+    e->removeTag(0);
+    bool sawLast = false;
+    for (int i = 0; i < 80; i++) {
+        e->tick(100);
+        sawLast = sawLast || e->frame() >= 2;
+    }
+    ASSERT_TRUE(sawLast);
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -667,6 +691,7 @@ int main()
     RUN(without_a_selected_tag_the_whole_animation_plays);
     RUN(the_tag_direction_sets_the_playback_order);
     RUN(selecting_a_tag_out_of_range_selects_nothing);
+    RUN(removing_the_playing_tag_makes_playback_cover_all_frames);
     RUN(linked_cels_share_what_is_drawn);
     RUN(linking_redraws_the_canvas_and_unlinking_separates_the_frames);
     RUN(link_to_previous_uses_the_active_layer_and_frame);

@@ -322,7 +322,7 @@ class SliceMoveDrag : public Drag
   public:
     SliceMoveDrag(Editor &editor, int cx, int cy, int index)
         : Drag(editor, cx, cy), index_(index),
-          original_(editor.sprite().slices()[static_cast<size_t>(index)])
+          original_(editor.sprite().slices()[static_cast<size_t>(index)]), moved_(original_.rect)
     {
         editor_.selectSlice(index);
     }
@@ -354,7 +354,7 @@ class SliceMoveDrag : public Drag
   private:
     int index_;
     Sprite::Slice original_;
-    Rect moved_ = {0, 0, 0, 0};
+    Rect moved_;
 };
 
 std::unique_ptr<Drag> beginSlice(Editor &editor, Cel * /*unused*/, int cx, int cy)
