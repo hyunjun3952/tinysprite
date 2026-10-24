@@ -15,8 +15,7 @@ metadata:
 There is one process.
 
 Review a pull request in a fixed order, cheapest checks first, so a PR that cannot be merged
-is rejected before the expensive diff reading. Write the report in the user's language
-(Korean if they wrote Korean). Code, commands and identifiers stay as they are.
+is rejected before the expensive diff reading. Reports follow `../_shared/audit-conventions.md`: language, where the report goes, the severity scale.
 
 ## Important
 
@@ -56,10 +55,10 @@ gh pr checks N
 This repo has three CI jobs: `lint`, `linux`, `windows`. All three must have really run and passed.
 
 - "no checks reported" can mean CI has not registered yet: re-check later, do not read it as a pass.
-- CI runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (`paths` in `ci.yml`), so a PR that touches none of them legitimately has no checks. Say that instead of calling it a failure.
+- CI runs only when the `paths` of `ci.yml` change (`CLAUDE.md`, Commands, lists them), so a PR that touches none of them legitimately has no checks. Say that instead of calling it a failure.
 - A failed job: read its log (`gh run view RUN_ID --log-failed`), name the failing step and the cause. Review can continue,
   but the verdict cannot be approve.
-- A green CI is not proof of correctness: CI uses a different clang-tidy version than a local run, and tests only cover what they cover.
+- A green CI is not proof of correctness: tests only cover what they cover.
 
 ## Step 3: Commit structure
 
@@ -122,8 +121,8 @@ Keep functions in `src/` at cognitive complexity 15 or less; a PR that crosses i
 
 ## Step 6: Verdict and report
 
-Fill in `references/report-template.md`. Findings use one severity scale, shared with the bug-hunting skill,
-sorted from most to least severe:
+Fill in `references/report-template.md`. Findings use the shared severity scale (`../_shared/audit-conventions.md`),
+with these meanings in a review:
 
 - **심각 (Critical)**: data loss or corruption, crash, undefined behavior, broken build or CI, security. Blocks merge.
 - **보통 (Major)**: wrong behavior in some cases, missing tests for new behavior, rule violation with real impact. Fix before merge.

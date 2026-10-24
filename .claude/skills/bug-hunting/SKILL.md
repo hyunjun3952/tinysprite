@@ -16,7 +16,7 @@ The whole argument is the **target**: the scope of Step 0 (function, file, modul
 Missing: follow Step 0 (ask only if unclear). There is one process; a big target is split by module and done one at a time.
 
 Find real defects by reading first and running second. Every reported bug must say how it was confirmed.
-Write the report in the user's language (Korean if they wrote Korean). Code and identifiers stay as they are.
+Reports follow `../_shared/audit-conventions.md`: language, where the report goes, the severity scale, headless screenshots.
 
 ## Important
 
@@ -82,8 +82,9 @@ otherwise a clear estimate marked as such. If a change does not lower complexity
 
 For every suspicion that can be tested, try to make it fail. Write the test as `.rules` (section 2) says (`tests/minitest.hpp`, one file per feature):
 
+Build as `CLAUDE.md` (Commands) says, then run the one test and read its exit code (`.rules`, section 7):
+
 ```sh
-cmake -S . -B build && cmake --build build
 ctest --test-dir build -R NAME --output-on-failure > LOG 2>&1; echo "exit=$?"
 ```
 
@@ -120,23 +121,13 @@ A finding that does not survive is dropped or downgraded (Confirmed -> Suspected
 Only when the symptom is on screen. Screenshots are taken **only for UI defects**: never for core/io/script/test findings,
 and never "to be thorough" when the code-level evidence is already enough. If Step 1-3 found no UI defect, skip this step entirely.
 
-The app has a screenshot option that writes a PNG; use it first (no extra tool needed, works headless; Read opens the PNG):
+The recipe for a headless screenshot, and what it can and cannot show, is in `../_shared/audit-conventions.md` (Running the app headless).
 
-```sh
-SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --frames 3 --screenshot OUT.png --config-dir TMPDIR
-```
-
-1. Build with the UI first (`cmake -S . -B build && cmake --build build`). Use a scratchpad `--config-dir` so the user's settings and autosave are untouched.
-2. `--screenshot` saves the last of the `--frames` frames; the app gets no input, so the screen is the state right after start.
-   To show another state, make a `.pxa` in that state (write it from a test or a small program with the `io` API, in the scratchpad) and pass it as `file`.
-   Scale with `--scale S` when the defect is about zoom or density.
-3. Save images in the scratchpad as `ui-U<n>-actual.png` (and `-expected.png` only if a reference exists, for example the same file before the change).
+1. Save images in the scratchpad as `ui-U<n>-actual.png` (and `-expected.png` only if a reference exists, for example the same file before the change).
    Open each with Read and describe only what is visible, not what the code should draw.
-4. If the defect needs live input (drag, hover, menu open, animation playing) and the option cannot reach it, use the computer-use or browser skill if the session has one
-   (a whole UI/UX pass, not one defect, is the `ui-audit` skill);
-   otherwise say "From code", describe the screen from the code, and ask the user for a screenshot. Never describe pixels you did not see.
+2. A whole UI/UX pass, not one defect, is the `ui-audit` skill.
 
-Do not commit screenshots or temporary `.pxa` files. Give the user the absolute path of each image (send it with SendUserFile when they follow remotely).
+Do not commit screenshots or temporary `.pxa` files.
 
 Use `references/report-template.md` UI block:
 
@@ -150,7 +141,7 @@ Where possible also give the code-level cause (for example a missing `markDirty`
 
 ## Step 5: Report
 
-Fill in `references/report-template.md`. Findings are sorted by severity, most severe first, then by confidence:
+Fill in `references/report-template.md`. Findings are sorted by the shared severity scale (`../_shared/audit-conventions.md`), then by confidence. In code:
 
 - **심각 (Critical)**: crash, undefined behavior, data loss or corrupted file, broken undo/redo of the document.
 - **보통 (Major)**: wrong result in a realistic case, stale or wrong display, error not handled.
@@ -158,7 +149,7 @@ Fill in `references/report-template.md`. Findings are sorted by severity, most s
 - **주의 (Note)**: not a bug now; fragile design or a trap for the next change.
 
 End with a short summary count per severity, what was not checked, and the proposed fix order.
-The step 2 table goes after the bug list. Do not write the report into the repo unless the user asks.
+The step 2 table goes after the bug list.
 
 ## After the report
 
@@ -169,6 +160,6 @@ Lint, commits and the branch policy are in `.rules` (section 7).
 
 ## Troubleshooting
 
-- Build fails before any test runs: `cmake -S . -B build` again (new test files are found by globbing); `-DTINYSPRITE_BUILD_UI=OFF` if SDL2 is missing.
+- Build fails before any test runs: re-run cmake (new test files are found by globbing); `-DTINYSPRITE_BUILD_UI=OFF` if SDL2 is missing (`CLAUDE.md`, Commands).
 - A test fails only sometimes: look for uninitialized memory or order dependence (ASan/UBSan output); run it 10 times before calling it flaky.
 - Cannot reproduce a suspicion: keep it as **Suspected** with the reasoning, or drop it if the code path is shown unreachable.

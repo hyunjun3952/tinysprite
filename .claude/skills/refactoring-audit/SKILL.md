@@ -16,7 +16,7 @@ The whole argument is the **target**: the scope of Step 0 (function, file, modul
 Missing: rank candidates and propose a few, as Step 0 says. There is one process.
 
 Improve structure without changing behavior, and only where the gain is worth the change.
-Write the report in the user's language (Korean if they wrote Korean). Code and identifiers stay as they are.
+Reports follow `../_shared/audit-conventions.md`: language, where the report goes, the severity scale, headless screenshots.
 
 ## Important
 
@@ -38,12 +38,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 
 Pick the scope (a function, a file, a module, the files changed in the last N commits). If the user gave none, rank candidates (Step 1) and propose the top few; do not sweep the whole repo.
 
-```sh
-cmake -S . -B build && cmake --build build
-ctest --test-dir build --output-on-failure > LOG 2>&1; echo "exit=$?"
-```
-
-Never read a run through a pipe's status; redirect to a log, test `$?`, then read the log. Baseline red means stop and tell the user.
+Build and run the tests of the scope as `CLAUDE.md` (Commands) says and read the exit code (`.rules`, section 7). Baseline red means stop and tell the user.
 
 ## Step 1: Find candidates
 
@@ -81,7 +76,7 @@ One finding at a time, in a loop:
 2. Make the smallest structural change; keep the build green after every step, not only at the end.
 3. Run the affected tests, then the full `ctest`. Same results as the baseline, no test edited to fit.
    UI code: also prove the screen did not change. Render the same file before and after
-   (`SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite FILE.pxa --frames 3 --screenshot OUT.png --config-dir TMPDIR`, see bug-hunting Step 4) and compare with `cmp`; a difference is a behavior change.
+   (a headless screenshot, `../_shared/audit-conventions.md`) and compare with `cmp`; a difference is a behavior change.
    Deleting code: show it is dead first (grep every use including `tests/` and `tests/ui/`, then build and run the tests without it); "looks unused" is not proof.
 4. Format and lint as `.rules` says (sections 6 and 7); clang-tidy alone while iterating.
 5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
@@ -100,7 +95,6 @@ and what was left out and why. Keep it short; a finding that was fixed needs two
 
 ## Troubleshooting
 
-- Tests need a rebuild after adding files: `cmake -S . -B build` again (new files are found by globbing).
-- Lint passes locally but fails in CI: CI uses a different clang-tidy version. Change the flagged construct so it is gone (do not assume the first fix worked) and watch CI.
+- Lint passes locally but fails in CI: `.rules` (section 7).
 - A refactoring grows past the planned size: stop, commit the green part, and re-plan the rest; do not leave the tree half-converted.
 - Cannot show the gain with a number: say so, mark the finding 낮음 or 보류.

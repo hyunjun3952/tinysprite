@@ -17,7 +17,7 @@ smoke pass over every area (the scenarios marked `core`). A big scope is split b
 
 The goal is to find where the running UI is **wrong** (bug), **against the design** (DESIGN.md violation) or **hard to use**
 (design flaw), prove each with a screenshot and steps, and propose the smallest change that fixes it.
-Write the report in the user's language (Korean if they wrote Korean). Code, identifiers and UI strings stay as they are.
+Reports follow `../_shared/audit-conventions.md`: language, where the report goes, the severity scale, headless screenshots.
 
 ## Important
 
@@ -40,10 +40,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code, ide
 1. Say the scope back in one line (areas, number of scenarios).
 2. Read `DESIGN.md` fully, then `references/heuristics.md`. Skim `docs/MILESTONES.md` for known gotchas in the area
    (a documented limit is not a finding).
-3. Build the UI and a scratch workspace:
-   ```sh
-   cmake -S . -B build && cmake --build build > LOG 2>&1; echo "exit=$?"
-   ```
+3. Build the UI (`CLAUDE.md`, Commands) and a scratch workspace.
    Scratchpad layout: `ui-audit/fixtures/` (small `.pxa` files per scenario), `ui-audit/shots/` (`S<nn>-<step>.png`),
    `ui-audit/cfg-S<nn>/` (one config dir per scenario).
 4. Make fixtures with a small program or test using the `io` API (not committed): empty 16x16, 64x64 with 3 layers and 4
@@ -54,7 +51,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code, ide
      access to the app; the window is a native SDL2 window, tier "full"). Launch the app with Bash in the
      background: `./build/src/ui/tinysprite FIXTURE --config-dir CFG [--scale S]`. If the session runs on WSL, the window
      appears through WSLg; check with a first screenshot that the window is visible and not scaled by the host.
-   - **headless fallback**: `SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite FIXTURE --frames 3 --screenshot OUT.png --config-dir CFG`
+   - **headless fallback** (`../_shared/audit-conventions.md`, Running the app headless; `FIXTURE` is the file, `CFG` the scenario's config dir)
      gives the state right after start only (no input). Anything needing input is then tested with a synthetic-input
      test in `tests/ui/` (see `tests/ui/ui_*.cpp` for the pattern) and marked `Headless`, or listed under "not tested".
    Say which driver is used at the top of the report.
@@ -129,9 +126,7 @@ Every finding gets one **kind** and one **severity**:
 | Design flaw | works and follows the rules, but a first-time user is blocked, misled or slowed (no written rule; cite the heuristic) |
 | Improvement | not a problem; a clear gain for small cost |
 
-Severity (same words as bug-hunting): **심각** crash, data loss, broken undo, user blocked with no way out; **보통** wrong or
-stale display, misleading state, a common task needs a workaround, a rule broken in a main view; **낮음** cosmetic, rare edge, small inconsistency; **주의** fragile, will break with the next change.
-Sort by severity, then by how often a user meets it.
+Severity is the shared scale (`../_shared/audit-conventions.md`). On screen, 보통 also covers a stale display, a misleading state and a DESIGN.md rule broken in a main view.
 
 ## Step 5: Fix proposal for each finding
 
@@ -149,7 +144,7 @@ Group findings that share one cause (one missing helper, one wrong token) into o
 
 Fill in `references/report-template.md`. Attach the absolute path of every screenshot used (send them with SendUserFile
 when the user follows remotely). Order: summary table, findings by severity, fix groups with the proposed order,
-dropped suspicions, scenarios run / not run and why. Do not write the report into the repo unless asked.
+dropped suspicions, scenarios run / not run and why.
 End by asking which findings to fix.
 
 ## After the report: fixing the chosen findings
