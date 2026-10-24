@@ -6,6 +6,7 @@
 
 #include "icons.hpp"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "minitest.hpp"
 #include "theme.hpp"
 
@@ -65,6 +66,48 @@ TEST(the_ui_font_has_the_hangul_glyphs_next_to_the_latin_ones)
     ASSERT_TRUE(font->IsGlyphInFont(0x3131)); /* a compatibility jamo */
     ASSERT_TRUE(font->IsGlyphInFont('A'));
     ASSERT_TRUE(font->IsGlyphInFont(static_cast<ImWchar>(icons::codepoint(icons::Icon::Eye))));
+    ImGui::DestroyContext();
+}
+
+static void nearest_callback(const ImDrawList * /*unused*/, const ImDrawCmd * /*unused*/)
+{
+}
+
+static void linear_callback(const ImDrawList * /*unused*/, const ImDrawCmd * /*unused*/)
+{
+}
+
+/* The SDL renderer backend samples every texture linearly unless a draw callback says otherwise, so
+ * a pixel image has to ask for nearest sampling and put linear back for what is drawn after it. */
+TEST(a_pixel_image_is_sampled_nearest_and_the_sampler_is_restored_after_it)
+{
+    ImGui::CreateContext();
+    ASSERT_TRUE(theme::load_fonts());
+    ImGuiPlatformIO &platform = ImGui::GetPlatformIO();
+    platform.DrawCallback_SetSamplerNearest = nearest_callback; /* a backend sets these */
+    platform.DrawCallback_SetSamplerLinear = linear_callback;
+    {
+        ImDrawList list(ImGui::GetDrawListSharedData());
+        list._ResetForNewFrame();
+        theme::pixel_image(&list, ImTextureRef(static_cast<ImTextureID>(1)), ImVec2(0.0f, 0.0f),
+                           ImVec2(8.0f, 8.0f));
+        int nearest = -1;
+        int image = -1;
+        int linear = -1;
+        for (int i = 0; i < list.CmdBuffer.Size; i++) {
+            const ImDrawCallback callback = list.CmdBuffer[i].UserCallback;
+            if (callback == platform.DrawCallback_SetSamplerNearest) {
+                nearest = i;
+            } else if (callback == platform.DrawCallback_SetSamplerLinear) {
+                linear = i;
+            } else if (callback == nullptr && list.CmdBuffer[i].ElemCount != 0) {
+                image = i;
+            }
+        }
+        ASSERT_TRUE(nearest >= 0);
+        ASSERT_TRUE(image > nearest);
+        ASSERT_TRUE(linear > image);
+    }
     ImGui::DestroyContext();
 }
 
@@ -249,6 +292,7 @@ int main()
     RUN(mix_blends_two_colors_per_channel);
     RUN(load_fonts_adds_the_embedded_font_at_the_base_size);
     RUN(the_ui_font_has_the_hangul_glyphs_next_to_the_latin_ones);
+    RUN(a_pixel_image_is_sampled_nearest_and_the_sampler_is_restored_after_it);
     RUN(apply_keeps_the_font_size_across_a_scale_change);
     RUN(text_on_a_filled_dialog_button_reaches_the_4_5_contrast_ratio);
     RUN(a_control_fill_is_visibly_lighter_than_the_panel);

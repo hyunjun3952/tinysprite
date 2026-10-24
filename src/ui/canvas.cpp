@@ -458,10 +458,11 @@ void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
                          sprite.y0);
         float width = sprite.x1 - sprite.x0;
         float height = sprite.y1 - sprite.y0;
-        draw->AddImage(ImTextureRef(reinterpret_cast<ImTextureID>(editor_->texture())),
-                       ImVec2(visible.x0, visible.y0), ImVec2(visible.x1, visible.y1),
-                       ImVec2((visible.x0 - sprite.x0) / width, (visible.y0 - sprite.y0) / height),
-                       ImVec2((visible.x1 - sprite.x0) / width, (visible.y1 - sprite.y0) / height));
+        theme::pixel_image(
+            draw, ImTextureRef(reinterpret_cast<ImTextureID>(editor_->texture())),
+            ImVec2(visible.x0, visible.y0), ImVec2(visible.x1, visible.y1),
+            ImVec2((visible.x0 - sprite.x0) / width, (visible.y0 - sprite.y0) / height),
+            ImVec2((visible.x1 - sprite.x0) / width, (visible.y1 - sprite.y0) / height));
         if (editor_->showGrid() && editor_->view().viewport.zoom >= GRID_MIN_ZOOM) {
             drawGrid(draw, origin, visible);
         }

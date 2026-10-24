@@ -220,6 +220,15 @@ ImU32 mix(unsigned from, unsigned to, float t);
 void chevron_points(ImVec2 center, float size, bool open, ImVec2 (&points)[3]);
 void chevron(ImDrawList *list, ImVec2 center, float size, bool open, ImU32 color);
 
+/*
+ * Draws a texture of pixels (the canvas, a thumbnail, a tile atlas) with nearest sampling. The SDL
+ * renderer backend samples every texture linearly whatever mode the texture itself was given, which
+ * blurs a zoomed pixel, so the sampler is set for this image and put back after it.
+ */
+void pixel_image(ImDrawList *list, ImTextureRef texture, ImVec2 min, ImVec2 max,
+                 ImVec2 uv0 = ImVec2(0.0f, 0.0f), ImVec2 uv1 = ImVec2(1.0f, 1.0f),
+                 ImU32 tint = IM_COL32_WHITE);
+
 /* A tree node (or, with `header`, a collapsing header) with an unfilled chevron instead of ImGui's
  * filled triangle. The label is drawn here in `textColor`; ImGui's own arrow and text are hidden.
  * Takes and returns what ImGui::TreeNodeEx / CollapsingHeader do (a node still needs TreePop). */

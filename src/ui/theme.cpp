@@ -693,6 +693,21 @@ ImU32 mix(unsigned from, unsigned to, float t)
         ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, 1.0f));
 }
 
+void pixel_image(ImDrawList *list, ImTextureRef texture, ImVec2 min, ImVec2 max, ImVec2 uv0,
+                 ImVec2 uv1, ImU32 tint)
+{
+    const ImGuiPlatformIO &platform = ImGui::GetPlatformIO();
+    const bool backendSamples = platform.DrawCallback_SetSamplerNearest != nullptr &&
+                                platform.DrawCallback_SetSamplerLinear != nullptr;
+    if (backendSamples) {
+        list->AddCallback(platform.DrawCallback_SetSamplerNearest, nullptr);
+    }
+    list->AddImage(texture, min, max, uv0, uv1, tint);
+    if (backendSamples) {
+        list->AddCallback(platform.DrawCallback_SetSamplerLinear, nullptr);
+    }
+}
+
 void chevron_points(ImVec2 center, float size, bool open, ImVec2 (&points)[3])
 {
     const float half = size * 0.5f;

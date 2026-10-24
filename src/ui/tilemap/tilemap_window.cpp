@@ -103,9 +103,9 @@ void TilemapWindow::picker(Editor &editor, const Tileset &tileset)
     ImGui::InvisibleButton("##picker_area", ImVec2(cellW * static_cast<float>(columns),
                                                    cellH * static_cast<float>(tileset.rows())));
     ImDrawList *draw = ImGui::GetWindowDrawList();
-    draw->AddImage(textureRef(atlas_), origin,
-                   ImVec2(origin.x + cellW * static_cast<float>(columns),
-                          origin.y + cellH * static_cast<float>(tileset.rows())));
+    theme::pixel_image(draw, textureRef(atlas_), origin,
+                       ImVec2(origin.x + cellW * static_cast<float>(columns),
+                              origin.y + cellH * static_cast<float>(tileset.rows())));
     drawGrid(draw, origin, columns, tileset.rows(), cellW, cellH);
     if (ImGui::IsItemClicked(0)) {
         const ImVec2 mouse = ImGui::GetMousePos();
@@ -178,7 +178,8 @@ void TilemapWindow::mapView(Editor &editor, const Tileset &tileset, const TileMa
     draw->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y),
                         ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::CANVAS_SOFT)));
     if (picture_.texture()) {
-        draw->AddImage(textureRef(picture_), origin, ImVec2(origin.x + size.x, origin.y + size.y));
+        theme::pixel_image(draw, textureRef(picture_), origin,
+                           ImVec2(origin.x + size.x, origin.y + size.y));
     }
     drawGrid(draw, origin, map.columns, map.rows, cellW, cellH);
     paint(editor, tileset, map, origin.x, origin.y);

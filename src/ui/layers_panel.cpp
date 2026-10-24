@@ -144,9 +144,9 @@ void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
         draw->AddRectFilled(min, max,
                             ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::CANVAS, 0.6f)));
     }
-    draw->AddImage(ImTextureRef(reinterpret_cast<ImTextureID>(thumb.texture)), min, max,
-                   ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f),
-                   IM_COL32(255, 255, 255, static_cast<int>(255.0f * alpha)));
+    theme::pixel_image(draw, ImTextureRef(reinterpret_cast<ImTextureID>(thumb.texture)), min, max,
+                       ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f),
+                       IM_COL32(255, 255, 255, static_cast<int>(255.0f * alpha)));
     draw->AddRect(ImVec2(min.x - 1.0f, min.y - 1.0f), ImVec2(max.x + 1.0f, max.y + 1.0f),
                   ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::HAIRLINE)));
 }
