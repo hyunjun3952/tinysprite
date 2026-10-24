@@ -62,6 +62,30 @@ condition, `return true / false`, `.size() == 0`, `int` -> `float`).
   `thirdparty/`. [CLAUDE.md]
 - Strings in the UI are English, sentence case, no trailing period on labels (`DESIGN.md`).
 
+**Comments** follow chapter 8 of the Linux kernel coding style
+(https://www.kernel.org/doc/html/v4.10/process/coding-style.html), adapted to C++. They are explicit and
+clean, and they explain what a piece of code is for and how its parts fit, never narrate its steps.
+- A comment says **what** the code does and, when it is not obvious, **why**. Never explain **how** it
+  works: make the code obvious instead (a good name, a smaller function). A comment that explains bad code
+  is wasted; fix the code.
+- Put the comment **at the head of the function** (or class, or file): what it does, what it takes and
+  returns or changes, what it refuses, and why it exists. Avoid comments inside a function body: if a body
+  needs its parts explained, it is too complex (section 3, cognitive complexity), so split it. A short
+  comment inside to warn about something clever or ugly is fine; do not add more than that.
+- **Comment data.** One declaration per line, and a short comment on each member or constant that says
+  what it is for (units, range, who owns it, what a special value means). `float uiScale = 0.0f; /* 0 =
+  none */`-style trailing notes are fine for short ones; a longer note goes on the lines above.
+- Multi-line comments use this form, the `/*` and the `*/` each alone on a line and a column of `*`:
+
+      /*
+       * What the function does, in a sentence or two,
+       * and why it does it.
+       */
+
+  Single-line comments use `/* ... */`. `//` is only for lint markers (`// NOLINT(...)`).
+- This applies to every comment you add or touch. Existing comments (most start their text on the `/*`
+  line) are not rewritten in bulk.
+
 ## 4. Formatting [.clang-format]
 
 Write code the way `clang-format` would, so the hook has nothing to change (a hook that modifies a file
