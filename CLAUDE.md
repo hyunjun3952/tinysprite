@@ -26,22 +26,13 @@ pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp  
 
 CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above; a push or PR lints only the changed files, everything when a header or lint config changed, and weekly or by hand on `schedule` / `workflow_dispatch`), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json`. `thirdparty/` is excluded from both tools.
 
-## Architecture
+## Code rules
 
-Module map, data flow, document model, undo, rendering, UI and the `.pxa` format: `docs/ARCHITECTURE.md`. Hard rules:
+**Before writing or changing C++, read `.rules` and follow it.** It holds every rule about the code itself, sorted by kind: layering and structure (CMake targets, document model, undo, `.pxa`), tests (TDD, file layout, a folder for a group of four or more files with one prefix), code conventions (C++17 and RAII, cognitive complexity of 15 or less, `thirdparty/README.md`), and what `clang-format` and `clang-tidy` reject. Lint is slow, so write to those rules instead of leaving style to the hooks. Module map, data flow, document model, undo, rendering, UI and the `.pxa` format: `docs/ARCHITECTURE.md`.
 
-- **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) → `tinysprite_io` (core + stb) → `tinysprite_ui` (core + io + SDL2 + ImGui) → executable. Never include SDL/ImGui headers from `src/core` or `src/io`. Public headers live in `include/tinysprite/` (core and io only), internal ones next to sources.
-- **Document model**: `Sprite → Layers × Frames → Cel`; cels are shared (`shared_ptr`) when frames are linked, and removed frames / layers live on inside history steps. Do not flatten this structure.
-- **Undo/Redo**: every edit goes through the history module, one undo step per user stroke; non-pixel edits are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path.
-- File format `.pxa` is versioned and chunked (length-prefixed): see `docs/ARCHITECTURE.md#file-format`.
+## Commits
 
-## Conventions
-
-- **TDD**: write the failing test first (`tests/test_<feature>.cpp`, one file per feature, using `tests/minitest.hpp`: `TEST`, `RUN`, `ASSERT_*`), then implement. New `test_*.cpp` files are picked up by CMake globbing (re-run cmake). Test layout (core/io tests, `tests/ui/ui_*.cpp` under `SDL_VIDEODRIVER=dummy`, golden pixel arrays): `docs/ARCHITECTURE.md#testing`.
-- Keep every function in `src/` at a cognitive complexity of 15 or less (checked by clang-tidy; not applied to `tests/`). Split by what the branches decide, not by line count (examples: `pxa.cpp`'s `Decoder`, `timeline_panel.cpp`'s `grid`).
-- C++17, no raw owning pointers: document types are RAII classes; live strokes are created by a static `begin()` returning a `std::unique_ptr` (null if the history already has an open stroke) and cancel themselves when destroyed unfinished. Invalid sizes throw `std::invalid_argument`; refusable operations return `bool` or null. Details: `docs/ARCHITECTURE.md`. Tests run under ASan/UBSan.
-- Commits: English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
-- Record dependency name, pinned version and license in `thirdparty/README.md` when adding anything to `thirdparty/`.
+- English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
 
 ## Workflow (mandatory)
 

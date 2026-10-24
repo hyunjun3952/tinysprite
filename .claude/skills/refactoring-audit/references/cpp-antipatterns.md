@@ -1,6 +1,6 @@
 # C++ anti-patterns, magic numbers and design principles
 
-Project conventions come first (CLAUDE.md): C++17, RAII, no raw owning pointers, `std::invalid_argument` for invalid sizes,
+Project conventions come first (`.rules`): C++17, RAII, no raw owning pointers, `std::invalid_argument` for invalid sizes,
 `bool` or null for refusable operations, rasterizers report pixels through a `std::function`.
 
 ## C++ anti-patterns

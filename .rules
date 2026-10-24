@@ -1,0 +1,128 @@
+# .rules
+
+The code rules of this repo. Read this before writing or changing C++ and write the code so that the
+format and lint hooks find nothing to report: a lint run is slow (clang-tidy over every file), a failed one
+costs a full re-run, and most failures are things these rules already name. `CLAUDE.md` keeps the commands,
+the workflow (lint, branches, PRs, merging) and the commit format; the rules about the code itself live here.
+
+Where a rule comes from is in brackets: [CLAUDE.md] is a rule stated there before this file existed,
+[.clang-format] and [.clang-tidy] are checks the hooks enforce (the config is the source of truth),
+[seen] is a failure that actually happened in this repo, and [probed] is a check confirmed by running
+`clang-tidy` on a scratch file that breaks it (recursion, unused parameter, uninitialized local, `int` as a
+condition, `return true / false`, `.size() == 0`, `int` -> `float`).
+
+## 1. Layering and structure (hard rules)
+
+- **Layering is enforced by CMake targets**: `tinysprite_core` (no SDL/ImGui, ever) -> `tinysprite_io`
+  (core + stb) -> `tinysprite_ui` (core + io + SDL2 + ImGui) -> executable. Never include SDL/ImGui headers
+  from `src/core` or `src/io`. Public headers live in `include/tinysprite/` (core and io only), internal ones
+  next to sources. [CLAUDE.md]
+- **Document model**: `Sprite -> Layers x Frames -> Cel`; cels are shared (`shared_ptr`) when frames are
+  linked, and removed frames / layers live on inside history steps. Do not flatten this structure. [CLAUDE.md]
+- **Undo/Redo**: every edit goes through the history module, one undo step per user stroke; non-pixel edits
+  are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path. [CLAUDE.md]
+- File format `.pxa` is versioned and chunked (length-prefixed): see `docs/ARCHITECTURE.md#file-format`.
+  [CLAUDE.md]
+- Everything drawn in pixels goes through `theme::px()`, every color is a `theme.hpp` token, every shared
+  widget is a `theme::` helper (`DESIGN.md`).
+- Do not add a data member to `App` (`src/ui/app.hpp`) for state that belongs to a module: it is at the edge
+  of the padding check (section 5). Put the state where it is owned (for the UI scale, `theme`). [seen]
+
+## 2. Tests
+
+- **TDD**: write the failing test first (`tests/test_<feature>.cpp`, one file per feature, using
+  `tests/minitest.hpp`: `TEST`, `RUN`, `ASSERT_*`), then implement. Watch it fail for the right reason
+  (a compile error for a missing function counts), then make it pass. [CLAUDE.md]
+- UI tests are `tests/ui/ui_<feature>.cpp` under `SDL_VIDEODRIVER=dummy`; layout and golden pixel arrays:
+  `docs/ARCHITECTURE.md#testing`. [CLAUDE.md]
+- **A group of four or more test files with the same feature prefix lives in a folder of that name.** The
+  prefix is what follows `test_` / `ui_`: `tests/tilemap/test_tilemap.cpp`, `test_tilemap_export.cpp`,
+  `test_tilemap_ops.cpp`, `test_tilemap_pxa.cpp`; `tests/ui/editor/ui_editor_*.cpp`. The same holds in a
+  folder (`tests/ui/` groups go in `tests/ui/<group>/`). Move the group with `git mv` in the change that
+  adds the fourth file; keep the file names (the ctest name is the file name minus `test_`, so names stay
+  unique and unchanged); a helper header shared with tests outside the group stays in the parent folder
+  (the UI tests have `tests/ui` on their include path). CMake globs recursively, so re-run cmake.
+- New `test_*.cpp` files are picked up by CMake globbing (re-run cmake). [CLAUDE.md]
+
+## 3. Code conventions
+
+- C++17, no raw owning pointers: document types are RAII classes; live strokes are created by a static
+  `begin()` returning a `std::unique_ptr` (null if the history already has an open stroke) and cancel
+  themselves when destroyed unfinished. Invalid sizes throw `std::invalid_argument`; refusable operations
+  return `bool` or null. Details: `docs/ARCHITECTURE.md`. Tests run under ASan/UBSan. [CLAUDE.md]
+- Keep every function in `src/` at a cognitive complexity of 15 or less (not applied to `tests/`). Split by
+  what the branches decide, not by line count (examples: `pxa.cpp`'s `Decoder`, `timeline_panel.cpp`'s
+  `grid`). [CLAUDE.md] [.clang-tidy]
+- Record dependency name, pinned version and license in `thirdparty/README.md` when adding anything to
+  `thirdparty/`. [CLAUDE.md]
+- Strings in the UI are English, sentence case, no trailing period on labels (`DESIGN.md`).
+
+## 4. Formatting [.clang-format]
+
+Write code the way `clang-format` would, so the hook has nothing to change (a hook that modifies a file
+fails the run and needs a second one). LLVM style with these settings:
+
+- 4 spaces, no tabs, at most 100 columns (a comment counts), Linux braces (a function's `{` on its own
+  line, every other `{` on the line of its `if` / `for` / `class`).
+- `AllowShort*: None`: a function, `if`, loop or block is never on one line. Always braces and line breaks.
+- `case` labels are not indented inside `switch`. Pointers bind right: `int *p`, `const char *name`.
+- Includes sorted case-sensitively within a block. A trailing comment on consecutive lines is aligned by the
+  formatter: do not align by hand, and expect a new longer line to re-align its neighbours.
+- A class member declaration with a comment that pushes it past 100 columns is wrapped by the formatter in
+  an ugly way: put the comment above the member.
+
+## 5. What clang-tidy rejects [.clang-tidy]
+
+Warnings are errors. Enabled: `bugprone-*`, `clang-analyzer-*`, `misc-*`, `modernize-*`, `performance-*`,
+`readability-*` and four `cppcoreguidelines-*` checks. Write the code so none of these fires:
+
+**Declarations**
+- Initialize every local at its declaration: `int count = 0;`, never `int count;` (init-variables).
+- Initialize members in the declaration or the initializer list, not in the constructor body
+  (prefer-member-initializer). A class that declares a destructor, copy or move operation declares all five
+  or none (special-member-functions). An rvalue-reference parameter is moved from or not taken as `&&`.
+- A global that is not `const` needs `// NOLINT(cppcoreguidelines-avoid-non-const-global-variables)` and a
+  reason in the comment above it (see `theme.cpp`).
+- No recursion (misc-no-recursion): walk with an explicit stack or a loop.
+- A member function that does not change the object is `const` (readability-make-member-function-const).
+  A parameter that is never used has no name or is left out (misc-unused-parameters): do not write
+  `(void)x;`, remove the parameter. [probed]
+- A class with many data members has a padding budget (clang-analyzer-optin.performance.Padding): order
+  members largest first (pointers and containers, then 8- and 4-byte values, then `bool` and `char`), and
+  put a new `float` next to the other `float`, not between `bool`s. `App` is at the limit. [seen]
+
+**Expressions**
+- Braces on every `if`, `else`, `for`, `while`, even for one statement (braces-around-statements).
+- No `else` after `return`, `break`, `continue` (else-after-return). Test emptiness with `.empty()`, not
+  `.size() == 0` (container-size-empty). Return the condition, not `if (c) { return true; } return false;`
+  (simplify-boolean-expr).
+- A pointer, a smart pointer or a `std::optional` may be used as a condition; an `int`, `float` or
+  `size_t` is compared explicitly: `if (count != 0)`, `if (!(longest > 0.0f))`. A `bool` is not an `int`
+  either: `(flag ? 1 : 0)`, never `flag + other` (implicit-bool-conversion).
+- No implicit narrowing: `int` <-> `float`, `size_t` -> `int`, `double` -> `float` need a `static_cast`
+  (bugprone-narrowing-conversions). Widen before multiplying sizes:
+  `static_cast<size_t>(w) * static_cast<size_t>(h)` (implicit-widening-of-multiplication-result).
+- Two branches with the same body are one branch (bugprone-branch-clone). Use `auto *` for a pointer
+  (qualified-auto), `nullptr` for a null pointer, `using` over `typedef`, `emplace_back` over
+  `push_back(T(...))`, a range `for` over an index loop that only reads, `= default` for a trivial
+  special member (`modernize-*`).
+
+**Performance**
+- Take a non-trivial type by `const &` unless the function keeps a copy, and then take it by value and
+  `std::move` it (performance-unnecessary-value-param). A range `for` over class objects binds `const auto &`
+  (performance-for-range-copy). Do not `std::move` a `const` object or a trivially copyable one.
+
+**Length**
+- Cognitive complexity 15 per function (section 3). When a function grows past it, split out what a branch
+  decides (a predicate, a helper per case), not the line count.
+
+## 6. Order of work that keeps lint cheap
+
+1. Write the test and the code to this file; do not leave style to the hooks.
+2. While iterating, format and tidy only the changed files:
+   `pre-commit run clang-format --files <files>` then
+   `pre-commit run clang-tidy-full --hook-stage manual --files <files>` (needs `build/compile_commands.json`).
+3. Once, when all the work is done, the full set (`pre-commit run --all-files --hook-stage manual > log`).
+   Its exit code is 1 when the formatter changed a file even if nothing else failed: run it again and judge
+   the second run. Read the diagnostics with `grep -E '(error|warning): ' log | grep -v 'warnings generated'`.
+4. A commit hook that reformats a file stops the commit: `git add` the file and commit again.
