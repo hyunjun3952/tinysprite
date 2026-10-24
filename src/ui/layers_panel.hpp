@@ -13,11 +13,14 @@
 #include "slices_panel.hpp"
 #include "tilemap/tilemap_panel.hpp"
 
-/* Layer list (top layer first): each row shows what is painted on the layer, with visibility and
- * lock toggles (double-click a row to rename it in place), plus the opacity of the active layer and
- * add / duplicate / delete / merge buttons. Click selects a layer, Ctrl+click adds or removes one,
- * Shift+click selects a range; duplicate, delete, drag and the toggles then act on all the selected
- * layers. Draws into the current ImGui window. */
+/*
+ * Layer list (top layer first): each row shows what is painted on the layer, with visibility and
+ * lock toggles (double-click a row to rename it in place). Click selects a layer, Ctrl+click adds
+ * or removes one, Shift+click selects a range; the layer actions (add, duplicate, delete, merge,
+ * move; see setContextMenu) and the toggles then act on all the selected layers, and so do the
+ * opacity and blend mode of the Properties section below the Slices and Tilemaps sections. Draws
+ * into the current ImGui window.
+ */
 class LayersPanel
 {
   public:

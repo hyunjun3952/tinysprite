@@ -11,7 +11,8 @@
 /* The timeline: a strip along the bottom of the window with the playback and frame buttons, the
  * duration of the current frame and a grid of cels (a column per frame, a row per layer, top layer
  * first). Clicking a cel selects its frame and layer; a dot marks a cel with something painted on
- * it, and dragging a frame number onto another one moves the frame there. A row above the frame
+ * it, a bar one that shares its pixels with another frame (a linked cel), and dragging a frame
+ * number onto another one moves the frame there. A row above the frame
  * numbers shows the tags as colored bands; clicking one selects it for editing and for playback. */
 /* What dragging the timeline's top edge means (like a VS Code panel). `requested` is the distance
  * from the mouse to the bottom of the canvas area; it is kept between `minHeight` and `maxHeight`

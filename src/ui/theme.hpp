@@ -28,8 +28,9 @@ inline constexpr unsigned HOVER = 0x26282c;     /* hovered soft surface */
 inline constexpr unsigned PRESSED = 0x2f3136;   /* pressed / selected soft surface */
 inline constexpr unsigned WORKSPACE = 0x08090a; /* behind the sprite, darker than the panels */
 
-/* The accent marks what is selected or focused (the active tool, checkmarks, the slider grab) and
- * nothing else; ACCENT_TEXT is the text and icon color on top of it. */
+/* The accent marks what is selected or focused (the active tool, checkmarks, the selected tab's
+ * overline, the primary dialog button) and nothing else; ACCENT_TEXT is the text and icon color on
+ * top of it. */
 inline constexpr unsigned ACCENT = 0xe8eaed;
 inline constexpr unsigned ACCENT_STRONG = 0xc4c8ce; /* the pressed accent */
 inline constexpr unsigned ACCENT_TEXT = 0x0f1011;
@@ -102,9 +103,9 @@ ImVec2 unit_origin(ImVec2 min, ImVec2 max, float textWidth, float textHeight, fl
 bool input_int(const char *id, int *value, int step, int stepFast, const char *unit,
                ImGuiInputTextFlags flags = 0);
 
-/* ImGui::SliderInt in the style of the fields: a rounded field filled with the accent up to the
- * value, and the value with `unit` centered on it ("50%"). There is no grip to cover the digits and
- * no Ctrl+click text entry. Drag, or use the arrow keys when focused. */
+/* ImGui::SliderInt in the style of the fields: a rounded field filled with SLIDER_FILL (a lifted
+ * grey) up to the value, and the value with `unit` centered on it ("50%"). There is no grip to
+ * cover the digits and no Ctrl+click text entry. Drag, or use the arrow keys when focused. */
 bool slider_int(const char *id, int *value, int min, int max, const char *unit = "");
 
 /* ImGui::BeginCombo with a drawn chevron at the right end instead of the arrow button. Call
@@ -131,10 +132,12 @@ std::string color_hex(const float *rgba);
  * leaves `rgba` alone for anything else. */
 bool parse_color_hex(const char *text, float *rgba);
 
+/* The size of the text buffer hex_field needs: "RRGGBBAA" and the end of the string. */
+inline constexpr size_t HEX_BUFFER_SIZE = 10;
+
 /* The hex field of a color picker: a rounded preview of the color, a "#" and the digits to edit.
  * `buffer` holds the text while it is typed (the caller keeps it between frames). Returns true when
  * a valid entry changed `rgba`. */
-inline constexpr size_t HEX_BUFFER_SIZE = 10;
 bool hex_field(const char *id, float *rgba, char (&buffer)[HEX_BUFFER_SIZE]);
 
 /* Shows `text` as a tooltip when the last item has been hovered a moment (never while it is

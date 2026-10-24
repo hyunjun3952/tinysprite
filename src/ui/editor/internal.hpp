@@ -8,7 +8,7 @@
 #include "tinysprite/palette.hpp"
 #include "tinysprite/sprite.hpp"
 
-/* Helpers the editor_*.cpp files share (editor.cpp is split by what the code is about). */
+/* Helpers the files of src/ui/editor share (the Editor is split by what the code is about). */
 namespace editor_detail
 {
 

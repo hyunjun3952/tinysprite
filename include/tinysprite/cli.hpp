@@ -4,7 +4,7 @@
 /* The headless `tinysprite export` command, for build scripts: it opens no window and needs no
  * display. `argv[0]` is the program, `argv[1]` is "export".
  *
- *   export <input> --sheet out.png [--json out.json] [--layout horizontal|vertical|grid]
+ *   export <input> --sheet out.png [--json out.json] [--layout horizontal|vertical|grid|packed]
  *                  [--columns N] [--spacing N] [--scale N] [--first N] [--last N]
  *   export <input> --image out.png [--frame N] [--scale N]
  *   export <input> --gif out.gif [--scale N]

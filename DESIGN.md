@@ -281,7 +281,7 @@ Icons are Material Symbols Outlined (unfilled). Chevrons are drawn as two stroke
 
 ### Panels
 - **Tool bar**: one column of icon buttons, then the shapes. **Options bar**: only the options of the active tool, so it changes with the tool.
-- **Inspector**: Color, then Layers, then Slices (folded by default), then Properties. Panel settings keys are fixed (`panel.tools.*`, `panel.layers.*`), not derived from the title.
+- **Inspector**: Color, then Layers, then Slices and Tilemaps (both folded by default), then Properties. Panel settings keys are fixed (`panel.tools.*`, `panel.layers.*`), not derived from the title.
 - **Timeline**: toolbar, onion skin row, tag row, grid of cels. The playhead and the selected cells use the accent family; a cel with pixels shows a dot and a cel that shares its pixels with another (linked) shows a bar.
 - **Status bar**: 24 px, mute text: the active tool, cursor position, zoom and transient messages (check `statusbar.cpp` for the exact set).
 

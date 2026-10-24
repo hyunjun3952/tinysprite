@@ -70,9 +70,12 @@ class Editor
         return surface_->texture();
     }
 
-    /* Tool options: pixel_perfect / brush_* apply to pencil and eraser, shape_filled to the
-     * rectangle and ellipse (symmetry also reaches shapes and the bucket). Edited directly by the
-     * tools panel and the shortcuts. */
+    /*
+     * Tool options. pixel_perfect applies to the pencil and eraser; brush_size and brush_round to
+     * the pencil and eraser and to the outline of a line or an unfilled shape; shape_filled to
+     * every closed shape; symmetry also reaches shapes and the bucket. Edited directly by the
+     * tools panel and the shortcuts.
+     */
     struct ToolOptions {
         int brush_size = 1; /* 1..PENCIL_BRUSH_MAX */
         bool brush_round = false;
@@ -153,9 +156,11 @@ class Editor
         return paletteSelected_;
     }
 
-    /* Which canvas decorations are drawn (the pixel grid is showGrid): the status line, the outline
-     * of the cel under the mouse (with the brush footprint) and the mirror axes. Kept when a
-     * document is opened. */
+    /*
+     * Which parts of the window and canvas are shown (the pixel grid is showGrid): the status line,
+     * the outline of the cel under the mouse (with the brush footprint), the mirror axes, the
+     * slices, the timeline, the options bar and the tilemap window. Kept when a document is opened.
+     */
     struct Overlays {
         bool status = true;
         bool cursor = true;
@@ -208,10 +213,13 @@ class Editor
      * false (nothing changes) if it is out of range or a tool is being dragged. */
     bool setFrame(int frame);
 
-    /* Frame operations (all do nothing while a tool is being dragged and stop playback). Each is
-     * one undo step. Add puts a blank frame after the current one and duplicate a copy of it; both
-     * select the new frame. Removing the last frame is refused; the selection stays on the same
-     * frame, or moves to a neighbour when that one was removed. */
+    /*
+     * Frame operations (all do nothing while a tool is being dragged, and all but
+     * setFrameDuration stop playback). Each is one undo step. Add puts a blank frame after the
+     * current one and duplicate a copy of it; both select the new frame. Removing the last frame is
+     * refused; the selection stays on the same frame, or moves to a neighbour when that one was
+     * removed.
+     */
     void addFrame();
     void duplicateFrame();
     void removeFrame(int index);
@@ -357,21 +365,22 @@ class Editor
     bool newDocument(int width, int height);
     /* Replaces the sprite's palette (one undo step); the swatch selection is dropped. */
     void setPalette(Palette palette);
-    /* True when the document counts as changed although the undo history is at its save point: one
-     * that was recovered from an autosave (see markModified). */
-    /* True once after an edit was refused (the sprite's cel budget is used up) or given up (the
-     * allocator failed) for lack of memory; the document is as it was, and the caller tells the
-     * user. */
-    /* Whether a frame was refused because the sprite already has SPRITE_MAX_FRAMES; cleared. */
+    /* True once after a frame was refused because the sprite already has SPRITE_MAX_FRAMES. */
     bool takeFramesFull()
     {
         return std::exchange(framesFull_, false);
     }
+
+    /* True once after an edit was refused (the sprite's cel budget is used up) or given up (the
+     * allocator failed) for lack of memory; the document is as it was, and the caller tells the
+     * user. */
     bool takeMemoryShort()
     {
         return std::exchange(memoryShort_, false);
     }
 
+    /* True when the document counts as changed although the undo history is at its save point: one
+     * that was recovered from an autosave (see markModified). */
     bool modifiedOutsideHistory() const
     {
         return modifiedOutsideHistory_;
@@ -399,7 +408,8 @@ class Editor
     /* Mouse handling for the active tool, in cel coordinates (which may lie outside the sprite).
      * press starts a drag when the tool accepts it, drag is called every frame while the button
      * is held, release commits. Shift held while dragging a shape keeps it square (a line snaps to
-     * 45 degrees). Each one marks the cels it changes dirty. The drawing tools only change cels
+     * horizontal, vertical or 45 degrees, see shape_constrain). Each one marks the cels it changes
+     * dirty. The drawing tools only change cels
      * inside the selection while there is one. */
     void press(int cx, int cy, bool shift = false);
 
@@ -456,9 +466,9 @@ class Editor
     /* Re-composites the dirty region and uploads it to the texture. */
     void updateTexture();
 
-    /* The preferences worth keeping between runs (grid, overlays, brush and shape options, colors,
-     * tool) go to / come from the settings; invalid entries keep the current value. Symmetry is not
-     * kept: it starts off every time. */
+    /* The preferences worth keeping between runs (grid, overlays, onion skin, brush and shape
+     * options, colors, tool) go to / come from the settings; invalid entries keep the current
+     * value. Symmetry is not kept: it starts off every time. */
     void store(SettingsMap &settings) const;
     void load(const SettingsMap &settings);
 
@@ -476,8 +486,8 @@ class Editor
     /* The cel of the active layer and frame; null if there is none. */
     Cel *activeCel();
 
-    /* The active cel when a tool may change it; null while a tool is being dragged or when the
-     * layer is hidden or locked. */
+    /* The active cel when a tool may change it; null while a tool is being dragged, while the
+     * animation plays, or when the layer is hidden or locked. */
     Cel *editableCel();
 
     /* Undo / redo; they do nothing while a stroke is being drawn. */
@@ -498,11 +508,14 @@ class Editor
     bool canRemoveSelectedLayers() const; /* false if it would leave no layer, or while stroking */
     void duplicateSelectedLayers();
 
-    /* Merge draws the selected layers (bottom to top, with their opacities) onto the lowest of
+    /*
+     * Merge draws the selected layers (bottom to top, with their opacities) onto the lowest of
      * them, which keeps its name and properties and becomes the only selection; a lone selected
-     * layer is merged down. Unselected layers between them end up above the result. canMerge is
-     * true when it would work: every selected layer is visible, the lowest is not locked, and a
-     * lone layer has one below it. */
+     * layer is merged down. Unselected layers between them end up above the result. canMergeLayers
+     * is true when it would work: every selected layer is visible, each one but the topmost is not
+     * locked (each is folded into the one below it), a lone layer has one below it, and the
+     * flattened image looks the same afterwards (layer_merge_keeps_look).
+     */
     bool canMergeLayers() const;
     void mergeSelectedLayers();
     void setSelectedLayersVisible(bool visible);
@@ -521,9 +534,10 @@ class Editor
     bool canMoveLayersUp() const;
     bool canMoveLayersDown() const;
 
-    /* Merge draws the layer onto the one below it (both must be visible). If the merged layer was
-     * active the one below becomes active, otherwise the active layer keeps pointing at the same
-     * layer. */
+    /* Merges the layer at `index` down onto the one below it when layer_can_merge_down allows it
+     * (both visible, the lower one not locked, the image looks the same afterwards). If the merged
+     * layer was active the one below becomes active, otherwise the active layer keeps pointing at
+     * the same layer. */
     void mergeLayerDown(int index);
 
     /* The opacity slider edits every selected layer: selectedLayerOpacities is what they hold when
@@ -631,15 +645,15 @@ class Editor
     void setSelectionClipped(Rect r);
 
     /* Copy / cut put the selected pixels of the active layer on the clipboard (cut also clears
-     * them, one undo step). They return true if something was copied; cut needs a visible
-     * layer. */
+     * them, one undo step). They return true if something was copied; cut needs a layer that is
+     * visible and not locked. */
     bool copySelection();
     bool cutSelection();
 
     /* Pastes the clipboard as one undo step with its corner on the hovered cel, else on the
      * selection corner, else at (0, 0); the pasted area becomes the selection and the select tool
-     * is chosen so it can be dragged into place. Does nothing without a clipboard or a visible
-     * layer. */
+     * is chosen so it can be dragged into place. Does nothing without a clipboard or a layer that
+     * is visible and not locked. */
     void paste();
 
     /* Flips (horizontally or else vertically) or turns (clockwise or else counter-clockwise) the

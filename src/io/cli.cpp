@@ -63,7 +63,8 @@ bool parseLayout(const char *text, SheetLayout &layout)
     return true;
 }
 
-/* A flag that names a file: the value is stored in `target`. */
+/* The string a path flag (--sheet, --json, --image, --gif, --tilemap) stores its value in; null for
+ * any other flag. */
 std::string *pathFlag(Job &job, const char *name)
 {
     const struct {

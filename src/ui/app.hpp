@@ -306,7 +306,8 @@ class App
     void shutdown();
     bool saveScreenshot(const std::string &path) const;
 
-    std::string configDir_;            /* where they live, "" when there is no home directory */
+    std::string
+        configDir_; /* where the settings and autosave copies live; "" without a home folder */
     std::vector<Recovered> recovered_; /* the copies an earlier session left, awaiting an answer */
     std::vector<std::string> recent_;  /* recently opened / saved .pxa files, newest first */
 
