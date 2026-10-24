@@ -2,8 +2,10 @@
 #define TINYSPRITE_UI_CANVAS_HPP
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "editor.hpp"
 #include "imgui.h"
@@ -54,7 +56,9 @@ class Canvas
     void drawBrushPreview(ImDrawList *draw, ImVec2 origin) const;
     void drawHoverOutline(ImDrawList *draw, ImVec2 origin) const;
     void drawSelection(ImDrawList *draw, ImVec2 origin) const;
-    void drawMaskOutline(ImDrawList *draw, ImVec2 origin, const Mask &mask) const;
+    void refreshOutline(const std::shared_ptr<const Mask> &mask) const;
+    void drawMaskOutline(ImDrawList *draw, ImVec2 origin,
+                         const std::shared_ptr<const Mask> &mask) const;
     void drawLasso(ImDrawList *draw, ImVec2 origin) const;
     void drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const;
     void drawLoupe(ImVec2 origin, ImVec2 avail) const;
@@ -65,6 +69,16 @@ class Canvas
     Middle middle_ = Middle::Idle;
     ImVec2 middlePress_;
     double middleTime_ = 0.0;
+
+    /* The outline of a mask kept in cel corners until another mask is shown: finding the sides
+     * visits every pixel of it, too much to do again in every frame of a big selection. */
+    static constexpr size_t MAX_OUTLINE_SIDES = 20000; /* more than this: show the bounding box */
+    struct Side {
+        int x0, y0, x1, y1;
+    };
+    mutable std::shared_ptr<const Mask> outlineOf_;
+    mutable std::vector<Side> outline_;
+    mutable bool outlineTooBig_ = false; /* so many sides that the bounding box is shown instead */
 
     Editor *editor_; /* the document shown; changed by setEditor */
     std::string windowName_;

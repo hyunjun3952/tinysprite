@@ -341,54 +341,68 @@ void Canvas::drawHoverOutline(ImDrawList *draw, ImVec2 origin) const
 
 /*
  * The outline of a selection that is not a rectangle: a line along every side of a selected cel
- * whose neighbor is not selected, dark under light so it shows on any background. A selection
- * with a great many such sides (a dust of single pixels) is shown as its bounding rectangle
- * instead, so the outline cannot slow the frame down.
+
+ * * whose neighbor is not selected, dark under light so it shows on any background. The sides are
+
+ * * found once per mask (see outline_). A selection with a great many (a dust of single pixels) is
+
+ * * shown as its bounding rectangle instead, so the outline cannot slow the frame down.
  */
-void Canvas::drawMaskOutline(ImDrawList *draw, ImVec2 origin, const Mask &mask) const
+void Canvas::refreshOutline(const std::shared_ptr<const Mask> &mask) const
 {
-    constexpr size_t MAX_SIDES = 20000;
-    const Viewport &view = editor_->view().viewport;
-    const int dx = editor_->moveDx();
-    const int dy = editor_->moveDy();
-    const float zoom = view.zoom;
-    std::vector<std::pair<ImVec2, ImVec2>> sides;
-    mask.forEach([&](int x, int y) {
-        if (sides.size() > MAX_SIDES) {
+    if (outlineOf_ == mask) {
+        return;
+    }
+    outlineOf_ = mask;
+    outline_.clear();
+    mask->forEach([&](int x, int y) {
+        if (outline_.size() > MAX_OUTLINE_SIDES) {
             return;
         }
-        const ImVec2 p0(origin.x + view.celToScreenX(x + dx), origin.y + view.celToScreenY(y + dy));
-        const ImVec2 p1(p0.x + zoom, p0.y + zoom);
-        if (!mask.contains(x, y - 1)) {
-            sides.emplace_back(p0, ImVec2(p1.x, p0.y));
+        if (!mask->contains(x, y - 1)) {
+            outline_.push_back({x, y, x + 1, y});
         }
-        if (!mask.contains(x, y + 1)) {
-            sides.emplace_back(ImVec2(p0.x, p1.y), p1);
+        if (!mask->contains(x, y + 1)) {
+            outline_.push_back({x, y + 1, x + 1, y + 1});
         }
-        if (!mask.contains(x - 1, y)) {
-            sides.emplace_back(p0, ImVec2(p0.x, p1.y));
+        if (!mask->contains(x - 1, y)) {
+            outline_.push_back({x, y, x, y + 1});
         }
-        if (!mask.contains(x + 1, y)) {
-            sides.emplace_back(ImVec2(p1.x, p0.y), p1);
+        if (!mask->contains(x + 1, y)) {
+            outline_.push_back({x + 1, y, x + 1, y + 1});
         }
     });
-    if (sides.size() > MAX_SIDES) {
-        const Rect b = mask.bounds();
+    outlineTooBig_ = outline_.size() > MAX_OUTLINE_SIDES;
+}
+
+void Canvas::drawMaskOutline(ImDrawList *draw, ImVec2 origin,
+                             const std::shared_ptr<const Mask> &mask) const
+{
+    const Viewport &view = editor_->view().viewport;
+    refreshOutline(mask);
+    const int dx = editor_->moveDx();
+    const int dy = editor_->moveDy();
+    if (outlineTooBig_) {
+        const Rect b = mask->bounds();
         const ImVec2 p0(origin.x + view.celToScreenX(b.x + dx),
                         origin.y + view.celToScreenY(b.y + dy));
-        const ImVec2 p1(p0.x + static_cast<float>(b.w) * zoom,
-                        p0.y + static_cast<float>(b.h) * zoom);
+        const ImVec2 p1(p0.x + static_cast<float>(b.w) * view.zoom,
+                        p0.y + static_cast<float>(b.h) * view.zoom);
         drawRectOutline(draw, p0, p1, theme::overlay::LINE_LIGHT);
         return;
     }
-    for (const auto &side : sides) {
-        draw->AddLine(side.first, side.second, theme::overlay::LINE_SHADOW, 3.0f);
+    auto screen = [&](int x, int y) {
+        return ImVec2(origin.x + view.celToScreenX(x + dx), origin.y + view.celToScreenY(y + dy));
+    };
+    for (const Side &side : outline_) {
+        draw->AddLine(screen(side.x0, side.y0), screen(side.x1, side.y1),
+                      theme::overlay::LINE_SHADOW, 3.0f);
     }
-    for (const auto &side : sides) {
-        draw->AddLine(side.first, side.second, theme::overlay::LINE_LIGHT, 1.0f);
+    for (const Side &side : outline_) {
+        draw->AddLine(screen(side.x0, side.y0), screen(side.x1, side.y1),
+                      theme::overlay::LINE_LIGHT, 1.0f);
     }
 }
-
 /* The lasso while it is dragged: the path through the middle of the cels it visited, and a fainter
  * line closing it, which is the outline the selection will get. */
 void Canvas::drawLasso(ImDrawList *draw, ImVec2 origin) const
@@ -419,7 +433,7 @@ void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
         return;
     }
     if (const std::shared_ptr<const Mask> mask = editor_->selectionMask()) {
-        drawMaskOutline(draw, origin, *mask);
+        drawMaskOutline(draw, origin, mask);
         return;
     }
     const Rect &r = editor_->selection();

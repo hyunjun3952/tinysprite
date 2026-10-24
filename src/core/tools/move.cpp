@@ -62,6 +62,7 @@ void MoveStroke::update(int dx, int dy)
         }
     });
 }
+
 bool move_stroke(History &history, Cel &cel, Rect selection, int dx, int dy)
 {
     std::unique_ptr<MoveStroke> stroke = MoveStroke::begin(history, cel, selection);
