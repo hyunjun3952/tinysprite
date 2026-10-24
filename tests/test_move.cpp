@@ -1,6 +1,7 @@
 #include <cstring>
 
 #include "minitest.hpp"
+#include "tinysprite/mask.hpp"
 #include "tinysprite/selection.hpp"
 
 #define W 8
@@ -40,6 +41,36 @@ static Cel block()
         }
     }
     return c;
+}
+
+TEST(moving_a_masked_selection_takes_only_its_pixels_and_leaves_the_rest)
+{
+    History h;
+    Cel c = block(); /* 2x2 red at (1,1)-(2,2) */
+    c.set(2, 2, BLUE);
+    Mask diagonal = Mask::fromPlot(W, H, [](const RasterPlotFn &plot) {
+        plot(1, 1);
+        plot(2, 2);
+    });
+    ASSERT_TRUE(move_stroke(h, c, diagonal, 4, 1));
+    /* the red at (1,1) and the blue at (2,2) moved by (4, 1); (2,1) and (1,2) are not in the mask
+     */
+    const char *golden[H] = {"........", "..r.....", ".r...r..",
+                             "......b.", "........", "........"};
+    expect_rows(c, golden);
+    ASSERT_TRUE(h.undo());
+    const char *before[H] = {"........", ".rr.....", ".rb.....",
+                             "........", "........", "........"};
+    expect_rows(c, before);
+}
+
+TEST(a_mask_with_nothing_inside_the_cel_does_not_start_a_move)
+{
+    History h;
+    Cel c = block();
+    ASSERT_TRUE(!MoveStroke::begin(h, c, Mask()));
+    ASSERT_TRUE(!MoveStroke::begin(h, c, Mask::full(Rect{20, 20, 2, 2})));
+    ASSERT_TRUE(!move_stroke(h, c, Mask(), 1, 1));
 }
 
 TEST(moves_the_selection_and_clears_the_source)
@@ -196,6 +227,8 @@ TEST(invalid_arguments_fail)
 
 int main()
 {
+    RUN(moving_a_masked_selection_takes_only_its_pixels_and_leaves_the_rest);
+    RUN(a_mask_with_nothing_inside_the_cel_does_not_start_a_move);
     RUN(moves_the_selection_and_clears_the_source);
     RUN(overlapping_move_keeps_the_pixels_that_stay_covered);
     RUN(only_the_selected_area_moves);

@@ -20,6 +20,23 @@ std::optional<Clip> Clip::copy(const Cel &cel, Rect area)
     return clip;
 }
 
+std::optional<Clip> Clip::copy(const Cel &cel, const Mask &mask)
+{
+    Rect r = rect_clip(mask.bounds(), cel.width(), cel.height());
+    if (rect_is_empty(r)) {
+        return std::nullopt;
+    }
+    Clip clip(r.w, r.h);
+    clip.pixels_.reserve(static_cast<size_t>(r.w) * static_cast<size_t>(r.h));
+    for (int j = 0; j < r.h; j++) {
+        for (int i = 0; i < r.w; i++) {
+            const bool in = mask.contains(r.x + i, r.y + j);
+            clip.pixels_.push_back(in ? cel.get(r.x + i, r.y + j) : Rgba{});
+        }
+    }
+    return clip;
+}
+
 Rgba Clip::get(int x, int y) const
 {
     if (x < 0 || y < 0 || x >= width_ || y >= height_) {
@@ -98,5 +115,25 @@ bool clip_replace(History &history, Cel &cel, Rect cleared, const Clip &clip, in
         }
     }
     clip.writeTo(history, cel, x, y);
+    return history.endStroke(std::move(also));
+}
+
+bool clip_replace(History &history, Cel &cel, const Mask &cleared, const Clip &clip, int x, int y,
+                  HistoryAction also)
+{
+    if (!history.beginStroke(cel)) {
+        return false;
+    }
+    cleared.forEach([&](int i, int j) { history.setPixel(i, j, Rgba{}); });
+    clip.writeTo(history, cel, x, y);
+    return history.endStroke(std::move(also));
+}
+
+bool clear_mask(History &history, Cel &cel, const Mask &mask, HistoryAction also)
+{
+    if (!history.beginStroke(cel)) {
+        return false;
+    }
+    mask.forEach([&](int i, int j) { history.setPixel(i, j, Rgba{}); });
     return history.endStroke(std::move(also));
 }

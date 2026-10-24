@@ -43,6 +43,10 @@ const char *toolLabel(ToolKind tool)
         return "Slice";
     case ToolKind::Pan:
         return "Pan";
+    case ToolKind::Wand:
+        return "Magic wand";
+    case ToolKind::Lasso:
+        return "Lasso";
     case ToolKind::Count:
         break;
     }

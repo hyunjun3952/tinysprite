@@ -44,7 +44,7 @@ bool History::beginStroke(Cel &cel)
 bool History::setPixel(int x, int y, Rgba color)
 {
     if (!strokeActive() || !active_.cel->inBounds(x, y) ||
-        (clip_ && !rect_contains(*clip_, x, y))) {
+        (clip_ && !rect_contains(*clip_, x, y)) || (clipMask_ && !clipMask_->contains(x, y))) {
         return false;
     }
     size_t index = active_.cel->indexOf(x, y);

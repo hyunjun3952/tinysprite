@@ -57,6 +57,8 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
     selectedTag_ = -1;
     playback_.stop();
     selection_.reset();
+    mask_.reset();
+    lassoPath_.clear();
     selectedSliceName_.clear();
     slicePreview_.reset();
     slicePreviewMove_.reset();
@@ -102,6 +104,7 @@ void Editor::setHover(int x, int y, bool hovering)
 void Editor::setSelection(Rect r)
 {
     selection_ = r;
+    mask_.reset();
 }
 
 void Editor::setMoveOffset(int dx, int dy)
@@ -146,6 +149,8 @@ void Editor::press(int cx, int cy, bool shift)
     /* Drawing tools stay inside the selection; the select tool moves it and must not be clipped by
      * it. */
     history_.setClip(tool_draws(tool_) ? selection_ : std::nullopt);
+    history_.setClipMask(tool_draws(tool_) ? mask_ : nullptr);
+    shiftAtPress_ = shift;
     if (shift && tool_traits(tool_).group == ToolGroup::Brush) {
         lineFrom_ = lastDrawPoint_;
     }
@@ -153,6 +158,7 @@ void Editor::press(int cx, int cy, bool shift)
     lineFrom_.reset();
     if (!drag_) {
         history_.setClip(std::nullopt);
+        history_.setClipMask(nullptr);
     }
 }
 
@@ -172,6 +178,7 @@ void Editor::release()
         finishingDrag_ = false;
         drag_.reset();
         history_.setClip(std::nullopt);
+        history_.setClipMask(nullptr);
     }
 }
 
@@ -187,6 +194,8 @@ void Editor::cancelDrag()
     drag_->cancel();
     drag_.reset();
     history_.setClip(std::nullopt);
+    history_.setClipMask(nullptr);
+    lassoPath_.clear();
     moveDx_ = 0;
     moveDy_ = 0;
     markAllDirty();

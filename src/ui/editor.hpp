@@ -306,7 +306,8 @@ class Editor
         return hovering_;
     }
 
-    /* Rectangular selection in cel coordinates, always inside the sprite. While a selection is
+    /* The selection in cel coordinates, always inside the sprite: a rectangle, which is also the
+     * bounding box of a selection of any other shape (see selectionMask). While a selection is
      * being moved it stays at its origin and moveDx/Dy hold the drag offset (zero otherwise). */
     bool hasSelection() const
     {
@@ -315,6 +316,17 @@ class Editor
     Rect selection() const
     {
         return selection_.value_or(Rect{});
+    }
+    /* The shape of a selection that is not the whole of its rectangle (a magic wand or lasso pick):
+     * its pixels are the mask's, within selection(). Null for a plain rectangle. */
+    std::shared_ptr<const Mask> selectionMask() const
+    {
+        return mask_;
+    }
+    /* Whether the cel (x, y) is selected. */
+    bool selectionContains(int x, int y) const
+    {
+        return selection_ && (mask_ ? mask_->contains(x, y) : rect_contains(*selection_, x, y));
     }
     int moveDx() const
     {
@@ -330,6 +342,20 @@ class Editor
      * rotate), so undoing it brings the selection back too. */
     HistoryAction selectionAction(std::optional<Rect> before, std::optional<Rect> after);
 
+    /* The whole selection: its rectangle and, for a shape, its mask. */
+    struct SelectionState {
+        std::optional<Rect> rect;
+        std::shared_ptr<const Mask> mask;
+    };
+    SelectionState selectionState() const
+    {
+        return {selection_, mask_};
+    }
+    /* The state of the selection moved by (dx, dy), what is left of it inside the sprite. */
+    SelectionState selectionMovedBy(int dx, int dy) const;
+    /* An undo / redo pair that puts the selection back to `before` / `after`, masks included. */
+    HistoryAction selectionAction(const SelectionState &before, const SelectionState &after);
+
     /* `r` clipped to the sprite, or none if nothing is left. */
     std::optional<Rect> clippedSelection(Rect r) const;
 
@@ -337,9 +363,41 @@ class Editor
      * selectAll / clearSelection / setSelectionClipped these are not held off, and setSelection
      * does not clip. */
     void setSelection(Rect r);
+    void setSelectionState(const SelectionState &state);
     void dropSelection()
     {
         selection_.reset();
+        mask_.reset();
+    }
+
+    /* Makes `mask` the selection, its bounds the rectangle (an empty mask is no selection). */
+    void setSelectionMask(Mask mask);
+
+    /* How a new pick joins the selection that is there. */
+    enum class SelectMode { Replace, Add };
+    /* The magic wand: selects the pixels of the active cel that a bucket fill at (x, y) would take
+     * (the bucket's Contiguous and Tolerance options). A click that finds nothing (beside the
+     * sprite) drops the selection when replacing and leaves it when adding. */
+    void selectRegion(int x, int y, SelectMode mode);
+    /* The lasso: selects what the polygon through `points` encloses, outline included. */
+    void selectPolygon(const std::vector<ToolPoint> &points, SelectMode mode);
+    /* Whether Shift was held when the last press began, which makes a pick add to the selection. */
+    bool shiftAtPress() const
+    {
+        return shiftAtPress_;
+    }
+    /* The lasso as dragged so far, for the canvas to draw; empty when none is being dragged. */
+    const std::vector<ToolPoint> &lassoPath() const
+    {
+        return lassoPath_;
+    }
+    void addLassoPoint(ToolPoint point)
+    {
+        lassoPath_.push_back(point);
+    }
+    void clearLassoPath()
+    {
+        lassoPath_.clear();
     }
     void setMoveOffset(int dx, int dy);
 
@@ -708,7 +766,13 @@ class Editor
         Cel &cel;
         Rect rect;
         Clip clip;
+        std::shared_ptr<const Mask> mask; /* the selection's shape, null for a rectangle */
     };
+
+    /* The selection as a mask: its own, or the whole of its rectangle. */
+    Mask selectionShape() const;
+    /* Joins `picked` to the selection (or replaces it) and makes the result the selection. */
+    void applyPick(Mask picked, SelectMode mode);
     std::optional<SelectionEdit> beginSelectionEdit();
 
     /* Runs `edit` on every selected layer as one undo step; false (nothing runs) while a tool is
@@ -751,6 +815,10 @@ class Editor
     int hoverY_ = 0;
     bool hovering_ = false;
     std::optional<Rect> selection_;
+    std::shared_ptr<const Mask>
+        mask_; /* the selection's shape inside selection_; null: all of it */
+    std::vector<ToolPoint> lassoPath_;
+    bool shiftAtPress_ = false;
     bool finishingDrag_ = false;    /* release() is running the drag's finish: it may edit slices */
     std::string selectedSliceName_; /* the selected slice, by name: indexes shift on undo / redo */
     std::optional<Rect> slicePreview_;

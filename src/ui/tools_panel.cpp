@@ -58,6 +58,12 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Pan", "P", ImGuiKey_P,
      "Drag to move the view. Space + drag, or the middle or right button, does this with any "
      "tool."},
+    {"Magic wand", "W", ImGuiKey_W,
+     "Click to select the pixels of the color under the cursor. Shift adds to the selection.\n"
+     "Contiguous and Tolerance are in the options bar."},
+    {"Lasso", "Q", ImGuiKey_Q,
+     "Drag around an area to select it. Shift adds to the selection.\n"
+     "Use the Select tool to move what is selected."},
 }};
 
 constexpr float SWATCH_SIZE_BASE = 22.0f;
@@ -229,6 +235,8 @@ void ToolsPanel::toolGrid()
         {ToolKind::Bucket, icons::Icon::Bucket, "##tool_bucket"},
         {ToolKind::Eyedropper, icons::Icon::Eyedropper, "##tool_eyedropper"},
         {ToolKind::Select, icons::Icon::Select, "##tool_select"},
+        {ToolKind::Lasso, icons::Icon::Lasso, "##tool_lasso"},
+        {ToolKind::Wand, icons::Icon::Wand, "##tool_wand"},
         {ToolKind::Slice, icons::Icon::Slice, "##tool_slice"},
         {ToolKind::Pan, icons::Icon::Pan, "##tool_pan"}};
     iconRow(TOOL_ICONS, std::size(TOOL_ICONS));
@@ -411,6 +419,44 @@ void ToolsPanel::barCutMark(float width, float height)
                    ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::MUTE)));
 }
 
+/* The options of `tool`, after its name: its controls, or a line saying how to use it. */
+void ToolsPanel::barOptions(ToolKind tool)
+{
+    const auto hint = [](const char *text) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", text);
+    };
+    switch (tool_traits(tool).group) {
+    case ToolGroup::Brush:
+        barBrush();
+        return;
+    case ToolGroup::Shape:
+        barShape(tool);
+        return;
+    case ToolGroup::Fill:
+    case ToolGroup::Wand:
+        barFill();
+        return;
+    case ToolGroup::Lasso:
+        hint("Drag around an area to select it. Shift adds to the selection.");
+        return;
+    case ToolGroup::Pan:
+        hint("Drag on the canvas to move the view");
+        return;
+    case ToolGroup::Slice:
+        hint("Drag to mark a slice, drag a slice to move it. Name, size and pivot are in the "
+             "Slices section.");
+        return;
+    case ToolGroup::Pick:
+    case ToolGroup::Select:
+    case ToolGroup::Count:
+        break;
+    }
+    if (tool == ToolKind::Select || editor_->hasSelection()) {
+        barSelection();
+    }
+}
+
 void ToolsPanel::contextBar(float x, float y, float width, float height)
 {
     const bool wasCutOff = barCutOff_;
@@ -435,23 +481,7 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(TOOLS[static_cast<size_t>(tool)].label);
         const ToolGroup group = tool_traits(tool).group;
-        if (group == ToolGroup::Brush) {
-            barBrush();
-        } else if (group == ToolGroup::Shape) {
-            barShape(tool);
-        } else if (group == ToolGroup::Fill) {
-            barFill();
-        } else if (group == ToolGroup::Pan) {
-            ImGui::SameLine();
-            ImGui::TextDisabled("Drag on the canvas to move the view");
-        } else if (group == ToolGroup::Slice) {
-            ImGui::SameLine();
-            ImGui::TextDisabled(
-                "Drag to mark a slice, drag a slice to move it. Name, size and pivot are in "
-                "the Slices section.");
-        } else if (tool == ToolKind::Select || editor_->hasSelection()) {
-            barSelection();
-        }
+        barOptions(tool);
         if (group == ToolGroup::Brush || group == ToolGroup::Shape || group == ToolGroup::Fill) {
             barSymmetry();
         }

@@ -3,10 +3,13 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "tinysprite/cel.hpp"
+#include "tinysprite/mask.hpp"
 #include "tinysprite/rect.hpp"
 
 /* A non-pixel edit with its own undo / redo (layer operations). The callables are destroyed
@@ -73,6 +76,14 @@ class History
     void setClip(std::optional<Rect> area)
     {
         clip_ = area;
+    }
+
+    /* Limits setPixel to the pixels of `mask` as well (null lifts the limit): a pixel has to be
+     * inside the clip rectangle and the mask. The history keeps the mask alive, so an edit that
+     * changes the selection can hand it a new one without waiting for the stroke to end. */
+    void setClipMask(std::shared_ptr<const Mask> mask)
+    {
+        clipMask_ = std::move(mask);
     }
 
     /* Records an action whose effect the caller has already applied, as one undo step, and
@@ -146,6 +157,7 @@ class History
     std::vector<Step> steps_; /* steps_[0..cursor_) are applied, the rest can be redone */
     size_t cursor_ = 0;
     std::optional<Rect> clip_;
+    std::shared_ptr<const Mask> clipMask_;
     bool grouping_ = false;
     std::vector<Step> group_;         /* the steps of the open group, in order */
     std::optional<size_t> saved_ = 0; /* cursor_ value of the saved state, if still reachable */

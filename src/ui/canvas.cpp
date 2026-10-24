@@ -339,10 +339,101 @@ void Canvas::drawHoverOutline(ImDrawList *draw, ImVec2 origin) const
                     theme::overlay::PIXEL_OUTLINE);
 }
 
+/*
+ * The outline of a selection that is not a rectangle: a line along every side of a selected cel
+
+ * * whose neighbor is not selected, dark under light so it shows on any background. The sides are
+
+ * * found once per mask (see outline_). A selection with a great many (a dust of single pixels) is
+
+ * * shown as its bounding rectangle instead, so the outline cannot slow the frame down.
+ */
+void Canvas::refreshOutline(const std::shared_ptr<const Mask> &mask) const
+{
+    if (outlineOf_ == mask) {
+        return;
+    }
+    outlineOf_ = mask;
+    outline_.clear();
+    mask->forEach([&](int x, int y) {
+        if (outline_.size() > MAX_OUTLINE_SIDES) {
+            return;
+        }
+        if (!mask->contains(x, y - 1)) {
+            outline_.push_back({x, y, x + 1, y});
+        }
+        if (!mask->contains(x, y + 1)) {
+            outline_.push_back({x, y + 1, x + 1, y + 1});
+        }
+        if (!mask->contains(x - 1, y)) {
+            outline_.push_back({x, y, x, y + 1});
+        }
+        if (!mask->contains(x + 1, y)) {
+            outline_.push_back({x + 1, y, x + 1, y + 1});
+        }
+    });
+    outlineTooBig_ = outline_.size() > MAX_OUTLINE_SIDES;
+}
+
+void Canvas::drawMaskOutline(ImDrawList *draw, ImVec2 origin,
+                             const std::shared_ptr<const Mask> &mask) const
+{
+    const Viewport &view = editor_->view().viewport;
+    refreshOutline(mask);
+    const int dx = editor_->moveDx();
+    const int dy = editor_->moveDy();
+    if (outlineTooBig_) {
+        const Rect b = mask->bounds();
+        const ImVec2 p0(origin.x + view.celToScreenX(b.x + dx),
+                        origin.y + view.celToScreenY(b.y + dy));
+        const ImVec2 p1(p0.x + static_cast<float>(b.w) * view.zoom,
+                        p0.y + static_cast<float>(b.h) * view.zoom);
+        drawRectOutline(draw, p0, p1, theme::overlay::LINE_LIGHT);
+        return;
+    }
+    auto screen = [&](int x, int y) {
+        return ImVec2(origin.x + view.celToScreenX(x + dx), origin.y + view.celToScreenY(y + dy));
+    };
+    for (const Side &side : outline_) {
+        draw->AddLine(screen(side.x0, side.y0), screen(side.x1, side.y1),
+                      theme::overlay::LINE_SHADOW, 3.0f);
+    }
+    for (const Side &side : outline_) {
+        draw->AddLine(screen(side.x0, side.y0), screen(side.x1, side.y1),
+                      theme::overlay::LINE_LIGHT, 1.0f);
+    }
+}
+/* The lasso while it is dragged: the path through the middle of the cels it visited, and a fainter
+ * line closing it, which is the outline the selection will get. */
+void Canvas::drawLasso(ImDrawList *draw, ImVec2 origin) const
+{
+    const std::vector<ToolPoint> &path = editor_->lassoPath();
+    if (path.size() < 2) {
+        return;
+    }
+    const Viewport &view = editor_->view().viewport;
+    std::vector<ImVec2> points;
+    points.reserve(path.size());
+    for (const ToolPoint &p : path) {
+        points.emplace_back(origin.x + view.celToScreenX(p.x) + view.zoom / 2.0f,
+                            origin.y + view.celToScreenY(p.y) + view.zoom / 2.0f);
+    }
+    const int count = static_cast<int>(points.size());
+    draw->AddPolyline(points.data(), count, theme::overlay::LINE_SHADOW, ImDrawFlags_None, 3.0f);
+    draw->AddPolyline(points.data(), count, theme::overlay::LINE_LIGHT, ImDrawFlags_None, 1.0f);
+    draw->AddLine(points.back(), points.front(), theme::overlay::LINE_SHADOW, 3.0f);
+    draw->AddLine(points.back(), points.front(), theme::overlay::LINE_LIGHT & 0x80ffffffu, 1.0f);
+}
+
 /* Selection outline: a dark rectangle under a light one so it shows on any background. */
 void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
 {
+    drawLasso(draw, origin);
     if (!editor_->hasSelection()) {
+        return;
+    }
+    if (const std::shared_ptr<const Mask> mask = editor_->selectionMask()) {
+        drawMaskOutline(draw, origin, mask);
         return;
     }
     const Rect &r = editor_->selection();

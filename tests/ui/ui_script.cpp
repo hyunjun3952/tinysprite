@@ -82,6 +82,26 @@ TEST(a_key_without_modifiers_takes_two_frames)
     ASSERT_TRUE(frames[1].key == "Escape" && !frames[1].keyDown);
 }
 
+TEST(a_path_presses_at_the_first_point_goes_through_the_others_and_releases_at_the_last)
+{
+    std::string error;
+    std::vector<ScriptInput> frames = expand("path 10 10 50 10 50 40", error);
+    ASSERT_TRUE(error.empty());
+    ASSERT_TRUE(frames.size() > 6);
+    ASSERT_TRUE(frames.front().moved && frames.front().x == 10.0f && frames.front().y == 10.0f);
+    ASSERT_TRUE(frames[1].button == 0 && frames[1].buttonDown && frames[1].x == 10.0f);
+    bool corner = false;
+    for (const ScriptInput &frame : frames) {
+        corner = corner || (frame.x == 50.0f && frame.y == 10.0f && frame.buttonDown == false &&
+                            frame.button == -1 && frame.moved);
+    }
+    ASSERT_TRUE(corner); /* the mouse reaches the middle point with the button still down */
+    ASSERT_TRUE(frames.back().button == 0 && !frames.back().buttonDown);
+    ASSERT_TRUE(frames.back().x == 50.0f && frames.back().y == 40.0f);
+    ASSERT_TRUE(expand("path 1 2 3", error).empty()); /* a pair is a point: an odd count is not */
+    ASSERT_TRUE(expand("path 1 2", error).empty());   /* one point is not a path */
+}
+
 TEST(wait_gives_empty_frames_and_shot_names_a_file)
 {
     std::string error;
@@ -197,6 +217,7 @@ int main()
     RUN(a_drag_presses_at_the_start_and_releases_at_the_end);
     RUN(a_key_is_pressed_between_frames_that_hold_its_modifiers);
     RUN(a_key_without_modifiers_takes_two_frames);
+    RUN(a_path_presses_at_the_first_point_goes_through_the_others_and_releases_at_the_last);
     RUN(wait_gives_empty_frames_and_shot_names_a_file);
     RUN(sleep_waits_real_time_after_one_frame);
     RUN(type_sends_the_rest_of_the_line_as_text);

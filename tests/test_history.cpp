@@ -3,6 +3,7 @@
 
 #include "minitest.hpp"
 #include "tinysprite/history.hpp"
+#include "tinysprite/mask.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};
@@ -464,6 +465,43 @@ TEST(clip_rejects_pixels_outside_the_rect)
     ASSERT_EQ_INT(0, alpha(c, 1, 1));
 }
 
+TEST(a_clip_mask_lets_only_its_pixels_change)
+{
+    History h;
+    Cel c(4, 4);
+    auto mask = std::make_shared<const Mask>(Mask::fromPlot(4, 4, [](const RasterPlotFn &plot) {
+        plot(1, 1);
+        plot(2, 2);
+    }));
+    h.setClipMask(mask);
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(h.setPixel(1, 1, RED));
+    ASSERT_TRUE(!h.setPixel(2, 1, RED)); /* inside the mask's bounds, not in the mask */
+    ASSERT_TRUE(!h.setPixel(0, 0, RED));
+    ASSERT_TRUE(h.setPixel(2, 2, RED));
+    ASSERT_TRUE(h.endStroke());
+    ASSERT_EQ_INT(255, alpha(c, 1, 1));
+    ASSERT_EQ_INT(0, alpha(c, 2, 1));
+    ASSERT_EQ_INT(255, alpha(c, 2, 2));
+    h.setClipMask(nullptr); /* lifted: every pixel again */
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(h.setPixel(2, 1, RED));
+    ASSERT_TRUE(h.endStroke());
+}
+
+TEST(a_clip_mask_and_a_clip_rect_both_have_to_allow_a_pixel)
+{
+    History h;
+    Cel c(4, 4);
+    h.setClip(Rect{0, 0, 2, 4});
+    h.setClipMask(std::make_shared<const Mask>(Mask::full(Rect{1, 0, 3, 4})));
+    ASSERT_TRUE(h.beginStroke(c));
+    ASSERT_TRUE(h.setPixel(1, 1, RED));  /* in both */
+    ASSERT_TRUE(!h.setPixel(0, 1, RED)); /* in the rect only */
+    ASSERT_TRUE(!h.setPixel(2, 1, RED)); /* in the mask only */
+    ASSERT_TRUE(h.endStroke());
+}
+
 TEST(clearing_the_clip_allows_every_pixel_again)
 {
     History h;
@@ -747,6 +785,8 @@ int main()
     RUN(action_rejected_during_stroke_is_released);
     RUN(forget_cel_keeps_actions);
     RUN(clip_rejects_pixels_outside_the_rect);
+    RUN(a_clip_mask_lets_only_its_pixels_change);
+    RUN(a_clip_mask_and_a_clip_rect_both_have_to_allow_a_pixel);
     RUN(clearing_the_clip_allows_every_pixel_again);
     RUN(group_is_one_undo_step_that_runs_its_actions_in_reverse);
     RUN(group_mixes_with_strokes_and_other_steps);

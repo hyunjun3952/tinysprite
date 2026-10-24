@@ -41,6 +41,8 @@ enum class Icon {
     Folder,
     Slice,
     Pan,
+    Wand,
+    Lasso,
     ChevronLeft,
     ChevronRight,
     Count
