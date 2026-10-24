@@ -83,12 +83,12 @@ One finding at a time, in a loop:
    UI code: also prove the screen did not change. Render the same file before and after
    (`SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite FILE.pxa --frames 3 --screenshot OUT.png --config-dir TMPDIR`, see bug-hunting Step 4) and compare with `cmp`; a difference is a behavior change.
    Deleting code: show it is dead first (grep every use including `tests/` and `tests/ui/`, then build and run the tests without it); "looks unused" is not proof.
-4. `pre-commit run --all-files --hook-stage manual`, judged by its exit code (clang-tidy alone: `pre-commit run clang-tidy-full --hook-stage manual --files <changed .cpp>`). Run the full set before opening or updating a PR.
+4. Format and lint as `.rules` says (sections 6 and 7); clang-tidy alone while iterating.
 5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
 6. Sweep the class: grep the repo for the same smell. List the other sites in the report; do not fix them in this commit.
-7. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
+7. Commit alone, as `refactor(scope): what changed` (`.rules`, section 7). Do not mix formatting sweeps or behavior changes in.
 
-Branch policy from `.rules`: a small refactoring inside one module goes straight to `main`. Changes across layers, public headers, or anything hard to revert get a `refactor/...` branch and a PR.
+Branch policy is `.rules` (section 7): a small refactoring inside one module is a direct commit to `main`; one across layers, in public headers or hard to revert gets a branch and a PR.
 When a refactoring changes structure other docs describe, update `docs/ARCHITECTURE.md` in the same commit.
 A finding the user declines or defers goes into "Left from the pattern survey" in `docs/MILESTONES.md` (one line, with the condition that would make it worth doing), so it is not found and argued again next time.
 A finding that grows past about 200 changed lines is split into steps that each leave the build green, or re-planned as a branch.

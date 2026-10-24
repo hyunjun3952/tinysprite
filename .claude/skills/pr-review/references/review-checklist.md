@@ -15,19 +15,13 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 | Test-only | Tests assert something real (not just "does not crash"). No flaky timing or order dependence. |
 | File format | Version bump, chunk is length-prefixed, old readers skip it, old files still load, test with an old-format fixture. Needs a feature branch + PR (risky change). |
 
-## Project rules (from `.rules`)
+## Project rules (`.rules`)
 
-- Layering: no SDL or ImGui include in `src/core` or `src/io`. `tests/test_*.cpp` link only core and io.
-- Public headers only for core and io, in `include/tinysprite/`; internal headers next to the source.
-- Every edit goes through history: pixel strokes through a stroke class, other edits through `History::pushAction` / `perform` in `*_ops.h`.
-  A direct cel mutation outside this path is a 심각 finding.
-- Document structure kept: Sprite, Layers x Frames, Cel; `shared_ptr` cels for linked frames; removed frames and layers live on in history steps.
-- No raw owning pointers. Invalid size throws `std::invalid_argument`; refusable operations return `bool` or null.
-- Cognitive complexity of every function in `src/` is 15 or less.
-- Commit messages: English, Conventional Commits.
-- C++17 only; K&R style, 4 spaces (clang-format hook).
-- Branch policy: a risky change (new module, format change, cross-layer behavior) should be a PR; a small low-risk change would have gone straight to `main`.
-  Mention it only if the PR is clearly the wrong size for its risk.
+Check the diff against `.rules`: section 1 (layering, document model, undo, file format, directory layout), 2 (tests),
+3 (conventions, comments), 5 (what clang-tidy rejects) and 7 (commits, branches). What a violation costs in a review:
+
+- A direct cel mutation outside the history path is a 심각 finding.
+- Branch policy: mention it only if the PR is clearly the wrong size for its risk.
 
 ## Correctness and risk
 

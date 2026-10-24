@@ -23,8 +23,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 - Default is report only. Do not change source or tests in the repo until the user picks which findings to fix.
   Temporary reproduction tests go in the scratchpad or an uncommitted file, and are removed or kept only as agreed.
 - Report a failing test only. A test that passes is not written into the report (but a suspicion it disproved is dropped, not kept as a bug).
-- Never report "tests passed" without the exit code of that run. Do not pipe a test or lint run through `tail`/`head`
-  and read `$?`; redirect to a log file, test `$?`, then read the log.
+- Report a result by its real exit code, as `.rules` (section 7) says.
 - Every finding carries a **Reachability** line: the user action or API call sequence that gets the program into the buggy state.
   A defect nobody can reach is 주의 at most, however ugly the code.
 - Mark every finding **Confirmed** (a test or run reproduces it) or **Suspected** (logic only, could not be reproduced), and say why.
@@ -81,7 +80,7 @@ otherwise a clear estimate marked as such. If a change does not lower complexity
 
 ## Step 3: Test to confirm
 
-For every suspicion that can be tested, try to make it fail. Follow the repo's TDD style (`tests/minitest.hpp`, one file per feature):
+For every suspicion that can be tested, try to make it fail. Write the test as `.rules` (section 2) says (`tests/minitest.hpp`, one file per feature):
 
 ```sh
 cmake -S . -B build && cmake --build build
@@ -103,7 +102,7 @@ do not count it as a confirmed bug.
 When the test itself is changed (existing test edited or new test added), write down:
 - **Range**: what the test now covers and what it still does not (inputs, modules, platforms).
 - **Regression procedure**: the commands that show existing behavior still works after the fix
-  (affected test files by name, then the full `ctest --test-dir build --output-on-failure`, then `pre-commit run --all-files --hook-stage manual` for C++ changes), and their exit codes.
+  (affected test files by name, then the full `ctest --test-dir build --output-on-failure`, then the lint set of `.rules` (section 7) for C++ changes), and their exit codes.
 Never weaken or delete an existing assertion to make a test pass; that hides the bug.
 
 ### Step 3b: Try to disprove each finding
@@ -165,8 +164,8 @@ The step 2 table goes after the bug list. Do not write the report into the repo 
 
 When the user chooses findings to fix: write the failing test first, fix, run the regression procedure above,
 re-check the sibling sites of the class sweep (fix them in the same change or list them as follow-ups),
-add the pattern to `references/hotspots.md` if it is new (one line: what went wrong, where, how to spot it), then `pre-commit run --all-files --hook-stage manual` and read its exit code. Commit rules and the branch policy are in `.rules`
-(small fixes go straight to `main`; risky ones get a `fix/...` branch and PR).
+and add the pattern to `references/hotspots.md` if it is new (one line: what went wrong, where, how to spot it).
+Lint, commits and the branch policy are in `.rules` (section 7).
 
 ## Troubleshooting
 

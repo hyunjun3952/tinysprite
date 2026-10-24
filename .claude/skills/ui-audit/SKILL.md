@@ -33,7 +33,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code, ide
   except the scratchpad. The file dialogs are tested only inside the scratch directory.
 - Computer-use rules from its skill hold: request access first and wait; never click links; terminals and IDEs are
   click-only (use Bash for commands, not typing into a terminal window); no financial actions (not relevant here).
-- Never report "tests passed" or "lint passed" without the exit code of that run (redirect to a log, test `$?`, read the log).
+- Report a check by its real exit code, as `.rules` (section 7) says.
 
 ## Step 0: Preflight
 
@@ -154,18 +154,17 @@ End by asking which findings to fix.
 
 ## After the report: fixing the chosen findings
 
-Follow `.rules` (section 7). Per fix group:
+Tests, code, lint, branches and commits follow `.rules` (sections 2, 3, 5, 6 and 7). Per fix group, what is specific to a UI fix:
 
-1. Write the failing test first when it can be headless (`tests/ui/ui_<feature>.cpp` with synthetic input, or a golden
+1. The failing test is a headless one when it can be (`tests/ui/ui_<feature>.cpp` with synthetic input, or a golden
    screenshot comparison only if the repo already does that); otherwise state the manual re-check scenario.
-2. Fix with the smallest change; use `theme::` helpers and `theme::px()`; keep functions at cognitive complexity 15 or less.
+2. Fix with the smallest change.
 3. **Re-run the same scenario** from a fresh start and compare the new screenshot with the old (`-after.png`). Also re-run one
    neighbouring scenario to catch regressions.
 4. If the fix adds or changes a token or rule, update `DESIGN.md` in the same change.
-5. Run lint, format and the full test suite once when all chosen fixes are done (exit codes, log files), then commit
-   (small fixes straight to `main`, risky ones on a `fix/...` branch; Conventional Commits, English).
-6. Add a line to `references/scenarios.md` for any new bug class worth a permanent scenario, and update
+5. Add a line to `references/scenarios.md` for any new bug class worth a permanent scenario, and update
    `docs/MILESTONES.md` if a milestone's gotcha list changed.
+6. When all chosen fixes are done, lint, test and commit as `.rules` says.
 
 ## Troubleshooting
 
