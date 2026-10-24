@@ -122,10 +122,16 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - **Brush**: square or round, 1 to `PENCIL_BRUSH_MAX`; each stamp pixel is mirrored separately. The size is also the
   outline width of lines and unfilled shapes. Pixel-perfect also cuts the corner of a 90-degree turn and applies to a 1 px
   brush only.
-- **Selection**: one rectangle clipped to the sprite; moving it loses what leaves the sprite, and transparent selected
-  pixels do not erase the destination. The drawing tools only write inside it (`History::setClip`; the bucket still scans
-  the whole region but writes only inside). Undo restores it: `History::endStroke(HistoryAction)` runs an action with the
-  stroke's undo / redo, which is how move, paste and rotate bring the rectangle back.
+- **Selection**: a rectangle clipped to the sprite, or a shape of any kind (a `Mask`: the magic wand picks the region a
+  bucket fill would take, with its Contiguous and Tolerance; the lasso picks what a dragged outline encloses; Shift adds
+  to what is selected). The rectangle is then the mask's bounding box and `Editor::selectionMask()` is the shape, null
+  for a plain rectangle. Moving it loses what leaves the sprite, and transparent selected pixels do not erase the
+  destination. The drawing tools and the filters only write inside it (`History::setClip` for the rectangle and
+  `History::setClipMask` for the shape; the bucket still scans the whole region but writes only inside). Copy, cut,
+  delete, move, nudge, flip and rotate take only the masked pixels (a copy is transparent outside the mask; a paste is a
+  plain rectangle). Undo restores it: `History::endStroke(HistoryAction)` runs an action with the stroke's undo / redo,
+  which is how move, paste, flip and rotate bring the rectangle and its mask back; picking with the wand or the lasso is
+  not an undo step, as the select tool is not.
 - Shortcut `Delete` clears the selected pixels; copy / cut / paste, flip and rotate are in `selection.hpp`. Recent colors
   are not part of undo and are recorded on press by every drawing tool except the eraser and the eyedropper.
 
@@ -195,7 +201,8 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 - The model does not enforce layer locks; the `Editor` does.
 - Rasterizers clip no pixels; the caller bounds-checks (filled ones take an optional clip rect that only skips fill rows
-  and columns outside it). A selection is one rectangle.
+  and columns outside it). A selection is a rectangle or one mask (no several-region selections, no subtracting from a
+  selection yet).
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
 - The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
@@ -205,7 +212,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 ## Backlog, not scheduled
 
-Each is large or needs a design decision first: indexed color mode, a several-rectangle selection, a native file chooser,
+Each is large or needs a design decision first: indexed color mode, subtracting from a selection (Ctrl + click), a native file chooser,
 Korean text. Smaller refactoring candidates from the pattern survey: an `Editor` change observer, a `theme::labeledRow`
 helper, merging the tool tables, declarative settings bindings, one holder for `Slot` (frames) and `Membership` (layers),
 and a `Playback` state if a fourth mode is added. The `if (stroking()) return;` guard (about forty times in `Editor`) has

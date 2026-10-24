@@ -74,6 +74,11 @@ Tools sit on top of that:
 - `PencilStroke`, `ShapeStroke` and `MoveStroke` are live strokes created by a static `begin()`. They return null when the
   history already has an open stroke, and cancel themselves when destroyed unfinished. The batch functions
   (`pencil_stroke`, `shape_stroke`, `move_stroke`) feed point lists to the same machinery, which is how tools are tested.
+- `Mask` (`mask.hpp`) is a set of pixels of any shape over its trimmed bounding rectangle: a selection that is not a
+  rectangle. It is built from a rasterizer (`Mask::fromPlot`; `mask_of_region` is the magic wand, `mask_of_polygon` the
+  lasso) and moved, flipped, turned, clipped, added and subtracted as a value. `History::setClipMask` limits `setPixel`
+  to it, which is how every tool and filter stays inside a selection; `Clip::copy`, `clip_replace`, `clear_mask` and
+  `MoveStroke::begin` have a mask form that takes only its pixels.
 - Symmetry (`symmetry.hpp`) mirrors every plotted pixel across the cel's center for the pencil, shapes and bucket.
 - Shapes are a table (`shape.cpp`: one row per `ShapeKind`: how to draw it, whether it can be filled).
 
