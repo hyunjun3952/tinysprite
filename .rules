@@ -2,8 +2,8 @@
 
 The code rules of this repo. Read this before writing or changing C++ and write the code so that the
 format and lint hooks find nothing to report: a lint run is slow (clang-tidy over every file), a failed one
-costs a full re-run, and most failures are things these rules already name. `CLAUDE.md` keeps the commands,
-the workflow (lint, branches, PRs, merging) and the commit format; the rules about the code itself live here.
+costs a full re-run, and most failures are things these rules already name. `CLAUDE.md` keeps the commands and
+a pointer here; every rule lives in this file, the workflow (section 7) as well as the code.
 
 Where a rule comes from is in brackets: [CLAUDE.md] is a rule stated there before this file existed,
 [.clang-format] and [.clang-tidy] are checks the hooks enforce (the config is the source of truth),
@@ -23,6 +23,18 @@ condition, `return true / false`, `.size() == 0`, `int` -> `float`).
   are `History::pushAction` steps in `*_ops.h`. Do not mutate cels outside this path. [CLAUDE.md]
 - File format `.pxa` is versioned and chunked (length-prefixed): see `docs/ARCHITECTURE.md#file-format`.
   [CLAUDE.md]
+- **A group of four or more modules with the same feature prefix in one `src/` folder lives in a subfolder
+  of that name.** A module is a `.cpp` with its `.hpp`, counted once; the prefix is the part before the
+  first `_` (`app_*`, `editor_*`). Examples: `src/ui/app/`, `src/ui/editor/`, `src/core/tools/`. Today no
+  group qualifies (`src/ui` has two modules each of `tilemap_*`, `file_*` and `layer_*`), so none is
+  moved. When a fourth module joins a group, move the whole group in that change with `git mv` (a header
+  that other folders include stays where it is, or its includes are updated), update the source list in
+  `src/ui/CMakeLists.txt` (`src/core` and `src/io` are globbed) and the includes, and re-run cmake. The
+  tests stay flat in `tests/` and `tests/ui/`.
+- **Keep directories shallow: `src/<layer>/<group>/` is the deepest level** (`src/ui/app/`,
+  `src/core/tools/`). Never create a folder inside a group folder and never a group folder for fewer than
+  four modules; a group that keeps growing is split by renaming its prefix into two groups at the same
+  level, not by nesting.
 - Everything drawn in pixels goes through `theme::px()`, every color is a `theme.hpp` token, every shared
   widget is a `theme::` helper (`DESIGN.md`).
 - Do not add a data member to `App` (`src/ui/app.hpp`) for state that belongs to a module: it is at the edge
@@ -35,13 +47,6 @@ condition, `return true / false`, `.size() == 0`, `int` -> `float`).
   (a compile error for a missing function counts), then make it pass. [CLAUDE.md]
 - UI tests are `tests/ui/ui_<feature>.cpp` under `SDL_VIDEODRIVER=dummy`; layout and golden pixel arrays:
   `docs/ARCHITECTURE.md#testing`. [CLAUDE.md]
-- **A group of four or more test files with the same feature prefix lives in a folder of that name.** The
-  prefix is what follows `test_` / `ui_`: `tests/tilemap/test_tilemap.cpp`, `test_tilemap_export.cpp`,
-  `test_tilemap_ops.cpp`, `test_tilemap_pxa.cpp`; `tests/ui/editor/ui_editor_*.cpp`. The same holds in a
-  folder (`tests/ui/` groups go in `tests/ui/<group>/`). Move the group with `git mv` in the change that
-  adds the fourth file; keep the file names (the ctest name is the file name minus `test_`, so names stay
-  unique and unchanged); a helper header shared with tests outside the group stays in the parent folder
-  (the UI tests have `tests/ui` on their include path). CMake globs recursively, so re-run cmake.
 - New `test_*.cpp` files are picked up by CMake globbing (re-run cmake). [CLAUDE.md]
 
 ## 3. Code conventions
@@ -126,3 +131,27 @@ Warnings are errors. Enabled: `bugprone-*`, `clang-analyzer-*`, `misc-*`, `moder
    Its exit code is 1 when the formatter changed a file even if nothing else failed: run it again and judge
    the second run. Read the diagnostics with `grep -E '(error|warning): ' log | grep -v 'warnings generated'`.
 4. A commit hook that reformats a file stops the commit: `git add` the file and commit again.
+
+## 7. Workflow and commits (mandatory) [CLAUDE.md]
+
+**Commits**
+- English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
+
+These rules exist because they were broken repeatedly; follow them without being reminded.
+
+**Lint and format**
+- Run the hooks (`pre-commit run --all-files --hook-stage manual`, or the clang-tidy hook on the changed files while iterating) before every commit that touches C++, and fix everything they report. Run the full set before opening or updating a PR.
+- Judge a check by its real exit code. Never pipe it through `tail`/`head` and read `$?` (that is the pipe's status): redirect to a log file, then test `$?` and read the log.
+- CI runs the same pinned hooks, but it is the source of truth (it lints with the UI build, a stale local `build/` may not). If CI lint fails and the local run is clean, change the code so the flagged construct is gone (do not assume the first fix worked), then watch CI again.
+- Never report "lint passed" or "tests passed" without having checked the exit code of that run.
+
+**Branches and PRs**
+- Small, low-risk changes (docs, typos, comments, scripts and tooling, small fixes, test-only changes, chores) are committed directly to `main` and pushed. No branch, no PR.
+- Use a feature branch plus PR only for large features or risky changes (new modules or milestones, file format changes, behavior changes across layers, anything hard to revert). Name it `feat/...` or `fix/...`.
+- Do not create a branch "by default" for every change.
+
+**Merging a PR** (in this order, never skip a step)
+1. Review the diff (read it; run `/code-review` for non-trivial changes) and fix findings.
+2. Wait for CI: `gh pr checks <n> --watch`. The watch can end with "no checks reported" before CI registers: re-check until the jobs really ran. Merge only when every job passed.
+3. Merge with `gh pr merge <n> --merge --delete-branch`, then `git checkout main && git pull --ff-only` and `git branch -d <branch>` for the local copy. A merged branch is never left behind, locally or on the remote.
+4. If CI on `main` turns red after a merge, fixing it comes before any new work.

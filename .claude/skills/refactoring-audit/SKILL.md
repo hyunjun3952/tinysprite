@@ -31,7 +31,7 @@ Write the report in the user's language (Korean if they wrote Korean). Code and 
 - **Revert when the gain is not there.** After each step re-measure the number the finding promised. If it did not drop, the step is reverted, not kept "because it is cleaner".
 - **Moves are separate from edits.** Moving code (file, class, function) and changing it never share a commit, so `git diff -M --stat` shows the move as a pure rename.
 - **Public surface stays fixed unless approved.** `git diff main -- include/` must be empty after a refactoring, and no function signature, header name or file format byte changes without the user's yes.
-- Layering, the undo path and the document model in CLAUDE.md are fixed. A refactoring must not move SDL/ImGui into `src/core` or `src/io`,
+- Layering, the undo path and the document model in `.rules` are fixed. A refactoring must not move SDL/ImGui into `src/core` or `src/io`,
   bypass `History`, flatten `Sprite -> Layers x Frames -> Cel`, or change the `.pxa` format.
 
 ## Step 0: Scope and baseline
@@ -88,7 +88,7 @@ One finding at a time, in a loop:
 6. Sweep the class: grep the repo for the same smell. List the other sites in the report; do not fix them in this commit.
 7. Commit alone: `refactor(scope): what changed`, English, Conventional Commits. Do not mix formatting sweeps or behavior changes in.
 
-Branch policy from CLAUDE.md: a small refactoring inside one module goes straight to `main`. Changes across layers, public headers, or anything hard to revert get a `refactor/...` branch and a PR.
+Branch policy from `.rules`: a small refactoring inside one module goes straight to `main`. Changes across layers, public headers, or anything hard to revert get a `refactor/...` branch and a PR.
 When a refactoring changes structure other docs describe, update `docs/ARCHITECTURE.md` in the same commit.
 A finding the user declines or defers goes into "Left from the pattern survey" in `docs/MILESTONES.md` (one line, with the condition that would make it worth doing), so it is not found and argued again next time.
 A finding that grows past about 200 changed lines is split into steps that each leave the build green, or re-planned as a branch.

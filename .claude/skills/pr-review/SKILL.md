@@ -139,7 +139,7 @@ Verdict, one of: **Approve** (CI green, no 심각 or 보통), **Request changes*
 
 ## After the review
 
-- User asks to merge: follow the order in CLAUDE.md. Every finding fixed, `gh pr checks N --watch` until all three jobs
+- User asks to merge: follow the order in `.rules` (section 7). Every finding fixed, `gh pr checks N --watch` until all three jobs
   really ran and passed, then `gh pr merge N --merge --delete-branch`, then `git checkout main && git pull --ff-only`
   and `git branch -d BRANCH`.
 - User asks to post the review: show the exact text, then `gh pr review N --comment|--request-changes|--approve --body-file FILE`

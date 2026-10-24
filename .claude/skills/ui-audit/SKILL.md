@@ -154,7 +154,7 @@ End by asking which findings to fix.
 
 ## After the report: fixing the chosen findings
 
-Follow CLAUDE.md. Per fix group:
+Follow `.rules` (section 7). Per fix group:
 
 1. Write the failing test first when it can be headless (`tests/ui/ui_<feature>.cpp` with synthetic input, or a golden
    screenshot comparison only if the repo already does that); otherwise state the manual re-check scenario.

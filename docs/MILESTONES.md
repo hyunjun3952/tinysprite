@@ -2,7 +2,7 @@
 
 Phase 1 = drawing-tool core (MVP). Animation is phase 2, game pipeline is phase 3.
 Every step is TDD: failing test first, then implementation, then refactor.
-Rules: `CLAUDE.md`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
+Rules: `.rules`. Design map: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Phase 1
 
@@ -341,8 +341,8 @@ candidates listed under UI polish.
   transparent selected pixels do not erase the destination. A click without dragging selects the one cel under
   it, unless the click only dismisses an existing selection.
 - Tools ignore the press while the active layer is hidden (the eyedropper still samples the flattened image).
-- `tests/ui/editor/ui_editor_*.cpp` (ctest `ui_editor_{selection,layers,colors,drawing,document}`, shared helpers in
-  `tests/ui/ui_editor_support.hpp`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor*.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
+- `tests/ui/ui_editor_*.cpp` (ctest `ui_editor_{selection,layers,colors,drawing,document}`, shared helpers in
+  `ui_editor_support.hpp`; only when the UI is built, run under `SDL_VIDEODRIVER=dummy`) cover `editor*.cpp` and `drags.cpp`; of `layers_panel.cpp` (ImGui widgets) only the in-place rename is covered (`ui_layers_panel`).
   CI builds the UI, so the `ui_*` tests run there too.
 - Zoom and hovered cel are drawn as a canvas overlay (`draw_status`), after the canvas applied the frame's
   zoom / pan / hover, so they no longer lag the image by a frame.

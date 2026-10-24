@@ -39,7 +39,7 @@ Say the scope back in one line. A big scope is split by module and done one at a
 
 **Target files are fixed to three groups; nothing else is read for bugs, even if the request names a wider area:**
 
-- Test code: `tests/**/*.cpp` (feature groups live in folders such as `tests/tilemap/`, `tests/ui/editor/`), and the test helpers they include (`tests/minitest.hpp`, `tests/ui/*.hpp`).
+- Test code: `tests/*.cpp`, `tests/ui/*.cpp`, and the test helpers they include (`tests/minitest.hpp`, `tests/ui/*.hpp`).
 - Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,hpp}` and the public headers in `include/tinysprite/*.hpp`.
 
 Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
@@ -165,7 +165,7 @@ The step 2 table goes after the bug list. Do not write the report into the repo 
 
 When the user chooses findings to fix: write the failing test first, fix, run the regression procedure above,
 re-check the sibling sites of the class sweep (fix them in the same change or list them as follow-ups),
-add the pattern to `references/hotspots.md` if it is new (one line: what went wrong, where, how to spot it), then `pre-commit run --all-files --hook-stage manual` and read its exit code. Commit rules and the branch policy are in CLAUDE.md
+add the pattern to `references/hotspots.md` if it is new (one line: what went wrong, where, how to spot it), then `pre-commit run --all-files --hook-stage manual` and read its exit code. Commit rules and the branch policy are in `.rules`
 (small fixes go straight to `main`; risky ones get a `fix/...` branch and PR).
 
 ## Troubleshooting

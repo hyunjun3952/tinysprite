@@ -1,6 +1,6 @@
 # Bug hotspots in tinysprite
 
-Load this in Step 0. These come from the architecture rules in CLAUDE.md and `docs/ARCHITECTURE.md`; check
+Load this in Step 0. These come from the architecture rules in `.rules` and `docs/ARCHITECTURE.md`; check
 `docs/MILESTONES.md` (known gotchas) for the ones found in practice.
 
 ## Document model and history

@@ -1,6 +1,6 @@
 # Architecture
 
-How tinysprite is put together and why. `CLAUDE.md` has the rules to follow, `MILESTONES.md` the progress and
+How tinysprite is put together and why. `.rules` has the rules to follow, `MILESTONES.md` the progress and
 gotchas; this file is the map.
 
 ## Layers
@@ -17,7 +17,7 @@ Each layer only knows the ones above it in the diagram, and CMake enforces that 
 `io` never include SDL or ImGui. `io` also has the animated GIF encoder, the sprite sheet layout, the Aseprite reader (`aseprite.cpp`, with its own zlib `inflate.cpp`) and the tilemap export. Their public headers live in `include/tinysprite/`; headers private to a module
 (`src/core/tools/history_plot.hpp`, everything in `src/ui`) stay next to the sources.
 
-`tests/**/test_*.cpp` link only `io` (and so `core`). The UI tests in `tests/ui/` link `tinysprite_ui` and run under
+`tests/test_*.cpp` link only `io` (and so `core`). The UI tests in `tests/ui/` link `tinysprite_ui` and run under
 `SDL_VIDEODRIVER=dummy`. The UI is built whenever SDL2 is installed (`TINYSPRITE_BUILD_UI`).
 
 ## Document model
@@ -157,4 +157,4 @@ existing file. The authoritative description is the comment in `include/tinyspri
 
 Test first, one file per feature. Raster and tool behavior is checked by feeding point lists and comparing golden pixel
 arrays. Core tests run under ASan and UBSan by default. UI behavior is tested through the real `Editor` and ImGui with
-synthetic mouse input; the ImGui widgets themselves are only partly covered. A group of four or more test files with one feature prefix lives in a folder of that name (`tests/tilemap/`, `tests/ui/editor/`); see `.rules`.
+synthetic mouse input; the ImGui widgets themselves are only partly covered.

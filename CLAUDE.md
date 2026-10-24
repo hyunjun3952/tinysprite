@@ -26,31 +26,6 @@ pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp  
 
 CI (`.github/workflows/ci.yml`) runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `.pre-commit-config.yaml`, `.clang-format` or `.clang-tidy` change (a docs or skills change gets no checks, which is expected). It has three separate jobs: `lint` (the pre-commit hooks above; a push or PR lints only the changed files, everything when a header or lint config changed, and weekly or by hand on `schedule` / `workflow_dispatch`), `linux` (ASan/UBSan build and tests, UI included) and `windows` (MinGW build and tests). The editor uses the clangd extension with `build/compile_commands.json`. `thirdparty/` is excluded from both tools.
 
-## Code rules
+## Rules
 
-**Before writing or changing C++, read `.rules` and follow it.** It holds every rule about the code itself, sorted by kind: layering and structure (CMake targets, document model, undo, `.pxa`), tests (TDD, file layout, a folder for a group of four or more files with one prefix), code conventions (C++17 and RAII, cognitive complexity of 15 or less, `thirdparty/README.md`), and what `clang-format` and `clang-tidy` reject. Lint is slow, so write to those rules instead of leaving style to the hooks. Module map, data flow, document model, undo, rendering, UI and the `.pxa` format: `docs/ARCHITECTURE.md`.
-
-## Commits
-
-- English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
-
-## Workflow (mandatory)
-
-These rules exist because they were broken repeatedly; follow them without being reminded.
-
-**Lint and format**
-- Run the hooks (`pre-commit run --all-files --hook-stage manual`, or the clang-tidy hook on the changed files while iterating) before every commit that touches C++, and fix everything they report. Run the full set before opening or updating a PR.
-- Judge a check by its real exit code. Never pipe it through `tail`/`head` and read `$?` (that is the pipe's status): redirect to a log file, then test `$?` and read the log.
-- CI runs the same pinned hooks, but it is the source of truth (it lints with the UI build, a stale local `build/` may not). If CI lint fails and the local run is clean, change the code so the flagged construct is gone (do not assume the first fix worked), then watch CI again.
-- Never report "lint passed" or "tests passed" without having checked the exit code of that run.
-
-**Branches and PRs**
-- Small, low-risk changes (docs, typos, comments, scripts and tooling, small fixes, test-only changes, chores) are committed directly to `main` and pushed. No branch, no PR.
-- Use a feature branch plus PR only for large features or risky changes (new modules or milestones, file format changes, behavior changes across layers, anything hard to revert). Name it `feat/...` or `fix/...`.
-- Do not create a branch "by default" for every change.
-
-**Merging a PR** (in this order, never skip a step)
-1. Review the diff (read it; run `/code-review` for non-trivial changes) and fix findings.
-2. Wait for CI: `gh pr checks <n> --watch`. The watch can end with "no checks reported" before CI registers: re-check until the jobs really ran. Merge only when every job passed.
-3. Merge with `gh pr merge <n> --merge --delete-branch`, then `git checkout main && git pull --ff-only` and `git branch -d <branch>` for the local copy. A merged branch is never left behind, locally or on the remote.
-4. If CI on `main` turns red after a merge, fixing it comes before any new work.
+**Before writing or changing C++, and before committing, branching or merging, read `.rules` and follow it.** It holds every rule, sorted by kind: layering and structure (CMake targets, document model, undo, `.pxa`, a folder for a group of four or more modules with one prefix in a `src/` directory, a shallow directory tree), tests (TDD, file layout), code conventions (C++17 and RAII, cognitive complexity of 15 or less, `thirdparty/README.md`), what `clang-format` and `clang-tidy` reject, and the workflow (lint and format, branches and PRs, merging, commit messages). Lint is slow, so write to those rules instead of leaving style to the hooks. Module map, data flow, document model, undo, rendering, UI and the `.pxa` format: `docs/ARCHITECTURE.md`.

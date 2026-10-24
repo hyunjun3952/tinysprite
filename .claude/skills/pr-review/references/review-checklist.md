@@ -7,7 +7,7 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 | Kind | Look at first |
 |---|---|
 | Bug fix | Is there a regression test that fails without the fix? Is the root cause fixed or only the symptom? Same bug elsewhere (grep the pattern)? |
-| Feature | Tests first (`tests/test_<feature>.cpp`, or in the feature's folder: `.rules` section 2), public API minimal, undo path, `.pxa` impact, `docs/MILESTONES.md` updated when a milestone finishes. |
+| Feature | Tests first (`tests/test_<feature>.cpp`), public API minimal, undo path, `.pxa` impact, `docs/MILESTONES.md` updated when a milestone finishes. |
 | Refactor | Behavior unchanged: same tests pass untouched, no test edited to fit. Diff should shrink complexity, not move it. |
 | Dependency | `thirdparty/README.md` has name, pinned version, license. License compatible. Version pinned, not floating. Changelog read for breaking changes. dependabot PRs: check CI only plus the changelog. |
 | Docs | Matches the code as it is now. Links work. No claim the code does not back. |
@@ -15,9 +15,9 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 | Test-only | Tests assert something real (not just "does not crash"). No flaky timing or order dependence. |
 | File format | Version bump, chunk is length-prefixed, old readers skip it, old files still load, test with an old-format fixture. Needs a feature branch + PR (risky change). |
 
-## Project rules (from CLAUDE.md)
+## Project rules (from `.rules`)
 
-- Layering: no SDL or ImGui include in `src/core` or `src/io`. `tests/**/test_*.cpp` link only core and io.
+- Layering: no SDL or ImGui include in `src/core` or `src/io`. `tests/test_*.cpp` link only core and io.
 - Public headers only for core and io, in `include/tinysprite/`; internal headers next to the source.
 - Every edit goes through history: pixel strokes through a stroke class, other edits through `History::pushAction` / `perform` in `*_ops.h`.
   A direct cel mutation outside this path is a 심각 finding.
@@ -44,7 +44,7 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 
 - New behavior has a test; the test fails on the old code.
 - Tool and raster behavior is tested with point lists and golden pixel arrays.
-- Test names and files follow `tests/test_<feature>.cpp`; four or more files with one prefix are in a folder of that name (`.rules` section 2).
+- Test names and files follow `tests/test_<feature>.cpp`.
 - UI tests run under `SDL_VIDEODRIVER=dummy`.
 
 ## Things that are not review findings
