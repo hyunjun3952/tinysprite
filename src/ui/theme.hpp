@@ -148,6 +148,11 @@ void tip(const char *text);
  * while it is disabled no tooltip but the "not allowed" mouse cursor. */
 void hint(const char *tooltip, bool enabled);
 
+/* For the item just drawn, while it is disabled (`enabled` false): the "not allowed" mouse cursor
+ * and, after a moment, `reason` as a tooltip (null: the cursor only), so a greyed item is never a
+ * dead end. Nothing while it is enabled. Call right after the item. */
+void why_disabled(bool enabled, const char *reason);
+
 /* `text` cut at a UTF-8 character boundary and ended with "..." so that it is at most `maxWidth`
  * wide (as drawn by the current font); text that fits comes back unchanged. */
 std::string ellipsize(const std::string &text, float maxWidth);

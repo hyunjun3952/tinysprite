@@ -54,6 +54,10 @@ struct Command {
     CommandId id;
     Shortcut shortcuts[2];
     bool repeat; /* keeps firing while the keys are held */
+    /* Why the menu item is greyed out when the document's state rules the command out (shown on
+     * hover); null for a command that is only unavailable during a stroke, where nobody can hover.
+     */
+    const char *unavailable = nullptr;
 };
 
 /* In CommandId order. */

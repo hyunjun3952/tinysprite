@@ -622,6 +622,18 @@ void hint(const char *tooltip, bool enabled)
     }
 }
 
+void why_disabled(bool enabled, const char *reason)
+{
+    constexpr ImGuiHoveredFlags HOVER = ImGuiHoveredFlags_AllowWhenDisabled;
+    if (enabled || !ImGui::IsItemHovered(HOVER)) {
+        return;
+    }
+    ImGui::SetMouseCursor(ImGuiMouseCursor_NotAllowed);
+    if (reason != nullptr && ImGui::IsItemHovered(HOVER | ImGuiHoveredFlags_ForTooltip)) {
+        ImGui::SetTooltip("%s", reason);
+    }
+}
+
 unsigned hint_text(bool pressed)
 {
     return pressed ? BODY : MUTE;

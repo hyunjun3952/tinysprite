@@ -5,6 +5,7 @@
 #include <iterator>
 
 #include "imgui.h"
+#include "theme.hpp"
 
 /* What each command does and when it can run, one row per CommandId in the same order as COMMANDS
  * (command_table.cpp holds the labels and keys). A new command is a row here, not a case in two
@@ -85,8 +86,10 @@ bool App::commandEnabled(CommandId id) const
 void App::commandItem(CommandId id, bool checked, const char *label)
 {
     const Command &command = command_of(id);
+    const bool enabled = commandEnabled(id);
     if (ImGui::MenuItem(label != nullptr ? label : command.label, command_hint(command).c_str(),
-                        checked, commandEnabled(id))) {
+                        checked, enabled)) {
         runCommand(id);
     }
+    theme::why_disabled(enabled, command.unavailable);
 }

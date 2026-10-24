@@ -9,10 +9,19 @@
 #include "imgui.h"
 #include "theme.hpp"
 
+namespace
+{
+
+constexpr const char *SELECT_FIRST = "Select an area first."; /* why a selection item is greyed */
+
+} // namespace
+
 /* The recent files; picking one asks about unsaved changes first. */
 void App::openRecentMenu(bool idle)
 {
-    if (!ImGui::BeginMenu("Open recent", idle && !recent_.empty())) {
+    const bool enabled = idle && !recent_.empty();
+    if (!ImGui::BeginMenu("Open recent", enabled)) {
+        theme::why_disabled(enabled, "No files have been opened or saved yet.");
         return;
     }
     std::string chosen;
@@ -93,6 +102,7 @@ void App::selectionMenu()
 {
     bool enabled = editor_->hasSelection() && !editor_->stroking();
     if (!ImGui::BeginMenu("Transform selection", enabled)) {
+        theme::why_disabled(enabled, SELECT_FIRST);
         return;
     }
     if (ImGui::MenuItem("Flip horizontally")) {
@@ -128,9 +138,11 @@ void App::editMenu()
     if (ImGui::MenuItem("Deselect", "Esc", false, selected)) {
         editor_->clearSelection();
     }
+    theme::why_disabled(selected, SELECT_FIRST);
     if (ImGui::MenuItem("Clear", "Delete", false, selected)) {
         editor_->deleteSelection();
     }
+    theme::why_disabled(selected, SELECT_FIRST);
     selectionMenu();
     ImGui::EndMenu();
 }
@@ -140,9 +152,11 @@ void App::layerEditItems()
 {
     commandItem(CommandId::NewLayer);
     commandItem(CommandId::DuplicateLayer);
-    if (ImGui::MenuItem("Delete layer...", "Delete", false, editor_->canRemoveSelectedLayers())) {
+    const bool removable = editor_->canRemoveSelectedLayers();
+    if (ImGui::MenuItem("Delete layer...", "Delete", false, removable)) {
         layersPanel_->askToDelete();
     }
+    theme::why_disabled(removable, "A sprite needs at least one layer.");
     ImGui::Separator();
     const bool several = editor_->selectedLayers().size() > 1;
     commandItem(CommandId::MergeLayerDown, false, several ? "Merge layers" : nullptr);
@@ -203,10 +217,11 @@ void App::frameEditItems(bool idle)
 {
     commandItem(CommandId::NewFrame);
     commandItem(CommandId::DuplicateFrame);
-    if (ImGui::MenuItem("Delete frame", nullptr, false,
-                        idle && editor_->sprite().frameCount() > 1)) {
+    const bool removable = idle && editor_->sprite().frameCount() > 1;
+    if (ImGui::MenuItem("Delete frame", nullptr, false, removable)) {
         editor_->removeFrame(editor_->frame());
     }
+    theme::why_disabled(removable, "A sprite needs at least one frame.");
 }
 
 void App::celLinkItems(bool idle)
@@ -214,15 +229,19 @@ void App::celLinkItems(bool idle)
     int frame = editor_->frame();
     int layer = editor_->activeLayer();
     const Layer *active = editor_->sprite().layer(layer);
-    if (ImGui::MenuItem("Link cel to previous frame", nullptr, false,
-                        idle && frame > 0 && active != nullptr && !active->locked())) {
+    const bool unlocked = active != nullptr && !active->locked();
+    const bool canLink = idle && frame > 0 && unlocked;
+    if (ImGui::MenuItem("Link cel to previous frame", nullptr, false, canLink)) {
         editor_->linkCelToPrevious();
     }
-    if (ImGui::MenuItem("Unlink cel", nullptr, false,
-                        idle && active != nullptr && !active->locked() &&
-                            active->celLinked(frame))) {
+    theme::why_disabled(canLink, unlocked ? "The first frame has no previous frame."
+                                          : "The layer is locked.");
+    const bool canUnlink = idle && unlocked && active->celLinked(frame);
+    if (ImGui::MenuItem("Unlink cel", nullptr, false, canUnlink)) {
         editor_->unlinkCel(layer, frame);
     }
+    theme::why_disabled(canUnlink, unlocked ? "This cel is not linked to another frame."
+                                            : "The layer is locked.");
 }
 
 void App::frameStepItems(bool idle)
@@ -232,9 +251,11 @@ void App::frameStepItems(bool idle)
     if (ImGui::MenuItem("Previous frame", ",", false, idle && frame > 0)) {
         editor_->setFrame(frame - 1);
     }
+    theme::why_disabled(idle && frame > 0, "This is the first frame.");
     if (ImGui::MenuItem("Next frame", ".", false, idle && frame + 1 < count)) {
         editor_->setFrame(frame + 1);
     }
+    theme::why_disabled(idle && frame + 1 < count, "This is the last frame.");
     ImGui::Separator();
     if (ImGui::MenuItem(editor_->playing() ? "Stop" : "Play", "Enter", false, idle)) {
         editor_->togglePlayback();
@@ -249,18 +270,22 @@ void App::filterMenu()
         return;
     }
     bool idle = !editor_->stroking() && !editor_->playing();
+    const char *playing = "Stop the animation first.";
     if (ImGui::MenuItem("Outline...", nullptr, false, idle)) {
         openFilter(FilterParams::Kind::Outline);
     }
     theme::tip("Draws a line around the shapes on the selected layers.");
+    theme::why_disabled(idle, playing);
     if (ImGui::MenuItem("Replace color...", nullptr, false, idle)) {
         openFilter(FilterParams::Kind::ReplaceColor);
     }
     theme::tip("Swaps one exact color for another (a palette swap).");
+    theme::why_disabled(idle, playing);
     if (ImGui::MenuItem("Hue / Brightness...", nullptr, false, idle)) {
         openFilter(FilterParams::Kind::HueBrightness);
     }
     theme::tip("Turns the hue and lightens or darkens the colors.");
+    theme::why_disabled(idle, playing);
     ImGui::EndMenu();
 }
 
@@ -313,15 +338,19 @@ void App::viewMenu()
     theme::tip("Show the neighbouring frames faintly under the current one.");
     ImGui::Separator();
     const bool canSplit = !editor_->stroking() && docs_.size() > 1;
+    const char *needsTwo = "Open a second document to show it beside this one.";
     if (ImGui::MenuItem("Split right", nullptr, split_ && splitSideBySide_, canSplit)) {
         splitView(-1, true);
     }
+    theme::why_disabled(canSplit, needsTwo);
     if (ImGui::MenuItem("Split down", nullptr, split_ && !splitSideBySide_, canSplit)) {
         splitView(-1, false);
     }
+    theme::why_disabled(canSplit, needsTwo);
     if (ImGui::MenuItem("Close split", nullptr, false, split_)) {
         unsplit();
     }
+    theme::why_disabled(split_, "The view is not split.");
     theme::tip("Show two documents side by side. Click a pane to work in it; a tab fills the "
                "active pane.");
     ImGui::Separator();
