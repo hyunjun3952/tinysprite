@@ -204,7 +204,8 @@ ImVec2 Canvas::updateMiddle(ImVec2 mouse, bool hovered)
  * mouse movement. True when the canvas panned, which also means nothing is drawn this frame. */
 bool Canvas::applyPan(ImVec2 pan, bool active)
 {
-    bool spacePan = ImGui::IsKeyDown(ImGuiKey_Space) && !editor_->stroking();
+    bool spacePan = (ImGui::IsKeyDown(ImGuiKey_Space) || editor_->tool() == ToolKind::Pan) &&
+                    !editor_->stroking();
     bool otherPan = active && (ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
                                (spacePan && ImGui::IsMouseDown(ImGuiMouseButton_Left)));
     if (otherPan) {

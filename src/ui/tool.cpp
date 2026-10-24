@@ -21,6 +21,7 @@ const std::array<ToolTraits, TOOL_COUNT> TRAITS = {{
     {ToolKind::Star, ToolGroup::Shape, ShapeKind::Star},
     {ToolKind::Cross, ToolGroup::Shape, ShapeKind::Cross},
     {ToolKind::Slice, ToolGroup::Slice, ShapeKind::Line},
+    {ToolKind::Pan, ToolGroup::Pan, ShapeKind::Line},
 }};
 
 } // namespace

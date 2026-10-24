@@ -19,6 +19,7 @@ enum class ToolKind {
     Star,
     Cross,
     Slice,
+    Pan,
     Count,
 };
 
@@ -33,6 +34,7 @@ enum class ToolGroup {
     Shape,  /* a shape dragged between two corners */
     Select, /* drags out a selection, or moves the pixels inside it */
     Slice,  /* drags out a slice (a named rectangle for the game), or moves one */
+    Pan,    /* drags the view (the canvas does it, as it does for Space + drag) */
     Count,
 };
 

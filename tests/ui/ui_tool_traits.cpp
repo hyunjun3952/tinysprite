@@ -42,6 +42,12 @@ TEST(tools_that_edit_pixels_are_the_ones_clipped_by_a_selection)
     ASSERT_TRUE(!tool_draws(ToolKind::Eyedropper));
 }
 
+TEST(the_pan_tool_moves_the_view_and_edits_nothing)
+{
+    ASSERT_TRUE(tool_traits(ToolKind::Pan).group == ToolGroup::Pan);
+    ASSERT_TRUE(!tool_draws(ToolKind::Pan));
+}
+
 TEST(only_the_pencil_and_eraser_are_brushes)
 {
     for (int i = 0; i < TOOL_COUNT; i++) {
@@ -57,6 +63,7 @@ int main()
     RUN(each_shape_belongs_to_exactly_one_shape_tool);
     RUN(shape_tools_map_to_their_shape);
     RUN(tools_that_edit_pixels_are_the_ones_clipped_by_a_selection);
+    RUN(the_pan_tool_moves_the_view_and_edits_nothing);
     RUN(only_the_pencil_and_eraser_are_brushes);
     return TEST_SUMMARY();
 }

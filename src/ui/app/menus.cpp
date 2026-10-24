@@ -399,6 +399,7 @@ void App::helpWindow()
     static const char *const ROWS[][2] = {
         {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
         {"T D H S C", "Triangle, diamond, hexagon, star, cross (shapes)"},
+        {"K P", "Slice, pan (a left drag moves the view)"},
         {"Hold middle button", "Eyedropper while held (drag instead to pan)"},
         {"X", "Swap foreground / background colors"},
         {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},

@@ -440,12 +440,18 @@ std::unique_ptr<Drag> beginShape(Editor &editor, Cel *cel, int cx, int cy)
     return std::make_unique<ShapeDrag>(editor, cx, cy, std::move(stroke), style.kind);
 }
 
+/* The Pan tool starts no drag: the canvas moves the view itself while the button is down. */
+std::unique_ptr<Drag> beginPan(Editor &, Cel *, int, int)
+{
+    return nullptr;
+}
+
 /* Starts the drag for a press; `cel` is the cel to edit, null for the tools that do not draw. */
 using DragFactory = std::unique_ptr<Drag> (*)(Editor &editor, Cel *cel, int cx, int cy);
 
 /* In ToolGroup order. */
 const std::array<DragFactory, static_cast<size_t>(ToolGroup::Count)> FACTORIES = {
-    beginPencil, fillBucket, beginPick, beginShape, beginSelect, beginSlice,
+    beginPencil, fillBucket, beginPick, beginShape, beginSelect, beginSlice, beginPan,
 };
 
 } // namespace

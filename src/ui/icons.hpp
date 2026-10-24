@@ -40,6 +40,7 @@ enum class Icon {
     Swap,
     Folder,
     Slice,
+    Pan,
     ChevronLeft,
     ChevronRight,
     Count

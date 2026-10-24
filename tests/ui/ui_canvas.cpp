@@ -57,6 +57,20 @@ TEST(right_drag_pans_the_view)
     ASSERT_TRUE(f.editor->view().viewport.pan_y - y < 45.0f);
 }
 
+TEST(left_drag_with_the_pan_tool_pans_and_draws_nothing)
+{
+    Fixture f;
+    f.editor->selectTool(ToolKind::Pan);
+    float x = f.editor->view().viewport.pan_x;
+    float y = f.editor->view().viewport.pan_y;
+    f.drag(0, 400, 300, 460, 340);
+    ASSERT_TRUE(f.editor->view().viewport.pan_x - x > 55.0f);
+    ASSERT_TRUE(f.editor->view().viewport.pan_x - x < 65.0f);
+    ASSERT_TRUE(f.editor->view().viewport.pan_y - y > 35.0f);
+    ASSERT_TRUE(f.editor->view().viewport.pan_y - y < 45.0f);
+    ASSERT_TRUE(!f.editor->history().canUndo());
+}
+
 TEST(right_drag_does_not_draw)
 {
     Fixture f;
@@ -159,6 +173,7 @@ int main()
 {
     RUN(the_wheel_zooms_at_the_cursor);
     RUN(right_drag_pans_the_view);
+    RUN(left_drag_with_the_pan_tool_pans_and_draws_nothing);
     RUN(right_drag_does_not_draw);
     RUN(left_drag_still_draws_and_does_not_pan);
     RUN(a_right_click_without_moving_leaves_the_view_alone);

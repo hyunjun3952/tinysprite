@@ -55,6 +55,9 @@ const std::array<ToolInfo, TOOL_COUNT> TOOLS = {{
     {"Slice", "K", ImGuiKey_K,
      "Drag to mark a named rectangle (a hitbox, a part) that the sprite sheet JSON lists.\n"
      "Drag a slice to move it; edit its name, size and pivot in the Slices section."},
+    {"Pan", "P", ImGuiKey_P,
+     "Drag to move the view. Space + drag, or the middle or right button, does this with any "
+     "tool."},
 }};
 
 constexpr float SWATCH_SIZE_BASE = 22.0f;
@@ -226,7 +229,8 @@ void ToolsPanel::toolGrid()
         {ToolKind::Bucket, icons::Icon::Bucket, "##tool_bucket"},
         {ToolKind::Eyedropper, icons::Icon::Eyedropper, "##tool_eyedropper"},
         {ToolKind::Select, icons::Icon::Select, "##tool_select"},
-        {ToolKind::Slice, icons::Icon::Slice, "##tool_slice"}};
+        {ToolKind::Slice, icons::Icon::Slice, "##tool_slice"},
+        {ToolKind::Pan, icons::Icon::Pan, "##tool_pan"}};
     iconRow(TOOL_ICONS, std::size(TOOL_ICONS));
 }
 
@@ -437,6 +441,9 @@ void ToolsPanel::contextBar(float x, float y, float width, float height)
             barShape(tool);
         } else if (group == ToolGroup::Fill) {
             barFill();
+        } else if (group == ToolGroup::Pan) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("Drag on the canvas to move the view");
         } else if (group == ToolGroup::Slice) {
             ImGui::SameLine();
             ImGui::TextDisabled(

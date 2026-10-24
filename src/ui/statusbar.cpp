@@ -41,6 +41,8 @@ const char *toolLabel(ToolKind tool)
         return "Cross";
     case ToolKind::Slice:
         return "Slice";
+    case ToolKind::Pan:
+        return "Pan";
     case ToolKind::Count:
         break;
     }
@@ -186,6 +188,10 @@ namespace
 
 constexpr float ITEM_GAP = 16.0f;
 
+/* The layer item never takes more than this at scale 1; a longer name is cut with "...", so the
+ * items after it keep their place. */
+constexpr float LAYER_ITEM_MAX_WIDTH = 220.0f;
+
 /* The items, each its own text so that a right click can tell which one it was on. Returns the
  * item that was right-clicked, or -1. */
 int drawItems(const Editor &editor, unsigned items)
@@ -203,6 +209,9 @@ int drawItems(const Editor &editor, unsigned items)
             ImGui::SameLine(0.0f, theme::px(ITEM_GAP));
         }
         first = false;
+        if (item == StatusItem::Layer) {
+            text = theme::ellipsize(text, theme::px(LAYER_ITEM_MAX_WIDTH)); /* a long layer name */
+        }
         ImGui::TextUnformatted(text.c_str());
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
             clicked = static_cast<int>(i);
