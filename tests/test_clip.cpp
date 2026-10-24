@@ -111,7 +111,10 @@ TEST(copy_with_a_mask_keeps_only_the_masked_pixels)
         plot(3, 2);
     });
     std::optional<Clip> clip = Clip::copy(cel, diagonal);
-    ASSERT_TRUE(clip.has_value());
+    if (!clip) {
+        MT_FAIL("the masked clip is empty");
+        return;
+    }
     const char *const golden[] = {"a..", "..f"};
     expect_clip(*clip, 2, golden);
     ASSERT_TRUE(!Clip::copy(cel, Mask())); /* an empty mask copies nothing */
