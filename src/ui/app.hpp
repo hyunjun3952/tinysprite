@@ -93,6 +93,7 @@ class App
     void loadSettings(const SettingsMap &settings);
 
     void setUiScale(float scale);
+    float maxUiScale() const; /* the largest scale whose minimum window fits this display */
     void uiScaleMenu();
     /* A message in the corner of the window that fades by itself; errors stay longer. */
     void toast(const std::string &text, bool error = false);

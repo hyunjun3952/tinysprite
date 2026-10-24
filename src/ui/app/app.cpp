@@ -53,13 +53,19 @@ App::~App()
     SDL_Quit();
 }
 
+/* The part of the display a window may cover (0 x 0 when unknown). */
+static WindowSize usableArea()
+{
+    SDL_Rect area = {0, 0, 0, 0};
+    SDL_GetDisplayUsableBounds(0, &area);
+    return WindowSize{area.w, area.h};
+}
+
 bool App::createWindow(int width, int height)
 {
     /* A window bigger than the screen (a small display, a large UI scale) would have its edges and
      * the status bar off screen, so the size is fitted to the usable area. */
-    SDL_Rect area = {0, 0, 0, 0};
-    SDL_GetDisplayUsableBounds(0, &area); /* stays 0 x 0 when unknown */
-    const WindowSize usable{area.w, area.h};
+    const WindowSize usable = usableArea();
     WindowSize fitted = window_fit(WindowSize{width, height}, usable);
     width = fitted.width;
     height = fitted.height;
@@ -127,18 +133,24 @@ void App::loadSettings(const SettingsMap &settings)
     settings_get_int(settings, "new.height", 1, CEL_MAX_DIMENSION, newHeight_);
 }
 
-/* The scale comes from --scale, else the saved one, else what the display's DPI suggests. */
+float App::maxUiScale() const
+{
+    return window_max_scale(usableArea());
+}
+
+/* The scale comes from --scale (as given), else the saved one or what the display's DPI suggests,
+ * kept to what the display can hold: a window cannot be smaller than the layout needs. */
 static float initialScale(const AppOptions &options, const SettingsMap &settings)
 {
     if (options.uiScale > 0.0f) {
         return options.uiScale;
     }
     float scale = 1.0f;
-    if (settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX, scale)) {
-        return scale;
+    if (!settings_get_float(settings, "ui.scale", theme::SCALE_MIN, theme::SCALE_MAX, scale)) {
+        float dpi = 0.0f;
+        scale = SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
     }
-    float dpi = 0.0f;
-    return SDL_GetDisplayDPI(0, &dpi, nullptr, nullptr) == 0 ? theme::scaleForDpi(dpi) : 1.0f;
+    return std::min(scale, window_max_scale(usableArea()));
 }
 
 /* The saved window size; a default, scaled with the UI, when none was saved. */
