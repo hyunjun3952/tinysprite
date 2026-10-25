@@ -212,7 +212,7 @@ int minorStep(int step, float zoom)
 
 /* The number of a labelled tick: beside it along a horizontal ruler, one digit under another along
  * a vertical one (text cannot be turned, and the ruler is too narrow for a number lying down). */
-void rulerLabel(ImDrawList *draw, bool horizontal, int cel, ImVec2 tick, float thickness)
+void rulerLabel(ImDrawList *draw, bool horizontal, long long cel, ImVec2 tick, float thickness)
 {
     const std::string text = std::to_string(cel);
     const ImU32 ink = token(theme::MUTE);
@@ -251,7 +251,8 @@ void drawRulerAxis(ImDrawList *draw, bool horizontal, float zero, float zoom, fl
     const int first = ticksFrom(std::floor((from - zero) / zoom / static_cast<float>(unit)));
     const int last = ticksFrom(std::ceil((to - zero) / zoom / static_cast<float>(unit)));
     for (int k = first; k <= last; k++) {
-        const int cel = k * unit;
+        const long long cel =
+            static_cast<long long>(k) * unit; /* k saturates; the product is wide */
         const float at = zero + static_cast<float>(cel) * zoom;
         if (at < from || at > to) {
             continue;
@@ -274,6 +275,20 @@ void Canvas::setEditor(Editor &editor)
     editor_ = &editor;
     middle_ = Middle::Idle;
     guideDrag_ = GuideDrag();
+    lastRuler_ = -1.0f;
+}
+
+/*
+ * The canvas origin moves by the ruler's width when the rulers are shown or hidden; the pan is
+ * kept in step so the sprite stays where it is on screen.
+ */
+void Canvas::keepSpriteInPlace(float ruler)
+{
+    if (lastRuler_ >= 0.0f && ruler != lastRuler_) {
+        editor_->view().viewport.pan_x -= ruler - lastRuler_;
+        editor_->view().viewport.pan_y -= ruler - lastRuler_;
+    }
+    lastRuler_ = ruler;
 }
 
 /* The width of the rulers on screen; 0 while they are hidden. */
@@ -860,6 +875,7 @@ void Canvas::show(float x, float y, float w, float h)
 
     const ImVec2 windowOrigin = ImGui::GetCursorScreenPos();
     const float ruler = rulerSize();
+    keepSpriteInPlace(ruler);
     const ImVec2 origin(windowOrigin.x + ruler, windowOrigin.y + ruler);
     ImGui::SetCursorScreenPos(origin);
     ImVec2 avail = ImGui::GetContentRegionAvail();

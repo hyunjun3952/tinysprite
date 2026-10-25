@@ -64,6 +64,24 @@ TEST(ticks_are_a_round_number_of_cels_and_stay_apart_on_screen)
     ASSERT_EQ_INT(200, ruler_step(1.0f, 150.0f)); /* a wider gap, as at a bigger UI scale */
 }
 
+TEST(toggling_the_rulers_keeps_the_sprite_where_it_is)
+{
+    Fixture f;
+    f.editor->view().auto_fit = false; /* a view the user set, not the fitted one */
+    const float left = CANVAS_X + f.ruler + f.view().pan_x;
+    const float top = f.ruler + f.view().pan_y;
+    f.editor->overlays().rulers = false;
+    f.h.frame(400, 300, false);
+    f.h.frame(400, 300, false);
+    ASSERT_TRUE(std::fabs(CANVAS_X + f.view().pan_x - left) < 0.5f);
+    ASSERT_TRUE(std::fabs(f.view().pan_y - top) < 0.5f);
+    f.editor->overlays().rulers = true;
+    f.h.frame(400, 300, false);
+    f.h.frame(400, 300, false);
+    ASSERT_TRUE(std::fabs(CANVAS_X + f.ruler + f.view().pan_x - left) < 0.5f);
+    ASSERT_TRUE(std::fabs(f.ruler + f.view().pan_y - top) < 0.5f);
+}
+
 TEST(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers)
 {
     Fixture f;
@@ -152,6 +170,7 @@ TEST(hidden_rulers_do_not_take_a_guide_from_the_pencil)
 int main()
 {
     RUN(ticks_are_a_round_number_of_cels_and_stay_apart_on_screen);
+    RUN(toggling_the_rulers_keeps_the_sprite_where_it_is);
     RUN(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers);
     RUN(a_guide_snaps_to_the_nearest_cel_edge);
     RUN(a_guide_is_picked_only_within_reach_and_the_nearest_wins);
