@@ -255,12 +255,15 @@ class App
     /* Shows tab `index`: the panels follow, and the tool, colors and clipboard come along. Refused
      * while a tool is being dragged. */
     void activateDocument(int index);
+    void showInPane(Editor *next);
+    void leaveEditor(Editor *previous, Editor *next);
     /* Moves tab `from` so it ends up at `to`; the active tab stays the same document. */
     void moveDocument(int from, int to);
     bool validIndex(int index) const;
     bool keepOneDocument();
     /* Takes tab `index` away without asking; a last tab is replaced by a blank one. */
     void removeDocument(int index);
+    void dropDocument(int index);
     /* Closes tab `index`, asking first when it has unsaved changes. */
     void closeDocument(int index);
     /* The tab bar (app/tabs.cpp): drawn over [x, x + width] x [y, y + height]; its height is

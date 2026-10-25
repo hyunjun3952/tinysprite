@@ -69,6 +69,34 @@ int App::findDocument(const std::string &path) const
     return found == docs_.end() ? -1 : static_cast<int>(found - docs_.begin());
 }
 
+/* Puts `next` in a pane: a document that is in the other pane just takes the focus, any other
+ * fills the active pane (the only pane when not split). */
+void App::showInPane(Editor *next)
+{
+    if (!split_) {
+        pane_[0] = next;
+        return;
+    }
+    const int other = 1 - activePane_;
+    if (pane_[other] == next) {
+        activePane_ = other;
+    } else {
+        pane_[activePane_] = next;
+    }
+}
+
+/* Hands over from the editor the user came from: its tag index means nothing in `next`, a tab that
+ * is no longer shown stands still, and the tool and colors come along. */
+void App::leaveEditor(Editor *previous, Editor *next)
+{
+    export_.tag = -1;
+    if (previous != pane_[0] && previous != pane_[1]) {
+        previous->stopPlayback();
+    }
+    previous->tempPick(false); /* a middle-button pick must not stay stuck in the old tab */
+    next->adoptPreferences(*previous);
+}
+
 void App::activateDocument(int index)
 {
     if (!validIndex(index) || (editor_ && editor_->stroking())) {
@@ -78,27 +106,12 @@ void App::activateDocument(int index)
     Editor *previous = editor_;
     active_ = index;
     editor_ = next;
-    if (split_) {
-        /* a document that is in the other pane just takes the focus; any other fills this pane */
-        const int other = 1 - activePane_;
-        if (pane_[other] == next) {
-            activePane_ = other;
-        } else {
-            pane_[activePane_] = next;
-        }
-    } else {
-        pane_[0] = next;
-    }
+    showInPane(next);
     if (previous == next) {
         return;
     }
     if (previous) {
-        export_.tag = -1; /* an index into the other document's tags means nothing here */
-        if (previous != pane_[0] && previous != pane_[1]) {
-            previous->stopPlayback(); /* a tab that is no longer shown stands still */
-        }
-        previous->tempPick(false); /* a middle-button pick must not stay stuck in the old tab */
-        next->adoptPreferences(*previous);
+        leaveEditor(previous, next);
     }
     bindPanes();
 }
@@ -179,6 +192,13 @@ void App::removeDocument(int index)
     if (index == active_) {
         activateDocument(index + 1 < static_cast<int>(docs_.size()) ? index + 1 : index - 1);
     }
+    dropDocument(index);
+}
+
+/* Removes tab `index`, which is not the active one: its recovery copy goes, its editor is kept in
+ * `retired_` until the next frame starts. */
+void App::dropDocument(int index)
+{
     if (doc(index).recovery) {
         recovery_clear_slot(configDir_, doc(index).serial);
     }
