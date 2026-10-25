@@ -217,6 +217,47 @@ TEST(more_than_256_colors_are_reduced_to_close_ones)
     ASSERT_TRUE(worst < 40);
 }
 
+static int rgb_distance(Rgba a, Rgba b)
+{
+    const int dr = a.r - b.r;
+    const int dg = a.g - b.g;
+    const int db = a.b - b.b;
+    return dr * dr + dg * dg + db * db;
+}
+
+TEST(a_reduced_color_is_shown_as_the_closest_color_of_the_palette)
+{
+    Sprite s(40, 40);
+    for (int y = 0; y < 40; y++) {
+        for (int x = 0; x < 40; x++) {
+            s.layer(0)->cel(0)->set(x, y,
+                                    Rgba{static_cast<uint8_t>(x * 6), static_cast<uint8_t>(y * 6),
+                                         static_cast<uint8_t>((x * 7 + y * 3) % 256), 255});
+        }
+    }
+    Decoded d;
+    ASSERT_TRUE(decode(gif_encode(s, GifOptions{}), d));
+    std::vector<Rgba> used; /* the palette entries the picture ends up showing */
+    for (const Rgba &p : d.pixels) {
+        if (std::find(used.begin(), used.end(), p) == used.end()) {
+            used.push_back(p);
+        }
+    }
+    ASSERT_TRUE(used.size() > 200);
+    int farther = 0;
+    for (int y = 0; y < 40; y++) {
+        for (int x = 0; x < 40; x++) {
+            const Rgba want = s.layer(0)->cel(0)->get(x, y);
+            int best = rgb_distance(want, used[0]);
+            for (const Rgba &entry : used) {
+                best = std::min(best, rgb_distance(want, entry));
+            }
+            farther += rgb_distance(want, d.at(0, x, y)) > best ? 1 : 0;
+        }
+    }
+    ASSERT_EQ_INT(0, farther);
+}
+
 TEST(a_big_flat_image_compresses_and_decodes)
 {
     Sprite s(300, 300);
@@ -389,6 +430,7 @@ int main()
     RUN(scale_enlarges_by_whole_pixels);
     RUN(semi_transparent_pixels_are_either_shown_or_not);
     RUN(more_than_256_colors_are_reduced_to_close_ones);
+    RUN(a_reduced_color_is_shown_as_the_closest_color_of_the_palette);
     RUN(a_big_flat_image_compresses_and_decodes);
     RUN(noise_fills_and_resets_the_code_table_without_losing_a_pixel);
     RUN(a_single_color_sprite_works);

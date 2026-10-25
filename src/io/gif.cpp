@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <cstdint>
 #include <map>
 #include <unordered_map>
@@ -33,12 +34,6 @@ struct Counted {
     uint32_t rgb;
     uint32_t count;
 };
-
-Rgba unpackRgb(uint32_t rgb)
-{
-    return Rgba{static_cast<uint8_t>(rgb >> 16), static_cast<uint8_t>(rgb >> 8),
-                static_cast<uint8_t>(rgb), 255};
-}
 
 /* A group of colors for the median cut. */
 using Box = std::vector<Counted>;
@@ -78,16 +73,21 @@ struct Pick {
     Spread spread;
 };
 
-Pick widestBox(const std::vector<Box> &boxes)
+Pick widestBox(const std::vector<Spread> &spreads)
 {
     Pick pick;
-    for (size_t i = 0; i < boxes.size(); i++) {
-        Spread spread = boxes[i].size() > 1 ? widestSpread(boxes[i]) : Spread{};
-        if (spread.range > pick.spread.range) {
-            pick = Pick{i, spread};
+    for (size_t i = 0; i < spreads.size(); i++) {
+        if (spreads[i].range > pick.spread.range) {
+            pick = Pick{i, spreads[i]};
         }
     }
     return pick;
+}
+
+/* The spread of a box that is worth cutting: none for a single color. */
+Spread cuttableSpread(const Box &box)
+{
+    return box.size() > 1 ? widestSpread(box) : Spread{};
 }
 
 /* Where to cut a box sorted along its widest channel: after the color that brings the pixel
@@ -139,60 +139,102 @@ Rgba averageColor(const Box &box)
 
 /* Median cut over the distinct colors: boxes are split along their widest channel at the median
  * (by pixel count) until there are `limit` of them; a box becomes its weighted average. */
-std::vector<Rgba> medianCut(std::vector<Counted> colors, size_t limit)
+std::vector<Box> medianCut(std::vector<Counted> colors, size_t limit)
 {
     std::vector<Box> boxes;
     boxes.push_back(std::move(colors));
+    std::vector<Spread> spreads = {cuttableSpread(boxes[0])}; /* of each box, kept up to date */
     while (boxes.size() < limit) {
-        Pick pick = widestBox(boxes);
+        Pick pick = widestBox(spreads);
         if (pick.spread.range == 0) {
             break; /* every box is a single color */
         }
         boxes.push_back(splitBox(boxes[pick.box], pick.spread.channel));
+        spreads[pick.box] = cuttableSpread(boxes[pick.box]);
+        spreads.push_back(cuttableSpread(boxes.back()));
     }
-    std::vector<Rgba> out;
-    out.reserve(boxes.size());
-    for (const Box &box : boxes) {
-        out.push_back(averageColor(box));
-    }
-    return out;
+    return boxes;
 }
 
-/* How many of the frames' pixels each opaque color covers; sets `transparent` when any pixel is
- * see-through. */
-std::map<uint32_t, uint32_t> colorHistogram(const std::vector<const std::vector<Rgba> *> &frames,
-                                            bool &transparent)
+/* Counts pixels per color. A run of one color (pixel art has long ones) is added to the table once,
+ * when it ends, so the table is touched per run while its size stays bounded by the number of
+ * distinct colors, not by the number of pixels. */
+struct ColorCounter {
+    std::unordered_map<uint32_t, uint32_t> counts;
+    uint32_t runRgb = 0;
+    uint32_t runLength = 0; /* 0: no run open */
+
+    void add(uint32_t rgb)
+    {
+        if (runLength != 0 && rgb == runRgb) {
+            runLength++;
+            return;
+        }
+        endRun();
+        runRgb = rgb;
+        runLength = 1;
+    }
+    void endRun()
+    {
+        if (runLength != 0) {
+            counts[runRgb] += runLength;
+        }
+        runLength = 0;
+    }
+};
+
+/* How many of the frames' pixels each opaque color covers, ascending by color so the palette is the
+ * same every time; sets `transparent` when any pixel is see-through. */
+std::vector<Counted> colorHistogram(const std::vector<const std::vector<Rgba> *> &frames,
+                                    bool &transparent)
 {
-    std::map<uint32_t, uint32_t> histogram;
+    ColorCounter counter;
     for (const std::vector<Rgba> *frame : frames) {
         for (const Rgba &p : *frame) {
-            if (p.a >= 128) {
-                histogram[packRgb(p)]++;
-            } else {
+            if (p.a < 128) {
                 transparent = true;
+            } else {
+                counter.add(packRgb(p));
             }
         }
     }
+    counter.endRun();
+    std::vector<Counted> histogram;
+    histogram.reserve(counter.counts.size());
+    for (const auto &entry : counter.counts) {
+        histogram.push_back(Counted{entry.first, entry.second});
+    }
+    std::sort(histogram.begin(), histogram.end(),
+              [](const Counted &a, const Counted &b) { return a.rgb < b.rgb; });
     return histogram;
 }
 
-long colorDistance(uint32_t rgb, const Rgba &entry)
+/* The squared distance between the color and the entry, or a partial sum that is already at least
+ * `limit` as soon as one is: the caller only wants to know whether it beats `limit`. */
+long colorDistance(uint32_t rgb, const Rgba &entry, long limit)
 {
-    Rgba c = unpackRgb(rgb);
-    long dr = static_cast<long>(c.r) - entry.r;
-    long dg = static_cast<long>(c.g) - entry.g;
-    long db = static_cast<long>(c.b) - entry.b;
-    return dr * dr + dg * dg + db * db;
+    const long dr = static_cast<long>((rgb >> 16) & 0xff) - entry.r;
+    long distance = dr * dr;
+    if (distance >= limit) {
+        return distance;
+    }
+    const long dg = static_cast<long>((rgb >> 8) & 0xff) - entry.g;
+    distance += dg * dg;
+    if (distance >= limit) {
+        return distance;
+    }
+    const long db = static_cast<long>(rgb & 0xff) - entry.b;
+    return distance + db * db;
 }
 
 /* The index, from `first` on, of the entry closest to the color (itself, when it is there). */
 int nearestEntry(const std::vector<Rgba> &entries, int first, uint32_t rgb)
 {
     int best = first;
-    long bestDistance = -1;
+    long bestDistance = LONG_MAX;
     for (int i = first; i < static_cast<int>(entries.size()) && bestDistance != 0; i++) {
-        long d = colorDistance(rgb, entries[static_cast<size_t>(i)]);
-        if (bestDistance < 0 || d < bestDistance) {
+        const long d = colorDistance(rgb, entries[static_cast<size_t>(i)], bestDistance);
+        if (d < bestDistance) {
             bestDistance = d;
             best = i;
         }
@@ -200,36 +242,45 @@ int nearestEntry(const std::vector<Rgba> &entries, int first, uint32_t rgb)
     return best;
 }
 
+/* Gives every color its own entry, after the ones the palette has. */
+void addExactEntries(GifPalette &palette, const std::vector<Counted> &colors)
+{
+    for (const Counted &c : colors) {
+        palette.indexOf[c.rgb] = static_cast<int>(palette.entries.size());
+        palette.entries.push_back(averageColor(Box{c}));
+    }
+}
+
+/* Reduces the colors to at most `room` median-cut entries, after the ones the palette has. A color
+ * maps to the nearest of them, not to its own box: one near the edge of its box can be closer to
+ * the average of the next one. */
+void addCutEntries(GifPalette &palette, const std::vector<Counted> &colors, size_t room)
+{
+    const int first = static_cast<int>(palette.entries.size());
+    for (const Box &box : medianCut(colors, room)) {
+        palette.entries.push_back(averageColor(box));
+    }
+    for (const Counted &c : colors) {
+        palette.indexOf[c.rgb] = nearestEntry(palette.entries, first, c.rgb);
+    }
+}
+
 /* The palette for the flattened frames: the exact colors when they fit, else a median cut. */
 GifPalette buildPalette(const std::vector<const std::vector<Rgba> *> &frames)
 {
     GifPalette palette;
-    std::map<uint32_t, uint32_t> histogram = colorHistogram(frames, palette.transparent);
+    std::vector<Counted> colors = colorHistogram(frames, palette.transparent);
     size_t room = MAX_COLORS - (palette.transparent ? 1 : 0);
-    std::vector<Counted> colors;
-    colors.reserve(histogram.size());
-    for (const auto &entry : histogram) {
-        colors.push_back(Counted{entry.first, entry.second});
-    }
-    std::vector<Rgba> chosen;
-    if (colors.size() <= room) {
-        for (const Counted &c : colors) {
-            chosen.push_back(unpackRgb(c.rgb));
-        }
-    } else {
-        chosen = medianCut(colors, room);
-    }
     if (palette.transparent) {
         palette.entries.push_back(Rgba{0, 0, 0, 0});
     }
-    palette.entries.insert(palette.entries.end(), chosen.begin(), chosen.end());
+    if (colors.size() > room) {
+        addCutEntries(palette, colors, room);
+    } else {
+        addExactEntries(palette, colors);
+    }
     if (palette.entries.empty()) {
         palette.entries.push_back(Rgba{0, 0, 0, 255}); /* a blank sprite still needs a table */
-    }
-    /* every distinct color gets its nearest entry (itself, when it fits) */
-    int first = palette.transparent ? 1 : 0;
-    for (const Counted &c : colors) {
-        palette.indexOf[c.rgb] = nearestEntry(palette.entries, first, c.rgb);
     }
     return palette;
 }
