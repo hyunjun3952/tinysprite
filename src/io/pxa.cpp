@@ -217,36 +217,42 @@ void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
     }
 }
 
-/* An SLCE payload: the count, then per slice its name, rectangle (four u32) and a flags byte (bit
- * 0: a pivot follows as two u32, relative to the rectangle). */
+/* One slice of an SLCE payload: its name, rectangle (four u32) and a flags byte (bit 0: a pivot
+ * follows as two u32, relative to the rectangle). */
+Sprite::Slice readSlice(Reader &chunk)
+{
+    Sprite::Slice slice;
+    slice.name = readName(chunk);
+    uint32_t values[4];
+    for (uint32_t &value : values) {
+        value = chunk.u32();
+    }
+    uint32_t flags = chunk.u8();
+    if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX) ||
+        *std::max_element(values, values + 4) > INT32_MAX) {
+        throw std::out_of_range("pxa: bad slice");
+    }
+    slice.rect = Rect{static_cast<int>(values[0]), static_cast<int>(values[1]),
+                      static_cast<int>(values[2]), static_cast<int>(values[3])};
+    slice.hasPivot = flags == 1;
+    if (slice.hasPivot) {
+        uint32_t px = chunk.u32();
+        uint32_t py = chunk.u32();
+        if (px > INT32_MAX || py > INT32_MAX) {
+            throw std::out_of_range("pxa: bad slice pivot");
+        }
+        slice.pivotX = static_cast<int>(px);
+        slice.pivotY = static_cast<int>(py);
+    }
+    return slice;
+}
+
+/* An SLCE payload: the count, then that many slices. */
 void readSlices(Reader &chunk, std::vector<Sprite::Slice> &slices)
 {
     uint32_t count = chunk.u16();
     for (uint32_t i = 0; i < count; i++) {
-        Sprite::Slice slice;
-        slice.name = readName(chunk);
-        uint32_t values[4];
-        for (uint32_t &value : values) {
-            value = chunk.u32();
-        }
-        uint32_t flags = chunk.u8();
-        if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX) ||
-            *std::max_element(values, values + 4) > INT32_MAX) {
-            throw std::out_of_range("pxa: bad slice");
-        }
-        slice.rect = Rect{static_cast<int>(values[0]), static_cast<int>(values[1]),
-                          static_cast<int>(values[2]), static_cast<int>(values[3])};
-        slice.hasPivot = flags == 1;
-        if (slice.hasPivot) {
-            uint32_t px = chunk.u32();
-            uint32_t py = chunk.u32();
-            if (px > INT32_MAX || py > INT32_MAX) {
-                throw std::out_of_range("pxa: bad slice pivot");
-            }
-            slice.pivotX = static_cast<int>(px);
-            slice.pivotY = static_cast<int>(py);
-        }
-        slices.push_back(std::move(slice));
+        slices.push_back(readSlice(chunk));
     }
 }
 
@@ -697,6 +703,20 @@ void writeTags(std::vector<uint8_t> &out, const std::vector<Sprite::Tag> &tags)
     });
 }
 
+/* Appends one slice of an SLCE payload, as readSlice reads it. */
+void putSlice(std::vector<uint8_t> &out, const Sprite::Slice &slice)
+{
+    putName(out, slice.name);
+    for (int value : {slice.rect.x, slice.rect.y, slice.rect.w, slice.rect.h}) {
+        putU32(out, static_cast<uint32_t>(value));
+    }
+    out.push_back(slice.hasPivot ? 1 : 0);
+    if (slice.hasPivot) {
+        putU32(out, static_cast<uint32_t>(slice.pivotX));
+        putU32(out, static_cast<uint32_t>(slice.pivotY));
+    }
+}
+
 void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &slices)
 {
     if (slices.empty()) {
@@ -706,34 +726,28 @@ void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &sl
         const size_t count = std::min<size_t>(slices.size(), UINT16_MAX); /* the count is a u16 */
         putU16(o, static_cast<uint32_t>(count));
         for (size_t i = 0; i < count; i++) {
-            const Sprite::Slice &slice = slices[i];
-            putName(o, slice.name);
-            for (int value : {slice.rect.x, slice.rect.y, slice.rect.w, slice.rect.h}) {
-                putU32(o, static_cast<uint32_t>(value));
-            }
-            o.push_back(slice.hasPivot ? 1 : 0);
-            if (slice.hasPivot) {
-                putU32(o, static_cast<uint32_t>(slice.pivotX));
-                putU32(o, static_cast<uint32_t>(slice.pivotY));
-            }
+            putSlice(o, slices[i]);
         }
     });
+}
+
+/* The guides that lie on the sprite (0..size), at most as many as a u16 count can hold. */
+std::vector<int> guidesOnSprite(const std::vector<int> &lines, int size)
+{
+    std::vector<int> kept;
+    for (int line : lines) {
+        if (line >= 0 && line <= size && kept.size() < UINT16_MAX) {
+            kept.push_back(line);
+        }
+    }
+    return kept;
 }
 
 /* Writes the guides that lie on the sprite (0..size); nothing at all when none are left. */
 void writeGuides(std::vector<uint8_t> &out, const Sprite &sprite)
 {
-    auto onSprite = [](const std::vector<int> &lines, int size) {
-        std::vector<int> kept;
-        for (int line : lines) {
-            if (line >= 0 && line <= size && kept.size() < UINT16_MAX) { /* the count is a u16 */
-                kept.push_back(line);
-            }
-        }
-        return kept;
-    };
-    const std::vector<int> vertical = onSprite(sprite.guides().vertical, sprite.width());
-    const std::vector<int> horizontal = onSprite(sprite.guides().horizontal, sprite.height());
+    const std::vector<int> vertical = guidesOnSprite(sprite.guides().vertical, sprite.width());
+    const std::vector<int> horizontal = guidesOnSprite(sprite.guides().horizontal, sprite.height());
     if (vertical.empty() && horizontal.empty()) {
         return;
     }
