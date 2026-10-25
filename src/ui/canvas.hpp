@@ -55,6 +55,7 @@ class Canvas
 
     void handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active);
     float rulerSize() const;
+    void keepSpriteInPlace(float ruler);
     bool guideInput(ImVec2 origin, ImVec2 avail);
     bool pullGuide(bool vertical, ImVec2 origin);
     bool grabGuide(ImVec2 mouse, ImVec2 origin);
@@ -84,6 +85,7 @@ class Canvas
     enum class Middle { Idle, Pending, Panning, Picking };
     Middle middle_ = Middle::Idle;
     GuideDrag guideDrag_;
+    float lastRuler_ = -1.0f; /* rulerSize() of the last frame; -1: not known yet */
     ImVec2 middlePress_;
     double middleTime_ = 0.0;
 
