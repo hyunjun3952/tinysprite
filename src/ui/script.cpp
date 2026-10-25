@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "imgui.h"
+#include "text_util.hpp"
 
 namespace
 {
@@ -18,17 +19,6 @@ constexpr long MAX_SLEEP_MS = 10000; /* the longest one sleep may last */
 
 using Words = std::vector<std::string>;
 using Frames = std::vector<ScriptInput>;
-
-/* The text without the white space at both ends. */
-std::string trim(const std::string &text)
-{
-    const char *space = " \t\r\n";
-    size_t first = text.find_first_not_of(space);
-    if (first == std::string::npos) {
-        return "";
-    }
-    return text.substr(first, text.find_last_not_of(space) - first + 1);
-}
 
 /* The text up to a " #" or a "#" at its start, which begins a comment. */
 std::string withoutComment(const std::string &text)

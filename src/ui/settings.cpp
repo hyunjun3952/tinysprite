@@ -11,20 +11,11 @@
 #include <sstream>
 #include <vector>
 
+#include "text_util.hpp"
 #include "tinysprite/io.hpp"
 
 namespace
 {
-
-std::string trim(const std::string &text)
-{
-    const char *space = " \t\r\n";
-    size_t first = text.find_first_not_of(space);
-    if (first == std::string::npos) {
-        return "";
-    }
-    return text.substr(first, text.find_last_not_of(space) - first + 1);
-}
 
 const std::string *find(const SettingsMap &settings, const std::string &key)
 {
