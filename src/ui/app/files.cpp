@@ -273,14 +273,20 @@ void App::exportRange(int &first, int &last, PlayMode &direction) const
     }
 }
 
-/* Whole-pixel enlargement, shown as the size it gives. */
-void App::imageOptions()
+/* The "Scale" field of an export: a whole-pixel enlargement, kept to 1..IMAGE_EXPORT_MAX_SCALE. */
+static void scaleField(int &scale)
 {
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Scale");
     ImGui::SameLine();
-    theme::input_int("##export_scale", &exportScale_, 1, 2, "\xC3\x97");
-    exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
+    theme::input_int("##export_scale", &scale, 1, 2, "\xC3\x97");
+    scale = std::clamp(scale, 1, IMAGE_EXPORT_MAX_SCALE);
+}
+
+/* Whole-pixel enlargement, shown as the size it gives. */
+void App::imageOptions()
+{
+    scaleField(exportScale_);
     ImGui::SameLine();
     ImGui::TextDisabled("%d x %d px", editor_->sprite().width() * exportScale_,
                         editor_->sprite().height() * exportScale_);
@@ -312,11 +318,7 @@ void App::animationOptions()
         }
         ImGui::EndCombo();
     }
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Scale");
-    ImGui::SameLine();
-    theme::input_int("##export_scale", &exportScale_, 1, 2, "\xC3\x97");
-    exportScale_ = std::clamp(exportScale_, 1, IMAGE_EXPORT_MAX_SCALE);
+    scaleField(exportScale_);
 }
 
 void App::gifOptions()
