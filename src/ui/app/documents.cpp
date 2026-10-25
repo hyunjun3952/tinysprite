@@ -116,6 +116,11 @@ void App::activateDocument(int index)
     bindPanes();
 }
 
+/*
+ * Shows `sprite` in a document: the untouched one in front of the user when `reuse` is set,
+ * else a new tab. The guides switch is a preference that follows the user from tab to tab, so
+ * a sprite that has guides switches it on; otherwise the saved guides would look lost.
+ */
 bool App::addDocument(Sprite sprite, const std::string &path, bool reuse)
 {
     if (reuse && pristine(doc())) {
@@ -123,6 +128,7 @@ bool App::addDocument(Sprite sprite, const std::string &path, bool reuse)
             return false;
         }
         filePath() = path;
+        showGuidesOfDocument();
         return true;
     }
     std::unique_ptr<Editor> editor = Editor::create(renderer_, sprite.width(), sprite.height());
@@ -131,7 +137,16 @@ bool App::addDocument(Sprite sprite, const std::string &path, bool reuse)
     }
     docs_.push_back({std::move(editor), path, nextSerial_++});
     activateDocument(static_cast<int>(docs_.size()) - 1);
+    showGuidesOfDocument();
     return true;
+}
+
+/* Switches the guides on when the active document has any. */
+void App::showGuidesOfDocument()
+{
+    if (!editor_->guides().empty()) {
+        editor_->overlays().guides = true;
+    }
 }
 
 bool App::addBlankDocument(int width, int height)

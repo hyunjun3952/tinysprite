@@ -255,6 +255,8 @@ class App
     void removeEditor(const Editor *editor);
     /* Adds a tab for `sprite` (or reuses the untouched active one when `reuse`), and shows it. */
     bool addDocument(Sprite sprite, const std::string &path, bool reuse);
+    /* Switches the guides on when the active document has any. */
+    void showGuidesOfDocument();
     bool addBlankDocument(int width, int height);
     /* Shows tab `index`: the panels follow, and the tool, colors and clipboard come along. Refused
      * while a tool is being dragged. */

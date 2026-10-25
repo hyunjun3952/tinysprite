@@ -56,6 +56,10 @@ struct AppTestAccess {
     {
         return app.dirty();
     }
+    bool openPath(const std::string &path)
+    {
+        return app.openPath(path);
+    }
     void openFilter(FilterParams::Kind kind)
     {
         app.openFilter(kind);
@@ -681,8 +685,37 @@ TEST(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down)
     fs::remove_all(root, ignored);
 }
 
+/* Guides are shown or hidden by a preference that follows the user from tab to tab; a file that
+ * has guides must not open with them hidden, in the pristine tab it reuses or in a new tab. */
+TEST(opening_a_file_that_has_guides_shows_them)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_open_guides";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    Sprite withGuides(16, 16);
+    withGuides.guides().vertical = {4};
+    const std::string first = (root / "first.pxa").string();
+    const std::string second = (root / "second.pxa").string();
+    ASSERT_TRUE(pxa_save(withGuides, first));
+    ASSERT_TRUE(pxa_save(withGuides, second));
+    t.editor().overlays().guides = false;
+    ASSERT_TRUE(t.openPath(first)); /* reuses the untouched first tab */
+    ASSERT_EQ_INT(1, static_cast<int>(t.editor().guides().vertical.size()));
+    ASSERT_TRUE(t.editor().overlays().guides);
+    t.editor().overlays().guides = false;
+    ASSERT_TRUE(t.openPath(second)); /* a new tab, which takes the hidden preference along */
+    ASSERT_EQ_INT(1, static_cast<int>(t.editor().guides().vertical.size()));
+    ASSERT_TRUE(t.editor().overlays().guides);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
 int main()
 {
+    RUN(opening_a_file_that_has_guides_shows_them);
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
     RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
