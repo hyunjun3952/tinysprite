@@ -32,7 +32,7 @@ inline constexpr uint32_t TILE_TRANSPOSE = 0x20000000u;
 inline constexpr uint32_t TILE_FLAGS = TILE_FLIP_X | TILE_FLIP_Y | TILE_TRANSPOSE;
 
 /* The cell without its flags: 0 for no tile, else the tile number + 1. */
-inline constexpr uint32_t tile_number(uint32_t cell)
+constexpr uint32_t tile_number(uint32_t cell)
 {
     return cell & ~TILE_FLAGS;
 }
