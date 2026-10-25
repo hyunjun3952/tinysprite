@@ -168,13 +168,17 @@ std::string status_item_text(const Editor &editor, StatusItem item)
     return text;
 }
 
+/* The text of an item, or "" when `items` leaves it out or it has nothing to say. */
+static std::string shownText(const Editor &editor, unsigned items, StatusItem item)
+{
+    return (items & status_item_bit(item)) != 0 ? status_item_text(editor, item) : "";
+}
+
 std::string status_text(const Editor &editor, unsigned items)
 {
     std::string out;
     for (unsigned i = 0; i < static_cast<unsigned>(StatusItem::Count); i++) {
-        auto item = static_cast<StatusItem>(i);
-        std::string text =
-            (items & status_item_bit(item)) != 0 ? status_item_text(editor, item) : "";
+        std::string text = shownText(editor, items, static_cast<StatusItem>(i));
         if (!text.empty()) {
             out += out.empty() ? text : "   " + text;
         }
@@ -204,8 +208,7 @@ int drawItems(const Editor &editor, unsigned items)
     bool first = true;
     for (unsigned i = 0; i < static_cast<unsigned>(StatusItem::Count); i++) {
         auto item = static_cast<StatusItem>(i);
-        std::string text =
-            (items & status_item_bit(item)) != 0 ? status_item_text(editor, item) : "";
+        std::string text = shownText(editor, items, item);
         if (text.empty()) {
             continue;
         }
