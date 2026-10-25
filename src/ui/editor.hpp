@@ -14,6 +14,7 @@
 
 #include "composite_surface.hpp"
 #include "layer/layer_selection.hpp"
+#include "ruler.hpp"
 #include "settings.hpp"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/filter_ops.hpp"
@@ -109,6 +110,7 @@ class Editor
         bool auto_fit = false; /* the view is still the fitted one: refit when the canvas resizes */
         float canvas_w = 0.0f;
         float canvas_h = 0.0f;
+        Guides guides; /* dragged out of the rulers; not saved, not undoable */
     };
 
     ToolKind tool() const
@@ -177,8 +179,11 @@ class Editor
         bool cursor = true;
         bool mirror_axes = true;
         bool tilemap_window = false; /* the tilemap editor window; not remembered */
-        bool slices = true;   /* the outlines, names and pivots of the slices on the canvas */
-        bool timeline = true; /* the timeline strip along the bottom of the window */
+        bool slices = true; /* the outlines, names and pivots of the slices on the canvas */
+        bool rulers =
+            false; /* the rulers along the top and left of the canvas; guides come out of them */
+        bool guides = true;                  /* the guide lines on the canvas, when there are any */
+        bool timeline = true;                /* the timeline strip along the bottom of the window */
         float timeline_height = 214.0f;      /* at UI scale 1; set by dragging its top edge */
         bool options_bar = true;             /* the options of the active tool, above the canvas */
         unsigned status_items = 0x7FFFFFFFu; /* a bit per StatusItem (statusbar.hpp): which show */

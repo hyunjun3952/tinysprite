@@ -211,6 +211,7 @@ inline constexpr ImU32 LINE_LIGHT = IM_COL32(255, 255, 255, 255);
 inline constexpr ImU32 LINE_DARK = IM_COL32(0, 0, 0, 255);
 inline constexpr ImU32 SPRITE_FRAME = IM_COL32(200, 200, 205, 255);
 inline constexpr ImU32 MIRROR_AXIS = IM_COL32(0, 200, 255, 200);
+inline constexpr ImU32 GUIDE = IM_COL32(255, 90, 90, 220); /* a guide line from the rulers */
 inline constexpr ImU32 LOUPE_BACKGROUND = IM_COL32(24, 24, 28, 240);
 inline constexpr ImU32 LOUPE_OUTSIDE = IM_COL32(48, 48, 54, 255); /* beside the sprite */
 inline constexpr ImU32 SLICE = IM_COL32(76, 201, 240, 255);       /* an unselected slice */

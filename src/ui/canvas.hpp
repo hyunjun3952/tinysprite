@@ -11,7 +11,8 @@
 #include "imgui.h"
 
 /* The canvas window: draws the checkerboard, the composited sprite and the pixel grid, and turns
- * mouse input into zoom, pan and tool strokes. */
+ * mouse input into zoom, pan and tool strokes. With the rulers on it also lets a drag from a ruler
+ * pull out a guide, and a drag on a guide move it (back onto the ruler deletes it). */
 class Canvas
 {
   public:
@@ -46,7 +47,22 @@ class Canvas
         float x0, y0, x1, y1;
     };
 
-    void handleInput(ImVec2 origin, bool hovered, bool active);
+    /* A guide being dragged: which list it is in and where. */
+    struct GuideDrag {
+        bool vertical = false;
+        int index = -1; /* -1: none */
+    };
+
+    void handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active);
+    float rulerSize() const;
+    bool guideInput(ImVec2 origin, ImVec2 avail);
+    bool pullGuide(bool vertical, ImVec2 origin);
+    bool grabGuide(ImVec2 mouse, ImVec2 origin);
+    GuideDrag pickGuide(ImVec2 mouse, ImVec2 origin) const;
+    void beginGuide(bool vertical, int index, ImVec2 origin);
+    void dragGuide(ImVec2 origin);
+    void drawRulers(ImDrawList *draw, ImVec2 windowOrigin, ImVec2 origin, ImVec2 avail) const;
+    void drawGuides(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const;
     ImVec2 updateMiddle(ImVec2 mouse, bool hovered);
     bool applyPan(ImVec2 pan, bool active);
     void strokeInput(int cx, int cy, bool hovered);
@@ -67,6 +83,7 @@ class Canvas
      * choice is made by whichever comes first, a long press or movement. */
     enum class Middle { Idle, Pending, Panning, Picking };
     Middle middle_ = Middle::Idle;
+    GuideDrag guideDrag_;
     ImVec2 middlePress_;
     double middleTime_ = 0.0;
 

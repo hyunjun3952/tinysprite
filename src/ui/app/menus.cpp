@@ -335,6 +335,13 @@ void App::viewMenu()
     theme::tip("Draw the center lines that Mirror X / Y reflect across.");
     ImGui::MenuItem("Slices", nullptr, &editor_->overlays().slices);
     theme::tip("Outline the slices on the canvas, with their names and pivots.");
+    ImGui::MenuItem("Rulers", nullptr, &editor_->overlays().rulers);
+    theme::tip("Show rulers. Drag from one to pull out a guide, and back onto it to delete.");
+    ImGui::MenuItem("Guides", nullptr, &editor_->overlays().guides);
+    theme::tip("Show the guide lines pulled out of the rulers.");
+    if (ImGui::MenuItem("Clear guides", nullptr, false, !editor_->view().guides.empty())) {
+        editor_->view().guides.clear();
+    }
     bool onion = editor_->onionEnabled();
     if (ImGui::MenuItem("Onion skin", nullptr, &onion)) {
         editor_->setOnion(onion, editor_->onionSkin());
