@@ -257,7 +257,8 @@ class App
     bool addDocument(Sprite sprite, const std::string &path, bool reuse);
     /* Switches the guides on when the active document has any. */
     void showGuidesOfDocument();
-    bool addBlankDocument(int width, int height);
+    /* Adds a blank untitled tab (or reuses the untouched active one when `reuse`), and shows it. */
+    bool addBlankDocument(int width, int height, bool reuse);
     /* Shows tab `index`: the panels follow, and the tool, colors and clipboard come along. Refused
      * while a tool is being dragged. */
     void activateDocument(int index);

@@ -98,7 +98,7 @@ struct AppTestAccess {
     }
     bool addBlank(int width, int height)
     {
-        return app.addBlankDocument(width, height);
+        return app.addBlankDocument(width, height, false);
     }
     void replaceWithBlank(int width, int height)
     {

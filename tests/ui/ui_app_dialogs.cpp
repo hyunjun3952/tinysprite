@@ -60,6 +60,28 @@ struct AppTestAccess {
     {
         return app.openPath(path);
     }
+    int documents() const
+    {
+        return static_cast<int>(app.docs_.size());
+    }
+    /* Opens the New dialog with a size typed in. */
+    void openNewDialog(int width, int height)
+    {
+        app.newWidth_ = width;
+        app.newHeight_ = height;
+        app.openNew_ = true;
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    void pressEnter()
+    {
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true);
+        frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, false);
+        frame();
+        frame();
+    }
     void openFilter(FilterParams::Kind kind)
     {
         app.openFilter(kind);
@@ -713,8 +735,27 @@ TEST(opening_a_file_that_has_guides_shows_them)
     fs::remove_all(root, ignored);
 }
 
+/* "New tab" of the New dialog takes the untouched untitled tab, as File > Open does, instead of
+ * leaving an empty one behind; a tab that has been drawn on or has a file keeps its own. */
+TEST(the_new_dialog_reuses_an_untouched_untitled_tab)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.openNewDialog(32, 24);
+    t.pressEnter();
+    ASSERT_EQ_INT(1, t.documents());
+    ASSERT_EQ_INT(32, t.editor().sprite().width());
+    ASSERT_EQ_INT(24, t.editor().sprite().height());
+    ASSERT_TRUE(t.editor().addTilesetFromCel(4, 4)); /* an edit: the tab is no longer untouched */
+    t.openNewDialog(8, 8);
+    t.pressEnter();
+    ASSERT_EQ_INT(2, t.documents());
+    ASSERT_EQ_INT(8, t.editor().sprite().width());
+}
+
 int main()
 {
+    RUN(the_new_dialog_reuses_an_untouched_untitled_tab);
     RUN(opening_a_file_that_has_guides_shows_them);
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
     RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);

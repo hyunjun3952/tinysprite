@@ -149,8 +149,13 @@ void App::showGuidesOfDocument()
     }
 }
 
-bool App::addBlankDocument(int width, int height)
+/* A blank untitled document: in the untouched one in front of the user when `reuse` is set, else in
+ * a new tab. Reusing is how File > New avoids leaving an empty tab behind. */
+bool App::addBlankDocument(int width, int height, bool reuse)
 {
+    if (reuse && pristine(doc())) {
+        return editor_->newDocument(width, height);
+    }
     std::unique_ptr<Editor> editor = Editor::create(renderer_, width, height);
     if (!editor) {
         return false;
@@ -185,7 +190,7 @@ bool App::validIndex(int index) const
 /* The app always has a document: with only one tab left, a blank one is added before it goes. */
 bool App::keepOneDocument()
 {
-    if (docs_.size() != 1 || addBlankDocument(newWidth_, newHeight_)) {
+    if (docs_.size() != 1 || addBlankDocument(newWidth_, newHeight_, false)) {
         return true;
     }
     toast("Not enough memory to close this document", true);

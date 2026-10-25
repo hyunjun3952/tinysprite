@@ -156,7 +156,7 @@ void App::newDialog()
     const int clicked = theme::dialog_buttons({"Cancel", "This tab", "New tab"}, 2);
     bool close = theme::dialog_cancelled(clicked, 0);
     if (clicked == 2 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-        if (addBlankDocument(newWidth_, newHeight_)) {
+        if (addBlankDocument(newWidth_, newHeight_, true)) {
             close = true;
         }
     }
