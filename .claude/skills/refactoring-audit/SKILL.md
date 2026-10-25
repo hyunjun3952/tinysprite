@@ -4,7 +4,7 @@ description: Finds and plans behavior-preserving refactorings in this C++ repo -
 argument-hint: "[target]"
 metadata:
   author: tinysprite
-  version: 1.6.0
+  version: 1.6.1
 ---
 
 # Refactoring audit
@@ -122,6 +122,8 @@ lint not run, a claim not read in the source). If the user asks you to review yo
 
 - Lint passes locally but fails in CI: `.rules` (section 7).
 - `pre-commit not found` when committing, an exe that prints nothing, `git push` refused, `STL1000` from clang-tidy: `../_shared/audit-conventions.md`, "Tools on Windows".
+- A refactoring grows past the planned size: stop, commit the green part, and re-plan the rest; do not leave the tree half-converted.
+- Cannot show the gain with a number: say so, mark the finding 낮음 or 보류.
 
 ## Lessons (add a line when a run goes wrong; `../_shared/audit-conventions.md`, "Keeping the skills current")
 
@@ -129,5 +131,12 @@ lint not run, a claim not read in the source). If the user asks you to review yo
 - An "after" complexity written as a number but never measured was an estimate; mark it `(est.)` until re-measured.
 - A start-up screenshot did not reach a tab or pane change; use a script (Step 3.3).
 - A comment written from memory ("until the frame ends") was wrong; grep the lifetime first.
-- A refactoring grows past the planned size: stop, commit the green part, and re-plan the rest; do not leave the tree half-converted.
-- Cannot show the gain with a number: say so, mark the finding 낮음 or 보류.
+- Line-count estimates of "merge the parallel code" findings were off by a factor of 5 or more (one finding promised -40 lines and measured +7
+  after a template helper). Try the change, count the lines of the touched files, and revert if the number did not drop (Important, "Revert when
+  the gain is not there"). A helper with five parameters or a template over two types rarely pays for itself.
+- A new header or file does not need `cmake -S . -B build`; a reconfigure drops the STL workaround of `compile_commands.json` and every tidy run then
+  fails with `STL1000`. Re-add the two defines (`../_shared/audit-conventions.md`) before blaming the code.
+- A test that is defined with `TEST(...)` but not listed with `RUN(...)` in `main` never runs, and a green run then proves nothing: check that the
+  "N run" count rose by the number of tests added.
+- A screenshot that does not open the panel you changed proves nothing about it: expand the panel with a script (hover first, then click) and
+  compare the state the changed code draws.

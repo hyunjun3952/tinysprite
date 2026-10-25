@@ -88,6 +88,11 @@ The commands in the skills are written for sh. On Windows 11 with PowerShell use
 - **The UI exe is a GUI program**: `& exe args` returns at once, with no exit code and no output. Run it with
   `$env:SDL_VIDEODRIVER="dummy"; $p = Start-Process exe -ArgumentList ... -Wait -PassThru; $p.ExitCode`.
   Compare two screenshots with `(Get-FileHash a).Hash -eq (Get-FileHash b).Hash`.
+- **After `cmake -S . -B build` the STL workaround is gone** from `build/compile_commands.json`. Re-add it to every `command`
+  (` -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH "-D_MSVC_STL_DOOM_FUNCTION(mesg)=__builtin_trap()"`, e.g. with `ConvertFrom-Json` /
+  `ConvertTo-Json`) or avoid reconfiguring: new headers and sources of `src/ui` need no reconfigure, `src/core` and `src/io` are globbed (a new `.cpp` does).
+- **PowerShell `-replace` is case-insensitive**: a placeholder such as `SHOT` also rewrites `shot` in a script. Use `.Replace('@@N@@', ...)` for literals.
+- **A script click needs a hover first**: `move X Y`, `wait 3`, then `click X Y`, or an ImGui header or button only highlights.
 - **Run long commands in the background** (a full `ctest` is 20 to 100 s, a scan over `src` several minutes) and write their logs to the scratchpad.
   Use `ctest -j8`; run the tests of the scope first and the full set once before the commit.
 - **Push**: `git fetch` first. `Permission denied (publickey)` means the SSH key is not loaded: report it, never change the remote.
