@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "move_element.hpp"
+
 Sprite::Sprite(int width, int height) : width_(width), height_(height)
 {
     if (width < 1 || width > CEL_MAX_DIMENSION || height < 1 || height > CEL_MAX_DIMENSION) {
@@ -70,16 +72,7 @@ bool Sprite::removeLayer(int index)
 
 bool Sprite::moveLayer(int from, int to)
 {
-    if (from < 0 || from >= layerCount() || to < 0 || to >= layerCount()) {
-        return false;
-    }
-    auto first = layers_.begin();
-    if (from < to) {
-        std::rotate(first + from, first + from + 1, first + to + 1);
-    } else {
-        std::rotate(first + to, first + from, first + from + 1);
-    }
-    return true;
+    return move_element(layers_, from, to);
 }
 
 int Sprite::frameDuration(int frame) const

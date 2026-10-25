@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "move_element.hpp"
+
 Layer::Layer(const std::string &name, int width, int height, int frameCount)
 {
     if (frameCount < 1) {
@@ -77,16 +79,7 @@ std::shared_ptr<Cel> Layer::detachCel(int frame)
 
 bool Layer::moveCel(int from, int to)
 {
-    if (from < 0 || from >= frameCount() || to < 0 || to >= frameCount()) {
-        return false;
-    }
-    auto first = cels_.begin();
-    if (from < to) {
-        std::rotate(first + from, first + from + 1, first + to + 1);
-    } else {
-        std::rotate(first + to, first + from, first + from + 1);
-    }
-    return true;
+    return move_element(cels_, from, to);
 }
 
 bool Layer::celLinked(int frame) const
