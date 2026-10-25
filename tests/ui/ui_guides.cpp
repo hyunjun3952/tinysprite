@@ -55,11 +55,24 @@ struct Fixture {
 
 TEST(ticks_are_a_round_number_of_cels_and_stay_apart_on_screen)
 {
-    ASSERT_EQ_INT(1, ruler_step(64.0f));
+    ASSERT_EQ_INT(2, ruler_step(64.0f)); /* 1 cel is 64 px, under the 72 px a label needs */
+    ASSERT_EQ_INT(1, ruler_step(72.0f));
     ASSERT_EQ_INT(5, ruler_step(16.0f));
     ASSERT_EQ_INT(20, ruler_step(4.0f));
     ASSERT_EQ_INT(100, ruler_step(1.0f));
-    ASSERT_EQ_INT(1000, ruler_step(0.0625f));
+    ASSERT_EQ_INT(2000, ruler_step(0.0625f));
+    ASSERT_EQ_INT(200, ruler_step(1.0f, 150.0f)); /* a wider gap, as at a bigger UI scale */
+}
+
+TEST(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers)
+{
+    Fixture f;
+    f.editor->view().viewport.pan_x = -3.0e12f;
+    f.editor->view().viewport.pan_y = 3.0e12f;
+    f.editor->view().viewport.zoom = 0.0625f;
+    f.h.frame(400, 300, false);
+    f.h.frame(400, 300, false);
+    ASSERT_TRUE(f.editor->view().guides.empty());
 }
 
 TEST(a_guide_snaps_to_the_nearest_cel_edge)
@@ -139,6 +152,7 @@ TEST(hidden_rulers_do_not_take_a_guide_from_the_pencil)
 int main()
 {
     RUN(ticks_are_a_round_number_of_cels_and_stay_apart_on_screen);
+    RUN(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers);
     RUN(a_guide_snaps_to_the_nearest_cel_edge);
     RUN(a_guide_is_picked_only_within_reach_and_the_nearest_wins);
     RUN(dragging_from_the_top_ruler_makes_a_horizontal_guide);

@@ -230,15 +230,26 @@ void rulerLabel(ImDrawList *draw, bool horizontal, int cel, ImVec2 tick, float t
     }
 }
 
+/* `ticks` as an int, saturated at +-VIEWPORT_CEL_LIMIT so a far pan or a tiny zoom never overflows
+ * the cast; NaN is 0. */
+int ticksFrom(float ticks)
+{
+    const auto limit = static_cast<float>(VIEWPORT_CEL_LIMIT);
+    if (!(ticks > -limit)) {
+        return ticks < 0.0f ? -VIEWPORT_CEL_LIMIT : 0;
+    }
+    return ticks < limit ? static_cast<int>(ticks) : VIEWPORT_CEL_LIMIT;
+}
+
 /* One ruler: the ticks and labels of the screen range `from`..`to` along its axis, where cel 0
  * starts at `zero`, drawn against the inner edge `edge` of a strip `thickness` wide. */
 void drawRulerAxis(ImDrawList *draw, bool horizontal, float zero, float zoom, float from, float to,
                    float edge, float thickness)
 {
-    const int step = ruler_step(zoom);
+    const int step = ruler_step(zoom, theme::px(RULER_LABEL_GAP));
     const int unit = minorStep(step, zoom);
-    const int first = static_cast<int>(std::floor((from - zero) / zoom / static_cast<float>(unit)));
-    const int last = static_cast<int>(std::ceil((to - zero) / zoom / static_cast<float>(unit)));
+    const int first = ticksFrom(std::floor((from - zero) / zoom / static_cast<float>(unit)));
+    const int last = ticksFrom(std::ceil((to - zero) / zoom / static_cast<float>(unit)));
     for (int k = first; k <= last; k++) {
         const int cel = k * unit;
         const float at = zero + static_cast<float>(cel) * zoom;
@@ -336,7 +347,8 @@ Canvas::GuideDrag Canvas::pickGuide(ImVec2 mouse, ImVec2 origin) const
 /* A press on the guide under the mouse picks it up; hovering it only shows the resize cursor. */
 bool Canvas::grabGuide(ImVec2 mouse, ImVec2 origin)
 {
-    if (!editor_->overlays().guides) {
+    if (!editor_->overlays().guides ||
+        !ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
         return false;
     }
     const GuideDrag over = pickGuide(mouse, origin);

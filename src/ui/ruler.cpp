@@ -4,14 +4,14 @@
 
 #include "tinysprite/viewport.hpp"
 
-int ruler_step(float zoom)
+int ruler_step(float zoom, float gap)
 {
     constexpr int MULTIPLES[] = {1, 2, 5};
     constexpr int LARGEST = VIEWPORT_CEL_LIMIT;
     for (int decade = 1; decade <= LARGEST / 10; decade *= 10) {
         for (const int multiple : MULTIPLES) {
             const int step = decade * multiple;
-            if (static_cast<float>(step) * zoom >= RULER_LABEL_GAP) {
+            if (static_cast<float>(step) * zoom >= gap) {
                 return step;
             }
         }
