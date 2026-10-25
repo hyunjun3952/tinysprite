@@ -411,6 +411,8 @@ void App::helpWindow()
         {"W Q", "Magic wand, lasso (Shift adds to the selection)"},
         {"Hold middle button", "Eyedropper while held (drag instead to pan)"},
         {"X", "Swap foreground / background colors"},
+        {"X, Y, Z / Shift+Z (Tilemap window focused)",
+         "Mirror the picked tile left to right, top to bottom, turn it clockwise / back"},
         {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},
         {"Shift + click", "Pencil / eraser: straight line from the last point"},
         {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},

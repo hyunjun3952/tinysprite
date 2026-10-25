@@ -20,7 +20,15 @@ class TilemapWindow
     /* Frees the textures; call before the renderer goes. */
     void release();
 
+    /* Whether the window had the keyboard at its last draw. X, Y and Z are the tile's keys then,
+     * so the app leaves X (swap colors) alone. */
+    bool focused() const
+    {
+        return focused_;
+    }
+
   private:
+    void tileKeys(Editor &editor);
     void refresh(SDL_Renderer *renderer, const Editor &editor, const Tileset &tileset,
                  const TileMap &map);
     void toolbar(Editor &editor, const Tileset &tileset, const TileMap &map);
@@ -36,6 +44,7 @@ class TilemapWindow
     int shownMap_ = -1;
     const Cel *shownAtlas_ = nullptr;
     int zoom_ = 3;
+    bool focused_ = false; /* the window, or a control in it, has the keyboard */
     bool hasLast_ = false; /* lastX_/lastY_ are set (a cell can lie left of the map: negative) */
     int lastX_ = -1; /* the cell the last paint step reached, for joining the steps with a line */
     int lastY_ = -1;

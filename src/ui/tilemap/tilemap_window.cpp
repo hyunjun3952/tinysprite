@@ -91,19 +91,42 @@ void TilemapWindow::turnButtons(Editor &editor, const Tileset &tileset)
     if (ImGui::Button("Flip H")) {
         editor.flipSelectedTile(true);
     }
-    theme::tip("Mirrors the picked tile left to right.");
+    theme::tip("Mirrors the picked tile left to right (X).");
     ImGui::SameLine();
     if (ImGui::Button("Flip V")) {
         editor.flipSelectedTile(false);
     }
-    theme::tip("Mirrors the picked tile top to bottom.");
+    theme::tip("Mirrors the picked tile top to bottom (Y).");
     ImGui::SameLine();
     ImGui::BeginDisabled(tileset.tileWidth != tileset.tileHeight);
     if (ImGui::Button("Turn")) {
         editor.rotateSelectedTile(true);
     }
     ImGui::EndDisabled();
-    theme::tip("Turns the picked tile a quarter clockwise (square tiles only).");
+    theme::tip("Turns the picked tile a quarter clockwise (Z; Shift+Z the other way). Square tiles "
+               "only.");
+}
+
+/*
+ * The keys of the buttons above while the window has the keyboard: X and Y mirror the picked tile,
+ * Z turns it a quarter clockwise (Shift+Z counterclockwise), as in Tiled. Not while a text field
+ * is being typed in, and not with Ctrl or Alt (Ctrl+X is cut).
+ */
+void TilemapWindow::tileKeys(Editor &editor)
+{
+    const ImGuiIO &io = ImGui::GetIO();
+    if (io.WantTextInput || io.KeyCtrl || io.KeyAlt) {
+        return;
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_X, false)) {
+        editor.flipSelectedTile(true);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
+        editor.flipSelectedTile(false);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+        editor.rotateSelectedTile(!io.KeyShift);
+    }
 }
 
 void TilemapWindow::picker(Editor &editor, const Tileset &tileset)
@@ -213,6 +236,7 @@ void TilemapWindow::show(SDL_Renderer *renderer, Editor &editor)
 {
     bool &open = editor.overlays().tilemap_window;
     if (!open) {
+        focused_ = false;
         if (editor.tilePainting()) {
             editor.endTilePaint();
         }
@@ -220,6 +244,10 @@ void TilemapWindow::show(SDL_Renderer *renderer, Editor &editor)
     }
     ImGui::SetNextWindowSize(ImVec2(theme::px(520.0f), theme::px(460.0f)), ImGuiCond_FirstUseEver);
     const bool visible = ImGui::Begin("Tilemap", &open);
+    focused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+    if (focused_) {
+        tileKeys(editor);
+    }
     const int index = editor.selectedTilemap();
     if (visible && index < 0) {
         ImGui::TextWrapped("Cut a tileset from the cel and make a tilemap in the Tilemaps section "

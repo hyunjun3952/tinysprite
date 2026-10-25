@@ -58,7 +58,7 @@ void App::plainShortcuts(bool controlsHaveKeys)
             editor_->selectTool(static_cast<ToolKind>(tool));
         }
     }
-    if (anyPressed({ImGuiKey_X}, false)) {
+    if (anyPressed({ImGuiKey_X}, false) && !tilemapWindow_.focused()) {
         editor_->swapColors();
     }
     /* + / - (and [ / ]) change the brush size by 1; the wheel zooms. "+" is Shift+= on many

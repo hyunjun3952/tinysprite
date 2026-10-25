@@ -74,6 +74,18 @@ struct AppTestAccess {
             frame();
         }
     }
+    /* One key, held for a frame, with Shift if asked. */
+    void pressKey(ImGuiKey key, bool shift = false)
+    {
+        ImGuiIO &io = ImGui::GetIO();
+        io.AddKeyEvent(ImGuiMod_Shift, shift);
+        io.AddKeyEvent(key, true);
+        frame();
+        io.AddKeyEvent(key, false);
+        io.AddKeyEvent(ImGuiMod_Shift, false);
+        frame();
+        frame();
+    }
     void pressEnter()
     {
         ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter, true);
@@ -753,8 +765,53 @@ TEST(the_new_dialog_reuses_an_untouched_untitled_tab)
     ASSERT_EQ_INT(8, t.editor().sprite().width());
 }
 
+/* With the Tilemap window focused X and Y mirror the picked tile and Z turns it (Shift+Z the other
+ * way), as in Tiled; X then does not swap the colors. Elsewhere X still swaps them. */
+TEST(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(0, 0, Rgba{255, 0, 0, 255});
+    ASSERT_TRUE(editor.addTilesetFromCel(4, 4));
+    ASSERT_TRUE(editor.addTilemap(0, 3, 3));
+    editor.selectTile(1);
+    editor.overlays().tilemap_window = true;
+    for (int i = 0; i < 4; i++) {
+        t.frame();
+    }
+    ImGui::SetWindowFocus("Tilemap");
+    t.frame();
+    t.frame();
+    const Rgba foreground = editor.foreground();
+    ASSERT_EQ_INT(1, static_cast<int>(editor.selectedCell()));
+    t.pressKey(ImGuiKey_X);
+    const uint32_t flippedH = editor.selectedCell();
+    ASSERT_TRUE(flippedH != 1u);
+    ASSERT_TRUE(editor.foreground() == foreground);
+    t.pressKey(ImGuiKey_X);
+    ASSERT_EQ_INT(1, static_cast<int>(editor.selectedCell()));
+    t.pressKey(ImGuiKey_Y);
+    ASSERT_TRUE(editor.selectedCell() != 1u);
+    ASSERT_TRUE(editor.selectedCell() != flippedH);
+    t.pressKey(ImGuiKey_Y);
+    ASSERT_EQ_INT(1, static_cast<int>(editor.selectedCell()));
+    t.pressKey(ImGuiKey_Z);
+    const uint32_t turned = editor.selectedCell();
+    ASSERT_TRUE(turned != 1u);
+    t.pressKey(ImGuiKey_Z, true);
+    ASSERT_EQ_INT(1, static_cast<int>(editor.selectedCell()));
+    editor.overlays().tilemap_window = false;
+    t.frame();
+    t.frame();
+    t.pressKey(ImGuiKey_X);
+    ASSERT_TRUE(!(editor.foreground() == foreground));
+    ASSERT_EQ_INT(1, static_cast<int>(editor.selectedCell()));
+}
+
 int main()
 {
+    RUN(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard);
     RUN(the_new_dialog_reuses_an_untouched_untitled_tab);
     RUN(opening_a_file_that_has_guides_shows_them);
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
