@@ -218,6 +218,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
 - Guides are whole cel edges only and not undoable.
+- Tilemaps are a canvas preview: not in the image exports, and a map has no layer order (see the backlog).
 - The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
 - Not done: HiDPI window flags (the UI scale follows the display's content scale instead).
 - The Windows (MinGW) job is not built locally.
@@ -225,8 +226,45 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 ## Backlog, not scheduled
 
-Each is large or needs a design decision first: indexed color mode, a native file chooser,
-Korean text. Smaller refactoring candidates from the pattern survey: an `Editor` change observer, a `theme::labeledRow`
+### Features
+
+Roughly in the order worth doing. The first three change the document model or the `.pxa`, so each needs a design note and
+a branch + PR of its own (`.rules`).
+
+1. **Indexed color mode** (large, risky): cels are RGBA only today. Needs a cel kind that holds palette indexes, palette
+   swaps that recolor every cel at once, and the `.pxa`, GIF and Aseprite paths to follow. Decide first whether indexed
+   is a document mode or a per-layer kind.
+2. **Tilemaps in the exports**: the canvas previews visible tilemaps (milestone 23, 25) but PNG, GIF and the sheet
+   flatten the layers only. Needs a choice per export (include maps or not) so the tileset's source sprite is not spoiled,
+   and a layer order for maps (above or between layers) that `composite_sprite` and `composite_tilemaps` share.
+3. **Layer groups and cel offsets** (milestone 15-18 left them out): group visibility, opacity and blend, and cels that are
+   not as big as the sprite. Touches `Sprite -> Layers x Frames -> Cel`, `layer_ops`, the layer panel, the compositor and
+   the `.pxa`.
+4. **Writing Aseprite files**: only reading exists (milestone 24).
+5. **Small ones** (each a day or less):
+   - show the saved guides when a file with guides is opened (the View > Guides switch is a preference, so a file whose
+     guides are hidden looks like it has none);
+   - reuse an untouched untitled tab for File > New like File > Open does;
+   - save the open tabs and the split between runs (paths only; `settings.ini`);
+   - guides at a fraction of a cel, and undo for guides;
+   - a keyboard shortcut for Flip H / Flip V / Turn in the tilemap window, and a preview of the turned brush tile.
+
+### Environment
+
+- A native file chooser (a path dialog now), HiDPI window flags, a mono font and CJK glyphs beyond KS X 1001.
+- A local clang-tidy that works on Windows: the pip wheel (18.1.8) reads the MSVC headers and stops at `STL1000`. The
+  workaround used so far is adding `-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH` and
+  `-D"_MSVC_STL_DOOM_FUNCTION(mesg)=__builtin_trap()"` to the commands of the untracked `build/compile_commands.json`
+  (cmake regenerates the file and drops them). A proper fix would be a CMake option or a documented preset. With that
+  workaround the full set reports one false positive at `Editor::nudgeSelection` (`clang-analyzer-cplusplus.NewDeleteLeaks`
+  on a `shared_ptr` of the MSVC STL), which CI does not see.
+- The pre-push hook lints every `.cpp` when `git push` is given a URL instead of a remote name, and the hook shim in
+  `.git/hooks` was made inside a container (`INSTALL_PYTHON=/home/vscode/...`), so on Windows `pre-commit` has to be on
+  `PATH`.
+
+### Refactoring
+
+Smaller refactoring candidates from the pattern survey: an `Editor` change observer, a `theme::labeledRow`
 helper, merging the tool tables, declarative settings bindings, one holder for `Slot` (frames) and `Membership` (layers),
 and a `Playback` state if a fourth mode is added. The `if (stroking()) return;` guard (about forty times in `Editor`) has
 no helper: a function cannot return for its caller, so only a macro would shorten it; reconsider if `Editor` gets a command
