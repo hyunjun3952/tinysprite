@@ -189,6 +189,25 @@ TEST(a_right_click_on_the_status_bar_opens_its_menu)
     ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
 }
 
+/* A long layer name is cut, so the other items keep their place inside the bar. */
+TEST(a_long_layer_name_does_not_push_the_items_out_of_the_bar)
+{
+    Harness h;
+    std::unique_ptr<Editor> editor = Editor::create(h.renderer, 16, 8);
+    editor->sprite().layer(0)->setName(std::string(60, 'W'));
+    h.body = [&editor] { status_bar_show(*editor, 0.0f, 660.0f, 700.0f); };
+    h.frame(10, 10, false);
+    h.frame(10, 10, false);
+    bool found = false;
+    for (const ImGuiWindow *window : ImGui::GetCurrentContext()->Windows) {
+        if (window->Pos.y == 660.0f && window->Size.x == 700.0f) {
+            found = true;
+            ASSERT_TRUE(window->DC.CursorMaxPos.x <= window->Pos.x + window->Size.x);
+        }
+    }
+    ASSERT_TRUE(found);
+}
+
 int main()
 {
     RUN(toast_shows_until_it_expires);
@@ -207,6 +226,7 @@ int main()
     RUN(a_hidden_item_is_left_out_of_the_text);
     RUN(only_the_chosen_items_make_the_text);
     RUN(the_selection_item_is_empty_without_a_selection_and_a_hidden_one_stays_out);
+    RUN(a_long_layer_name_does_not_push_the_items_out_of_the_bar);
     RUN(a_right_click_on_the_status_bar_opens_its_menu);
     return TEST_SUMMARY();
 }
