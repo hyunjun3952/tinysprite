@@ -42,6 +42,21 @@ template <class Fill> void putChunk(std::vector<uint8_t> &out, const char tag[4]
     }
 }
 
+/* Appends a name as a length byte and the bytes. */
+void putName(std::vector<uint8_t> &out, const std::string &name)
+{
+    out.push_back(static_cast<uint8_t>(name.size()));
+    out.insert(out.end(), name.begin(), name.end());
+}
+
+/* Reads a name written by putName. */
+std::string readName(Reader &chunk)
+{
+    const uint32_t length = chunk.u8();
+    const uint8_t *bytes = chunk.take(length);
+    return {bytes, bytes + length};
+}
+
 bool isTag(const uint8_t *tag, const char *name)
 {
     return std::memcmp(tag, name, 4) == 0;
@@ -56,9 +71,7 @@ size_t pixelBytes(const Cel &cel)
  * already has) from a LAYR payload. */
 void readLayer(Reader &chunk, Sprite &sprite, int index)
 {
-    uint32_t nameLength = chunk.u8();
-    const uint8_t *nameBytes = chunk.take(nameLength);
-    std::string name(nameBytes, nameBytes + nameLength);
+    std::string name = readName(chunk);
     uint32_t flags = chunk.u8(); /* bit 0: visible, bit 1: locked */
     auto opacity = static_cast<uint8_t>(chunk.u8());
 
@@ -188,14 +201,13 @@ void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
     uint32_t count = chunk.u16();
     for (uint32_t i = 0; i < count; i++) {
         Sprite::Tag tag;
-        uint32_t nameLength = chunk.u8();
-        const uint8_t *name = chunk.take(nameLength);
-        tag.name.assign(name, name + nameLength);
+        tag.name = readName(chunk);
         uint32_t from = chunk.u32();
         uint32_t to = chunk.u32();
         uint32_t direction = chunk.u8();
         if (from > INT32_MAX || to > INT32_MAX ||
-            direction > static_cast<uint32_t>(PlayMode::PingPong) || nameLength > TAG_NAME_MAX) {
+            direction > static_cast<uint32_t>(PlayMode::PingPong) ||
+            tag.name.size() > static_cast<size_t>(TAG_NAME_MAX)) {
             throw std::out_of_range("pxa: bad tag");
         }
         tag.from = static_cast<int>(from);
@@ -212,15 +224,13 @@ void readSlices(Reader &chunk, std::vector<Sprite::Slice> &slices)
     uint32_t count = chunk.u16();
     for (uint32_t i = 0; i < count; i++) {
         Sprite::Slice slice;
-        uint32_t nameLength = chunk.u8();
-        const uint8_t *name = chunk.take(nameLength);
-        slice.name.assign(name, name + nameLength);
+        slice.name = readName(chunk);
         uint32_t values[4];
         for (uint32_t &value : values) {
             value = chunk.u32();
         }
         uint32_t flags = chunk.u8();
-        if (flags > 1 || nameLength > SLICE_NAME_MAX ||
+        if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX) ||
             *std::max_element(values, values + 4) > INT32_MAX) {
             throw std::out_of_range("pxa: bad slice");
         }
@@ -264,16 +274,14 @@ void readTilesets(Reader &chunk, std::vector<Tileset> &tilesets)
     uint32_t count = chunk.u16();
     for (uint32_t i = 0; i < count; i++) {
         Tileset tileset;
-        uint32_t nameLength = chunk.u8();
-        const uint8_t *name = chunk.take(nameLength);
-        tileset.name.assign(name, name + nameLength);
+        tileset.name = readName(chunk);
         uint32_t values[4];
         for (uint32_t &value : values) {
             value = chunk.u32();
         }
-        if (nameLength > TILE_NAME_MAX || values[0] > TILE_SIZE_MAX || values[1] > TILE_SIZE_MAX ||
-            values[2] < 1 || values[3] < 1 || values[2] > CEL_MAX_DIMENSION ||
-            values[3] > CEL_MAX_DIMENSION) {
+        if (tileset.name.size() > static_cast<size_t>(TILE_NAME_MAX) || values[0] > TILE_SIZE_MAX ||
+            values[1] > TILE_SIZE_MAX || values[2] < 1 || values[3] < 1 ||
+            values[2] > CEL_MAX_DIMENSION || values[3] > CEL_MAX_DIMENSION) {
             throw std::out_of_range("pxa: bad tileset");
         }
         const size_t bytes = static_cast<size_t>(values[2]) * values[3] * sizeof(Rgba);
@@ -295,15 +303,14 @@ void readTilemaps(Reader &chunk, std::vector<TileMap> &maps)
     uint32_t count = chunk.u16();
     for (uint32_t i = 0; i < count; i++) {
         TileMap map;
-        uint32_t nameLength = chunk.u8();
-        const uint8_t *name = chunk.take(nameLength);
-        map.name.assign(name, name + nameLength);
+        map.name = readName(chunk);
         uint32_t tileset = chunk.u32();
         uint32_t columns = chunk.u32();
         uint32_t rows = chunk.u32();
         uint32_t visible = chunk.u8();
-        if (nameLength > TILE_NAME_MAX || tileset > INT32_MAX || columns < 1 || rows < 1 ||
-            columns > TILEMAP_MAX_DIMENSION || rows > TILEMAP_MAX_DIMENSION || visible > 1) {
+        if (map.name.size() > static_cast<size_t>(TILE_NAME_MAX) || tileset > INT32_MAX ||
+            columns < 1 || rows < 1 || columns > TILEMAP_MAX_DIMENSION ||
+            rows > TILEMAP_MAX_DIMENSION || visible > 1) {
             throw std::out_of_range("pxa: bad tilemap");
         }
         map.tileset = static_cast<int>(tileset);
@@ -682,8 +689,7 @@ void writeTags(std::vector<uint8_t> &out, const std::vector<Sprite::Tag> &tags)
     putChunk(out, "TAGS", [&](std::vector<uint8_t> &o) {
         putU16(o, static_cast<uint32_t>(tags.size()));
         for (const Sprite::Tag &tag : tags) {
-            o.push_back(static_cast<uint8_t>(tag.name.size()));
-            o.insert(o.end(), tag.name.begin(), tag.name.end());
+            putName(o, tag.name);
             putU32(o, static_cast<uint32_t>(tag.from));
             putU32(o, static_cast<uint32_t>(tag.to));
             o.push_back(static_cast<uint8_t>(tag.direction));
@@ -701,8 +707,7 @@ void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &sl
         putU16(o, static_cast<uint32_t>(count));
         for (size_t i = 0; i < count; i++) {
             const Sprite::Slice &slice = slices[i];
-            o.push_back(static_cast<uint8_t>(slice.name.size()));
-            o.insert(o.end(), slice.name.begin(), slice.name.end());
+            putName(o, slice.name);
             for (int value : {slice.rect.x, slice.rect.y, slice.rect.w, slice.rect.h}) {
                 putU32(o, static_cast<uint32_t>(value));
             }
@@ -747,8 +752,7 @@ void writeTilesets(std::vector<uint8_t> &out, const std::vector<Tileset> &tilese
     putChunk(out, "TSET", [&](std::vector<uint8_t> &o) {
         putU16(o, static_cast<uint32_t>(tilesets.size()));
         for (const Tileset &tileset : tilesets) {
-            o.push_back(static_cast<uint8_t>(tileset.name.size()));
-            o.insert(o.end(), tileset.name.begin(), tileset.name.end());
+            putName(o, tileset.name);
             for (int value : {tileset.tileWidth, tileset.tileHeight, tileset.atlas->width(),
                               tileset.atlas->height()}) {
                 putU32(o, static_cast<uint32_t>(value));
@@ -764,8 +768,7 @@ void writeTilemaps(std::vector<uint8_t> &out, const std::vector<TileMap> &maps)
     putChunk(out, "TMAP", [&](std::vector<uint8_t> &o) {
         putU16(o, static_cast<uint32_t>(maps.size()));
         for (const TileMap &map : maps) {
-            o.push_back(static_cast<uint8_t>(map.name.size()));
-            o.insert(o.end(), map.name.begin(), map.name.end());
+            putName(o, map.name);
             for (int value : {map.tileset, map.columns, map.rows}) {
                 putU32(o, static_cast<uint32_t>(value));
             }
