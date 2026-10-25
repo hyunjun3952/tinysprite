@@ -91,6 +91,7 @@ class App
 
     bool createWindow(int width, int height);
     bool initImGui();
+    bool startEditor(const AppOptions &options);
     void helpShortcut();
     void deleteShortcut();
     void pollEvents();
@@ -308,6 +309,7 @@ class App
     void recoverList();
     bool recoverAll();
     void autosave();
+    bool autosaveDocument(Document &document, bool due);
     /* Saves the preferences, the window size and the layout, and drops the autosave copy: a clean
      * exit leaves nothing to recover. */
     void shutdown();

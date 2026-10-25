@@ -169,6 +169,25 @@ static void initialWindowSize(const SettingsMap &settings, int &width, int &heig
     }
 }
 
+/* Starts ImGui and makes the first document, a blank one of the size asked for, active in the
+ * first pane; false, with a message, if either fails. */
+bool App::startEditor(const AppOptions &options)
+{
+    if (initImGui()) {
+        std::unique_ptr<Editor> first = Editor::create(renderer_, options.width, options.height);
+        if (first) {
+            docs_.push_back({std::move(first), "", nextSerial_++});
+            editor_ = docs_.front().editor.get();
+            pane_[0] = editor_;
+        }
+    }
+    if (!editor_) {
+        std::fprintf(stderr, "failed to initialise the editor\n");
+        return false;
+    }
+    return true;
+}
+
 bool App::init(const AppOptions &options)
 {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -195,16 +214,7 @@ bool App::init(const AppOptions &options)
     if (!createWindow(windowWidth, windowHeight)) {
         return false;
     }
-    if (initImGui()) {
-        std::unique_ptr<Editor> first = Editor::create(renderer_, options.width, options.height);
-        if (first) {
-            docs_.push_back({std::move(first), "", nextSerial_++});
-            editor_ = docs_.front().editor.get();
-            pane_[0] = editor_;
-        }
-    }
-    if (!editor_) {
-        std::fprintf(stderr, "failed to initialise the editor\n");
+    if (!startEditor(options)) {
         return false;
     }
     loadSettings(settings);
@@ -238,6 +248,26 @@ void App::updateTitle()
     }
 }
 
+/* Keeps the recovery copy of one document in step with it: dropped once it has no unsaved changes,
+ * written when `due` (not in the middle of a stroke). True if a copy was written. */
+bool App::autosaveDocument(Document &document, bool due)
+{
+    if (!dirty(document)) {
+        if (document.recovery) {
+            recovery_clear_slot(configDir_, document.serial);
+            document.recovery = false;
+        }
+        return false;
+    }
+    if (!due || document.editor->stroking()) {
+        return false;
+    }
+    document.recovery =
+        recovery_save(configDir_, document.serial, document.editor->sprite(), document.path) ||
+        document.recovery;
+    return true;
+}
+
 /* While a document has unsaved changes, a copy of it goes to the config directory every so often
  * (one file per document, so editing a second one does not replace the first one's); once a
  * document has no unsaved changes any more its copy is not needed. */
@@ -250,17 +280,7 @@ void App::autosave()
     const bool due = now - lastAutosave_ >= AUTOSAVE_INTERVAL_MS;
     bool wrote = false;
     for (Document &document : docs_) {
-        if (!dirty(document)) {
-            if (document.recovery) {
-                recovery_clear_slot(configDir_, document.serial);
-                document.recovery = false;
-            }
-        } else if (due && !document.editor->stroking()) {
-            document.recovery = recovery_save(configDir_, document.serial,
-                                              document.editor->sprite(), document.path) ||
-                                document.recovery;
-            wrote = true;
-        }
+        wrote = autosaveDocument(document, due) || wrote;
     }
     if (wrote) {
         lastAutosave_ = now;
