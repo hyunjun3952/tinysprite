@@ -16,6 +16,13 @@ size_t lastSeparator(const std::string &path)
     return path.find_last_of("/\\");
 }
 
+/* Where the file name of `path` starts: after its last separator, or at 0. */
+size_t nameStart(const std::string &path)
+{
+    const size_t separator = lastSeparator(path);
+    return separator == std::string::npos ? 0 : separator + 1;
+}
+
 } // namespace
 
 std::string with_default_extension(const std::string &path, const std::string &extension)
@@ -23,9 +30,7 @@ std::string with_default_extension(const std::string &path, const std::string &e
     if (path.empty()) {
         return path;
     }
-    size_t name = lastSeparator(path);
-    name = name == std::string::npos ? 0 : name + 1;
-    if (path.find('.', name) != std::string::npos) {
+    if (path.find('.', nameStart(path)) != std::string::npos) {
         return path;
     }
     return path + extension;
@@ -45,10 +50,9 @@ std::string with_replaced_extension(const std::string &path, const std::string &
     if (path.empty()) {
         return path;
     }
-    size_t name = lastSeparator(path);
-    name = name == std::string::npos ? 0 : name + 1;
     size_t dot = path.find_last_of('.');
-    return (dot == std::string::npos || dot < name ? path : path.substr(0, dot)) + extension;
+    return (dot == std::string::npos || dot < nameStart(path) ? path : path.substr(0, dot)) +
+           extension;
 }
 
 size_t root_length(const std::string &path)
