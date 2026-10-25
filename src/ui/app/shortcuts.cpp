@@ -14,9 +14,21 @@ static bool anyPressed(std::initializer_list<ImGuiKey> keys, bool repeat = true)
                        [repeat](ImGuiKey key) { return ImGui::IsKeyPressed(key, repeat); });
 }
 
+/* Whether the keyboard is driving the panels (a focus ring is showing) or a popup is open: the
+ * arrow keys and Enter then belong to the control, not to the canvas. */
+static bool keyboardOnControls()
+{
+    const ImGuiIO &io = ImGui::GetIO();
+    return (io.NavActive && io.NavVisible) ||
+           ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+}
+
 /* The arrow keys move the selected pixels by 1 px (8 px with Shift); they repeat while held. */
 void App::nudgeShortcut()
 {
+    if (keyboardOnControls()) {
+        return;
+    }
     const int step = ImGui::GetIO().KeyShift ? 8 : 1;
     int dx = 0;
     int dy = 0;
@@ -67,7 +79,7 @@ void App::plainShortcuts()
         editor_->setFrame(editor_->frame() + 1);
     }
     nudgeShortcut();
-    if (anyPressed({ImGuiKey_Enter, ImGuiKey_KeypadEnter}, false)) {
+    if (!keyboardOnControls() && anyPressed({ImGuiKey_Enter, ImGuiKey_KeypadEnter}, false)) {
         editor_->togglePlayback();
     }
 }
