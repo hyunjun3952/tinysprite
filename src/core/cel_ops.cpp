@@ -35,15 +35,15 @@ bool cel_op_link(History &history, Layer &layer, int from, int to)
 
 bool cel_op_unlink(History &history, Layer &layer, int frame)
 {
-    if (history.strokeActive() || !layer.cel(frame)) {
+    const Cel *source = layer.cel(frame);
+    if (history.strokeActive() || !source) {
         return false;
     }
     if (!layer.celLinked(frame)) {
         return true;
     }
-    const Cel &source = *layer.cel(frame);
-    auto copy = std::make_shared<Cel>(source.width(), source.height());
-    std::copy_n(source.pixels(), static_cast<size_t>(source.width()) * source.height(),
+    auto copy = std::make_shared<Cel>(source->width(), source->height());
+    std::copy_n(source->pixels(), static_cast<size_t>(source->width()) * source->height(),
                 copy->pixels());
     CelList next = layer.celList();
     next[static_cast<size_t>(frame)] = std::move(copy);
