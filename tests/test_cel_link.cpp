@@ -50,6 +50,21 @@ TEST(a_stroke_on_one_linked_frame_shows_on_the_other)
     ASSERT_EQ_INT(0, s.layer(0)->cel(0)->get(2, 2).a);
 }
 
+TEST(linking_and_unlinking_are_refused_while_a_stroke_is_open)
+{
+    Sprite s = frames(3);
+    History h;
+    ASSERT_TRUE(cel_op_link(h, *s.layer(0), 0, 1));
+    h.beginStroke(*s.layer(0)->cel(2));
+    ASSERT_TRUE(!cel_op_unlink(h, *s.layer(0), 1));
+    ASSERT_TRUE(
+        !cel_op_link(h, *s.layer(0), 0, 1)); /* already linked: still refused, not a no-op */
+    ASSERT_TRUE(!cel_op_link(h, *s.layer(0), 0, 2));
+    ASSERT_TRUE(s.layer(0)->celLinked(1));
+    ASSERT_TRUE(!s.layer(0)->celLinked(2));
+    h.endStroke();
+}
+
 TEST(link_is_undoable_and_brings_back_the_old_cel)
 {
     Sprite s = frames(2);
@@ -248,6 +263,7 @@ int main()
     RUN(cels_start_unlinked);
     RUN(linking_makes_two_frames_share_one_cel);
     RUN(a_stroke_on_one_linked_frame_shows_on_the_other);
+    RUN(linking_and_unlinking_are_refused_while_a_stroke_is_open);
     RUN(link_is_undoable_and_brings_back_the_old_cel);
     RUN(linking_what_is_already_linked_records_nothing);
     RUN(bad_links_are_refused);
