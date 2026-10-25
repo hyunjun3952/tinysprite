@@ -80,7 +80,7 @@ bool Editor::addTilesetFromCel(int tileWidth, int tileHeight)
     }
     if (done) {
         selectedTileset_ = static_cast<int>(sprite_.tilesets().size()) - 1;
-        tilesRevision_++;
+        tilesChanged();
     }
     return done;
 }
@@ -90,9 +90,10 @@ bool Editor::removeTileset(int index)
     if (stroking() || !tileset_op_remove(history_, sprite_, index)) {
         return false;
     }
+    selectedTileset_ -= selectedTileset_ > index ? 1 : 0;
     selectedTileset_ = std::min(selectedTileset_, static_cast<int>(sprite_.tilesets().size()) - 1);
     selectedTilemap_ = std::min(selectedTilemap_, static_cast<int>(sprite_.tilemaps().size()) - 1);
-    tilesRevision_++;
+    tilesChanged();
     return true;
 }
 
@@ -111,7 +112,7 @@ bool Editor::addTilemap(int tileset, int columns, int rows)
     });
     if (done) {
         selectedTilemap_ = static_cast<int>(sprite_.tilemaps().size()) - 1;
-        tilesRevision_++;
+        tilesChanged();
     }
     return done;
 }
@@ -121,8 +122,9 @@ bool Editor::removeTilemap(int index)
     if (stroking() || !tilemap_op_remove(history_, sprite_, index)) {
         return false;
     }
+    selectedTilemap_ -= selectedTilemap_ > index ? 1 : 0;
     selectedTilemap_ = std::min(selectedTilemap_, static_cast<int>(sprite_.tilemaps().size()) - 1);
-    tilesRevision_++;
+    tilesChanged();
     return true;
 }
 
@@ -132,7 +134,9 @@ bool Editor::resizeTilemap(int index, int columns, int rows)
     if (!stroking()) {
         guarded([&] { done = tilemap_op_resize(history_, sprite_, index, columns, rows); });
     }
-    tilesRevision_ += done ? 1 : 0;
+    if (done) {
+        tilesChanged();
+    }
     return done;
 }
 
@@ -143,7 +147,7 @@ bool Editor::setTilemapVisible(int index, bool visible)
     }
     TileMap map = sprite_.tilemaps()[static_cast<size_t>(index)];
     map.visible = visible;
-    tilesRevision_++;
+    tilesChanged();
     return tilemap_op_set(history_, sprite_, index, std::move(map));
 }
 
@@ -155,7 +159,7 @@ bool Editor::renameTilemap(int index, const std::string &name)
     }
     TileMap map = sprite_.tilemaps()[static_cast<size_t>(index)];
     map.name = name;
-    tilesRevision_++;
+    tilesChanged();
     return tilemap_op_set(history_, sprite_, index, std::move(map));
 }
 
@@ -173,7 +177,7 @@ bool Editor::paintTile(int x, int y, uint32_t cell)
     if (!tileStroke_ || !tileStroke_->set(x, y, cell)) {
         return false;
     }
-    tilesRevision_++;
+    tilesChanged();
     return true;
 }
 
@@ -184,6 +188,6 @@ bool Editor::endTilePaint()
     }
     bool done = tileStroke_->end();
     tileStroke_.reset();
-    tilesRevision_++;
+    tilesChanged();
     return done;
 }

@@ -137,7 +137,7 @@ void Editor::tempPick(bool on)
     }
 }
 
-void Editor::press(int cx, int cy, bool shift)
+void Editor::press(int cx, int cy, bool shift, bool ctrl)
 {
     if (stroking()) {
         return;
@@ -151,6 +151,7 @@ void Editor::press(int cx, int cy, bool shift)
     history_.setClip(tool_draws(tool_) ? selection_ : std::nullopt);
     history_.setClipMask(tool_draws(tool_) ? mask_ : nullptr);
     shiftAtPress_ = shift;
+    ctrlAtPress_ = ctrl;
     if (shift && tool_traits(tool_).group == ToolGroup::Brush) {
         lineFrom_ = lastDrawPoint_;
     }
@@ -186,7 +187,7 @@ void Editor::cancelDrag()
 {
     if (tileStroke_) {
         tileStroke_.reset(); /* cancels itself and puts the cells back */
-        tilesRevision_++;
+        tilesChanged();
     }
     if (!drag_) {
         return;

@@ -289,6 +289,7 @@ class App
      * chose Save (then it runs once the save went through) or Discard in a confirmation popup. */
     bool dirty() const;
     void guardUnsaved(std::function<void()> proceed);
+    void replaceWithBlank(int width, int height);
     void confirmDialog();
     void saveAndProceed();
     void updateTitle();

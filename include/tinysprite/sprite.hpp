@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "tinysprite/guides.hpp"
 #include "tinysprite/layer.hpp"
 #include "tinysprite/palette.hpp"
 #include "tinysprite/rect.hpp"
@@ -179,6 +180,16 @@ class Sprite
         return palette_;
     }
 
+    /* The guides dragged out of the rulers; plain document data, edited in place. */
+    Guides &guides()
+    {
+        return guides_;
+    }
+    const Guides &guides() const
+    {
+        return guides_;
+    }
+
     int layerCount() const
     {
         return static_cast<int>(layers_.size());
@@ -228,6 +239,7 @@ class Sprite
     unsigned long long celBudget_ = SPRITE_MAX_CEL_BYTES;
     std::vector<int> durations_ = {FRAME_DURATION_DEFAULT}; /* one per frame */
     Palette palette_;
+    Guides guides_;
     std::vector<Tag> tags_;
     std::vector<Slice> slices_;
     std::vector<Tileset> tilesets_;

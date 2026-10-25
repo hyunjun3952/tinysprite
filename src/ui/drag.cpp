@@ -365,22 +365,23 @@ std::unique_ptr<Drag> beginPick(Editor &editor, Cel * /*unused*/, int cx, int cy
     return std::make_unique<PickDrag>(editor, cx, cy);
 }
 
-/* The magic wand: a single click, no drag. Shift adds the picked pixels to the selection. */
+/* The magic wand: a single click, no drag. Shift adds the picked pixels to the selection, Ctrl
+ * takes them out of it. */
 std::unique_ptr<Drag> beginWand(Editor &editor, Cel * /*unused*/, int cx, int cy)
 {
-    editor.selectRegion(
-        cx, cy, editor.shiftAtPress() ? Editor::SelectMode::Add : Editor::SelectMode::Replace);
+    editor.selectRegion(cx, cy, editor.pickMode());
     return nullptr;
 }
 
 /* The lasso: the path of the mouse is shown while it is dragged and the area it encloses becomes
- * the selection on release (Shift adds it to the selection that was there). A click, or a path with
- * fewer than three distinct points, picks nothing: it only dismisses the selection. */
+ * the selection on release (Shift adds it to the selection that was there, Ctrl cuts it out). A
+ * click, or a path with fewer than three distinct points, picks nothing: it only dismisses the
+ * selection. */
 class LassoDrag : public Drag
 {
   public:
     LassoDrag(Editor &editor, int cx, int cy)
-        : Drag(editor, clampX(editor, cx), clampY(editor, cy)), add_(editor.shiftAtPress())
+        : Drag(editor, clampX(editor, cx), clampY(editor, cy)), mode_(editor.pickMode())
     {
         editor_.clearLassoPath();
         editor_.addLassoPoint(ToolPoint{anchorX_, anchorY_});
@@ -402,9 +403,8 @@ class LassoDrag : public Drag
         const std::vector<ToolPoint> path = editor_.lassoPath();
         editor_.clearLassoPath();
         if (distinctPoints(path) >= MIN_POINTS) {
-            editor_.selectPolygon(path,
-                                  add_ ? Editor::SelectMode::Add : Editor::SelectMode::Replace);
-        } else if (!add_) {
+            editor_.selectPolygon(path, mode_);
+        } else if (mode_ == Editor::SelectMode::Replace) {
             editor_.dropSelection();
         }
     }
@@ -431,7 +431,8 @@ class LassoDrag : public Drag
         return static_cast<int>(seen.size());
     }
 
-    bool add_; /* Shift was held at the press: join the selection instead of replacing it */
+    Editor::SelectMode
+        mode_; /* from the modifiers at the press: replace, add (Shift), cut (Ctrl) */
 };
 
 std::unique_ptr<Drag> beginLasso(Editor &editor, Cel * /*unused*/, int cx, int cy)

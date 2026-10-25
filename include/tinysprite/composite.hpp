@@ -36,6 +36,12 @@ inline constexpr Rgba ONION_FUTURE_TINT = {60, 120, 230, 255};
 void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rect region,
                      Rgba *out);
 
+/* Draws the visible tilemaps of the sprite over what `out` holds (a composite_sprite result), in
+ * list order with their top-left corner at (0, 0) and clipped to the sprite. Only the pixels inside
+ * `region` (clipped to the sprite) are written. A map that is not valid is skipped. This is a
+ * preview for the canvas: exports flatten the layers only. Does nothing if out is null. */
+void composite_tilemaps(const Sprite &sprite, Rect region, Rgba *out);
+
 /* Straight-alpha "over": `src`, its alpha scaled by `opacity` (0..255), drawn onto `dst`. This is
  * how the onion skin ghosts are drawn, and BlendMode::Normal. */
 Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity);

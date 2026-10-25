@@ -179,6 +179,55 @@ Rgba ghostsAt(const Sprite &sprite, int frame, int x, int y, const OnionPlan &pl
 
 } // namespace
 
+namespace
+{
+
+/* The tile pixel of `map` at sprite position (x, y); transparent over an empty cell, or one that
+ * names a tile the tileset does not have. */
+Rgba tilemapPixel(const Tileset &tileset, const TileMap &map, int x, int y)
+{
+    uint32_t cell = map.cell(x / tileset.tileWidth, y / tileset.tileHeight);
+    if (cell == 0 || cell > static_cast<uint32_t>(tileset.tileCount())) {
+        return Rgba{};
+    }
+    int tile = static_cast<int>(cell) - 1;
+    return tileset.atlas->get(tile % tileset.columns() * tileset.tileWidth + x % tileset.tileWidth,
+                              tile / tileset.columns() * tileset.tileHeight +
+                                  y % tileset.tileHeight);
+}
+
+/* Whether the map can be drawn: it is shown, has one cell per grid position and a usable tileset.
+ */
+bool drawableMap(const Sprite &sprite, const TileMap &map)
+{
+    return map.visible && map.tileset >= 0 &&
+           map.tileset < static_cast<int>(sprite.tilesets().size()) && map.columns > 0 &&
+           map.rows > 0 &&
+           map.cells.size() == static_cast<size_t>(map.columns) * static_cast<size_t>(map.rows) &&
+           tileset_valid(sprite.tilesets()[static_cast<size_t>(map.tileset)]);
+}
+
+} // namespace
+
+void composite_tilemaps(const Sprite &sprite, Rect region, Rgba *out)
+{
+    if (!out) {
+        return;
+    }
+    auto width = static_cast<size_t>(sprite.width());
+    Rect r = rect_clip(region, sprite.width(), sprite.height());
+    for (const TileMap &map : sprite.tilemaps()) {
+        if (!drawableMap(sprite, map)) {
+            continue;
+        }
+        const Tileset &tileset = sprite.tilesets()[static_cast<size_t>(map.tileset)];
+        for_each_cell(r, [&](int x, int y) {
+            Rgba &dst = out[static_cast<size_t>(y) * width + static_cast<size_t>(x)];
+            dst = composite_over(dst, tilemapPixel(tileset, map, x, y), 255);
+        });
+    }
+}
+
 void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rect region, Rgba *out)
 {
     if (!out || frame < 0 || frame >= sprite.frameCount()) {

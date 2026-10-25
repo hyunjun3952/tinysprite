@@ -54,6 +54,7 @@ void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *
     } else {
         composite_sprite(sprite, frame, r, pixels_.data());
     }
+    composite_tilemaps(sprite, r, pixels_.data());
     SDL_Rect rect = {r.x, r.y, r.w, r.h};
     const Rgba *origin =
         &pixels_[static_cast<size_t>(r.y) * static_cast<size_t>(width_) + static_cast<size_t>(r.x)];

@@ -140,6 +140,12 @@ void Editor::applyPick(Mask picked, SelectMode mode)
         }
         return;
     }
+    if (mode == SelectMode::Subtract) {
+        if (selection_) {
+            setSelectionMask(selectionShape().subtracted(picked));
+        }
+        return;
+    }
     if (mode == SelectMode::Add && selection_) {
         picked = selectionShape().united(picked);
     }

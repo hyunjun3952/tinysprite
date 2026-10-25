@@ -239,6 +239,22 @@ void readSlices(Reader &chunk, std::vector<Sprite::Slice> &slices)
     }
 }
 
+/* A GUID payload: the vertical guides then the horizontal ones, each a u16 count and that many u32
+ * positions. */
+void readGuides(Reader &chunk, Guides &guides)
+{
+    for (std::vector<int> *axis : {&guides.vertical, &guides.horizontal}) {
+        uint32_t count = chunk.u16();
+        for (uint32_t i = 0; i < count; i++) {
+            uint32_t position = chunk.u32();
+            if (position > INT32_MAX) {
+                throw std::out_of_range("pxa: bad guide");
+            }
+            axis->push_back(static_cast<int>(position));
+        }
+    }
+}
+
 /* A TSET payload: the count, then per tileset its name, tile size, atlas size (u32 each) and the
  * atlas pixels. The pixels are taken before the cel is made, so a header that promises more than
  * the chunk holds never allocates. */
@@ -326,6 +342,7 @@ class Decoder
             return std::nullopt;
         }
         keepValidSlices(*sprite_);
+        keepValidGuides(*sprite_);
         /* Tile data is all or nothing: maps point into the tilesets by index, so a part that is
          * invalid costs the tiles but never the pixels. */
         sprite_->setTileData(std::move(tilesets_), std::move(maps_));
@@ -344,6 +361,19 @@ class Decoder
             }
         }
         sprite.setSlices(std::move(valid));
+    }
+
+    /* Guides are metadata too: one off the sprite's edges is dropped. */
+    void keepValidGuides(Sprite &sprite)
+    {
+        auto keep = [](std::vector<int> &lines, int size) {
+            lines.erase(std::remove_if(lines.begin(), lines.end(),
+                                       [size](int line) { return line < 0 || line > size; }),
+                        lines.end());
+        };
+        keep(guides_.vertical, sprite.width());
+        keep(guides_.horizontal, sprite.height());
+        sprite.guides() = std::move(guides_);
     }
 
     using Read = bool (Decoder::*)(Reader &chunk, uint32_t length);
@@ -431,6 +461,12 @@ class Decoder
         return true;
     }
 
+    bool readGuideChunk(Reader &chunk, uint32_t /*unused*/)
+    {
+        readGuides(chunk, guides_);
+        return true;
+    }
+
     bool readTilesetChunk(Reader &chunk, uint32_t /*unused*/)
     {
         readTilesets(chunk, tilesets_);
@@ -449,6 +485,7 @@ class Decoder
     std::vector<uint32_t> durations_;   /* from FRAM, applied once the frames exist */
     std::vector<Sprite::Tag> tags_;     /* from TAGS, checked against the frames at the end */
     std::vector<Sprite::Slice> slices_; /* from SLCE, checked against the size at the end */
+    Guides guides_;                     /* from GUID, checked against the size at the end */
     std::vector<Tileset> tilesets_;     /* from TSET and TMAP, checked together at the end */
     std::vector<TileMap> maps_;
     std::vector<CelLink> links_;     /* from LINK, applied once the layers exist */
@@ -461,6 +498,7 @@ const Decoder::ChunkReader Decoder::CHUNKS[] = {
     {"LINK", &Decoder::readLinkChunk},    {"BLND", &Decoder::readBlendChunk},
     {"TAGS", &Decoder::readTagChunk},     {"SLCE", &Decoder::readSliceChunk},
     {"TSET", &Decoder::readTilesetChunk}, {"TMAP", &Decoder::readTilemapChunk},
+    {"GUID", &Decoder::readGuideChunk},
 };
 
 bool Decoder::chunk(const uint8_t *tag, Reader &payload, uint32_t length)
@@ -643,6 +681,33 @@ void writeSlices(std::vector<uint8_t> &out, const std::vector<Sprite::Slice> &sl
     });
 }
 
+/* Writes the guides that lie on the sprite (0..size); nothing at all when none are left. */
+void writeGuides(std::vector<uint8_t> &out, const Sprite &sprite)
+{
+    auto onSprite = [](const std::vector<int> &lines, int size) {
+        std::vector<int> kept;
+        for (int line : lines) {
+            if (line >= 0 && line <= size && kept.size() < UINT16_MAX) { /* the count is a u16 */
+                kept.push_back(line);
+            }
+        }
+        return kept;
+    };
+    const std::vector<int> vertical = onSprite(sprite.guides().vertical, sprite.width());
+    const std::vector<int> horizontal = onSprite(sprite.guides().horizontal, sprite.height());
+    if (vertical.empty() && horizontal.empty()) {
+        return;
+    }
+    putChunk(out, "GUID", [&](std::vector<uint8_t> &o) {
+        for (const std::vector<int> *axis : {&vertical, &horizontal}) {
+            putU16(o, static_cast<uint32_t>(axis->size()));
+            for (int line : *axis) {
+                putU32(o, static_cast<uint32_t>(line));
+            }
+        }
+    });
+}
+
 void writeTilesets(std::vector<uint8_t> &out, const std::vector<Tileset> &tilesets)
 {
     putChunk(out, "TSET", [&](std::vector<uint8_t> &o) {
@@ -705,6 +770,7 @@ std::vector<uint8_t> pxa_encode(const Sprite &sprite)
     writeTags(out, sprite.tags());
     writeSlices(out, sprite.slices());
     writeTiles(out, sprite);
+    writeGuides(out, sprite);
     return out;
 }
 

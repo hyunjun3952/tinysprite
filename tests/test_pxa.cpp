@@ -412,6 +412,55 @@ TEST(a_truncated_slice_chunk_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
+TEST(guides_round_trip)
+{
+    Sprite s = animated();
+    s.guides().vertical = {1, 3};
+    s.guides().horizontal = {2};
+    std::optional<Sprite> back = pxa_decode(pxa_encode(s));
+    ASSERT_TRUE(back.has_value());
+    if (back) {
+        ASSERT_EQ_INT(2, static_cast<int>(back->guides().vertical.size()));
+        ASSERT_EQ_INT(1, back->guides().vertical[0]);
+        ASSERT_EQ_INT(3, back->guides().vertical[1]);
+        ASSERT_EQ_INT(1, static_cast<int>(back->guides().horizontal.size()));
+        ASSERT_EQ_INT(2, back->guides().horizontal[0]);
+    }
+}
+
+TEST(a_sprite_without_guides_writes_no_guide_chunk)
+{
+    ASSERT_EQ_INT(-1, find_chunk(pxa_encode(animated()), "GUID"));
+}
+
+/* Guides are metadata: one off the sprite's edges is dropped and the pixels still load. */
+TEST(a_guide_outside_the_sprite_is_dropped_and_the_file_still_opens)
+{
+    Sprite s = animated();
+    s.guides().vertical = {1, 3};
+    std::vector<uint8_t> data = pxa_encode(s);
+    /* the GUID chunk is last: u16 vertical count, 1 and 3 as u32, then the u16 horizontal count */
+    size_t last = data.size() - 2 - 4;
+    ASSERT_EQ_INT(3, data[last]);
+    data[last] = 200;
+    std::optional<Sprite> back = pxa_decode(data);
+    ASSERT_TRUE(back.has_value());
+    if (back) {
+        ASSERT_EQ_INT(1, static_cast<int>(back->guides().vertical.size()));
+        ASSERT_EQ_INT(1, back->guides().vertical[0]);
+        ASSERT_EQ_INT(3, back->width());
+    }
+}
+
+TEST(a_truncated_guide_chunk_is_rejected)
+{
+    Sprite s = animated();
+    s.guides().horizontal = {1};
+    std::vector<uint8_t> data = pxa_encode(s);
+    data.resize(data.size() - 3);
+    ASSERT_TRUE(!pxa_decode(data));
+}
+
 /* Three layers: Normal, Multiply and Difference, so only two need a BLND entry. */
 static Sprite blended()
 {
@@ -517,6 +566,10 @@ int main()
     RUN(a_sprite_without_slices_writes_no_slice_chunk);
     RUN(a_slice_outside_the_sprite_is_dropped_and_the_file_still_opens);
     RUN(a_truncated_slice_chunk_is_rejected);
+    RUN(guides_round_trip);
+    RUN(a_sprite_without_guides_writes_no_guide_chunk);
+    RUN(a_guide_outside_the_sprite_is_dropped_and_the_file_still_opens);
+    RUN(a_truncated_guide_chunk_is_rejected);
     RUN(blend_modes_round_trip);
     RUN(a_sprite_without_blend_modes_writes_no_blend_chunk);
     RUN(a_reader_that_skips_the_blend_chunk_still_loads_the_layers);

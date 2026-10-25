@@ -54,8 +54,9 @@ the backlog at the end. Rules: `.rules`. How the code is put together: [ARCHITEC
 - [x] **23. Tilemap editor**: `Tileset` (an atlas cut from a cel into equal tiles) and `TileMap` (cells: 0 empty, else tile
       + 1) on the `Sprite`, `tilemap_ops.hpp`, `TileStroke` for painting, optional `TSET` / `TMAP` chunks (tile data is kept
       all or nothing), a Tiled-style `.tmj` export plus one PNG per tileset, a Tilemaps section and a floating Tilemap
-      window. Tiles are not flipped or rotated, a tilemap is not drawn on the canvas or in the exports, and a tileset is a
-      copy of the pixels.
+      window. Tiles are not flipped or rotated, a tilemap is not in the exports, and a tileset is a copy of the pixels.
+      The canvas previews every visible tilemap over the layers (`composite_tilemaps`, top-left at (0, 0), clipped to
+      the sprite; the eye in the Tilemaps section toggles it); a map has no position or layer order yet.
 - [x] **24. Aseprite import**: `aseprite_decode` / `aseprite_load`: image layers (name, visibility, lock, opacity, the blend
       modes this editor has), cels (offset, opacity baked into alpha, links), RGBA / grayscale / indexed color, durations,
       tags, palette and slices. Compressed cels go through our own `zlib_inflate` with an output limit, so a hostile file
@@ -92,7 +93,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - **Rulers and guides** (View > Rulers, off by default): `Canvas` reserves a `RULER_THICKNESS` strip above and left of the
   canvas; a drag from a strip pulls out a guide (`Editor::view().guides`, snapped to cel edges), a drag on a guide moves
   it and letting go over the ruler deletes it. Guides can only be grabbed while the rulers are shown, so drawing next to
-  one never picks it up. They are view state: not in the `.pxa`, not undoable. `ruler.cpp` has the tick spacing,
+  one never picks it up. They live on the `Sprite` (`guides.hpp`) and are saved in the optional `GUID` chunk (off-sprite ones are dropped on load), but they are not undoable; changing one calls `Editor::markModified`. `ruler.cpp` has the tick spacing,
   snapping and picking; the interaction is tested in `tests/ui/ui_guides.cpp`.
 - **Dialogs**: the popup color is the panel color, so a dialog's buttons and fields show; `theme::dialog_buttons` puts the
   buttons under a hairline, the main one in the accent (red for Delete / Overwrite / Reset).
@@ -129,7 +130,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   brush only.
 - **Selection**: a rectangle clipped to the sprite, or a shape of any kind (a `Mask`: the magic wand picks the region a
   bucket fill would take, with its Contiguous and Tolerance; the lasso picks what a dragged outline encloses; Shift adds
-  to what is selected). The rectangle is then the mask's bounding box and `Editor::selectionMask()` is the shape, null
+  to what is selected, Ctrl takes the pick out of it). The rectangle is then the mask's bounding box and `Editor::selectionMask()` is the shape, null
   for a plain rectangle. Moving it loses what leaves the sprite, and transparent selected pixels do not erase the
   destination. The drawing tools and the filters only write inside it (`History::setClip` for the rectangle and
   `History::setClipMask` for the shape; the bucket still scans the whole region but writes only inside). Copy, cut,
@@ -167,7 +168,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   decides the range and direction. A document stops playing when it is no longer shown in a pane.
 
 **Files and formats**
-- `.pxa` stays version 1: `FRAM`, `LINK`, `BLND`, `TAGS`, `SLCE`, `TSET` and `TMAP` are optional chunks a reader skips when it
+- `.pxa` stays version 1: `FRAM`, `LINK`, `BLND`, `TAGS`, `SLCE`, `TSET`, `TMAP` and `GUID` are optional chunks a reader skips when it
   does not know them, and a plain one-frame sprite writes none of them. The decoder grows the frames only after checking
   that the first `LAYR` chunk holds their pixels, so a lying header cannot make it allocate more than the file is big.
   `FRAM` has to precede the layers. The lock is bit 1 of the `LAYR` flags byte (bit 0 is visible), so older readers still
@@ -206,11 +207,10 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 - The model does not enforce layer locks; the `Editor` does.
 - Rasterizers clip no pixels; the caller bounds-checks (filled ones take an optional clip rect that only skips fill rows
-  and columns outside it). A selection is a rectangle or one mask (no several-region selections, no subtracting from a
-  selection yet).
+  and columns outside it). A selection is a rectangle or one mask (no several-region selections).
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
-- Guides are not saved with the sprite (they are lost when the document closes) and are whole cel edges only.
+- Guides are whole cel edges only and not undoable.
 - The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
 - Not done: HiDPI window flags (the UI scale follows the display's content scale instead).
 - The Windows (MinGW) job is not built locally.
@@ -218,7 +218,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 ## Backlog, not scheduled
 
-Each is large or needs a design decision first: indexed color mode, subtracting from a selection (Ctrl + click), a native file chooser,
+Each is large or needs a design decision first: indexed color mode, a native file chooser,
 Korean text. Smaller refactoring candidates from the pattern survey: an `Editor` change observer, a `theme::labeledRow`
 helper, merging the tool tables, declarative settings bindings, one holder for `Slot` (frames) and `Membership` (layers),
 and a `Playback` state if a fourth mode is added. The `if (stroking()) return;` guard (about forty times in `Editor`) has

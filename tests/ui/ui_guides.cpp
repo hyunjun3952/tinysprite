@@ -2,12 +2,14 @@
  * deleting guides with the mouse. Runs under SDL_VIDEODRIVER=dummy. */
 #include <cmath>
 #include <memory>
+#include <optional>
 
 #include "canvas.hpp"
 #include "editor.hpp"
 #include "minitest.hpp"
 #include "ruler.hpp"
 #include "theme.hpp"
+#include "tinysprite/io.hpp"
 #include "ui_harness.hpp"
 
 using test_ui::Harness;
@@ -90,7 +92,7 @@ TEST(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers)
     f.editor->view().viewport.zoom = 0.0625f;
     f.h.frame(400, 300, false);
     f.h.frame(400, 300, false);
-    ASSERT_TRUE(f.editor->view().guides.empty());
+    ASSERT_TRUE(f.editor->guides().empty());
 }
 
 TEST(a_guide_snaps_to_the_nearest_cel_edge)
@@ -114,19 +116,25 @@ TEST(dragging_from_the_top_ruler_makes_a_horizontal_guide)
 {
     Fixture f;
     f.h.drag(500, f.ruler / 2.0f, 500, 300);
-    ASSERT_EQ_INT(1, static_cast<int>(f.editor->view().guides.horizontal.size()));
-    ASSERT_EQ_INT(f.edgeAtY(300), f.editor->view().guides.horizontal[0]);
-    ASSERT_TRUE(f.editor->view().guides.vertical.empty());
-    ASSERT_TRUE(!f.editor->history().canUndo()); /* the drag drew nothing */
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
+    ASSERT_EQ_INT(f.edgeAtY(300), f.editor->guides().horizontal[0]);
+    ASSERT_TRUE(f.editor->guides().vertical.empty());
+    ASSERT_TRUE(!f.editor->history().canUndo());     /* the drag drew nothing */
+    ASSERT_TRUE(f.editor->modifiedOutsideHistory()); /* but the file differs from the saved one */
+    std::optional<Sprite> saved = pxa_decode(pxa_encode(f.editor->sprite()));
+    ASSERT_TRUE(saved.has_value());
+    if (saved) {
+        ASSERT_EQ_INT(1, static_cast<int>(saved->guides().horizontal.size()));
+    }
 }
 
 TEST(dragging_from_the_left_ruler_makes_a_vertical_guide)
 {
     Fixture f;
     f.h.drag(CANVAS_X + f.ruler / 2.0f, 300, 500, 300);
-    ASSERT_EQ_INT(1, static_cast<int>(f.editor->view().guides.vertical.size()));
-    ASSERT_EQ_INT(f.edgeAtX(500), f.editor->view().guides.vertical[0]);
-    ASSERT_TRUE(f.editor->view().guides.horizontal.empty());
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().vertical.size()));
+    ASSERT_EQ_INT(f.edgeAtX(500), f.editor->guides().vertical[0]);
+    ASSERT_TRUE(f.editor->guides().horizontal.empty());
 }
 
 TEST(a_guide_dragged_back_onto_the_ruler_is_deleted)
@@ -134,19 +142,19 @@ TEST(a_guide_dragged_back_onto_the_ruler_is_deleted)
     Fixture f;
     f.h.drag(500, f.ruler / 2.0f, 500, 300);
     const float y = f.ruler + f.view().pan_y +
-                    static_cast<float>(f.editor->view().guides.horizontal[0]) * f.view().zoom;
+                    static_cast<float>(f.editor->guides().horizontal[0]) * f.view().zoom;
     f.h.drag(500, y, 500, f.ruler / 2.0f);
-    ASSERT_TRUE(f.editor->view().guides.empty());
+    ASSERT_TRUE(f.editor->guides().empty());
 }
 
 TEST(an_existing_guide_is_moved_by_dragging_it)
 {
     Fixture f;
-    f.editor->view().guides.horizontal.push_back(4);
+    f.editor->guides().horizontal.push_back(4);
     const float y = f.ruler + f.view().pan_y + 4.0f * f.view().zoom;
     f.h.drag(500, y, 500, y + 3.0f * f.view().zoom);
-    ASSERT_EQ_INT(1, static_cast<int>(f.editor->view().guides.horizontal.size()));
-    ASSERT_EQ_INT(7, f.editor->view().guides.horizontal[0]);
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
+    ASSERT_EQ_INT(7, f.editor->guides().horizontal[0]);
     ASSERT_TRUE(!f.editor->history().canUndo());
 }
 
@@ -154,16 +162,16 @@ TEST(without_rulers_a_drag_at_the_edge_draws_and_makes_no_guide)
 {
     Fixture f(false);
     f.h.drag(CANVAS_X + 2.0f, 300, 500, 300);
-    ASSERT_TRUE(f.editor->view().guides.empty());
+    ASSERT_TRUE(f.editor->guides().empty());
 }
 
 TEST(hidden_rulers_do_not_take_a_guide_from_the_pencil)
 {
     Fixture f(false);
-    f.editor->view().guides.horizontal.push_back(4);
+    f.editor->guides().horizontal.push_back(4);
     const float y = f.view().pan_y + 4.0f * f.view().zoom;
     f.h.drag(500, y, 520, y);
-    ASSERT_EQ_INT(4, f.editor->view().guides.horizontal[0]);
+    ASSERT_EQ_INT(4, f.editor->guides().horizontal[0]);
     ASSERT_TRUE(f.editor->history().canUndo());
 }
 

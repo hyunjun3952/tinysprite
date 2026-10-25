@@ -73,6 +73,70 @@ TEST(a_shift_click_adds_to_the_selection_and_a_plain_one_replaces_it)
     delete e;
 }
 
+TEST(a_ctrl_click_takes_the_picked_pixels_out_of_the_selection)
+{
+    Editor *e = make_editor();
+    paint(e, {{1, 1}, {2, 1}, {6, 1}});
+    e->selectTool(ToolKind::Wand);
+    e->options().fill_contiguous = false;
+    click(e, 1, 1); /* all three red pixels */
+    e->options().fill_contiguous = true;
+    e->press(2, 1, false, true); /* the connected pair, (1, 1) and (2, 1) */
+    e->release();
+    ASSERT_EQ_INT(1, e->selectionMask()->count());
+    ASSERT_TRUE(e->selectionMask()->contains(6, 1));
+    ASSERT_TRUE(e->selection().x == 6 && e->selection().w == 1);
+    delete e;
+}
+
+TEST(subtracting_everything_drops_the_selection_and_without_one_changes_nothing)
+{
+    Editor *e = make_editor();
+    paint(e, {{1, 1}, {2, 1}});
+    e->selectTool(ToolKind::Wand);
+    e->press(1, 1, false, true);
+    e->release();
+    ASSERT_TRUE(!e->hasSelection()); /* nothing to take from */
+    click(e, 1, 1);
+    e->press(1, 1, false, true);
+    e->release();
+    ASSERT_TRUE(!e->hasSelection());
+    delete e;
+}
+
+TEST(a_ctrl_click_beside_the_sprite_keeps_the_selection)
+{
+    Editor *e = make_editor();
+    paint(e, {{1, 1}});
+    e->selectTool(ToolKind::Wand);
+    click(e, 1, 1);
+    e->press(-3, 2, false, true);
+    e->release();
+    ASSERT_TRUE(e->hasSelection());
+    delete e;
+}
+
+TEST(a_ctrl_lasso_cuts_its_area_out_of_the_selection)
+{
+    Editor *e = make_editor();
+    e->selectTool(ToolKind::Lasso);
+    e->press(0, 0);
+    e->drag(5, 0);
+    e->drag(5, 4);
+    e->drag(0, 4);
+    e->release();
+    int before = e->selectionMask()->count();
+    e->press(2, 1, false, true);
+    e->drag(3, 1);
+    e->drag(3, 2);
+    e->drag(2, 2);
+    e->release();
+    ASSERT_EQ_INT(before - 4, e->selectionMask()->count());
+    ASSERT_TRUE(!e->selectionMask()->contains(2, 1));
+    ASSERT_TRUE(e->selectionMask()->contains(0, 0));
+    delete e;
+}
+
 TEST(the_wand_on_nothing_drops_the_selection)
 {
     Editor *e = make_editor();
@@ -327,6 +391,10 @@ int main()
     RUN(the_magic_wand_selects_the_connected_pixels_of_the_clicked_color);
     RUN(the_wand_follows_the_bucket_options_everywhere_and_tolerance);
     RUN(a_shift_click_adds_to_the_selection_and_a_plain_one_replaces_it);
+    RUN(a_ctrl_click_takes_the_picked_pixels_out_of_the_selection);
+    RUN(subtracting_everything_drops_the_selection_and_without_one_changes_nothing);
+    RUN(a_ctrl_click_beside_the_sprite_keeps_the_selection);
+    RUN(a_ctrl_lasso_cuts_its_area_out_of_the_selection);
     RUN(the_wand_on_nothing_drops_the_selection);
     RUN(the_lasso_selects_the_polygon_dragged_out);
     RUN(a_lasso_of_fewer_than_three_points_only_dismisses_the_selection);

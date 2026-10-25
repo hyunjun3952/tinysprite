@@ -307,7 +307,8 @@ void Canvas::beginGuide(bool vertical, int index, ImVec2 origin)
         const Viewport &view = editor_->view().viewport;
         const ImVec2 mouse = ImGui::GetMousePos();
         std::vector<int> &lines =
-            vertical ? editor_->view().guides.vertical : editor_->view().guides.horizontal;
+            vertical ? editor_->guides().vertical : editor_->guides().horizontal;
+        editor_->markModified();
         lines.push_back(vertical ? guide_snap(view.pan_x, view.zoom, mouse.x - origin.x)
                                  : guide_snap(view.pan_y, view.zoom, mouse.y - origin.y));
         index = static_cast<int>(lines.size()) - 1;
@@ -325,12 +326,13 @@ void Canvas::dragGuide(ImVec2 origin)
 {
     const Viewport &view = editor_->view().viewport;
     std::vector<int> &lines =
-        guideDrag_.vertical ? editor_->view().guides.vertical : editor_->view().guides.horizontal;
+        guideDrag_.vertical ? editor_->guides().vertical : editor_->guides().horizontal;
     const auto index = static_cast<size_t>(guideDrag_.index);
     if (index >= lines.size()) {
         guideDrag_ = GuideDrag();
         return;
     }
+    editor_->markModified();
     const ImVec2 mouse = ImGui::GetMousePos();
     const float local = guideDrag_.vertical ? mouse.x - origin.x : mouse.y - origin.y;
     ImGui::SetMouseCursor(guideDrag_.vertical ? ImGuiMouseCursor_ResizeEW
@@ -349,7 +351,7 @@ void Canvas::dragGuide(ImVec2 origin)
 Canvas::GuideDrag Canvas::pickGuide(ImVec2 mouse, ImVec2 origin) const
 {
     const Viewport &view = editor_->view().viewport;
-    const Guides &guides = editor_->view().guides;
+    const Guides &guides = editor_->guides();
     GuideDrag found;
     found.index = guide_pick(guides.vertical, view.pan_x, view.zoom, mouse.x - origin.x);
     found.vertical = found.index >= 0;
@@ -473,7 +475,7 @@ void Canvas::strokeInput(int cx, int cy, bool hovered)
 {
     bool shift = ImGui::GetIO().KeyShift;
     if (!editor_->stroking() && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left, false)) {
-        editor_->press(cx, cy, shift);
+        editor_->press(cx, cy, shift, ImGui::GetIO().KeyCtrl);
     } else if (editor_->stroking()) {
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
             editor_->drag(cx, cy, shift);
@@ -702,7 +704,7 @@ void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
 void Canvas::drawGuides(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
 {
     const Viewport &view = editor_->view().viewport;
-    const Guides &guides = editor_->view().guides;
+    const Guides &guides = editor_->guides();
     const ImVec2 end(origin.x + avail.x, origin.y + avail.y);
     for (const int x : guides.vertical) {
         const float sx = origin.x + view.celToScreenX(x);

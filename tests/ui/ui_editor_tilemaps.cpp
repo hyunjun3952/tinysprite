@@ -116,6 +116,35 @@ TEST(removing_and_resizing_maps_and_tilesets)
     delete e;
 }
 
+TEST(removing_a_tileset_below_the_selected_one_keeps_the_selection_on_it)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->addTilesetFromCel(2, 2));
+    ASSERT_TRUE(e->addTilesetFromCel(2, 2));
+    ASSERT_TRUE(e->addTilesetFromCel(2, 2));
+    e->selectTileset(1);
+    std::string name = e->sprite().tilesets()[1].name;
+    ASSERT_TRUE(e->removeTileset(0));
+    ASSERT_EQ_INT(0, e->selectedTileset());
+    ASSERT_TRUE(e->sprite().tilesets()[0].name == name);
+    delete e;
+}
+
+TEST(removing_a_tilemap_below_the_selected_one_keeps_the_selection_on_it)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->addTilesetFromCel(2, 2));
+    ASSERT_TRUE(e->addTilemap(0, 2, 2));
+    ASSERT_TRUE(e->addTilemap(0, 2, 2));
+    ASSERT_TRUE(e->addTilemap(0, 2, 2));
+    e->selectTilemap(1);
+    std::string name = e->sprite().tilemaps()[1].name;
+    ASSERT_TRUE(e->removeTilemap(0));
+    ASSERT_EQ_INT(0, e->selectedTilemap());
+    ASSERT_TRUE(e->sprite().tilemaps()[0].name == name);
+    delete e;
+}
+
 TEST(the_revision_changes_with_every_tile_edit_and_undo)
 {
     Editor *e = editor_with_tiles();
@@ -175,6 +204,29 @@ TEST(cancelling_puts_the_painted_tiles_back)
     delete e;
 }
 
+TEST(the_canvas_shows_a_visible_tilemap_and_follows_its_edits)
+{
+    Editor *e = editor_with_tiles();
+    e->addTilesetFromCel(4, 3);
+    e->addTilemap(0, 2, 2);
+    e->updateTexture();
+    ASSERT_EQ_INT(200, e->shownPixel(4, 3).r); /* the layer's own pixel */
+    e->paintTile(1, 1, 1);                     /* tile 0, red 50 at its top-left */
+    e->endTilePaint();
+    e->updateTexture();
+    ASSERT_EQ_INT(50, e->shownPixel(4, 3).r);
+    e->setTilemapVisible(0, false);
+    e->updateTexture();
+    ASSERT_EQ_INT(200, e->shownPixel(4, 3).r);
+    e->undo();
+    e->updateTexture();
+    ASSERT_EQ_INT(50, e->shownPixel(4, 3).r);
+    e->undo();
+    e->updateTexture();
+    ASSERT_EQ_INT(200, e->shownPixel(4, 3).r);
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -187,10 +239,13 @@ int main()
     RUN(painting_with_a_stroke_is_one_undo_step);
     RUN(the_selected_tile_stays_within_the_tileset);
     RUN(removing_and_resizing_maps_and_tilesets);
+    RUN(removing_a_tileset_below_the_selected_one_keeps_the_selection_on_it);
+    RUN(removing_a_tilemap_below_the_selected_one_keeps_the_selection_on_it);
     RUN(the_revision_changes_with_every_tile_edit_and_undo);
     RUN(tile_edits_are_held_off_while_a_tool_is_dragged);
     RUN(undo_and_redo_are_held_off_while_tiles_are_painted);
     RUN(cancelling_puts_the_painted_tiles_back);
+    RUN(the_canvas_shows_a_visible_tilemap_and_follows_its_edits);
     ui_quit();
     return TEST_SUMMARY();
 }

@@ -1,8 +1,10 @@
+#include <memory>
 #include <vector>
 
 #include "minitest.hpp"
 #include "tinysprite/composite.hpp"
 #include "tinysprite/sprite.hpp"
+#include "tinysprite/tilemap.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba BLUE = {0, 0, 255, 255};
@@ -174,8 +176,61 @@ TEST(composite_over_scales_by_opacity)
     ASSERT_EQ_INT(0, composite_over(CLEAR, white, 0).a);
 }
 
+/* A 4 x 4 sprite with one 2 x 2 tile (red top-left pixel) and a 2 x 2 map whose first cell uses it.
+ */
+static Sprite sprite_with_map(bool visible)
+{
+    Sprite s(4, 4);
+    Cel cel(2, 2);
+    cel.set(0, 0, RED);
+    Tileset tiles;
+    tiles.tileWidth = 2;
+    tiles.tileHeight = 2;
+    tiles.atlas = std::make_shared<Cel>(cel);
+    TileMap map = tilemap_blank("map", 0, 2, 2);
+    map.cells[0] = 1;
+    map.visible = visible;
+    s.setTileData({tiles}, {map});
+    return s;
+}
+
+TEST(a_visible_tilemap_is_drawn_over_the_layers)
+{
+    Sprite s = sprite_with_map(true);
+    s.layer(0)->cel(0)->set(0, 0, BLUE);
+    s.layer(0)->cel(0)->set(3, 3, BLUE);
+    std::vector<Rgba> out = make_out(s, CLEAR);
+    composite_sprite(s, 0, Rect{0, 0, 4, 4}, out.data());
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 0, 0), RED));
+    ASSERT_TRUE(same(at(s, out, 1, 0), CLEAR));
+    ASSERT_TRUE(same(at(s, out, 3, 3), BLUE)); /* an empty cell shows the layers */
+}
+
+TEST(a_hidden_tilemap_is_not_drawn)
+{
+    Sprite s = sprite_with_map(false);
+    std::vector<Rgba> out = make_out(s, CLEAR);
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
+}
+
+TEST(a_tilemap_is_clipped_to_the_region_and_the_sprite)
+{
+    Sprite s = sprite_with_map(true);
+    std::vector<Rgba> out = make_out(s, CLEAR);
+    composite_tilemaps(s, Rect{1, 0, 3, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR)); /* outside the region */
+    composite_tilemaps(s, Rect{-5, -5, 20, 20}, out.data());
+    ASSERT_TRUE(same(at(s, out, 0, 0), RED));
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, nullptr); /* nothing to write to */
+}
+
 int main()
 {
+    RUN(a_visible_tilemap_is_drawn_over_the_layers);
+    RUN(a_hidden_tilemap_is_not_drawn);
+    RUN(a_tilemap_is_clipped_to_the_region_and_the_sprite);
     RUN(blank_sprite_composites_to_transparent);
     RUN(opaque_pixel_is_copied);
     RUN(upper_layer_covers_lower_layer);

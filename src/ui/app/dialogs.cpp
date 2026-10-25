@@ -95,7 +95,22 @@ void App::openOrAsk(const std::string &path)
     }
 }
 
-/* "New sprite": a size, then a blank document. */
+/*
+ * Replaces the document shown with a blank untitled one of this size ("This tab" of the New
+ * dialog), asking first when it has unsaved changes. Cancelling that question leaves it alone.
+ */
+void App::replaceWithBlank(int width, int height)
+{
+    guardUnsaved([this, width, height] {
+        if (editor_->newDocument(width, height)) {
+            filePath().clear();
+        } else {
+            toast("Not enough memory for a new sprite", true);
+        }
+    });
+}
+
+/* "New sprite": a size, then a blank document in this tab or a new one. */
 /* The size presets and the width / height fields of the New dialog, with a preview of the shape
  * they make beside them. The preset that matches the size is shown selected. */
 void App::newSizeFields()
@@ -143,11 +158,15 @@ void App::newDialog()
     }
     newSizeFields();
     bool close = false;
-    const int clicked = theme::dialog_buttons({"Cancel", "Create"}, 1);
-    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    const int clicked = theme::dialog_buttons({"Cancel", "This tab", "New tab"}, 2);
+    if (clicked == 2 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         if (addBlankDocument(newWidth_, newHeight_)) {
             close = true;
         }
+    }
+    if (clicked == 1) {
+        replaceWithBlank(newWidth_, newHeight_);
+        close = true;
     }
     if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;

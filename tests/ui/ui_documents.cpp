@@ -100,6 +100,10 @@ struct AppTestAccess {
     {
         return app.addBlankDocument(width, height);
     }
+    void replaceWithBlank(int width, int height)
+    {
+        app.replaceWithBlank(width, height);
+    }
     bool open(const std::string &path)
     {
         return app.openPath(path);
@@ -268,6 +272,35 @@ TEST(a_new_document_is_a_new_tab_and_is_shown)
     ASSERT_EQ_INT(6, t.editor().sprite().height());
     ASSERT_TRUE(t.title(1) == "untitled 2");
     t.frame(); /* a frame with the second document works */
+}
+
+TEST(a_new_sprite_in_this_tab_replaces_the_shown_document_without_adding_a_tab)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.replaceWithBlank(8, 6);
+    ASSERT_EQ_INT(1, t.count());
+    ASSERT_EQ_INT(8, t.editor().sprite().width());
+    ASSERT_EQ_INT(6, t.editor().sprite().height());
+    ASSERT_TRUE(!t.asking());
+    t.frame();
+}
+
+TEST(a_new_sprite_in_this_tab_asks_first_when_there_are_unsaved_changes)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.dot(1, 1);
+    t.setPath("old.pxa");
+    t.replaceWithBlank(8, 6);
+    ASSERT_TRUE(t.asking());
+    ASSERT_EQ_INT(16, t.editor().sprite().width()); /* nothing replaced before the answer */
+    t.discard();
+    ASSERT_EQ_INT(1, t.count());
+    ASSERT_EQ_INT(8, t.editor().sprite().width());
+    ASSERT_EQ_INT(0, t.alphaAt(0, 1, 1));
+    ASSERT_TRUE(t.title(0) == "untitled");
+    ASSERT_TRUE(!t.dirty());
 }
 
 TEST(opening_a_file_reuses_an_untouched_untitled_tab_then_adds_tabs)
@@ -834,6 +867,8 @@ int main()
     RUN(tabs_can_be_reordered_and_the_active_one_stays_the_same_document);
     RUN(the_app_starts_with_one_untitled_document);
     RUN(a_new_document_is_a_new_tab_and_is_shown);
+    RUN(a_new_sprite_in_this_tab_replaces_the_shown_document_without_adding_a_tab);
+    RUN(a_new_sprite_in_this_tab_asks_first_when_there_are_unsaved_changes);
     RUN(opening_a_file_reuses_an_untouched_untitled_tab_then_adds_tabs);
     RUN(an_edited_untitled_tab_is_kept_when_a_file_is_opened);
     RUN(each_tab_keeps_its_own_pixels_and_undo_history);

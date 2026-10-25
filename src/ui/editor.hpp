@@ -110,8 +110,18 @@ class Editor
         bool auto_fit = false; /* the view is still the fitted one: refit when the canvas resizes */
         float canvas_w = 0.0f;
         float canvas_h = 0.0f;
-        Guides guides; /* dragged out of the rulers; not saved, not undoable */
     };
+
+    /* The guides dragged out of the rulers. They are saved with the sprite but are not an undo
+     * step: whoever changes them calls markModified. */
+    Guides &guides()
+    {
+        return sprite_.guides();
+    }
+    const Guides &guides() const
+    {
+        return sprite_.guides();
+    }
 
     ToolKind tool() const
     {
@@ -378,18 +388,22 @@ class Editor
     /* Makes `mask` the selection, its bounds the rectangle (an empty mask is no selection). */
     void setSelectionMask(Mask mask);
 
-    /* How a new pick joins the selection that is there. */
-    enum class SelectMode { Replace, Add };
+    /* How a new pick joins the selection that is there: replaces it, is added to it, or is taken
+     * out of it. */
+    enum class SelectMode { Replace, Add, Subtract };
     /* The magic wand: selects the pixels of the active cel that a bucket fill at (x, y) would take
      * (the bucket's Contiguous and Tolerance options). A click that finds nothing (beside the
-     * sprite) drops the selection when replacing and leaves it when adding. */
+     * sprite) drops the selection when replacing and leaves it when adding or subtracting. */
     void selectRegion(int x, int y, SelectMode mode);
     /* The lasso: selects what the polygon through `points` encloses, outline included. */
     void selectPolygon(const std::vector<ToolPoint> &points, SelectMode mode);
-    /* Whether Shift was held when the last press began, which makes a pick add to the selection. */
-    bool shiftAtPress() const
+    /* The mode the modifiers of the last press ask for: Ctrl subtracts, else Shift adds. */
+    SelectMode pickMode() const
     {
-        return shiftAtPress_;
+        if (ctrlAtPress_) {
+            return SelectMode::Subtract;
+        }
+        return shiftAtPress_ ? SelectMode::Add : SelectMode::Replace;
     }
     /* The lasso as dragged so far, for the canvas to draw; empty when none is being dragged. */
     const std::vector<ToolPoint> &lassoPath() const
@@ -485,7 +499,7 @@ class Editor
      * horizontal, vertical or 45 degrees, see shape_constrain). Each one marks the cels it changes
      * dirty. The drawing tools only change cels
      * inside the selection while there is one. */
-    void press(int cx, int cy, bool shift = false);
+    void press(int cx, int cy, bool shift = false, bool ctrl = false);
 
     /* Shift+press with the pencil or eraser draws a line from the end of the previous pencil /
      * eraser stroke to the pressed cel, instead of a dot. lineFrom() is that start point, set
@@ -677,7 +691,8 @@ class Editor
     void selectTile(uint32_t cell);
 
     /* Bumped by every change of tiles, tilesets or maps, undo and redo included, so a picture of
-     * them knows when to be drawn again; a tile stroke ends with tilesChanged. */
+     * them knows when to be drawn again; a tile stroke ends with tilesChanged. The canvas shows
+     * the visible maps over the layers, so a change also redraws it. */
     uint64_t tilesRevision() const
     {
         return tilesRevision_;
@@ -685,6 +700,7 @@ class Editor
     void tilesChanged()
     {
         tilesRevision_++;
+        markAllDirty();
     }
 
     /* A tileset cut from the selected pixels of the active cel (the whole cel without a
@@ -824,6 +840,7 @@ class Editor
         mask_; /* the selection's shape inside selection_; null: all of it */
     std::vector<ToolPoint> lassoPath_;
     bool shiftAtPress_ = false;
+    bool ctrlAtPress_ = false;
     bool finishingDrag_ = false;    /* release() is running the drag's finish: it may edit slices */
     std::string selectedSliceName_; /* the selected slice, by name: indexes shift on undo / redo */
     std::optional<Rect> slicePreview_;
