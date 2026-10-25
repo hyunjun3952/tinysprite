@@ -242,8 +242,6 @@ a branch + PR of its own (`.rules`).
    the `.pxa`.
 4. **Writing Aseprite files**: only reading exists (milestone 24).
 5. **Small ones** (each a day or less):
-   - show the saved guides when a file with guides is opened (the View > Guides switch is a preference, so a file whose
-     guides are hidden looks like it has none);
    - reuse an untouched untitled tab for File > New like File > Open does;
    - save the open tabs and the split between runs (paths only; `settings.ini`);
    - guides at a fraction of a cel, and undo for guides;
