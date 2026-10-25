@@ -22,16 +22,17 @@ std::optional<Clip> Clip::copy(const Cel &cel, Rect area)
 
 std::optional<Clip> Clip::copy(const Cel &cel, const Mask &mask)
 {
-    Rect r = rect_clip(mask.bounds(), cel.width(), cel.height());
-    if (rect_is_empty(r)) {
+    std::optional<Clip> clip = copy(cel, mask.bounds());
+    if (!clip) {
         return std::nullopt;
     }
-    Clip clip(r.w, r.h);
-    clip.pixels_.reserve(static_cast<size_t>(r.w) * static_cast<size_t>(r.h));
+    Rect r = rect_clip(mask.bounds(), cel.width(), cel.height());
     for (int j = 0; j < r.h; j++) {
         for (int i = 0; i < r.w; i++) {
-            const bool in = mask.contains(r.x + i, r.y + j);
-            clip.pixels_.push_back(in ? cel.get(r.x + i, r.y + j) : Rgba{});
+            if (!mask.contains(r.x + i, r.y + j)) {
+                clip->pixels_[static_cast<size_t>(j) * static_cast<size_t>(r.w) +
+                              static_cast<size_t>(i)] = Rgba{};
+            }
         }
     }
     return clip;
