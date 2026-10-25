@@ -251,30 +251,29 @@ void Editor::afterHistoryStep(const Layer *active, const std::vector<Sprite::Tag
     markAllDirty();
 }
 
-void Editor::undo()
+/* Undoes or redoes one history step and brings the editor in line with it. Refused while a tile
+ * stroke is open: it is not in the history, which would not refuse. */
+void Editor::stepHistory(bool undo)
 {
     if (stroking()) {
-        return; /* an open tile stroke is not in the history, which would not refuse */
+        return;
     }
     stopPlayback();
     const Layer *active = sprite().layer(layers_.active());
     const std::vector<Sprite::Tag> tags = sprite().tags();
-    if (history().undo()) {
+    if (undo ? history().undo() : history().redo()) {
         afterHistoryStep(active, &tags);
     }
 }
 
+void Editor::undo()
+{
+    stepHistory(true);
+}
+
 void Editor::redo()
 {
-    if (stroking()) {
-        return; /* an open tile stroke is not in the history, which would not refuse */
-    }
-    stopPlayback();
-    const Layer *active = sprite().layer(layers_.active());
-    const std::vector<Sprite::Tag> tags = sprite().tags();
-    if (history().redo()) {
-        afterHistoryStep(active, &tags);
-    }
+    stepHistory(false);
 }
 
 bool Editor::hoverInSprite() const
