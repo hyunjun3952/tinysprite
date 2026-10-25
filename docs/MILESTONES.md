@@ -269,3 +269,7 @@ helper, merging the tool tables, declarative settings bindings, one holder for `
 and a `Playback` state if a fourth mode is added. The `if (stroking()) return;` guard (about forty times in `Editor`) has
 no helper: a function cannot return for its caller, so only a macro would shorten it; reconsider if `Editor` gets a command
 dispatch that can refuse in one place.
+
+Functions at cognitive complexity 12 or 13 that were left alone (split one when it is next edited): `Mask::build`,
+`drawRulerAxis`, `rotateSelection`, `addCommand` (script), `parse_color_hex`, `TilemapPanel::details`, `tagControls`,
+`fileDialog`.
