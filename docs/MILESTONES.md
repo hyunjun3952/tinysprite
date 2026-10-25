@@ -242,7 +242,6 @@ a branch + PR of its own (`.rules`).
    the `.pxa`.
 4. **Writing Aseprite files**: only reading exists (milestone 24).
 5. **Small ones** (each a day or less):
-   - reuse an untouched untitled tab for File > New like File > Open does;
    - save the open tabs and the split between runs (paths only; `settings.ini`);
    - guides at a fraction of a cel, and undo for guides;
    - a keyboard shortcut for Flip H / Flip V / Turn in the tilemap window, and a preview of the turned brush tile.
