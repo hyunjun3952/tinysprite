@@ -98,6 +98,28 @@ TEST(a_modal_fades_in_when_it_opens)
     ASSERT_TRUE(ImGui::GetStyle().Alpha == 1.0f); /* nothing leaks out of the dialog */
 }
 
+/* A dialog is cancelled by its cancel button (the index dialog_buttons returned) or by Escape. */
+TEST(a_dialog_is_cancelled_by_its_cancel_button_and_by_escape)
+{
+    test_ui::Harness h;
+    bool button = false;
+    bool other = false;
+    bool idle = false;
+    bool escape = false;
+    h.body = [&] {
+        button = theme::dialog_cancelled(1, 1); /* the cancel button was clicked */
+        other = theme::dialog_cancelled(0, 1);  /* another button was */
+        idle = theme::dialog_cancelled(-1, 1);  /* no button: only Escape cancels */
+        escape = escape || idle;
+    };
+    h.frame(0.0f, 0.0f, false);
+    ASSERT_TRUE(button);
+    ASSERT_TRUE(!other);
+    ASSERT_TRUE(!idle);
+    h.key(ImGuiKey_Escape);
+    ASSERT_TRUE(escape);
+}
+
 /* A menu bar with one menu, "File", whose title is at `title` once drawn. */
 struct MenuRig {
     test_ui::Harness h;
@@ -225,6 +247,7 @@ int main()
     RUN(a_slider_is_filled_up_to_its_value);
     RUN(an_empty_slider_has_no_fill);
     RUN(a_modal_fades_in_when_it_opens);
+    RUN(a_dialog_is_cancelled_by_its_cancel_button_and_by_escape);
     RUN(a_menu_opens_on_hover_and_closes_when_the_mouse_leaves);
     RUN(a_menu_stays_open_while_the_mouse_is_over_it);
     RUN(clicking_the_open_menu_title_closes_it_and_it_stays_closed_while_hovered);
