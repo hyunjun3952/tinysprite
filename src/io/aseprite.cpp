@@ -138,6 +138,7 @@ class AseDecoder
     void readCel(Reader &chunk, int frame);
     void readImageCel(Reader &chunk, const CelPlace &place, bool compressed);
     std::vector<uint8_t> celPixels(Reader &chunk, size_t expected, bool compressed);
+    void setPaletteColor(size_t index, Rgba color);
     void readPalette(Reader &chunk);
     void readOldPalette(Reader &chunk);
     void readTags(Reader &chunk);
@@ -381,6 +382,16 @@ void AseDecoder::paint(Cel &cel, const std::vector<uint8_t> &pixels, int w, int 
     }
 }
 
+/* Sets entry `index` of the palette, growing it; an entry past PALETTE_MAX_COLORS is ignored. */
+void AseDecoder::setPaletteColor(size_t index, Rgba color)
+{
+    if (index >= PALETTE_MAX_COLORS) {
+        return;
+    }
+    palette_.resize(std::max(palette_.size(), index + 1));
+    palette_[index] = color;
+}
+
 void AseDecoder::readPalette(Reader &chunk)
 {
     chunk.u32(); /* the size of the whole palette */
@@ -397,10 +408,7 @@ void AseDecoder::readPalette(Reader &chunk)
         if ((flags & 1) != 0) {
             readString(chunk);
         }
-        if (i < PALETTE_MAX_COLORS) {
-            palette_.resize(std::max<size_t>(palette_.size(), i + 1));
-            palette_[i] = color;
-        }
+        setPaletteColor(i, color);
     }
 }
 
@@ -415,10 +423,7 @@ void AseDecoder::readOldPalette(Reader &chunk)
         for (uint32_t c = count == 0 ? 256 : count; c > 0; c--, index++) {
             Rgba color{static_cast<uint8_t>(chunk.u8()), static_cast<uint8_t>(chunk.u8()),
                        static_cast<uint8_t>(chunk.u8()), 255};
-            if (index < PALETTE_MAX_COLORS) {
-                palette_.resize(std::max(palette_.size(), index + 1));
-                palette_[index] = color;
-            }
+            setPaletteColor(index, color);
         }
     }
 }
