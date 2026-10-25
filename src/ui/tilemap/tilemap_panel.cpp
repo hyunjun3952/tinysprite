@@ -11,36 +11,13 @@
 namespace
 {
 
-constexpr float LIST_ROWS = 4.0f;          /* rows of a list shown before it scrolls */
-constexpr float FIELD_NAME_COLUMN = 64.0f; /* the label column of the fields, at scale 1 */
-
-void label(const char *text)
-{
-    ImGui::TableNextRow();
-    ImGui::TableSetColumnIndex(0);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextDisabled("%s", text);
-    ImGui::TableSetColumnIndex(1);
-}
+constexpr float LIST_ROWS = 4.0f; /* rows of a list shown before it scrolls */
 
 void intField(const char *id, int *value, int min, int max, const char *unit)
 {
     ImGui::SetNextItemWidth(-FLT_MIN);
     theme::input_int(id, value, 1, 8, unit);
     *value = std::clamp(*value, min, max);
-}
-
-/* A scrolling list child of `count` rows (at most LIST_ROWS) to fill with selectables. */
-bool beginList(const char *id, size_t count)
-{
-    const float rows = std::min(static_cast<float>(count), LIST_ROWS);
-    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows +
-                                ImGui::GetStyle().WindowPadding.y);
-    if (ImGui::BeginChild(id, size, ImGuiChildFlags_Borders)) {
-        return true;
-    }
-    ImGui::EndChild();
-    return false;
 }
 
 } // namespace
@@ -77,7 +54,7 @@ void TilemapPanel::tilesets()
     const std::vector<Tileset> &sets = editor_->sprite().tilesets();
     if (sets.empty()) {
         ImGui::TextDisabled("None yet. Cut one from the cel.");
-    } else if (beginList("##tilesets", sets.size())) {
+    } else if (theme::begin_list("##tilesets", sets.size(), LIST_ROWS)) {
         for (int i = 0; i < static_cast<int>(sets.size()); i++) {
             const Tileset &set = sets[static_cast<size_t>(i)];
             ImGui::PushID(i);
@@ -86,19 +63,15 @@ void TilemapPanel::tilesets()
             }
             char text[32];
             std::snprintf(text, sizeof(text), "%d tiles", set.tileCount());
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(text).x);
-            ImGui::TextDisabled("%s", text);
+            theme::list_row_note(text);
             ImGui::PopID();
         }
         ImGui::EndChild();
     }
-    if (ImGui::BeginTable("##tile_size", 2, ImGuiTableFlags_SizingFixedFit)) {
-        ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed,
-                                theme::px(FIELD_NAME_COLUMN));
-        ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
-        label("Tile width");
+    if (theme::begin_field_table("##tile_size")) {
+        theme::field_label("Tile width");
         intField("##tile_w", &tileWidth_, 1, TILE_SIZE_MAX, " px");
-        label("Tile height");
+        theme::field_label("Tile height");
         intField("##tile_h", &tileHeight_, 1, TILE_SIZE_MAX, " px");
         ImGui::EndTable();
     }
@@ -121,7 +94,7 @@ void TilemapPanel::maps()
     const std::vector<TileMap> &maps = editor_->sprite().tilemaps();
     if (maps.empty()) {
         ImGui::TextDisabled("None yet.");
-    } else if (beginList("##tilemaps", maps.size())) {
+    } else if (theme::begin_list("##tilemaps", maps.size(), LIST_ROWS)) {
         for (int i = 0; i < static_cast<int>(maps.size()); i++) {
             const TileMap &map = maps[static_cast<size_t>(i)];
             ImGui::PushID(i);
@@ -130,19 +103,15 @@ void TilemapPanel::maps()
             }
             char text[32];
             std::snprintf(text, sizeof(text), "%d\xC3\x97%d", map.columns, map.rows);
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(text).x);
-            ImGui::TextDisabled("%s", text);
+            theme::list_row_note(text);
             ImGui::PopID();
         }
         ImGui::EndChild();
     }
-    if (ImGui::BeginTable("##map_size", 2, ImGuiTableFlags_SizingFixedFit)) {
-        ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed,
-                                theme::px(FIELD_NAME_COLUMN));
-        ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
-        label("Columns");
+    if (theme::begin_field_table("##map_size")) {
+        theme::field_label("Columns");
         intField("##new_cols", &newColumns_, 1, TILEMAP_MAX_DIMENSION, " tiles");
-        label("Rows");
+        theme::field_label("Rows");
         intField("##new_rows", &newRows_, 1, TILEMAP_MAX_DIMENSION, " tiles");
         ImGui::EndTable();
     }
@@ -174,13 +143,10 @@ void TilemapPanel::details(int index)
         shownMap_ = index;
         shownRevision_ = editor_->tilesRevision();
     }
-    if (!ImGui::BeginTable("##map_details", 2, ImGuiTableFlags_SizingFixedFit)) {
+    if (!theme::begin_field_table("##map_details")) {
         return;
     }
-    ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed,
-                            theme::px(FIELD_NAME_COLUMN));
-    ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
-    label("Name");
+    theme::field_label("Name");
     if (!nameActive_) {
         std::snprintf(name_, sizeof(name_), "%s", map.name.c_str());
     }
@@ -190,18 +156,18 @@ void TilemapPanel::details(int index)
     if (ImGui::IsItemDeactivatedAfterEdit()) {
         editor_->renameTilemap(index, name_);
     }
-    label("Visible");
+    theme::field_label("Visible");
     bool visible = map.visible;
     if (ImGui::Checkbox("##map_visible", &visible)) {
         editor_->setTilemapVisible(index, visible);
     }
-    label("Columns");
+    theme::field_label("Columns");
     intField("##map_cols", &columns_, 1, TILEMAP_MAX_DIMENSION, " tiles");
-    label("Rows");
+    theme::field_label("Rows");
     intField("##map_rows", &rows_, 1, TILEMAP_MAX_DIMENSION, " tiles");
-    label("X");
+    theme::field_label("X");
     intField("##map_x", &x_, -TILEMAP_OFFSET_MAX, TILEMAP_OFFSET_MAX, " px");
-    label("Y");
+    theme::field_label("Y");
     intField("##map_y", &y_, -TILEMAP_OFFSET_MAX, TILEMAP_OFFSET_MAX, " px");
     ImGui::EndTable();
     const bool changed = columns_ != map.columns || rows_ != map.rows;

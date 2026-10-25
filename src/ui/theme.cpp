@@ -710,6 +710,44 @@ bool actionButton(const char *label, const char *tooltip, float width, bool enab
     return clicked && enabled;
 }
 
+bool begin_field_table(const char *id)
+{
+    constexpr float NAME_COLUMN = 64.0f; /* the label column, at scale 1 */
+    if (!ImGui::BeginTable(id, 2, ImGuiTableFlags_SizingFixedFit)) {
+        return false;
+    }
+    ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed, px(NAME_COLUMN));
+    ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
+    return true;
+}
+
+void field_label(const char *text)
+{
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", text);
+    ImGui::TableSetColumnIndex(1);
+}
+
+bool begin_list(const char *id, size_t count, float maxRows)
+{
+    const float rows = std::min(static_cast<float>(count), maxRows);
+    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows +
+                                ImGui::GetStyle().WindowPadding.y);
+    if (ImGui::BeginChild(id, size, ImGuiChildFlags_Borders)) {
+        return true;
+    }
+    ImGui::EndChild();
+    return false;
+}
+
+void list_row_note(const char *text)
+{
+    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(text).x);
+    ImGui::TextDisabled("%s", text);
+}
+
 float ease_toward(float current, float target, float dt, float seconds)
 {
     if (seconds <= 0.0f) {

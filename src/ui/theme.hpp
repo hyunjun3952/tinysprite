@@ -185,6 +185,19 @@ bool choiceButton(const char *label, const char *hint, bool selected, float widt
 bool actionButton(const char *label, const char *tooltip, float width, bool enabled = true,
                   const char *reason = nullptr);
 
+/* A table of labeled fields: a label column (a fixed width) and a value column that takes the
+ * rest. Returns true when open; call ImGui::EndTable() after it. Each row starts with field_label,
+ * after which the cursor is in the value column. */
+bool begin_field_table(const char *id);
+void field_label(const char *text);
+
+/* A scrolling list child that shows `count` rows (at most `maxRows`) to fill with selectables.
+ * Returns true when open; call ImGui::EndChild() after it. */
+bool begin_list(const char *id, size_t count, float maxRows);
+
+/* After a row's selectable: `text` (a size, a count) dimmed at the right end of the row. */
+void list_row_note(const char *text);
+
 /* Colors for the canvas area, as ImU32. */
 ImU32 workspaceColor();
 

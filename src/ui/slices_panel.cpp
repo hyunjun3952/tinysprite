@@ -11,8 +11,7 @@
 namespace
 {
 
-constexpr float LIST_ROWS = 5.0f;          /* rows of the list shown before it scrolls */
-constexpr float FIELD_NAME_COLUMN = 64.0f; /* the label column of the details, at scale 1 */
+constexpr float LIST_ROWS = 5.0f; /* rows of the list shown before it scrolls */
 
 /* A numeric field of the details; true when the value was entered (Enter, a step button or the
  * field was left after typing). */
@@ -22,15 +21,6 @@ bool intField(const char *id, int *value, const char *unit)
     const bool entered =
         theme::input_int(id, value, 1, 8, unit, ImGuiInputTextFlags_EnterReturnsTrue);
     return entered || ImGui::IsItemDeactivatedAfterEdit();
-}
-
-void label(const char *text)
-{
-    ImGui::TableNextRow();
-    ImGui::TableSetColumnIndex(0);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextDisabled("%s", text);
-    ImGui::TableSetColumnIndex(1);
 }
 
 } // namespace
@@ -108,11 +98,7 @@ void SlicesPanel::list()
         ImGui::TextDisabled("No slices yet.");
         return;
     }
-    const float rows = std::min(static_cast<float>(slices.size()), LIST_ROWS);
-    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows +
-                                ImGui::GetStyle().WindowPadding.y);
-    if (!ImGui::BeginChild("##slice_list", size, ImGuiChildFlags_Borders)) {
-        ImGui::EndChild();
+    if (!theme::begin_list("##slice_list", slices.size(), LIST_ROWS)) {
         return;
     }
     for (int i = 0; i < static_cast<int>(slices.size()); i++) {
@@ -123,9 +109,7 @@ void SlicesPanel::list()
         }
         char text[32];
         std::snprintf(text, sizeof(text), "%d\xC3\x97%d", slice.rect.w, slice.rect.h);
-        const float textWidth = ImGui::CalcTextSize(text).x;
-        ImGui::SameLine(ImGui::GetContentRegionMax().x - textWidth);
-        ImGui::TextDisabled("%s", text);
+        theme::list_row_note(text);
         ImGui::PopID();
     }
     ImGui::EndChild();
@@ -149,13 +133,13 @@ bool SlicesPanel::nameField(Sprite::Slice &slice)
 bool SlicesPanel::rectFields(Sprite::Slice &slice)
 {
     bool changed = false;
-    label("X");
+    theme::field_label("X");
     changed = intField("##slice_x", &slice.rect.x, " px") || changed;
-    label("Y");
+    theme::field_label("Y");
     changed = intField("##slice_y", &slice.rect.y, " px") || changed;
-    label("Width");
+    theme::field_label("Width");
     changed = intField("##slice_w", &slice.rect.w, " px") || changed;
-    label("Height");
+    theme::field_label("Height");
     changed = intField("##slice_h", &slice.rect.h, " px") || changed;
     return changed;
 }
@@ -163,7 +147,7 @@ bool SlicesPanel::rectFields(Sprite::Slice &slice)
 bool SlicesPanel::pivotFields(Sprite::Slice &slice)
 {
     bool changed = false;
-    label("Pivot");
+    theme::field_label("Pivot");
     bool has = slice.hasPivot;
     if (ImGui::Checkbox("##slice_pivot", &has)) {
         if (has) {
@@ -176,9 +160,9 @@ bool SlicesPanel::pivotFields(Sprite::Slice &slice)
     theme::tip("A point in the slice (from its top-left cel) a game can place or turn the sprite "
                "around.");
     if (slice.hasPivot) {
-        label("Pivot X");
+        theme::field_label("Pivot X");
         changed = intField("##slice_px", &slice.pivotX, " px") || changed;
-        label("Pivot Y");
+        theme::field_label("Pivot Y");
         changed = intField("##slice_py", &slice.pivotY, " px") || changed;
     }
     return changed;
@@ -187,13 +171,10 @@ bool SlicesPanel::pivotFields(Sprite::Slice &slice)
 void SlicesPanel::details(int index)
 {
     Sprite::Slice edit = editor_->sprite().slices()[static_cast<size_t>(index)];
-    if (!ImGui::BeginTable("##slice_details", 2, ImGuiTableFlags_SizingFixedFit)) {
+    if (!theme::begin_field_table("##slice_details")) {
         return;
     }
-    ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed,
-                            theme::px(FIELD_NAME_COLUMN));
-    ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
-    label("Name");
+    theme::field_label("Name");
     bool changed = nameField(edit);
     changed = rectFields(edit) || changed;
     changed = pivotFields(edit) || changed;
