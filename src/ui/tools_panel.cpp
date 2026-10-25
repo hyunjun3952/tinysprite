@@ -544,23 +544,17 @@ void ToolsPanel::resetDialog()
     }
     ImGui::TextUnformatted("Reset the palette to the default colors?");
     ImGui::TextDisabled("Colors you added are lost. This cannot be undone.");
-    bool close = false;
     /* Cancel is drawn last, so it is the button that gets the keyboard focus below */
     const int clicked = theme::dialog_buttons({"Reset", "Cancel"}, 0, true);
+    bool close = theme::dialog_cancelled(clicked, 1);
     if (clicked == 0) {
         editor_->paletteReset();
-        close = true;
-    }
-    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         close = true;
     }
     if (ImGui::IsWindowAppearing()) {
         ImGui::SetKeyboardFocusHere(-1); /* the Cancel button */
     }
-    if (close) {
-        ImGui::CloseCurrentPopup();
-    }
-    theme::end_modal();
+    theme::end_modal(close);
 }
 
 /* The recent-colors row. Clicking a swatch makes it the foreground color. Before any color has

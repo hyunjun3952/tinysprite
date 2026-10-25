@@ -255,9 +255,13 @@ bool tree_node(const char *label, ImGuiTreeNodeFlags flags, ImU32 textColor, boo
 
 /* A modal dialog (BeginPopupModal, auto-resizing) that fades in over ANIM_SECONDS when it opens.
  * Open it with ImGui::OpenPopup as usual; call end_modal instead of EndPopup, and only when
- * begin_modal returned true. */
+ * begin_modal returned true. end_modal(true) closes the popup first. */
 bool begin_modal(const char *title);
-void end_modal();
+void end_modal(bool close = false);
+
+/* Whether the user cancelled the dialog this frame: the button at index `cancel` of dialog_buttons
+ * was clicked (`clicked` is what it returned), or Escape was pressed. */
+bool dialog_cancelled(int clicked, int cancel);
 
 } // namespace theme
 

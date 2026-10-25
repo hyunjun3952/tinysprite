@@ -809,10 +809,18 @@ bool begin_modal(const char *title)
     return shown;
 }
 
-void end_modal()
+void end_modal(bool close)
 {
+    if (close) {
+        ImGui::CloseCurrentPopup();
+    }
     ImGui::EndPopup();
     ImGui::PopStyleVar();
+}
+
+bool dialog_cancelled(int clicked, int cancel)
+{
+    return clicked == cancel || ImGui::IsKeyPressed(ImGuiKey_Escape);
 }
 
 ImU32 workspaceColor()

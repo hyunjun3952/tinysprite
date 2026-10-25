@@ -484,8 +484,7 @@ void App::fileDialog()
     const int clicked = theme::dialog_buttons({"Cancel", overwriting ? "Overwrite" : info.confirm},
                                               1, overwriting, path.empty() ? 2u : 0u);
     bool done = (clicked == 1 || enter) && runFileAction(info, path);
-    bool cancel = clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape);
-    if (done || cancel) {
+    if (done || theme::dialog_cancelled(clicked, 0)) {
         closeFileDialog();
     }
     theme::end_modal();

@@ -52,8 +52,8 @@ void App::confirmDialog()
         return;
     }
     ImGui::TextUnformatted("The sprite has changes that are not saved.");
-    bool close = false;
     const int clicked = theme::dialog_buttons({"Discard", "Cancel", "Save"}, 2);
+    bool close = theme::dialog_cancelled(clicked, 1);
     if (clicked == 2) {
         close = true;
         saveAndProceed();
@@ -63,14 +63,10 @@ void App::confirmDialog()
         pending_ = nullptr;
         proceed();
     }
-    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        close = true;
-    }
     if (close) {
         pending_ = nullptr;
-        ImGui::CloseCurrentPopup();
     }
-    theme::end_modal();
+    theme::end_modal(close);
 }
 
 /* A file dropped on the window opens in a tab; a failure shows in the Open dialog with
@@ -157,8 +153,8 @@ void App::newDialog()
         return;
     }
     newSizeFields();
-    bool close = false;
     const int clicked = theme::dialog_buttons({"Cancel", "This tab", "New tab"}, 2);
+    bool close = theme::dialog_cancelled(clicked, 0);
     if (clicked == 2 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
         if (addBlankDocument(newWidth_, newHeight_)) {
             close = true;
@@ -168,13 +164,7 @@ void App::newDialog()
         replaceWithBlank(newWidth_, newHeight_);
         close = true;
     }
-    if (clicked == 0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        close = true;
-    }
-    if (close) {
-        ImGui::CloseCurrentPopup();
-    }
-    theme::end_modal();
+    theme::end_modal(close);
 }
 
 /* What the recovery dialog says is there: one document by name, or a count and the first names. */
@@ -245,7 +235,6 @@ void App::recoverDialog()
         if (!keepFiles) {
             recovery_clear(configDir_);
         }
-        ImGui::CloseCurrentPopup();
     }
-    theme::end_modal();
+    theme::end_modal(close);
 }
