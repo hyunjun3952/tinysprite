@@ -4,7 +4,7 @@ description: Finds and plans behavior-preserving refactorings in this C++ repo -
 argument-hint: "[target]"
 metadata:
   author: tinysprite
-  version: 1.6.1
+  version: 1.6.2
 ---
 
 # Refactoring audit
@@ -83,7 +83,10 @@ A finding whose after-state is not clearly simpler, faster (measured) or safer i
 
 One finding at a time, in a loop:
 
-1. Confirm the safety net covers the code (Step 0). Add a characterization test if it does not.
+1. Confirm the safety net covers the code (Step 0). Add a characterization test if it does not. "A test names the function" is not coverage:
+   break the code on purpose (flip a condition, drop a guard, change a constant) and run the tests. A survivor is a gap: write the test first, run it
+   red against the break and green against the code (`.rules`, section 2). A break with no observable effect is an equivalent mutant; say so.
+   A `TEST(...)` that is not listed with `RUN(...)` in `main` never runs.
    UI code: take the "before" screenshot now, with the binary built before your edit, and keep that exe or image in the scratchpad.
 2. Make the smallest structural change; keep the build green after every step, not only at the end.
    Write to the rules while typing, not after the hooks complain: lines of 100 columns at most, `return {a, b};` instead of repeating the
@@ -138,5 +141,7 @@ lint not run, a claim not read in the source). If the user asks you to review yo
   fails with `STL1000`. Re-add the two defines (`../_shared/audit-conventions.md`) before blaming the code.
 - A test that is defined with `TEST(...)` but not listed with `RUN(...)` in `main` never runs, and a green run then proves nothing: check that the
   "N run" count rose by the number of tests added.
+- 5 of 19 changes of one run survived a deliberate break (a guard, a clamp, a cancel button, two with no visible effect): "all tests pass" was true
+  and meant little. Break the code first (Step 3.1). Never commit someone else's change that has no test; the test found a real defect in it.
 - A screenshot that does not open the panel you changed proves nothing about it: expand the panel with a script (hover first, then click) and
   compare the state the changed code draws.

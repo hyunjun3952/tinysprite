@@ -46,6 +46,14 @@ done there:
 - **TDD**: write the failing test first (`tests/test_<feature>.cpp`, one file per feature, using
   `tests/minitest.hpp`: `TEST`, `RUN`, `ASSERT_*`), then implement. Watch it fail for the right reason
   (a compile error for a missing function counts), then make it pass. [CLAUDE.md]
+- **No commit changes behavior without its test, whoever wrote the change** (a fix, a feature, someone's
+  work in progress staged for a commit). The test comes first and is run red: against the code without the change
+  it fails for the reason the change removes. A change found without a test gets one before it is committed, and
+  writing it often finds the change is wrong (a popup was checked after the menu bar had closed it). [seen]
+- **A refactoring needs a net that catches a break.** "The tests pass" is no proof: break the code you
+  changed on purpose (flip a condition, drop a guard), run the tests, and see them fail. A break that survives
+  means the behavior is not covered: write the characterization test first. A break nobody can see (an
+  equivalent mutant) is noted as such. [seen]
 - UI tests are `tests/ui/ui_<feature>.cpp` under `SDL_VIDEODRIVER=dummy`; layout and golden pixel arrays:
   `docs/ARCHITECTURE.md#testing`. [CLAUDE.md]
 - New `test_*.cpp` files are picked up by CMake globbing (re-run cmake). [CLAUDE.md]

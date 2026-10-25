@@ -2,6 +2,8 @@
 
 One line per change, newest first. Versions are in each skill's front matter.
 
+- refactoring-audit 1.6.2: the safety net is checked by breaking the code on purpose, not by "the tests pass"; a change without a test is not committed (`.rules`, section 2).
+
 - refactoring-audit 1.6.1: lessons from a run over `src` (estimates of "merge parallel code" were far off and must be measured, `RUN(...)` registration,
   no cmake reconfigure for a new header, expand the panel before comparing screens); Troubleshooting bullets moved back out of Lessons;
   shared notes on the compile database, `-replace` case, and hover-before-click.
