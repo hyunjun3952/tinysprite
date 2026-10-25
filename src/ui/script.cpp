@@ -231,26 +231,17 @@ bool addSleep(const Words &args, Frames &frames, std::string &why)
     return true;
 }
 
-bool addType(const std::string &rest, Frames &frames, std::string &why)
+/* A command whose whole rest of the line is one text: it goes into `field` of a new input, and
+ * `missing` is the reason given when the line has none. */
+bool addText(const std::string &rest, std::string ScriptInput::*field, const char *missing,
+             Frames &frames, std::string &why)
 {
     if (rest.empty()) {
-        why = "needs the text to type";
+        why = missing;
         return false;
     }
     ScriptInput input;
-    input.text = rest;
-    frames.push_back(input);
-    return true;
-}
-
-bool addShot(const std::string &rest, Frames &frames, std::string &why)
-{
-    if (rest.empty()) {
-        why = "needs a file to save to";
-        return false;
-    }
-    ScriptInput input;
-    input.shot = rest;
+    input.*field = rest;
     frames.push_back(input);
     return true;
 }
@@ -262,10 +253,10 @@ bool addCommand(const std::string &line, Frames &frames, std::string &why)
     std::string command = line.substr(0, space);
     std::string rest = space == std::string::npos ? "" : trim(line.substr(space));
     if (command == "type") {
-        return addType(rest, frames, why);
+        return addText(rest, &ScriptInput::text, "needs the text to type", frames, why);
     }
     if (command == "shot") {
-        return addShot(rest, frames, why);
+        return addText(rest, &ScriptInput::shot, "needs a file to save to", frames, why);
     }
     Words args = split(withoutComment(rest));
     if (command == "move") {
