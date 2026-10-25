@@ -302,6 +302,38 @@ TEST(an_indexed_file_looks_its_colors_up_in_the_palette)
     ASSERT_TRUE(s.palette().get(1) == Rgba({255, 0, 0, 255}));
 }
 
+TEST(an_old_palette_chunk_skips_ahead_and_keeps_the_colors_it_names)
+{
+    Bytes p;
+    p.u16(2);                                                /* two packets */
+    p.u8(0).u8(2).u8(10).u8(20).u8(30).u8(40).u8(50).u8(60); /* indices 0 and 1 */
+    p.u8(1).u8(1).u8(70).u8(80).u8(90);                      /* skip one, then index 3 */
+    Bytes bytes =
+        file(4, 1, 8,
+             {frame(100, {chunk(0x0004, p), layer(VISIBLE | BACKGROUND, 0, 0, 0, 255, "bg"),
+                          cel_raw(0, 0, 0, 255, 4, 1, px({0, 1, 2, 3}))})});
+    Sprite s = must_have(aseprite_decode(bytes.v));
+    ASSERT_TRUE(at(s, 0, 0, 0, 0) == Rgba({10, 20, 30, 255}));
+    ASSERT_TRUE(at(s, 0, 0, 1, 0) == Rgba({40, 50, 60, 255}));
+    ASSERT_TRUE(at(s, 0, 0, 2, 0) == Rgba{}); /* skipped: never set */
+    ASSERT_TRUE(at(s, 0, 0, 3, 0) == Rgba({70, 80, 90, 255}));
+    ASSERT_EQ_INT(4, s.palette().count());
+}
+
+TEST(old_palette_colors_past_the_palette_limit_are_ignored)
+{
+    Bytes p;
+    p.u16(1).u8(250).u8(0); /* skip 250, then a count of 0, which means 256 colors */
+    for (int i = 0; i < 256; i++) {
+        p.u8(1).u8(2).u8(3);
+    }
+    Bytes bytes = file(1, 1, 8,
+                       {frame(100, {chunk(0x0004, p), layer(VISIBLE, 0, 0, 0, 255, "L"),
+                                    cel_raw(0, 0, 0, 255, 1, 1, px({255}))})});
+    Sprite s = must_have(aseprite_decode(bytes.v));
+    ASSERT_EQ_INT(256, s.palette().count());
+}
+
 TEST(a_grayscale_file_becomes_gray_pixels)
 {
     Bytes bytes = file(2, 1, 16,
@@ -466,6 +498,8 @@ int main()
     RUN(the_opacity_of_a_cel_goes_into_its_pixels);
     RUN(a_linked_cel_shares_the_cel_of_the_earlier_frame);
     RUN(an_indexed_file_looks_its_colors_up_in_the_palette);
+    RUN(an_old_palette_chunk_skips_ahead_and_keeps_the_colors_it_names);
+    RUN(old_palette_colors_past_the_palette_limit_are_ignored);
     RUN(a_grayscale_file_becomes_gray_pixels);
     RUN(tags_keep_their_range_and_direction_and_bad_ones_are_dropped);
     RUN(slices_keep_their_first_key_and_pivot);
