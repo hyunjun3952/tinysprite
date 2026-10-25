@@ -16,6 +16,7 @@
 #include "minitest.hpp"
 #include "theme.hpp"
 #include "timeline_panel.hpp"
+#include "tinysprite/io.hpp"
 
 struct AppTestAccess {
     App app;
@@ -71,6 +72,14 @@ struct AppTestAccess {
     void askBeforeLeaving()
     {
         app.guardUnsaved([] {});
+    }
+    void openExportImageDialog()
+    {
+        app.askForPath(App::FileAction::ExportImage);
+    }
+    int &exportScale()
+    {
+        return app.exportScale_;
     }
     /* The sash on the timeline's top edge (or on the status bar when it is folded away). */
     ImVec2 sash()
@@ -474,6 +483,24 @@ TEST(enter_does_not_play_the_animation_while_the_keyboard_drives_the_panels)
     ASSERT_TRUE(!editor.playing());
 }
 
+/* The enlargement of an export is a whole number from 1 to the most the dialog allows, however it
+ * got there. */
+TEST(the_export_scale_is_kept_between_one_and_the_most_the_dialog_allows)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.openExportImageDialog();
+    for (int i = 0; i < 4; i++) {
+        t.frame();
+    }
+    t.exportScale() = 100000;
+    t.frame();
+    ASSERT_EQ_INT(IMAGE_EXPORT_MAX_SCALE, t.exportScale());
+    t.exportScale() = -5;
+    t.frame();
+    ASSERT_EQ_INT(1, t.exportScale());
+}
+
 TEST(ctrl_t_hides_and_shows_the_timeline)
 {
     AppTestAccess t;
@@ -674,6 +701,7 @@ int main()
     RUN(the_arrow_keys_leave_the_cel_alone_while_a_menu_is_open);
     RUN(enter_plays_the_animation_while_the_canvas_has_the_keyboard);
     RUN(enter_does_not_play_the_animation_while_the_keyboard_drives_the_panels);
+    RUN(the_export_scale_is_kept_between_one_and_the_most_the_dialog_allows);
     RUN(ctrl_t_hides_and_shows_the_timeline);
     RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
     return TEST_SUMMARY();
