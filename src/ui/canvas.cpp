@@ -6,6 +6,9 @@
 #include <cstdio>
 #include <optional>
 
+#include <string>
+
+#include "ruler.hpp"
 #include "theme.hpp"
 
 namespace
@@ -161,12 +164,229 @@ void drawSlices(ImDrawList *draw, ImVec2 origin, const Editor &editor)
     }
 }
 
+/* Where the mouse is, for the guides: on the canvas, on one of the two rulers, or elsewhere. */
+enum class Place { Canvas, TopRuler, LeftRuler, Elsewhere };
+
+Place placeOf(ImVec2 mouse, ImVec2 origin, ImVec2 avail, float ruler)
+{
+    const bool insideX = mouse.x >= origin.x && mouse.x < origin.x + avail.x;
+    const bool insideY = mouse.y >= origin.y && mouse.y < origin.y + avail.y;
+    if (insideX && insideY) {
+        return Place::Canvas;
+    }
+    if (insideX && mouse.y >= origin.y - ruler && mouse.y < origin.y) {
+        return Place::TopRuler;
+    }
+    if (insideY && mouse.x >= origin.x - ruler && mouse.x < origin.x) {
+        return Place::LeftRuler;
+    }
+    return Place::Elsewhere;
+}
+
+/* A left press over this window; the canvas button the press just activated does not count as
+ * something else being in the way. */
+bool clickedLeft()
+{
+    return ImGui::IsMouseClicked(ImGuiMouseButton_Left, false) &&
+           ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+}
+
+ImU32 token(unsigned hex)
+{
+    return ImGui::ColorConvertFloat4ToU32(theme::rgb(hex));
+}
+
+constexpr float RULER_MINOR_GAP = 5.0f;  /* least screen distance between two minor ticks */
+constexpr float RULER_MINOR_TICK = 0.3f; /* a minor tick's length as a part of the ruler's width */
+
+/* Cels between two ticks: a fifth or a half of the labelled step, or the step itself when that
+ * would crowd the ticks. */
+int minorStep(int step, float zoom)
+{
+    if (step == 1) {
+        return 1;
+    }
+    const int minor = step % 5 == 0 ? step / 5 : step / 2;
+    return static_cast<float>(minor) * zoom >= RULER_MINOR_GAP ? minor : step;
+}
+
+/* The number of a labelled tick: beside it along a horizontal ruler, one digit under another along
+ * a vertical one (text cannot be turned, and the ruler is too narrow for a number lying down). */
+void rulerLabel(ImDrawList *draw, bool horizontal, int cel, ImVec2 tick, float thickness)
+{
+    const std::string text = std::to_string(cel);
+    const ImU32 ink = token(theme::MUTE);
+    if (horizontal) {
+        draw->AddText(ImVec2(tick.x + 3.0f, tick.y - thickness + 1.0f), ink, text.c_str());
+        return;
+    }
+    const float line = ImGui::GetTextLineHeight();
+    for (size_t i = 0; i < text.size(); i++) {
+        const char *digit = text.c_str() + i;
+        const float width = ImGui::CalcTextSize(digit, digit + 1).x;
+        draw->AddText(ImVec2(tick.x - thickness + (thickness - width) / 2.0f,
+                             tick.y + 2.0f + static_cast<float>(i) * line),
+                      ink, digit, digit + 1);
+    }
+}
+
+/* One ruler: the ticks and labels of the screen range `from`..`to` along its axis, where cel 0
+ * starts at `zero`, drawn against the inner edge `edge` of a strip `thickness` wide. */
+void drawRulerAxis(ImDrawList *draw, bool horizontal, float zero, float zoom, float from, float to,
+                   float edge, float thickness)
+{
+    const int step = ruler_step(zoom);
+    const int unit = minorStep(step, zoom);
+    const int first = static_cast<int>(std::floor((from - zero) / zoom / static_cast<float>(unit)));
+    const int last = static_cast<int>(std::ceil((to - zero) / zoom / static_cast<float>(unit)));
+    for (int k = first; k <= last; k++) {
+        const int cel = k * unit;
+        const float at = zero + static_cast<float>(cel) * zoom;
+        if (at < from || at > to) {
+            continue;
+        }
+        const bool major = cel % step == 0;
+        const float length = major ? thickness : thickness * RULER_MINOR_TICK;
+        const ImVec2 tick = horizontal ? ImVec2(at, edge) : ImVec2(edge, at);
+        const ImVec2 inner = horizontal ? ImVec2(at, edge - length) : ImVec2(edge - length, at);
+        draw->AddLine(tick, inner, token(theme::MUTE));
+        if (major) {
+            rulerLabel(draw, horizontal, cel, tick, thickness);
+        }
+    }
+}
+
 } // namespace
 
 void Canvas::setEditor(Editor &editor)
 {
     editor_ = &editor;
     middle_ = Middle::Idle;
+    guideDrag_ = GuideDrag();
+}
+
+/* The width of the rulers on screen; 0 while they are hidden. */
+float Canvas::rulerSize() const
+{
+    return editor_->overlays().rulers ? theme::px(RULER_THICKNESS) : 0.0f;
+}
+
+/*
+ * Starts dragging a guide: the one at `index` of the vertical or horizontal list, or, for -1, a
+ * new one that begins under the mouse. A new guide switches the guides on so it can be seen.
+ */
+void Canvas::beginGuide(bool vertical, int index, ImVec2 origin)
+{
+    if (index < 0) {
+        const Viewport &view = editor_->view().viewport;
+        const ImVec2 mouse = ImGui::GetMousePos();
+        std::vector<int> &lines =
+            vertical ? editor_->view().guides.vertical : editor_->view().guides.horizontal;
+        lines.push_back(vertical ? guide_snap(view.pan_x, view.zoom, mouse.x - origin.x)
+                                 : guide_snap(view.pan_y, view.zoom, mouse.y - origin.y));
+        index = static_cast<int>(lines.size()) - 1;
+        editor_->overlays().guides = true;
+    }
+    guideDrag_.vertical = vertical;
+    guideDrag_.index = index;
+}
+
+/*
+ * Follows the mouse with the guide being dragged, snapped to the cel edges. Letting go with the
+ * mouse over the ruler (or past it) deletes the guide, which is how a guide is taken away.
+ */
+void Canvas::dragGuide(ImVec2 origin)
+{
+    const Viewport &view = editor_->view().viewport;
+    std::vector<int> &lines =
+        guideDrag_.vertical ? editor_->view().guides.vertical : editor_->view().guides.horizontal;
+    const auto index = static_cast<size_t>(guideDrag_.index);
+    if (index >= lines.size()) {
+        guideDrag_ = GuideDrag();
+        return;
+    }
+    const ImVec2 mouse = ImGui::GetMousePos();
+    const float local = guideDrag_.vertical ? mouse.x - origin.x : mouse.y - origin.y;
+    ImGui::SetMouseCursor(guideDrag_.vertical ? ImGuiMouseCursor_ResizeEW
+                                              : ImGuiMouseCursor_ResizeNS);
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        lines[index] = guide_snap(guideDrag_.vertical ? view.pan_x : view.pan_y, view.zoom, local);
+        return;
+    }
+    if (local < 0.0f) {
+        lines.erase(lines.begin() + static_cast<std::ptrdiff_t>(index));
+    }
+    guideDrag_ = GuideDrag();
+}
+
+/* The guide under `mouse`, if the guides are shown and one is within reach. */
+Canvas::GuideDrag Canvas::pickGuide(ImVec2 mouse, ImVec2 origin) const
+{
+    const Viewport &view = editor_->view().viewport;
+    const Guides &guides = editor_->view().guides;
+    GuideDrag found;
+    found.index = guide_pick(guides.vertical, view.pan_x, view.zoom, mouse.x - origin.x);
+    found.vertical = found.index >= 0;
+    if (!found.vertical) {
+        found.index = guide_pick(guides.horizontal, view.pan_y, view.zoom, mouse.y - origin.y);
+    }
+    return found;
+}
+
+/* A press on the guide under the mouse picks it up; hovering it only shows the resize cursor. */
+bool Canvas::grabGuide(ImVec2 mouse, ImVec2 origin)
+{
+    if (!editor_->overlays().guides) {
+        return false;
+    }
+    const GuideDrag over = pickGuide(mouse, origin);
+    if (over.index < 0) {
+        return false;
+    }
+    ImGui::SetMouseCursor(over.vertical ? ImGuiMouseCursor_ResizeEW : ImGuiMouseCursor_ResizeNS);
+    if (!clickedLeft()) {
+        return false;
+    }
+    guideDrag_ = over;
+    return true;
+}
+
+/* A press on a ruler pulls a new guide out of it: the left ruler gives a vertical one. */
+bool Canvas::pullGuide(bool vertical, ImVec2 origin)
+{
+    if (!clickedLeft()) {
+        return false;
+    }
+    beginGuide(vertical, -1, origin);
+    return true;
+}
+
+/*
+ * The guides' share of the mouse this frame: a guide being dragged, a press on a ruler or on a
+ * guide. Only while the rulers are shown (so drawing next to a guide never grabs it) and no
+ * stroke is going on. True when the mouse belongs to a guide and the tools must not see it.
+ */
+bool Canvas::guideInput(ImVec2 origin, ImVec2 avail)
+{
+    if (guideDrag_.index >= 0) {
+        dragGuide(origin);
+        return true;
+    }
+    if (!editor_->overlays().rulers || editor_->stroking()) {
+        return false;
+    }
+    const ImVec2 mouse = ImGui::GetMousePos();
+    switch (placeOf(mouse, origin, avail, rulerSize())) {
+    case Place::Canvas:
+        return grabGuide(mouse, origin);
+    case Place::TopRuler:
+        return pullGuide(false, origin);
+    case Place::LeftRuler:
+        return pullGuide(true, origin);
+    case Place::Elsewhere:
+        break;
+    }
+    return false;
 }
 
 Canvas::Canvas(Editor &editor, const char *windowName) : editor_(&editor), windowName_(windowName)
@@ -236,7 +456,7 @@ void Canvas::strokeInput(int cx, int cy, bool hovered)
     }
 }
 
-void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
+void Canvas::handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active)
 {
     const ImGuiIO &io = ImGui::GetIO();
     ImVec2 mouse = ImGui::GetMousePos();
@@ -246,6 +466,9 @@ void Canvas::handleInput(ImVec2 origin, bool hovered, bool active)
     int cy = editor_->view().viewport.screenToCelY(localY);
 
     editor_->setHover(cx, cy, hovered);
+    if (guideInput(origin, avail)) {
+        return;
+    }
 
     if (hovered && io.MouseWheel != 0.0f) {
         float zoom =
@@ -448,6 +671,41 @@ void Canvas::drawSelection(ImDrawList *draw, ImVec2 origin) const
     drawRectOutline(draw, p0, p1, theme::overlay::LINE_LIGHT);
 }
 
+/* The guides across the whole canvas, each a thin reddish line. */
+void Canvas::drawGuides(ImDrawList *draw, ImVec2 origin, ImVec2 avail) const
+{
+    const Viewport &view = editor_->view().viewport;
+    const Guides &guides = editor_->view().guides;
+    const ImVec2 end(origin.x + avail.x, origin.y + avail.y);
+    for (const int x : guides.vertical) {
+        const float sx = origin.x + view.celToScreenX(x);
+        draw->AddLine(ImVec2(sx, origin.y), ImVec2(sx, end.y), theme::overlay::GUIDE);
+    }
+    for (const int y : guides.horizontal) {
+        const float sy = origin.y + view.celToScreenY(y);
+        draw->AddLine(ImVec2(origin.x, sy), ImVec2(end.x, sy), theme::overlay::GUIDE);
+    }
+}
+
+/* The two rulers in the strips above and left of the canvas, and the square where they meet. */
+void Canvas::drawRulers(ImDrawList *draw, ImVec2 windowOrigin, ImVec2 origin, ImVec2 avail) const
+{
+    const Viewport &view = editor_->view().viewport;
+    const float thickness = origin.x - windowOrigin.x;
+    const ImVec2 end(origin.x + avail.x, origin.y + avail.y);
+    draw->PushClipRect(windowOrigin, end, true);
+    draw->AddRectFilled(windowOrigin, ImVec2(end.x, origin.y), token(theme::CANVAS_SOFT));
+    draw->AddRectFilled(ImVec2(windowOrigin.x, origin.y), ImVec2(origin.x, end.y),
+                        token(theme::CANVAS_SOFT));
+    draw->AddLine(ImVec2(origin.x, origin.y), ImVec2(end.x, origin.y), token(theme::HAIRLINE));
+    draw->AddLine(ImVec2(origin.x, origin.y), ImVec2(origin.x, end.y), token(theme::HAIRLINE));
+    drawRulerAxis(draw, true, origin.x + view.pan_x, view.zoom, origin.x, end.x, origin.y,
+                  thickness);
+    drawRulerAxis(draw, false, origin.y + view.pan_y, view.zoom, origin.y, end.y, origin.x,
+                  thickness);
+    draw->PopClipRect();
+}
+
 /* Center line(s) the symmetry option mirrors across. */
 void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
 {
@@ -564,6 +822,9 @@ void Canvas::drawContent(ImVec2 origin, ImVec2 avail) const
     if (editor_->overlays().mirror_axes) {
         drawMirrorAxes(draw, sprite);
     }
+    if (editor_->overlays().guides) {
+        drawGuides(draw, origin, avail);
+    }
     drawSelection(draw, origin);
     if (editor_->overlays().slices) {
         drawSlices(draw, origin, *editor_);
@@ -585,7 +846,10 @@ void Canvas::show(float x, float y, float w, float h)
     ImGui::Begin(windowName_.c_str(), nullptr, flags);
     ImGui::PopStyleVar();
 
-    ImVec2 origin = ImGui::GetCursorScreenPos();
+    const ImVec2 windowOrigin = ImGui::GetCursorScreenPos();
+    const float ruler = rulerSize();
+    const ImVec2 origin(windowOrigin.x + ruler, windowOrigin.y + ruler);
+    ImGui::SetCursorScreenPos(origin);
     ImVec2 avail = ImGui::GetContentRegionAvail();
     updateFit(avail);
     ImGui::InvisibleButton("canvas", avail,
@@ -597,9 +861,12 @@ void Canvas::show(float x, float y, float w, float h)
          ImGui::IsMouseClicked(ImGuiMouseButton_Middle))) {
         onPress_();
     }
-    handleInput(origin, ImGui::IsItemHovered(), ImGui::IsItemActive());
+    handleInput(origin, avail, ImGui::IsItemHovered(), ImGui::IsItemActive());
     editor_->updateTexture();
     drawContent(origin, avail);
+    if (ruler > 0.0f) {
+        drawRulers(ImGui::GetWindowDrawList(), windowOrigin, origin, avail);
+    }
     bool picking = middle_ == Middle::Picking ||
                    (editor_->tool() == ToolKind::Eyedropper && editor_->stroking());
     if (picking) {
@@ -607,7 +874,7 @@ void Canvas::show(float x, float y, float w, float h)
     }
     if (highlighted_) {
         ImGui::GetWindowDrawList()->AddRectFilled(
-            origin, ImVec2(origin.x + avail.x, origin.y + theme::px(2.0f)),
+            windowOrigin, ImVec2(origin.x + avail.x, windowOrigin.y + theme::px(2.0f)),
             ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT, 0.85f)));
     }
 

@@ -49,6 +49,8 @@ void Editor::store(SettingsMap &settings) const
     settings_set_bool(settings, "view.cursor", overlays_.cursor);
     settings_set_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_set_bool(settings, "view.slices", overlays_.slices);
+    settings_set_bool(settings, "view.rulers", overlays_.rulers);
+    settings_set_bool(settings, "view.guides", overlays_.guides);
     settings_set_bool(settings, "view.timeline", overlays_.timeline);
     settings_set_bool(settings, "view.options_bar", overlays_.options_bar);
     settings_set_int(settings, "view.status_items", static_cast<int>(overlays_.status_items));
@@ -89,6 +91,8 @@ void Editor::load(const SettingsMap &settings)
     settings_get_bool(settings, "view.cursor", overlays_.cursor);
     settings_get_bool(settings, "view.mirror_axes", overlays_.mirror_axes);
     settings_get_bool(settings, "view.slices", overlays_.slices);
+    settings_get_bool(settings, "view.rulers", overlays_.rulers);
+    settings_get_bool(settings, "view.guides", overlays_.guides);
     settings_get_bool(settings, "view.timeline", overlays_.timeline);
     settings_get_bool(settings, "view.options_bar", overlays_.options_bar);
     int statusItems = 0;

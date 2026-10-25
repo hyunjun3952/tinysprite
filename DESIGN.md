@@ -287,7 +287,7 @@ Icons are Material Symbols Outlined (unfilled), except the tool and shape icons,
 
 ### Canvas
 - Nearest-neighbor sampling always; the pixel grid appears from zoom 4. Fit margin 16 px.
-- Overlays (selection marching ants, slices, onion skin, symmetry axes, loupe) are drawn above the sprite and never change its pixels. They must stay visible on both light and dark artwork. Their colors are the fixed `theme::overlay` values in `theme.hpp`, not the surface ladder.
+- Overlays (selection marching ants, slices, onion skin, symmetry axes, guides, loupe) are drawn above the sprite and never change its pixels. They must stay visible on both light and dark artwork. Their colors are the fixed `theme::overlay` values in `theme.hpp`, not the surface ladder.
 - The cursor shows the tool's footprint. The loupe (14 px cells) follows the mouse with a 22 px gap.
 
 ### Dialogs

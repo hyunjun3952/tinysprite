@@ -124,6 +124,9 @@ right-click menu of the list (`LayersPanel::setContextMenu`). Panel settings key
 identity) and `CompositeSurface` (the CPU buffer, its texture and the dirty rectangle). Both are unit-tested without an
 `Editor`.
 
+The rulers and guides are view state of an `Editor` (`ViewState::guides`), drawn and dragged by `Canvas`; `ruler.hpp` holds
+the pure parts (tick spacing, snapping a guide to a cel edge, picking one under the mouse).
+
 Tools are a table, not switches: `tool.cpp` has one `ToolTraits` row per `ToolKind` (its `ToolGroup` and, for the shape
 tools, which `ShapeKind` it draws), and the editor, canvas and tools panel ask it instead of comparing tool kinds.
 `Editor::press` asks `beginDrag` (`drag.cpp`) for a `Drag`, which picks a factory by the tool's group: pencil, bucket,
