@@ -133,12 +133,16 @@ class App
     /* A menu item for a command; `label` replaces the command's own when the item says something
      * more exact for the moment (e.g. "Merge layers" for a selection of several). */
     void commandItem(CommandId id, bool checked = false, const char *label = nullptr);
-    void plainShortcuts();
-    void nudgeShortcut();
+    /* Whether the keyboard is driving the panels or a menu: asked at the start of the frame, before
+     * the menu bar takes a key (an arrow that switches menus closes the popup in this very frame).
+     */
+    static bool keyboardOnControls();
+    void plainShortcuts(bool controlsHaveKeys);
+    void nudgeShortcut(bool controlsHaveKeys);
     void ctrlShortcuts();
     void escapeShortcut();
     bool modalOpen() const;
-    void handleShortcuts();
+    void handleShortcuts(bool controlsHaveKeys);
     void layersWindow(float height);
     void timelineSash(float x, float width, float bottomY, float maxHeight);
     bool sashClicked(Editor::Overlays &overlays);

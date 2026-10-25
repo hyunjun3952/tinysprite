@@ -16,17 +16,18 @@ static bool anyPressed(std::initializer_list<ImGuiKey> keys, bool repeat = true)
 
 /* Whether the keyboard is driving the panels (a focus ring is showing) or a popup is open: the
  * arrow keys and Enter then belong to the control, not to the canvas. */
-static bool keyboardOnControls()
+bool App::keyboardOnControls()
 {
     const ImGuiIO &io = ImGui::GetIO();
     return (io.NavActive && io.NavVisible) ||
            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
 }
 
-/* The arrow keys move the selected pixels by 1 px (8 px with Shift); they repeat while held. */
-void App::nudgeShortcut()
+/* The arrow keys move the selected pixels by 1 px (8 px with Shift); they repeat while held. Not
+ * while the keyboard is on the controls (`controlsHaveKeys`). */
+void App::nudgeShortcut(bool controlsHaveKeys)
 {
-    if (keyboardOnControls()) {
+    if (controlsHaveKeys) {
         return;
     }
     const int step = ImGui::GetIO().KeyShift ? 8 : 1;
@@ -50,7 +51,7 @@ void App::nudgeShortcut()
 /* Keys that act without a modifier: tool letters, X (swap colors), + / - and [ ] (brush size) and F
  * (fit), , . and Enter
  * (frames and playback). */
-void App::plainShortcuts()
+void App::plainShortcuts(bool controlsHaveKeys)
 {
     for (int tool = 0; tool < TOOL_COUNT; tool++) {
         if (ImGui::IsKeyPressed(ToolsPanel::shortcutKey(static_cast<ToolKind>(tool)), false)) {
@@ -78,8 +79,8 @@ void App::plainShortcuts()
     if (anyPressed({ImGuiKey_Period})) {
         editor_->setFrame(editor_->frame() + 1);
     }
-    nudgeShortcut();
-    if (!keyboardOnControls() && anyPressed({ImGuiKey_Enter, ImGuiKey_KeypadEnter}, false)) {
+    nudgeShortcut(controlsHaveKeys);
+    if (!controlsHaveKeys && anyPressed({ImGuiKey_Enter, ImGuiKey_KeypadEnter}, false)) {
         editor_->togglePlayback();
     }
 }
@@ -143,7 +144,7 @@ void App::deleteShortcut()
     }
 }
 
-void App::handleShortcuts()
+void App::handleShortcuts(bool controlsHaveKeys)
 {
     const ImGuiIO &io = ImGui::GetIO();
     if (io.WantTextInput || layersPanel_->dialogOpen() || toolsPanel_->dialogOpen() ||
@@ -160,6 +161,6 @@ void App::handleShortcuts()
     if (io.KeyCtrl) {
         ctrlShortcuts();
     } else if (!io.KeyAlt) {
-        plainShortcuts();
+        plainShortcuts(controlsHaveKeys);
     }
 }

@@ -462,6 +462,7 @@ void App::timelineSash(float x, float width, float bottomY, float maxHeight)
 void App::buildUi()
 {
     retired_.clear(); /* the previous frame, which drew them, is rendered */
+    const bool controlsHaveKeys = keyboardOnControls(); /* before the menu bar takes a key */
     menuBar();
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     float left = 0.0f;
@@ -519,7 +520,7 @@ void App::buildUi()
     tilemapWindow_.show(renderer_, *editor_);
     recoverDialog();
     helpWindow();
-    handleShortcuts();
+    handleShortcuts(controlsHaveKeys);
     autosave();
     updateTitle();
 }

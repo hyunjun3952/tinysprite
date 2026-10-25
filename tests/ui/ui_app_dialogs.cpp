@@ -391,6 +391,89 @@ TEST(tab_enters_the_ui_without_a_mouse_click)
     ASSERT_TRUE(ImGui::GetIO().NavVisible);
     ASSERT_TRUE(g.NavWindow != nullptr && std::strcmp(g.NavWindow->Name, "Tools") == 0);
 }
+
+/* A key pressed and let go, a frame each. */
+static void press_key(AppTestAccess &t, ImGuiKey key)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    io.AddKeyEvent(key, true);
+    t.frame();
+    io.AddKeyEvent(key, false);
+    t.frame();
+}
+
+/* Tab, with no mouse click before it: the keyboard now drives the panels and a focus ring shows. */
+static void enter_the_panels_by_keyboard(AppTestAccess &t)
+{
+    push_tab(t.window(), true);
+    t.frame();
+    push_tab(t.window(), false);
+    t.frame();
+    t.frame();
+}
+
+/* The arrow keys move the cel (the selected pixels, or the whole cel with no selection) and Enter
+ * plays the animation, but only while the canvas has the keyboard. */
+TEST(the_arrow_keys_move_the_cel_while_the_canvas_has_the_keyboard)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(5, 5, Rgba{255, 0, 0, 255});
+    press_key(t, ImGuiKey_RightArrow);
+    ASSERT_TRUE(editor.activeCel()->get(6, 5) == Rgba({255, 0, 0, 255}));
+    ASSERT_TRUE(editor.activeCel()->get(5, 5) == Rgba{});
+}
+
+TEST(the_arrow_keys_leave_the_cel_alone_while_the_keyboard_drives_the_panels)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(5, 5, Rgba{255, 0, 0, 255});
+    enter_the_panels_by_keyboard(t);
+    ASSERT_TRUE(ImGui::GetIO().NavVisible);
+    press_key(t, ImGuiKey_RightArrow);
+    ASSERT_TRUE(editor.activeCel()->get(5, 5) == Rgba({255, 0, 0, 255}));
+    ASSERT_TRUE(editor.activeCel()->get(6, 5) == Rgba{});
+}
+
+TEST(the_arrow_keys_leave_the_cel_alone_while_a_menu_is_open)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.activeCel()->set(5, 5, Rgba{255, 0, 0, 255});
+    t.hover(20.0f, 10.0f); /* the File title opens its menu */
+    ASSERT_TRUE(AppTestAccess::openPopups() > 0);
+    press_key(t, ImGuiKey_RightArrow);
+    ASSERT_TRUE(editor.activeCel()->get(5, 5) == Rgba({255, 0, 0, 255}));
+    ASSERT_TRUE(editor.activeCel()->get(6, 5) == Rgba{});
+}
+
+TEST(enter_plays_the_animation_while_the_canvas_has_the_keyboard)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.addFrame();
+    ASSERT_TRUE(!editor.playing());
+    press_key(t, ImGuiKey_Enter);
+    ASSERT_TRUE(editor.playing());
+}
+
+TEST(enter_does_not_play_the_animation_while_the_keyboard_drives_the_panels)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    Editor &editor = t.editor();
+    editor.addFrame();
+    enter_the_panels_by_keyboard(t);
+    ASSERT_TRUE(ImGui::GetIO().NavVisible);
+    press_key(t, ImGuiKey_Enter);
+    ASSERT_TRUE(!editor.playing());
+}
+
 TEST(ctrl_t_hides_and_shows_the_timeline)
 {
     AppTestAccess t;
@@ -586,6 +669,11 @@ int main()
     RUN(dragging_the_timeline_edge_resizes_folds_and_unfolds_it);
     RUN(a_file_dialog_confirms_with_what_it_does);
     RUN(tab_enters_the_ui_without_a_mouse_click);
+    RUN(the_arrow_keys_move_the_cel_while_the_canvas_has_the_keyboard);
+    RUN(the_arrow_keys_leave_the_cel_alone_while_the_keyboard_drives_the_panels);
+    RUN(the_arrow_keys_leave_the_cel_alone_while_a_menu_is_open);
+    RUN(enter_plays_the_animation_while_the_canvas_has_the_keyboard);
+    RUN(enter_does_not_play_the_animation_while_the_keyboard_drives_the_panels);
     RUN(ctrl_t_hides_and_shows_the_timeline);
     RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
     return TEST_SUMMARY();
