@@ -244,7 +244,7 @@ a branch + PR of its own (`.rules`).
 5. **Small ones** (each a day or less):
    - save the open tabs and the split between runs (paths only; `settings.ini`);
    - guides at a fraction of a cel, and undo for guides;
-   - a keyboard shortcut for Flip H / Flip V / Turn in the tilemap window, and a preview of the turned brush tile.
+   - a preview of the turned brush tile in the tilemap window.
 
 ### Environment
 
