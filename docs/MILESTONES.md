@@ -54,9 +54,16 @@ the backlog at the end. Rules: `.rules`. How the code is put together: [ARCHITEC
 - [x] **23. Tilemap editor**: `Tileset` (an atlas cut from a cel into equal tiles) and `TileMap` (cells: 0 empty, else tile
       + 1) on the `Sprite`, `tilemap_ops.hpp`, `TileStroke` for painting, optional `TSET` / `TMAP` chunks (tile data is kept
       all or nothing), a Tiled-style `.tmj` export plus one PNG per tileset, a Tilemaps section and a floating Tilemap
-      window. Tiles are not flipped or rotated, a tilemap is not in the exports, and a tileset is a copy of the pixels.
-      The canvas previews every visible tilemap over the layers (`composite_tilemaps`, top-left at (0, 0), clipped to
-      the sprite; the eye in the Tilemaps section toggles it); a map has no position or layer order yet.
+      window. A tilemap is not in the image exports, and a tileset is a copy of the pixels. The canvas previews every
+      visible tilemap over the layers (`composite_tilemaps`, clipped to the sprite; the eye in the Tilemaps section
+      toggles it); a map has no layer order yet.
+- [x] **25. Tilemap placement and turned tiles**: a map has an origin `TileMap::x, y` in pixels (the Position fields and
+      Move button of the Tilemaps section, one undo step, saved in the optional `TPOS` chunk; the canvas and the `.tmj`
+      `offsetx` / `offsety` follow it). The top three bits of a cell are Tiled's flip flags (`TILE_FLIP_X`, `TILE_FLIP_Y`,
+      `TILE_TRANSPOSE`, the last only for square tiles); `tile_flipped` / `tile_rotated` compose them as 2 x 2 matrices,
+      `tile_pixel` samples a turned tile for the canvas, the tilemap window and `tilemap_render`, and the `.tmj` ids carry
+      the same bits. The window has Flip H, Flip V and Turn buttons. An older reader drops all tile data of a file that
+      has a turned cell (it is all or nothing), but keeps the pixels.
 - [x] **24. Aseprite import**: `aseprite_decode` / `aseprite_load`: image layers (name, visibility, lock, opacity, the blend
       modes this editor has), cels (offset, opacity baked into alpha, links), RGBA / grayscale / indexed color, durations,
       tags, palette and slices. Compressed cels go through our own `zlib_inflate` with an output limit, so a hostile file
@@ -168,7 +175,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   decides the range and direction. A document stops playing when it is no longer shown in a pane.
 
 **Files and formats**
-- `.pxa` stays version 1: `FRAM`, `LINK`, `BLND`, `TAGS`, `SLCE`, `TSET`, `TMAP` and `GUID` are optional chunks a reader skips when it
+- `.pxa` stays version 1: `FRAM`, `LINK`, `BLND`, `TAGS`, `SLCE`, `TSET`, `TMAP`, `TPOS` and `GUID` are optional chunks a reader skips when it
   does not know them, and a plain one-frame sprite writes none of them. The decoder grows the frames only after checking
   that the first `LAYR` chunk holds their pixels, so a lying header cannot make it allocate more than the file is big.
   `FRAM` has to precede the layers. The lock is bit 1 of the `LAYR` flags byte (bit 0 is visible), so older readers still

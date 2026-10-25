@@ -205,8 +205,53 @@ TEST(tile_steps_interleave_with_pixel_steps)
     ASSERT_EQ_INT(0, s.tilemaps()[0].cell(0, 0));
 }
 
+TEST(moving_a_map_is_one_undo_step)
+{
+    Sprite s = with_map();
+    History h;
+    TileMap moved = s.tilemaps()[0];
+    moved.x = 5;
+    moved.y = -3;
+    ASSERT_TRUE(tilemap_op_set(h, s, 0, moved));
+    ASSERT_EQ_INT(5, s.tilemaps()[0].x);
+    ASSERT_EQ_INT(-3, s.tilemaps()[0].y);
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(0, s.tilemaps()[0].x);
+    ASSERT_EQ_INT(0, s.tilemaps()[0].y);
+    ASSERT_TRUE(h.redo());
+    ASSERT_EQ_INT(5, s.tilemaps()[0].x);
+    moved.x = TILEMAP_OFFSET_MAX + 1;
+    ASSERT_TRUE(!tilemap_op_set(h, s, 0, moved));
+}
+
+TEST(resizing_a_map_keeps_where_it_is)
+{
+    Sprite s = with_map();
+    History h;
+    TileMap moved = s.tilemaps()[0];
+    moved.x = 7;
+    moved.y = 2;
+    tilemap_op_set(h, s, 0, moved);
+    ASSERT_TRUE(tilemap_op_resize(h, s, 0, 6, 6));
+    ASSERT_EQ_INT(7, s.tilemaps()[0].x);
+    ASSERT_EQ_INT(2, s.tilemaps()[0].y);
+}
+
+TEST(painting_a_turned_tile_is_one_undo_step)
+{
+    Sprite s = with_map();
+    History h;
+    ASSERT_TRUE(tilemap_op_fill(h, s, 0, Rect{0, 0, 2, 1}, 2 | TILE_FLIP_X));
+    ASSERT_EQ_INT(2 | TILE_FLIP_X, s.tilemaps()[0].cell(1, 0));
+    ASSERT_TRUE(h.undo());
+    ASSERT_EQ_INT(0, s.tilemaps()[0].cell(1, 0));
+}
+
 int main()
 {
+    RUN(moving_a_map_is_one_undo_step);
+    RUN(resizing_a_map_keeps_where_it_is);
+    RUN(painting_a_turned_tile_is_one_undo_step);
     RUN(adding_and_undoing_a_tileset);
     RUN(an_invalid_tileset_is_refused);
     RUN(a_tileset_in_use_cannot_be_removed);

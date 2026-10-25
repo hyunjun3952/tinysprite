@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -320,6 +321,18 @@ void readTilemaps(Reader &chunk, std::vector<TileMap> &maps)
     }
 }
 
+/* A TPOS payload: a u16 count, then the origin of that many maps in the order of the TMAP chunk,
+ * x and y as u32 (two's complement). */
+void readMapOrigins(Reader &chunk, std::vector<std::pair<int, int>> &origins)
+{
+    uint32_t count = chunk.u16();
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t x = chunk.u32();
+        uint32_t y = chunk.u32();
+        origins.emplace_back(static_cast<int32_t>(x), static_cast<int32_t>(y));
+    }
+}
+
 /* What the chunks read so far add up to. The chunks that fill the sprite (FRAM, LINK, BLND, TAGS)
  * are kept aside and applied in finish(), once the frames and layers they refer to exist. */
 class Decoder
@@ -345,11 +358,25 @@ class Decoder
         keepValidGuides(*sprite_);
         /* Tile data is all or nothing: maps point into the tilesets by index, so a part that is
          * invalid costs the tiles but never the pixels. */
+        placeMaps();
         sprite_->setTileData(std::move(tilesets_), std::move(maps_));
         return std::move(sprite_);
     }
 
   private:
+    /* Where a map lies is metadata: an origin out of range, or for a map the file does not have, is
+     * ignored and the map stays at (0, 0). */
+    void placeMaps()
+    {
+        for (size_t i = 0; i < origins_.size() && i < maps_.size(); i++) {
+            const auto [x, y] = origins_[i];
+            if (std::abs(x) <= TILEMAP_OFFSET_MAX && std::abs(y) <= TILEMAP_OFFSET_MAX) {
+                maps_[i].x = x;
+                maps_[i].y = y;
+            }
+        }
+    }
+
     /* Slices are metadata: one that does not fit the sprite (an empty name, a rectangle or pivot
      * out of bounds) is dropped, so a bad one never costs the pixels. */
     void keepValidSlices(Sprite &sprite)
@@ -479,6 +506,12 @@ class Decoder
         return true;
     }
 
+    bool readOriginChunk(Reader &chunk, uint32_t /*unused*/)
+    {
+        readMapOrigins(chunk, origins_);
+        return true;
+    }
+
     std::optional<Sprite> sprite_;
     int layers_ = 0;
     uint32_t frames_ = 1;
@@ -488,8 +521,9 @@ class Decoder
     Guides guides_;                     /* from GUID, checked against the size at the end */
     std::vector<Tileset> tilesets_;     /* from TSET and TMAP, checked together at the end */
     std::vector<TileMap> maps_;
-    std::vector<CelLink> links_;     /* from LINK, applied once the layers exist */
-    std::vector<LayerBlend> blends_; /* from BLND, applied once the layers exist */
+    std::vector<std::pair<int, int>> origins_; /* from TPOS, applied to maps_ at the end */
+    std::vector<CelLink> links_;               /* from LINK, applied once the layers exist */
+    std::vector<LayerBlend> blends_;           /* from BLND, applied once the layers exist */
 };
 
 const Decoder::ChunkReader Decoder::CHUNKS[] = {
@@ -498,7 +532,7 @@ const Decoder::ChunkReader Decoder::CHUNKS[] = {
     {"LINK", &Decoder::readLinkChunk},    {"BLND", &Decoder::readBlendChunk},
     {"TAGS", &Decoder::readTagChunk},     {"SLCE", &Decoder::readSliceChunk},
     {"TSET", &Decoder::readTilesetChunk}, {"TMAP", &Decoder::readTilemapChunk},
-    {"GUID", &Decoder::readGuideChunk},
+    {"GUID", &Decoder::readGuideChunk},   {"TPOS", &Decoder::readOriginChunk},
 };
 
 bool Decoder::chunk(const uint8_t *tag, Reader &payload, uint32_t length)
@@ -743,6 +777,23 @@ void writeTilemaps(std::vector<uint8_t> &out, const std::vector<TileMap> &maps)
     });
 }
 
+/* The origin of every map, in the order of the TMAP chunk; nothing when all lie at (0, 0). */
+void writeMapOrigins(std::vector<uint8_t> &out, const std::vector<TileMap> &maps)
+{
+    const bool moved = std::any_of(maps.begin(), maps.end(),
+                                   [](const TileMap &map) { return map.x != 0 || map.y != 0; });
+    if (!moved) {
+        return;
+    }
+    putChunk(out, "TPOS", [&](std::vector<uint8_t> &o) {
+        putU16(o, static_cast<uint32_t>(maps.size()));
+        for (const TileMap &map : maps) {
+            putU32(o, static_cast<uint32_t>(map.x));
+            putU32(o, static_cast<uint32_t>(map.y));
+        }
+    });
+}
+
 void writeTiles(std::vector<uint8_t> &out, const Sprite &sprite)
 {
     if (!sprite.tilesets().empty()) {
@@ -750,6 +801,7 @@ void writeTiles(std::vector<uint8_t> &out, const Sprite &sprite)
     }
     if (!sprite.tilemaps().empty()) {
         writeTilemaps(out, sprite.tilemaps());
+        writeMapOrigins(out, sprite.tilemaps());
     }
 }
 

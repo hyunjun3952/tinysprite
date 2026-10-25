@@ -57,14 +57,19 @@ std::string tilesetsJson(const Sprite &sprite, const std::vector<std::string> &i
     return out;
 }
 
-/* The data array of a layer padded to width x height: global tile ids, row by row. */
+/* The data array of a layer padded to width x height: global tile ids, row by row. A turned tile
+ * keeps its flip bits in the top of its id, where Tiled reads them. */
 std::string dataJson(const TileMap &map, const std::vector<int> &firstgids, int width, int height)
 {
     std::string out;
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             uint32_t cell = map.cell(x, y);
-            long long gid = cell == 0 ? 0 : firstgids[static_cast<size_t>(map.tileset)] + cell - 1;
+            long long gid = 0;
+            if (tile_number(cell) != 0) {
+                gid = (firstgids[static_cast<size_t>(map.tileset)] + tile_number(cell) - 1) |
+                      (cell & TILE_FLAGS);
+            }
             out += (out.empty() ? "" : ", ") + number(gid);
         }
     }
@@ -80,9 +85,10 @@ std::string layersJson(const Sprite &sprite, const std::vector<int> &firstgids, 
         out += id == 1 ? "\n" : ",\n";
         out += R"(    {"data": )" + dataJson(map, firstgids, width, height) + R"(, "height": )" +
                number(height) + R"(, "id": )" + number(id) + R"(, "name": )" +
-               json_quoted(map.name) + R"(, "opacity": 1)" +
-               R"(, "type": "tilelayer", "visible": )" + (map.visible ? "true" : "false") +
-               R"(, "width": )" + number(width) + R"(, "x": 0, "y": 0})";
+               json_quoted(map.name) + R"(, "offsetx": )" + number(map.x) + R"(, "offsety": )" +
+               number(map.y) + R"(, "opacity": 1)" + R"(, "type": "tilelayer", "visible": )" +
+               (map.visible ? "true" : "false") + R"(, "width": )" + number(width) +
+               R"(, "x": 0, "y": 0})";
         id++;
     }
     return out;

@@ -98,7 +98,8 @@ bool tilemap_op_set(History &history, Sprite &sprite, int index, TileMap map)
     map.name = layer_name_truncate(map.name, TILE_NAME_MAX);
     const TileMap &now = sprite.tilemaps()[static_cast<size_t>(index)];
     if (now.name == map.name && now.tileset == map.tileset && now.columns == map.columns &&
-        now.rows == map.rows && now.visible == map.visible && now.cells == map.cells) {
+        now.rows == map.rows && now.x == map.x && now.y == map.y && now.visible == map.visible &&
+        now.cells == map.cells) {
         return true;
     }
     std::vector<TileMap> next = sprite.tilemaps();
@@ -115,6 +116,8 @@ bool tilemap_op_resize(History &history, Sprite &sprite, int index, int columns,
     const TileMap &now = sprite.tilemaps()[static_cast<size_t>(index)];
     TileMap next = tilemap_blank(now.name, now.tileset, columns, rows);
     next.visible = now.visible;
+    next.x = now.x;
+    next.y = now.y;
     for (int y = 0; y < std::min(rows, now.rows); y++) {
         for (int x = 0; x < std::min(columns, now.columns); x++) {
             next.cells[static_cast<size_t>(y) * static_cast<size_t>(columns) +

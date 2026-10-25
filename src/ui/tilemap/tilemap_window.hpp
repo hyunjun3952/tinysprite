@@ -23,7 +23,8 @@ class TilemapWindow
   private:
     void refresh(SDL_Renderer *renderer, const Editor &editor, const Tileset &tileset,
                  const TileMap &map);
-    void toolbar(Editor &editor, const TileMap &map);
+    void toolbar(Editor &editor, const Tileset &tileset, const TileMap &map);
+    void turnButtons(Editor &editor, const Tileset &tileset);
     void picker(Editor &editor, const Tileset &tileset);
     void mapView(Editor &editor, const Tileset &tileset, const TileMap &map);
     void paint(Editor &editor, const Tileset &tileset, const TileMap &map, float x0, float y0);

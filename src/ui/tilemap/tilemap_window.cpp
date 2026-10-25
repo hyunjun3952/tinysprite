@@ -65,7 +65,7 @@ void TilemapWindow::refresh(SDL_Renderer *renderer, const Editor &editor, const 
     }
 }
 
-void TilemapWindow::toolbar(Editor &editor, const TileMap &map)
+void TilemapWindow::toolbar(Editor &editor, const Tileset &tileset, const TileMap &map)
 {
     ImGui::AlignTextToFramePadding();
     ImGui::Text("%s  %d\xC3\x97%d", map.name.c_str(), map.columns, map.rows);
@@ -77,10 +77,33 @@ void TilemapWindow::toolbar(Editor &editor, const TileMap &map)
     const int selected = editor.selectedTilemap();
     if (ImGui::Button("Fill all")) {
         tilemap_op_fill(editor.history(), editor.sprite(), selected,
-                        Rect{0, 0, map.columns, map.rows}, editor.selectedTile());
+                        Rect{0, 0, map.columns, map.rows}, editor.selectedCell());
         editor.tilesChanged();
     }
     theme::tip("Sets every cell of the map to the picked tile.");
+    turnButtons(editor, tileset);
+}
+
+/* Mirror and turn buttons for the tile the brush paints. The quarter turn needs square tiles. */
+void TilemapWindow::turnButtons(Editor &editor, const Tileset &tileset)
+{
+    ImGui::SameLine();
+    if (ImGui::Button("Flip H")) {
+        editor.flipSelectedTile(true);
+    }
+    theme::tip("Mirrors the picked tile left to right.");
+    ImGui::SameLine();
+    if (ImGui::Button("Flip V")) {
+        editor.flipSelectedTile(false);
+    }
+    theme::tip("Mirrors the picked tile top to bottom.");
+    ImGui::SameLine();
+    ImGui::BeginDisabled(tileset.tileWidth != tileset.tileHeight);
+    if (ImGui::Button("Turn")) {
+        editor.rotateSelectedTile(true);
+    }
+    ImGui::EndDisabled();
+    theme::tip("Turns the picked tile a quarter clockwise (square tiles only).");
 }
 
 void TilemapWindow::picker(Editor &editor, const Tileset &tileset)
@@ -146,7 +169,7 @@ void TilemapWindow::paint(Editor &editor, const Tileset &tileset, const TileMap 
         std::floor((mouse.x - x0) / (static_cast<float>(tileset.tileWidth) * zoom)));
     const int cy = static_cast<int>(
         std::floor((mouse.y - y0) / (static_cast<float>(tileset.tileHeight) * zoom)));
-    const uint32_t cell = left ? editor.selectedTile() : 0;
+    const uint32_t cell = left ? editor.selectedCell() : 0;
     const int fromX = hasLast_ ? lastX_ : cx;
     const int fromY = hasLast_ ? lastY_ : cy;
     raster_line(fromX, fromY, cx, cy, [&](int x, int y) {
@@ -205,7 +228,7 @@ void TilemapWindow::show(SDL_Renderer *renderer, Editor &editor)
         const TileMap &map = editor.sprite().tilemaps()[static_cast<size_t>(index)];
         const Tileset &tileset = editor.sprite().tilesets()[static_cast<size_t>(map.tileset)];
         refresh(renderer, editor, tileset, map);
-        toolbar(editor, map);
+        toolbar(editor, tileset, map);
         picker(editor, tileset);
         mapView(editor, tileset, map);
     }

@@ -35,6 +35,52 @@ TEST(tiles_survive_a_save_and_load)
     ASSERT_EQ_INT(1, map.cell(1, 1));
 }
 
+/* Where the chunk named `tag` starts in an encoded file (the tag's first byte). */
+static size_t chunk_at(const std::vector<uint8_t> &data, const char *tag)
+{
+    std::string text(data.begin(), data.end());
+    return text.find(tag);
+}
+
+TEST(a_maps_position_and_turned_cells_survive_a_save_and_load)
+{
+    Sprite s = with_tiles();
+    TileMap map = s.tilemaps()[0];
+    map.x = -12;
+    map.y = 30;
+    map.cells[0] = 1 | TILE_FLIP_X | TILE_TRANSPOSE;
+    ASSERT_TRUE(s.setTileData(s.tilesets(), {map}));
+    Sprite back = must_have(pxa_decode(pxa_encode(s)));
+    ASSERT_EQ_INT(-12, back.tilemaps()[0].x);
+    ASSERT_EQ_INT(30, back.tilemaps()[0].y);
+    ASSERT_EQ_INT(1 | TILE_FLIP_X | TILE_TRANSPOSE, back.tilemaps()[0].cell(0, 0));
+}
+
+TEST(maps_at_the_origin_write_no_position_chunk)
+{
+    std::vector<uint8_t> data = pxa_encode(with_tiles());
+    std::string text(data.begin(), data.end());
+    ASSERT_TRUE(text.find("TPOS") == std::string::npos);
+}
+
+TEST(a_position_out_of_range_is_dropped_and_the_tiles_stay)
+{
+    Sprite s = with_tiles();
+    TileMap map = s.tilemaps()[0];
+    map.x = 4;
+    s.setTileData(s.tilesets(), {map});
+    std::vector<uint8_t> data = pxa_encode(s);
+    size_t at = chunk_at(data, "TPOS");
+    ASSERT_TRUE(at != std::string::npos);
+    /* tag, length, count (u16), then x as a u32: make it huge */
+    for (size_t i = 0; i < 4; i++) {
+        data[at + 4 + 4 + 2 + i] = 0x7F;
+    }
+    Sprite back = must_have(pxa_decode(data));
+    ASSERT_EQ_INT(1, back.tilemaps().size());
+    ASSERT_EQ_INT(0, back.tilemaps()[0].x);
+}
+
 TEST(a_sprite_without_tiles_writes_no_tile_chunks)
 {
     Sprite s(4, 4);
@@ -42,13 +88,6 @@ TEST(a_sprite_without_tiles_writes_no_tile_chunks)
     std::string text(data.begin(), data.end());
     ASSERT_TRUE(text.find("TSET") == std::string::npos);
     ASSERT_TRUE(text.find("TMAP") == std::string::npos);
-}
-
-/* Replaces the first 4 bytes after `tag` ... of the chunk named `tag` in an encoded file. */
-static size_t chunk_at(const std::vector<uint8_t> &data, const char *tag)
-{
-    std::string text(data.begin(), data.end());
-    return text.find(tag);
 }
 
 TEST(a_map_that_points_at_a_missing_tileset_drops_the_tiles_but_keeps_the_pixels)
@@ -89,6 +128,9 @@ TEST(a_huge_atlas_header_is_rejected_without_allocating)
 int main()
 {
     RUN(tiles_survive_a_save_and_load);
+    RUN(a_maps_position_and_turned_cells_survive_a_save_and_load);
+    RUN(maps_at_the_origin_write_no_position_chunk);
+    RUN(a_position_out_of_range_is_dropped_and_the_tiles_stay);
     RUN(a_sprite_without_tiles_writes_no_tile_chunks);
     RUN(a_map_that_points_at_a_missing_tileset_drops_the_tiles_but_keeps_the_pixels);
     RUN(a_truncated_tile_chunk_is_an_invalid_file);

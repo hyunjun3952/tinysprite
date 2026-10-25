@@ -309,7 +309,7 @@ bool Sprite::setTile(int map, int x, int y, uint32_t cell)
     TileMap &target = tilemaps_[static_cast<size_t>(map)];
     const Tileset &tileset = tilesets_[static_cast<size_t>(target.tileset)];
     if (x < 0 || y < 0 || x >= target.columns || y >= target.rows ||
-        cell > static_cast<uint32_t>(tileset.tileCount())) {
+        !tile_cell_valid(tileset, cell)) {
         return false;
     }
     target.cells[static_cast<size_t>(y) * static_cast<size_t>(target.columns) +

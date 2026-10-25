@@ -45,6 +45,45 @@ void Editor::selectTile(uint32_t cell)
     selectedTile_ = cell;
 }
 
+uint32_t Editor::selectedCell() const
+{
+    const uint32_t tile = selectedTile();
+    const int map = selectedTilemap();
+    const uint32_t cell = tile | (tileTurn_ & TILE_FLAGS);
+    if (tile == 0 || map < 0) {
+        return tile;
+    }
+    const Tileset &tileset =
+        sprite_
+            .tilesets()[static_cast<size_t>(sprite_.tilemaps()[static_cast<size_t>(map)].tileset)];
+    return tile_cell_valid(tileset, cell) ? cell : tile;
+}
+
+bool Editor::flipSelectedTile(bool horizontal)
+{
+    if (selectedTile() == 0 || selectedTilemap() < 0) {
+        return false;
+    }
+    tileTurn_ = tile_flipped((selectedCell() & TILE_FLAGS) | 1u, horizontal);
+    return true;
+}
+
+bool Editor::rotateSelectedTile(bool clockwise)
+{
+    const int map = selectedTilemap();
+    if (selectedTile() == 0 || map < 0) {
+        return false;
+    }
+    const Tileset &tileset =
+        sprite_
+            .tilesets()[static_cast<size_t>(sprite_.tilemaps()[static_cast<size_t>(map)].tileset)];
+    if (tileset.tileWidth != tileset.tileHeight) {
+        return false;
+    }
+    tileTurn_ = tile_rotated((selectedCell() & TILE_FLAGS) | 1u, clockwise);
+    return true;
+}
+
 namespace
 {
 
@@ -138,6 +177,21 @@ bool Editor::resizeTilemap(int index, int columns, int rows)
         tilesChanged();
     }
     return done;
+}
+
+bool Editor::moveTilemap(int index, int x, int y)
+{
+    if (stroking() || index < 0 || index >= static_cast<int>(sprite_.tilemaps().size())) {
+        return false;
+    }
+    TileMap map = sprite_.tilemaps()[static_cast<size_t>(index)];
+    map.x = x;
+    map.y = y;
+    if (!tilemap_op_set(history_, sprite_, index, std::move(map))) {
+        return false;
+    }
+    tilesChanged();
+    return true;
 }
 
 bool Editor::setTilemapVisible(int index, bool visible)

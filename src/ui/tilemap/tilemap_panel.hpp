@@ -30,6 +30,8 @@ class TilemapPanel
     int newRows_ = 16;
     int columns_ = 16; /* the size fields of the selected map, reloaded when another is selected */
     int rows_ = 16;
+    int x_ = 0; /* the position fields of the selected map, reloaded like the size */
+    int y_ = 0;
     int shownMap_ = -1;
     uint64_t shownRevision_ = 0;
     char name_[TILE_NAME_MAX + 1] = "";

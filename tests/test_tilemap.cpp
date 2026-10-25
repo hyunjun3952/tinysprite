@@ -174,8 +174,163 @@ TEST(set_tile_changes_one_cell_if_the_tile_exists)
     ASSERT_EQ_INT(2, s.tilemaps()[0].cell(1, 0));
 }
 
+static const Rgba WHITE = {255, 255, 255, 255};
+
+/* One 2 x 2 tile with a different color in each corner: red top-left, green top-right, blue
+ * bottom-left, white bottom-right. */
+static Tileset corner_tile()
+{
+    Cel cel(2, 2);
+    cel.set(0, 0, RED);
+    cel.set(1, 0, GREEN);
+    cel.set(0, 1, BLUE);
+    cel.set(1, 1, WHITE);
+    return must_have(tileset_from_cel(cel, Rect{0, 0, 2, 2}, 2, 2, "corners"));
+}
+
+TEST(a_cell_keeps_its_tile_number_below_the_flag_bits)
+{
+    uint32_t cell = 5 | TILE_FLIP_X | TILE_TRANSPOSE;
+    ASSERT_EQ_INT(5, tile_number(cell));
+    ASSERT_EQ_INT(5, tile_number(5));
+    ASSERT_EQ_INT(0, tile_number(TILE_FLIP_Y));
+}
+
+TEST(a_flipped_tile_shows_its_pixels_mirrored)
+{
+    Tileset ts = corner_tile();
+    ASSERT_TRUE(tile_pixel(ts, 1, 0, 0) == RED);
+    ASSERT_TRUE(tile_pixel(ts, 1 | TILE_FLIP_X, 0, 0) == GREEN);
+    ASSERT_TRUE(tile_pixel(ts, 1 | TILE_FLIP_Y, 0, 0) == BLUE);
+    ASSERT_TRUE(tile_pixel(ts, 1 | TILE_FLIP_X | TILE_FLIP_Y, 0, 0) == WHITE);
+    ASSERT_TRUE(tile_pixel(ts, 0, 0, 0) == Rgba{}); /* an empty cell */
+    ASSERT_TRUE(tile_pixel(ts, 3, 0, 0) == Rgba{}); /* a tile the tileset lacks */
+    ASSERT_TRUE(tile_pixel(ts, 1, 2, 0) == Rgba{}); /* outside the tile */
+}
+
+TEST(a_transposed_tile_swaps_rows_and_columns)
+{
+    Tileset ts = corner_tile();
+    ASSERT_TRUE(tile_pixel(ts, 1 | TILE_TRANSPOSE, 1, 0) == BLUE);
+    ASSERT_TRUE(tile_pixel(ts, 1 | TILE_TRANSPOSE, 0, 1) == GREEN);
+    ASSERT_TRUE(tile_pixel(ts, 1 | TILE_TRANSPOSE, 0, 0) == RED);
+}
+
+TEST(rotating_a_tile_clockwise_moves_the_top_left_corner_to_the_top_right)
+{
+    Tileset ts = corner_tile();
+    uint32_t turned = tile_rotated(1, true);
+    ASSERT_TRUE(tile_pixel(ts, turned, 1, 0) == RED);
+    ASSERT_TRUE(tile_pixel(ts, turned, 1, 1) == GREEN);
+    ASSERT_TRUE(tile_pixel(ts, turned, 0, 0) == BLUE);
+    uint32_t back = tile_rotated(1, false);
+    ASSERT_TRUE(tile_pixel(ts, back, 0, 1) == RED);
+    ASSERT_TRUE(tile_pixel(ts, back, 0, 0) == GREEN);
+}
+
+TEST(four_turns_or_two_flips_bring_a_tile_back_and_a_turn_undoes_its_opposite)
+{
+    for (uint32_t flags = 0; flags < 8; flags++) {
+        uint32_t cell = 4 | (flags << 29);
+        uint32_t around = cell;
+        for (int i = 0; i < 4; i++) {
+            around = tile_rotated(around, true);
+        }
+        ASSERT_EQ_INT(cell, around);
+        ASSERT_EQ_INT(cell, tile_rotated(tile_rotated(cell, true), false));
+        ASSERT_EQ_INT(cell, tile_flipped(tile_flipped(cell, true), true));
+        ASSERT_EQ_INT(cell, tile_flipped(tile_flipped(cell, false), false));
+        ASSERT_EQ_INT(4, tile_number(tile_rotated(cell, true)));
+    }
+}
+
+TEST(flipping_and_turning_leave_an_empty_cell_empty)
+{
+    ASSERT_EQ_INT(0, tile_flipped(0, true));
+    ASSERT_EQ_INT(0, tile_rotated(0, true));
+}
+
+TEST(flipping_a_turned_tile_flips_what_is_on_screen)
+{
+    Tileset ts = corner_tile();
+    uint32_t cell = tile_flipped(tile_rotated(1, true), true); /* turn, then mirror left-right */
+    ASSERT_TRUE(tile_pixel(ts, cell, 0, 0) == RED);            /* the turn put red top-right */
+    ASSERT_TRUE(tile_pixel(ts, cell, 0, 1) == GREEN);
+}
+
+TEST(a_map_with_flipped_cells_is_valid_but_not_a_flag_on_nothing)
+{
+    std::vector<Tileset> sets = {two_tiles()};
+    TileMap map = tilemap_blank("m", 0, 2, 2);
+    map.cells[0] = 2 | TILE_FLIP_X | TILE_FLIP_Y | TILE_TRANSPOSE;
+    ASSERT_TRUE(tilemap_valid(map, sets));
+    map.cells[0] = 3 | TILE_FLIP_X; /* tile 2 does not exist */
+    ASSERT_TRUE(!tilemap_valid(map, sets));
+    map.cells[0] = TILE_FLIP_X; /* a flag but no tile */
+    ASSERT_TRUE(!tilemap_valid(map, sets));
+}
+
+TEST(a_transposed_cell_needs_square_tiles)
+{
+    Cel cel(6, 2);
+    Tileset wide = must_have(tileset_from_cel(cel, Rect{0, 0, 6, 2}, 3, 2, "wide"));
+    TileMap map = tilemap_blank("m", 0, 1, 1);
+    map.cells[0] = 1 | TILE_FLIP_X | TILE_FLIP_Y;
+    ASSERT_TRUE(tilemap_valid(map, {wide}));
+    map.cells[0] = 1 | TILE_TRANSPOSE;
+    ASSERT_TRUE(!tilemap_valid(map, {wide}));
+}
+
+TEST(a_map_offset_must_stay_within_the_limit)
+{
+    std::vector<Tileset> sets = {two_tiles()};
+    TileMap map = tilemap_blank("m", 0, 1, 1);
+    ASSERT_EQ_INT(0, map.x);
+    ASSERT_EQ_INT(0, map.y);
+    map.x = -TILEMAP_OFFSET_MAX;
+    map.y = TILEMAP_OFFSET_MAX;
+    ASSERT_TRUE(tilemap_valid(map, sets));
+    map.x = TILEMAP_OFFSET_MAX + 1;
+    ASSERT_TRUE(!tilemap_valid(map, sets));
+    map.x = 0;
+    map.y = -TILEMAP_OFFSET_MAX - 1;
+    ASSERT_TRUE(!tilemap_valid(map, sets));
+}
+
+TEST(rendering_draws_flipped_cells_flipped)
+{
+    Tileset ts = corner_tile();
+    TileMap map = tilemap_blank("m", 0, 2, 1);
+    map.cells = {1 | TILE_FLIP_X, 1};
+    Cel picture = must_have(tilemap_render(ts, map));
+    ASSERT_TRUE(picture.get(0, 0) == GREEN);
+    ASSERT_TRUE(picture.get(2, 0) == RED);
+}
+
+TEST(set_tile_takes_a_flipped_cell_and_refuses_a_flag_on_nothing)
+{
+    Sprite s(4, 4);
+    s.setTileData({two_tiles()}, {tilemap_blank("m", 0, 2, 2)});
+    ASSERT_TRUE(s.setTile(0, 0, 0, 2 | TILE_FLIP_Y));
+    ASSERT_EQ_INT(2 | TILE_FLIP_Y, s.tilemaps()[0].cell(0, 0));
+    ASSERT_TRUE(!s.setTile(0, 1, 0, 3 | TILE_FLIP_Y));
+    ASSERT_TRUE(!s.setTile(0, 1, 0, TILE_FLIP_Y));
+}
+
 int main()
 {
+    RUN(a_cell_keeps_its_tile_number_below_the_flag_bits);
+    RUN(a_flipped_tile_shows_its_pixels_mirrored);
+    RUN(a_transposed_tile_swaps_rows_and_columns);
+    RUN(rotating_a_tile_clockwise_moves_the_top_left_corner_to_the_top_right);
+    RUN(four_turns_or_two_flips_bring_a_tile_back_and_a_turn_undoes_its_opposite);
+    RUN(flipping_and_turning_leave_an_empty_cell_empty);
+    RUN(flipping_a_turned_tile_flips_what_is_on_screen);
+    RUN(a_map_with_flipped_cells_is_valid_but_not_a_flag_on_nothing);
+    RUN(a_transposed_cell_needs_square_tiles);
+    RUN(a_map_offset_must_stay_within_the_limit);
+    RUN(rendering_draws_flipped_cells_flipped);
+    RUN(set_tile_takes_a_flipped_cell_and_refuses_a_flag_on_nothing);
     RUN(a_tileset_is_cut_from_a_cel_row_by_row);
     RUN(a_tileset_leaves_out_partial_tiles_at_the_edges);
     RUN(a_tileset_takes_only_the_given_area);
