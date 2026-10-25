@@ -1,10 +1,10 @@
 ---
 name: refactoring-audit
-description: Finds and plans behavior-preserving refactorings in this C++ repo - code smells (refactoring.guru catalog), C++ anti-patterns, magic numbers, SOLID/OOP violations, functions at or near the cognitive complexity limit of 15, and measured performance hot spots - then applies the approved ones in small verified steps. Use when the user says "refactor", "리팩토링", "code smell", "clean up this code", "코드 냄새", "복잡도 줄여줘", "책임이 너무 많아", "too complex", "느려", "버벅여", or asks to improve structure without changing behavior. Do NOT use to fix a bug (use bug-hunting) or to review a pull request (use pr-review).
+description: Finds and plans behavior-preserving refactorings in this C++ repo - code smells (refactoring.guru catalog), C++ anti-patterns, magic numbers, SOLID/OOP violations, functions at or near the cognitive complexity limit of 15, and measured performance hot spots - then applies the approved ones in small verified steps. Use when the user says "refactor", "리팩토링", "code smell", "clean up this code", "코드 냄새", "복잡도 줄여줘", "책임이 너무 많아", "too complex", "느려", "버벅여", or asks to improve structure without changing behavior. A quick cleanup of only the current diff is the built-in simplify skill. Do NOT use to fix a bug (use bug-hunting) or to review a pull request (use pr-review).
 argument-hint: "[target]"
 metadata:
   author: tinysprite
-  version: 1.4.0
+  version: 1.6.0
 ---
 
 # Refactoring audit
@@ -31,13 +31,23 @@ Reports follow `../_shared/audit-conventions.md`: language, where the report goe
 - **Revert when the gain is not there.** After each step re-measure the number the finding promised. If it did not drop, the step is reverted, not kept "because it is cleaner".
 - **Moves are separate from edits.** Moving code (file, class, function) and changing it never share a commit, so `git diff -M --stat` shows the move as a pure rename.
 - **Public surface stays fixed unless approved.** `git diff main -- include/` must be empty after a refactoring, and no function signature, header name or file format byte changes without the user's yes.
+- **A claim needs evidence you have read.** Before a finding, a "found on the way" suspicion or a code comment states a fact
+  (a limit, a size, a lifetime, who calls what), open the declaring header or grep the use. A name, a cast or memory is not evidence;
+  an unread claim goes into the report as "unchecked", not as a finding.
+- **Never edit or commit the user's uncommitted work.** A file with changes in `git status` is reported, not refactored, unless the user says to.
+  Commit only your own files with `git commit --only PATH...` so staged files of the user stay out of your commit.
 - Layering, the undo path and the document model in `.rules` are fixed. A refactoring must not move SDL/ImGui into `src/core` or `src/io`,
   bypass `History`, flatten `Sprite -> Layers x Frames -> Cel`, or change the `.pxa` format.
 
 ## Step 0: Scope and baseline
 
 Pick the scope (a function, a file, a module, the files changed in the last N commits). If the user gave none, rank candidates (Step 1) and propose the top few; do not sweep the whole repo.
+A scope larger than a module (`src`, a whole layer): run the complexity scan over all of it once, rank by pain x change count, and read and propose only the top
+10; say which modules were only scanned (`../_shared/audit-conventions.md`, "Scope too big for one pass").
 
+Run `git status --short` and note the files that already have changes: they are the user's work in progress (see Important).
+Set up the tools once (`../_shared/audit-conventions.md`, "Tools on Windows"): `pre-commit` on `PATH`, the pinned `clang-format` and `clang-tidy`, the exit-code rule, how to run the UI exe.
+The report's first line gives the HEAD SHA and the files with uncommitted changes (same file).
 Build and run the tests of the scope as `CLAUDE.md` (Commands) says and read the exit code (`.rules`, section 7). Baseline red means stop and tell the user.
 
 ## Step 1: Find candidates
@@ -61,9 +71,10 @@ For every candidate, fill one row (see `references/report-template.md`):
 - Where (`file:line`), which lens and which smell / principle / measurement.
 - Why it hurts (a concrete cost: harder to change X, a bug it invites, N ms per frame), not "it is ugly".
 - Proposed refactoring by name (Extract Function, Replace Conditional with table, Introduce Parameter Object, and so on) and how.
-- **Complexity before -> after** (cognitive complexity, lines, parameters, as measured numbers; estimates marked as estimates).
+- **Complexity before -> after** (cognitive complexity, lines, parameters). "Before" is a measured number. "After" is an estimate until Step 3
+  re-measures it: write it as `~8 (est.)` in the report, and replace it with the measured number once applied.
 - **Cost**: files and lines touched, tests to add, risk to callers, public header impact.
-- **Complexity before -> after** is measured; add a **cheaper alternative** when there is one, and why the proposal is still better or not.
+- Add a **cheaper alternative** when there is one, and why the proposal is still better or not.
 - **Priority**: 높음 (blocks change or measured problem), 보통, 낮음, 보류 (not worth doing, or waiting for a condition).
 
 A finding whose after-state is not clearly simpler, faster (measured) or safer is 보류.
@@ -73,15 +84,27 @@ A finding whose after-state is not clearly simpler, faster (measured) or safer i
 One finding at a time, in a loop:
 
 1. Confirm the safety net covers the code (Step 0). Add a characterization test if it does not.
+   UI code: take the "before" screenshot now, with the binary built before your edit, and keep that exe or image in the scratchpad.
 2. Make the smallest structural change; keep the build green after every step, not only at the end.
-3. Run the affected tests, then the full `ctest`. Same results as the baseline, no test edited to fit.
+   Write to the rules while typing, not after the hooks complain: lines of 100 columns at most, `return {a, b};` instead of repeating the
+   return type, `static_cast` for size comparisons, braces everywhere (`.rules`, sections 4 and 5). A comment you add is checked against
+   the code first (grep the lifetime, the caller, the limit it names).
+3. Run the affected tests after each step and the full `ctest -j8` once before the commit (a full run is 20 to 100 s). Same results as the baseline, no test edited to fit.
    UI code: also prove the screen did not change. Render the same file before and after
-   (a headless screenshot, `../_shared/audit-conventions.md`) and compare with `cmp`; a difference is a behavior change.
+   (a headless screenshot, `../_shared/audit-conventions.md`) and compare with `cmp` or a file hash; a difference is a behavior change.
+   A start-up screenshot only proves code that runs at start-up. When the code you changed runs on input (tabs, panes, dialogs, menus),
+   drive it with a `--script` that reaches it and screenshot that state, or name the test that covers it and write
+   "screen not compared: <why>" in the report. Do not present a skipped comparison as done.
+   A script that reaches a state, e.g. for a tab or pane change (coordinates from a first screenshot; `tests/ui/smoke.script` is the model):
+   `click 120 40` / `key ctrl+T` / `wait 3` / `shot out.png`; run it on the exe built before and the exe built after, and compare the two images by hash.
    Deleting code: show it is dead first (grep every use including `tests/` and `tests/ui/`, then build and run the tests without it); "looks unused" is not proof.
-4. Format and lint as `.rules` says (sections 6 and 7); clang-tidy alone while iterating.
-5. Re-measure what the finding claimed (complexity number, benchmark) and record before/after.
+4. Format and lint the changed files before the commit, with the exit code of each: `clang-format -i` then `--dry-run -Werror`, then the
+   pinned `clang-tidy -p build FILE` (`.rules`, sections 6 and 7; commands in `references/measurement.md`). The commit hook is the last check, not the first.
+5. Re-measure what the finding claimed (complexity number, benchmark) on the changed file(s) after **every** commit, including a
+   prep step such as a shared helper, and record before/after. A step with no measured number is reported as "not measured".
 6. Sweep the class: grep the repo for the same smell. List the other sites in the report; do not fix them in this commit.
-7. Commit alone, as `refactor(scope): what changed` (`.rules`, section 7). Do not mix formatting sweeps or behavior changes in.
+7. Commit alone, as `refactor(scope): what changed` (`.rules`, section 7), with `git commit --only PATH...`. Do not mix formatting sweeps or behavior changes in.
+   Pushing is a separate step the user asks for. Before it, `git fetch` shows whether the remote answers; if the key or login is refused, stop and tell the user.
 
 Branch policy is `.rules` (section 7): a small refactoring inside one module is a direct commit to `main`; one across layers, in public headers or hard to revert gets a branch and a PR.
 When a refactoring changes structure other docs describe, update `docs/ARCHITECTURE.md` in the same commit.
@@ -92,9 +115,19 @@ A finding that grows past about 200 changed lines is split into steps that each 
 
 Fill in `references/report-template.md`: findings by priority, then what was applied with before/after numbers, tests run with exit codes,
 and what was left out and why. Keep it short; a finding that was fixed needs two lines, not a section.
+End with "Not checked": every proof the skill asks for that you skipped or could only partly do (screen not compared, no Release build,
+lint not run, a claim not read in the source). If the user asks you to review your own commits, list your own mistakes there, not only the code's.
 
 ## Troubleshooting
 
 - Lint passes locally but fails in CI: `.rules` (section 7).
+- `pre-commit not found` when committing, an exe that prints nothing, `git push` refused, `STL1000` from clang-tidy: `../_shared/audit-conventions.md`, "Tools on Windows".
+
+## Lessons (add a line when a run goes wrong; `../_shared/audit-conventions.md`, "Keeping the skills current")
+
+- Style left to the hooks cost a rewrap and a tidy round; write to `.rules` sections 4 and 5 while typing (Step 3.2).
+- An "after" complexity written as a number but never measured was an estimate; mark it `(est.)` until re-measured.
+- A start-up screenshot did not reach a tab or pane change; use a script (Step 3.3).
+- A comment written from memory ("until the frame ends") was wrong; grep the lifetime first.
 - A refactoring grows past the planned size: stop, commit the green part, and re-plan the rest; do not leave the tree half-converted.
 - Cannot show the gain with a number: say so, mark the finding 낮음 or 보류.

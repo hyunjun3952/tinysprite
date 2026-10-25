@@ -3,7 +3,8 @@
 One scenario = one fresh app instance (`--config-dir` per scenario). `core` marks the smoke set.
 Fixtures are made in the scratchpad (never committed): `empty16` (16x16, 1 layer, 1 frame), `anim64` (64x64, 3 layers, 4 frames,
 2 tags, one linked cel), `tiny1` (1x1), `big512` (512x512), `longnames` (layer and tag names of 60+ characters, non-ASCII),
-`slices` (3 slices, one with a pivot), `many` (40 layers, 60 frames).
+`slices` (3 slices, one with a pivot), `many` (40 layers, 60 frames), `korean` (layer, tag and slice names in Hangul, one 60+ characters long),
+`tilemap` (a tileset and a map placed on the sprite, one tile turned), `masks` (art with flat color areas and a hole for the wand and lasso).
 Start state "default" means: no saved settings (fresh config dir), window 1100x720, scale 1.
 
 For every scenario also run the general checks in `heuristics.md`. "Edges" are the probes of Step 3.4.
@@ -65,6 +66,17 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 | S28 | collapse sections | anim64 | Window > panel > sections | folded state persists, menu stays open while toggling | all sections hidden |
 | S29 | status bar and View toggles | anim64 | View menu items | each toggle visibly does what it says, state shown by check marks | |
 
+## G2. Selections, tilemaps, guides (features added after S26)
+| id | goal | fixture | do | check | edges |
+|---|---|---|---|---|---|
+| S30 | magic wand and lasso | masks | wand by color and by outline, lasso, add and subtract with the modifier | the shape of the selection is visible on light and dark art, status bar names the tool and mode, copy/move/clear act on the shape only, one undo step each | tolerance 0 and max, lasso with 2 points, selection at the edge |
+| S31 | bucket: contiguous / everywhere, tolerance | masks | switch the mode, change the tolerance, fill | the switch and the tolerance are labeled with units, preview or result matches the mode, one undo step | tolerance 0, fill with the same color, selection active |
+| S32 | tilemap window and placement | tilemap | open the tilemap window, preview, place, turn a tile, undo | preview matches the placed result, window can be closed and reopened, the grid is readable, every action undoable | 1x1 tile, map origin at the limit, resize the grid |
+| S33 | rulers and guides | anim64 | toggle the rulers, drag a guide out, delete it, save and reopen | the sprite stays in place when rulers are toggled, labels do not overlap and far ticks stay readable, a guide can be hovered and removed, guides survive the file | zoom extremes, a guide outside the sprite after resize |
+| S34 | New sprite dialog and export names | none | open New sprite, change the size, open the Export menu | the dialog shows the chosen size and the shape it makes, Export items say what they make, the dialog opens in this tab as designed | 1x1, 4096x4096, width and height not numbers |
+| S35 | Recent colors and color block | empty16 | before and after the first color is used | the row is in the same place before the first color, the color block reads fore/background clearly | 256 colors |
+| S36 core | Korean and other non-Latin text | korean | look at the layer list, timeline tags, slices and status bar; rename a layer by typing Hangul | glyphs render with the fallback font (no boxes), names are ellipsized with a tooltip and not cut mid-character, the text field accepts and keeps Hangul, the file dialog lists non-ASCII names | 60+ characters, a name mixing Latin and Hangul, scale 2 and 3 |
+
 ## H. Cross-cutting sweeps (run on 3 or more of the scenarios above)
 | id | goal | do | check |
 |---|---|---|---|
@@ -75,3 +87,4 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 | X05 | contrast and legibility | screenshots of S01, S13, S18 | measure mute-on-soft and every text/icon pair against `heuristics.md` thresholds |
 | X06 | first-time user walkthrough | new sprite; "draw a 4-frame blink and export a GIF" using only what the UI shows | where do you stop and wonder; count dead ends and guesses |
 | X07 | icon consistency | zoom the tool bar, layer rows, timeline toolbar and palette buttons at scale 1 and 2 | the longer side of every icon's ink is about the same (15 px at scale 1); no icon looks heavier or lighter than its neighbours (the plus, the refresh arrow and the bucket were the outliers) |
+| X08 | the same task with a script | re-run S07, S13 and S21 with `--script` (`../../_shared/audit-conventions.md`) | the script reaches the same state as the manual run and its screenshots match; a difference is the driver, not the app |

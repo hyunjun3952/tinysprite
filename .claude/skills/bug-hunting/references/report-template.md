@@ -5,6 +5,7 @@ Drop sections that are empty. Findings are sorted 심각 -> 보통 -> 낮음 -> 
 ```markdown
 # Bug hunt: SCOPE
 
+Audited: HEAD SHA on branch; files with uncommitted changes that were built (or "clean tree").
 Scope: what was read (files, commit range). Baseline: existing tests pass/fail (exit code).
 
 ## Summary
@@ -44,8 +45,9 @@ Scope: what was read (files, commit range). Baseline: existing tests pass/fail (
 - Regression procedure: commands run and their exit codes (affected tests, full ctest, format check, lint)
 
 ## Improvements (not bugs)
-| Where | Problem | Proposed change | Why | Change cost | Complexity before -> after |
-|---|---|---|---|---|---|
+| Where | Problem | Proposed change | Why | Change cost |
+|---|---|---|---|---|
+(complexity numbers: hand the item to `refactoring-audit`)
 
 ## Dropped on review
 How many suspicions did not survive the disproof step, one line each (shows the pass was honest).

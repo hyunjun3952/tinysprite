@@ -1,10 +1,10 @@
 ---
 name: bug-hunting
-description: Hunts bugs in this repo's code by logic review first, then confirms each suspicion with a test, and reports findings sorted by severity (심각/보통/낮음/주의), with UI defects described as steps, actual screen and expected screen. Use when the user says "find bugs", "bug hunt", "버그 찾아줘", "버그 헌팅", "이 코드 검토해줘", "why does this crash", "audit this module", or asks to check a function, module or recent change for defects. Do NOT use for reviewing a pull request (use pr-review) or for implementing a new feature.
+description: Hunts bugs in this repo's code by logic review first, then confirms each suspicion with a test, and reports findings sorted by severity (심각/보통/낮음/주의), with UI defects described as steps, actual screen and expected screen. Use when the user says "find bugs", "bug hunt", "버그 찾아줘", "버그 헌팅", "이 코드 검토해줘", "why does this crash", "audit this module", or asks to check a function, module or recent change for defects and wants each one confirmed by a test. A quick read of the current diff without tests is the built-in code-review skill. Do NOT use for reviewing a pull request (use pr-review) or for implementing a new feature.
 argument-hint: "[target]"
 metadata:
   author: tinysprite
-  version: 1.4.0
+  version: 1.5.0
 ---
 
 # Bug hunting
@@ -34,14 +34,16 @@ Reports follow `../_shared/audit-conventions.md`: language, where the report goe
 
 Decide what to hunt before reading. Ask only if it is not clear from the request:
 a function, a module (`src/core`, `src/io`, `src/ui`), the last N commits (`git diff main...HEAD`), or a symptom the user saw.
-Say the scope back in one line. A big scope is split by module and done one at a time.
+Say the scope back in one line. A big scope is split by module and done one at a time (`../_shared/audit-conventions.md`, "Scope too big for one pass").
+Run `git status --short` and note which files already have uncommitted changes: a test built from them tests the user's work in progress, and the
+report says so on its first line (`../_shared/audit-conventions.md`). Tools on Windows (PowerShell, exit codes, the UI exe) are in the same file.
 
-**Target files are fixed to three groups; nothing else is read for bugs, even if the request names a wider area:**
+**Target files are fixed to two groups; nothing else is read for bugs, even if the request names a wider area:**
 
 - Test code: `tests/*.cpp`, `tests/ui/*.cpp`, and the test helpers they include (`tests/minitest.hpp`, `tests/ui/*.hpp`).
 - Functional code: C++ sources and headers that take part in the program's behavior: `src/**/*.{cpp,hpp}` and the public headers in `include/tinysprite/*.hpp`.
 
-Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++, non-script file.
+Out of the target: `thirdparty/`, `build/`, `docs/`, `.github/`, `CMakeLists.txt` / `*.cmake` (including `tests/check_file.cmake`), and any other non-C++ file.
 Open those for context only (how to build or run, known gotchas and intended behavior in `docs/`), never to report a finding in them.
 If a suspicion points outside the target (for example a CI workflow), mention it in one line under "not checked" in the report instead of hunting it.
 Findings in test code are about the test being wrong: asserts that cannot fail, golden data that encodes a bug, missing cases, order dependence, leaks between tests.
@@ -71,12 +73,12 @@ Use the tests that already exist as the map of what is covered; look at what the
 
 For minor problems and improvements found during the read (not bugs), record in a table, do not fix:
 
-| Where | Problem | Proposed change | Why (evidence) | Change cost | Complexity before -> after |
-|---|---|---|---|---|---|
+| Where | Problem | Proposed change | Why (evidence) | Change cost |
+|---|---|---|---|---|
 
-Change cost = files and lines touched, tests to add or change, risk to other callers.
-Complexity = cognitive complexity or function length before and after, as numbers when you can measure them,
-otherwise a clear estimate marked as such. If a change does not lower complexity or risk, say "no gain" and drop it.
+Change cost = files and lines touched, tests to add or change, risk to other callers. If the change would not lower complexity or risk, say
+"no gain" and drop it. Structure and complexity numbers are the `refactoring-audit` skill's job: list the item and hand it over, do not
+estimate complexity here.
 
 ## Step 3: Test to confirm
 
@@ -88,7 +90,9 @@ Build as `CLAUDE.md` (Commands) says, then run the one test and read its exit co
 ctest --test-dir build -R NAME --output-on-failure > LOG 2>&1; echo "exit=$?"
 ```
 
-Order: run the existing suite for the scope first (baseline, so you know a failure is new), then add a minimal reproduction test.
+PowerShell: `ctest --test-dir build -R NAME --output-on-failure > $log 2>&1; $LASTEXITCODE` (never read the status after a pipe).
+
+Order: run the existing suite for the scope first (`ctest -j8`; baseline, so you know a failure is new), then add a minimal reproduction test.
 A suspicion that does not fail gets one more attempt with a different input or sequence before it stays Suspected.
 The sanitizers are on by default; an ASan/UBSan report counts as a failure even when the assertion passes.
 
@@ -113,6 +117,8 @@ Before a finding enters the report, argue against it once, in writing (one line 
 1. Is the state reachable, or does a caller, a UI guard or an earlier check already prevent it?
 2. Does the test assert the **intended** behavior (`docs/ARCHITECTURE.md`, existing tests), or only what I assumed?
 3. Does it fail without my scratchpad changes and with sanitizers off too (not an artifact of the harness)?
+4. Did I open the declaration the claim rests on (the limit constant, the cap in the API, the type, the caller)? A suspicion built on a name or a
+   cast ("a name over 255 bytes is cut") is checked in the header before it is written down; the API may already refuse or cut the value.
 
 A finding that does not survive is dropped or downgraded (Confirmed -> Suspected, or 주의). Say how many were dropped; it shows the pass was honest.
 
@@ -160,6 +166,12 @@ Lint, commits and the branch policy are in `.rules` (section 7).
 
 ## Troubleshooting
 
-- Build fails before any test runs: re-run cmake (new test files are found by globbing); `-DTINYSPRITE_BUILD_UI=OFF` if SDL2 is missing (`CLAUDE.md`, Commands).
+- Build fails before any test runs: re-run cmake (new test files are found by globbing); `-DTINYSPRITE_BUILD_UI=OFF` if SDL3 is missing (`CLAUDE.md`, Commands).
 - A test fails only sometimes: look for uninitialized memory or order dependence (ASan/UBSan output); run it 10 times before calling it flaky.
 - Cannot reproduce a suspicion: keep it as **Suspected** with the reasoning, or drop it if the code path is shown unreachable.
+
+## Lessons (add a line when a run goes wrong; `../_shared/audit-conventions.md`, "Keeping the skills current")
+
+- A suspected truncation of a name length was stated without reading `sprite.hpp`, which already cut names at 63 bytes. Read the limit first (Step 3b, point 4).
+- A test that passed only because the stream was still open when the folder was removed, and a lambda that kept a reference to a local, were found
+  by CI on Linux only. When a test uses a local, a stream or a temp folder, think about lifetime on other platforms.

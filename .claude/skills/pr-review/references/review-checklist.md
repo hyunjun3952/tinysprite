@@ -11,7 +11,7 @@ Load this in Step 4. Skip rows that do not apply to the PR kind.
 | Refactor | Behavior unchanged: same tests pass untouched, no test edited to fit. Diff should shrink complexity, not move it. |
 | Dependency | `thirdparty/README.md` has name, pinned version, license. License compatible. Version pinned, not floating. Changelog read for breaking changes. dependabot PRs: check CI only plus the changelog. |
 | Docs | Matches the code as it is now. Links work. No claim the code does not back. |
-| CI / tooling | Third-party actions pinned to a version. `permissions` not widened. Scripts pass shellcheck. Does not weaken a check to get green. |
+| CI / tooling | Third-party actions pinned to a version. `permissions` not widened. Hook and workflow files parse (`pre-commit run check-yaml` or the config itself). Does not weaken a check to get green. A change to `paths` filters or lint tiers says which files stop being checked. |
 | Test-only | Tests assert something real (not just "does not crash"). No flaky timing or order dependence. |
 | File format | Version bump, chunk is length-prefixed, old readers skip it, old files still load, test with an old-format fixture. Needs a feature branch + PR (risky change). |
 
@@ -21,6 +21,10 @@ Check the diff against `.rules`: section 1 (layering, document model, undo, file
 3 (conventions, comments), 5 (what clang-tidy rejects) and 7 (commits, branches). What a violation costs in a review:
 
 - A direct cel mutation outside the history path is a 심각 finding.
+- Commit hygiene (section 7): one purpose per commit, a subject that names the change and is about 72 characters, no stray binary, log or editor
+  file in the diff, no two commits with one subject. A violation is 낮음 unless a stray file is large or private (then 보통).
+- Comments (section 3): a comment that states a limit, a lifetime or a caller is checked against the code; a stale comment is 낮음.
+- A rule is applied where it says it applies (the folder-per-prefix rule is for `src/`, not `tests/`).
 - Branch policy: mention it only if the PR is clearly the wrong size for its risk.
 
 ## Correctness and risk

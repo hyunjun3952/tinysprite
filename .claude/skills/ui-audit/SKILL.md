@@ -4,7 +4,7 @@ description: Audits the tinysprite UI/UX by driving the real app with computer-u
 argument-hint: "[area | scenario id | all]"
 metadata:
   author: tinysprite
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # UI audit
@@ -37,7 +37,9 @@ Reports follow `../_shared/audit-conventions.md`: language, where the report goe
 
 ## Step 0: Preflight
 
-1. Say the scope back in one line (areas, number of scenarios).
+1. Say the scope back in one line (areas, number of scenarios). Run `git status --short`: the app is built from the working tree, so files with
+   uncommitted changes are part of what is audited. The report's first line gives the HEAD SHA and those files (`../_shared/audit-conventions.md`).
+   Tools on Windows (PowerShell, how to start the exe, exit codes) are in the same file.
 2. Read `DESIGN.md` fully, then `references/heuristics.md`. Skim `docs/MILESTONES.md` for known gotchas in the area
    (a documented limit is not a finding).
 3. Build the UI (`CLAUDE.md`, Commands) and a scratch workspace.
@@ -48,12 +50,15 @@ Reports follow `../_shared/audit-conventions.md`: language, where the report goe
    names the fixture it needs.
 5. Pick the driver (the first that is available):
    - **computer-use** (preferred): load its tools (see the `computer-use` skill: one ToolSearch `computer`, then request
-     access to the app; the window is a native SDL2 window, tier "full"). Launch the app with Bash in the
-     background: `./build/src/ui/tinysprite FIXTURE --config-dir CFG [--scale S]`. If the session runs on WSL, the window
-     appears through WSLg; check with a first screenshot that the window is visible and not scaled by the host.
-   - **headless fallback** (`../_shared/audit-conventions.md`, Running the app headless; `FIXTURE` is the file, `CFG` the scenario's config dir)
-     gives the state right after start only (no input). Anything needing input is then tested with a synthetic-input
-     test in `tests/ui/` (see `tests/ui/ui_*.cpp` for the pattern) and marked `Headless`, or listed under "not tested".
+     access to the app; the window is a native SDL3 window, tier "full"). Launch the app in the background with
+     `Start-Process build\src\ui\tinysprite.exe -ArgumentList FIXTURE,--config-dir,CFG[,--scale,S]` (sh: `./build/src/ui/tinysprite ...`).
+     Check with a first screenshot that the window is visible and that the display scale is what you expect.
+   - **headless with a script** (`../_shared/audit-conventions.md`, "Driving the app headless with a script"): `--script FILE` clicks, drags,
+     types, presses keys and takes `shot` images with no display, so most scenarios can run without computer-use. Calibrate the coordinates with
+     a first screenshot and a click on a known control. Mark these findings `Headless`. What a script cannot do: native OS file dialogs, input
+     that needs real time (holding a key), a mouse hover without `sleep` for the 0.12 s fades.
+   - **headless static** (`--frames N --screenshot`): the state right after start only. Anything needing input is then written as a script
+     (above), or as a synthetic-input test in `tests/ui/` (pattern: `tests/ui/ui_*.cpp`), or listed under "not tested".
    Say which driver is used at the top of the report.
 6. Record the environment once: window size, UI scale, display scale, build type (sanitizers make the app slower; note
    frame-time complaints as such).
@@ -73,6 +78,8 @@ Cheap checks of the code against DESIGN.md. Each hit is a suspicion for Step 3 t
 ```sh
 grep -rnE '0x[0-9a-fA-F]{6}|IM_COL32|ImVec4\(' src/ui --include=*.cpp | grep -v theme.cpp
 ```
+
+PowerShell: `Select-String -Path (git ls-files 'src/ui/*.cpp') -Pattern '0x[0-9a-fA-F]{6}|IM_COL32|ImVec4\(' | Where-Object { $_.Path -notmatch 'theme\.cpp' }`.
 
 Write each as a suspicion: `file:line`, rule, what the screen should show. Do not report them yet.
 
@@ -165,8 +172,15 @@ Tests, code, lint, branches and commits follow `.rules` (sections 2, 3, 5, 6 and
 
 - No computer-use tools and no enable tool: say so plainly, run the headless fallback, and offer to resume with computer-use
   when the user turns it on (Claude desktop app, Settings, This computer, Computer use).
-- The window does not appear (WSL without WSLg, no display): check `echo $DISPLAY $WAYLAND_DISPLAY`; otherwise headless only.
+- The window does not appear (remote session, no display, WSL without WSLg: check `echo $DISPLAY $WAYLAND_DISPLAY`): use the headless script driver.
+- `& exe` prints nothing and returns at once: it is a GUI program; use `Start-Process -Wait -PassThru` for a bounded run (`../_shared/audit-conventions.md`).
 - Clicks land in the wrong place: the display scale differs from the screenshot scale; click a known control first
   (a menu title) to calibrate, and note the offset.
 - Screenshots show half-faded dialogs or hover tints: wait about 0.2 s and retake.
 - The app is slow: sanitizer build. Rebuild with `-DTINYSPRITE_SANITIZE=OFF` in a separate build dir for timing questions only.
+
+## Lessons (add a line when a run goes wrong; `../_shared/audit-conventions.md`, "Keeping the skills current")
+
+- A static start-up screenshot cannot prove a fix to code that runs on input; drive the state with `--script` and compare the same script before and after.
+- Icons, ruler labels, the Recent colors row and the floating tool bar each needed several rounds of fixes in the history: check them at scale 1 and 2
+  (X07), and after any theme change, before calling a pass done.

@@ -5,7 +5,8 @@ Drop empty sections. Findings sorted 심각 -> 보통 -> 낮음 -> 주의.
 ```markdown
 # UI audit: SCOPE
 
-Driver: computer-use | headless fallback. Build: type, sanitizer on/off. Window: WxH, scale S, display scale D.
+Audited: HEAD SHA on branch; files with uncommitted changes that were built (or "clean tree").
+Driver: computer-use | headless script | headless static. Build: type, sanitizer on/off. Window: WxH, scale S, display scale D.
 Scenarios run: ids (n of m). Not run: ids and why.
 
 ## Summary

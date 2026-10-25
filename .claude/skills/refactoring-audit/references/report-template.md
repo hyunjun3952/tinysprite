@@ -10,9 +10,11 @@ Scope: files / functions. Baseline: tests pass (exit=0), N tests. Candidates wer
 ## Findings
 | # | Priority | Where | Lens | Problem and cost it causes | Refactoring | Complexity before -> after | Change cost | Cheaper alternative |
 |---|---|---|---|---|---|---|---|---|
-| R1 | 높음 | src/x.cpp:120 | complexity | cognitive 14, edited 9 times in 6 months | Extract Function by decision | 14 -> 6 and 7 | 1 file, ~40 lines, 1 test | none |
+| R1 | 높음 | src/x.cpp:120 | complexity | cognitive 14, edited 9 times in 6 months | Extract Function by decision | 14 -> ~6 and ~7 (est.) | 1 file, ~40 lines, 1 test | none |
 
 Lens: smell (name) | anti-pattern | magic number | complexity | performance | SOLID (principle).
+"Before" is measured; an "after" with `(est.)` has not been measured yet. A file with the user's uncommitted changes is listed
+with "not touched: uncommitted work" in the last column.
 
 ## Performance measurements (only if a performance lens was used)
 | Scenario | Input | Build | Runs | Median / worst | Budget | Verdict |
@@ -28,10 +30,13 @@ A step whose number did not drop was reverted; list it under Left out.
 - R4: reason (no measurable gain / waits for a condition / taste only)
 
 ## Found on the way (not refactoring)
-- Suspected bug at file:line, handed to bug-hunting.
+- Suspected bug at file:line, handed to bug-hunting. Say which source you read to support it (header, constant, caller); without one it is "unchecked".
 
 ## Same smell elsewhere (class sweep)
 - file:line, not fixed here
+
+## Not checked
+- Each proof that was skipped or partial: screen not compared (why), no Release build, lint not run, a step not measured, a claim not read in the source.
 
 ## Docs updated
 ARCHITECTURE.md / MILESTONES.md changes (including deferred findings added to "Left from the pattern survey"), or "none needed".

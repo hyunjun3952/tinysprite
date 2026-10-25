@@ -12,7 +12,7 @@ Keep it short; drop a section when it has nothing to say.
 - Kind: bug fix | feature | refactor | dependency | docs | CI/tooling | test-only | file format
 - Purpose: what problem it solves, linked issue
 - Size: N files, +A / -D, M commits
-- Base <- head: main <- feat/xyz   Mergeable: yes/no
+- Base <- head: main <- feat/xyz   Mergeable: yes/no   Head SHA reviewed: abc1234
 
 ## CI
 | Job | State | Note |
@@ -25,7 +25,7 @@ Keep it short; drop a section when it has nothing to say.
 | SHA | Message | One logical change? | Test included? |
 |---|---|---|---|
 
-Atomic: yes/no. Reviewed per commit: yes/no.
+Atomic: yes/no. Reviewed per commit: yes/no. Stray files (binary, log, editor, generated): none | list with commit.
 
 ## Test integrity and scope
 Removed or weakened assertions, tests that cannot fail, test-first or not, files the description does not explain. "Clean" if none.

@@ -84,6 +84,9 @@ clean, and they explain what a piece of code is for and how its parts fit, never
        */
 
   Single-line comments use `/* ... */`. `//` is only for lint markers (`// NOLINT(...)`).
+- **A comment is checked against the code it describes.** When you change code, re-read the comments on it; before you write a fact
+  into one (a limit, a lifetime, who calls it) open the declaration or grep the use. Two fixes were titled "comments that did not
+  match the code". [seen]
 - This applies to every comment you add or touch. Existing comments (most start their text on the `/*`
   line) are not rewritten in bulk.
 
@@ -161,6 +164,22 @@ Warnings are errors. Enabled: `bugprone-*`, `clang-analyzer-*`, `misc-*`, `moder
 
 **Commits**
 - English only, following Conventional Commits (https://www.conventionalcommits.org/ko/v1.0.0/), e.g. `feat(core): add flood fill`.
+- **One commit, one purpose.** A subject that needs three commas (`fix: guard the ellipse span, UTF-8 paths, GIF range, ...`) is
+  several commits; split them so one can be reverted alone. Formatting sweeps, moves and behavior changes are never in the same
+  commit. [seen]
+- **The subject says what changed**, in about 72 characters. "address review of ...", "resolve bugs found in a code review" and "act
+  on the audit findings" say nothing: name the fixes (one commit each). Two commits never share a subject. [seen]
+- **Look before you add.** Run `git status --short` and add files by name, never `git add -A` / `git add .`: a binary, a log or an
+  editor file (`pitch.pxa`, 65 KB) once went into a UI fix and stayed in the history. A file that does not belong to the change is
+  left out, and a new kind of local file goes into `.gitignore` in its own commit. [seen]
+- **Check before the commit, not after CI.** Format and tidy the changed files and build the tests first (section 6). A follow-up
+  commit named "satisfy clang-tidy" or "clear the findings CI reported" means this step was skipped; it happened at least seven
+  times. [seen]
+- **CI builds on Linux with GCC and ASan/UBSan** and a `switch` over an enum must name every enumerator (`-Werror=switch`). A lambda
+  or callback that outlives the function never captures a local by reference (stack-use-after-return). A test closes its streams
+  before it removes the folder. A change that only built on Windows is not checked. [seen]
+- **A rule applies where it says it applies.** Read the scope before moving files for it: the folder-per-prefix rule is for `src/`,
+  not `tests/`; moving the tests and moving them back cost two commits. [seen]
 
 These rules exist because they were broken repeatedly; follow them without being reminded.
 

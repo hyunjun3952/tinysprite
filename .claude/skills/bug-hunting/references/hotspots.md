@@ -35,7 +35,36 @@ Load this in Step 0. These come from the architecture rules in `.rules` and `doc
 - Palette files `.gpl` and `.hex`: comments, CRLF line endings, bad hex, more than 256 colors.
 - Paths: Windows (`%APPDATA%`, backslashes), non-ASCII file names, unwritable directory, autosave recovery after a crash.
 
-## UI (SDL2 + ImGui)
+## Selections, masks and tilemaps
+
+- `Mask` (`src/core/mask.cpp`): an empty mask, a mask whose bounds touch the cel edge, `subtract` / add of shapes, magic wand with tolerance 0 and 255,
+  lasso with fewer than three points; masked copy, move and clear must be one undo step each and leave pixels outside the mask alone.
+- Tilemaps (`src/core/tilemap*.cpp`): a cell that refers to a missing tile, resizing a grid, a tileset atlas whose size is not a multiple of the tile,
+  a map origin at the limits (`TILEMAP_MAX_DIMENSION`, `CEL_MAX_DIMENSION`), tile flips and turns, undo of placement, `.pxa` TSET/TMAP/TPOS round trip.
+- Guides and rulers: a guide outside the sprite after a resize or crop (saved only when it lies on the sprite), more than 65535 guides (u16 count).
+
+## Resource limits and allocation failure
+
+- Limits are named in the headers: `SPRITE_MAX_FRAMES` (500), `CEL_MAX_DIMENSION` (4096), `HISTORY_MAX_BYTES`, the cel budget, `TILEMAP_MAX_DIMENSION`.
+  Check each entry point that grows something (insert frame, import, paste, resize, tilemap grid, GIF/Aseprite import) refuses at the limit and
+  leaves the document unchanged; a refused `insertFrame` keeps the frame (earlier fix).
+- `std::bad_alloc` must not leave a half-built document or an open stroke; history trims old steps when over its byte budget.
+- A file that declares more than it contains must be refused before it allocates (`.pxa`, GIF, Aseprite, images).
+
+## Text and paths
+
+- Windows paths: non-ASCII names, backslashes, `%APPDATA%`, roots (`C:\`), one tab per file for the same path spelled two ways. The same bug was fixed in
+  several places (image, palette, sheet, dialogs): grep every `fopen` / `ifstream` / `std::filesystem` use for the UTF-8 route, not only the one reported.
+- Korean and other non-Latin text: layer and tag names, text fields, the fallback font, clipped and ellipsized names, a name cut in the middle of a
+  multi-byte character (names are cut at TAG/SLICE/TILE_NAME_MAX bytes).
+- JSON output must stay valid UTF-8 (sheet export).
+
+## Platform differences (CI is Linux/GCC with sanitizers, and Windows/MinGW)
+
+- A `switch` over an enum without every enumerator (`-Werror=switch`), a lambda or callback that keeps a reference to a local (stack-use-after-return),
+  a stream still open when its folder is removed, `long` being 32 bits on Windows (index and size math), MSVC vs GCC STL differences.
+
+## UI (SDL3 + ImGui)
 
 - **Stale canvas**: a mutating `Editor` method that forgets `markDirty` / `markAllDirty`.
 - Coordinate transform (`Viewport`) at zoom extremes, negative pan, window resize, high DPI.

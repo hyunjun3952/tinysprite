@@ -14,15 +14,32 @@ cmake -S . -B build >/dev/null            # makes compile_commands.json
 $tidy -p build --quiet \
   --checks='-*,readability-function-cognitive-complexity' \
   --config='{CheckOptions: {readability-function-cognitive-complexity.Threshold: "11"}}' \
-  --header-filter='^$' src/core/*.cpp src/io/*.cpp src/ui/*.cpp src/ui/*/*.cpp > LOG 2>&1; echo "exit=$?"
+  --header-filter='^$' $(git ls-files 'src/*.cpp') > LOG 2>&1; echo "exit=$?"
 grep 'cognitive complexity' LOG
 ```
+
+`git ls-files 'src/*.cpp'` lists every source file at any depth (a hand-written `src/ui/*/*.cpp` misses `src/core/tools/`).
+
+PowerShell (tools and exit codes: `../../_shared/audit-conventions.md`, "Tools on Windows"):
+
+```powershell
+$files = git ls-files 'src/*.cpp'
+clang-tidy -p build --quiet --checks='-*,readability-function-cognitive-complexity' `
+  --config='{CheckOptions: {readability-function-cognitive-complexity.Threshold: "11"}}' `
+  --header-filter='^$' $files > $log 2>&1; $LASTEXITCODE
+Select-String $log -Pattern 'cognitive complexity of'
+```
+
+The scan over all of `src` takes several minutes: run it in the background with the log in the scratchpad. A clang-tidy exit 0 here only means it ran;
+the check reports without failing.
 
 Each warning prints the exact score ("has cognitive complexity of 13 (threshold 12)"). Re-run after the change for the "after" number.
 src/ui files need the UI build in `build/`. If the pinned clang-tidy is missing, run `pre-commit run clang-tidy-full --hook-stage manual --files src/core/sprite.cpp` once to create it; if the config override is rejected, edit nothing in the repo, copy the file to the scratchpad and pass a temporary `--config-file`.
 Lines per function and parameter counts are a second signal; compare them with `wc -l` on the function range or by reading.
 
 Hot spots to prioritize: complexity 12 or more AND edited often (`git log` count, see SKILL.md Step 1).
+
+Tools on Windows (pre-commit on `PATH`, the pinned clang tools, the exit-code rule, the UI exe): `../../_shared/audit-conventions.md`.
 
 ## Performance
 
