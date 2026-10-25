@@ -227,6 +227,84 @@ TEST(the_canvas_shows_a_visible_tilemap_and_follows_its_edits)
     delete e;
 }
 
+TEST(the_picked_tile_can_be_flipped_and_painted_that_way)
+{
+    Editor *e = editor_with_tiles();
+    e->addTilesetFromCel(4, 4); /* square tiles: 2 of them */
+    e->addTilemap(0, 2, 2);
+    e->selectTile(2);
+    ASSERT_EQ_INT(2, e->selectedCell());
+    ASSERT_TRUE(e->flipSelectedTile(true));
+    ASSERT_EQ_INT(2 | TILE_FLIP_X, e->selectedCell());
+    ASSERT_EQ_INT(2, e->selectedTile()); /* the tile itself is unchanged */
+    e->paintTile(1, 0, e->selectedCell());
+    e->endTilePaint();
+    ASSERT_EQ_INT(2 | TILE_FLIP_X, e->sprite().tilemaps()[0].cell(1, 0));
+    ASSERT_TRUE(e->flipSelectedTile(true)); /* back */
+    ASSERT_EQ_INT(2, e->selectedCell());
+    delete e;
+}
+
+TEST(rotating_the_picked_tile_needs_square_tiles)
+{
+    Editor *e = editor_with_tiles();
+    e->addTilesetFromCel(4, 3); /* not square */
+    e->addTilemap(0, 2, 2);
+    e->selectTile(1);
+    ASSERT_TRUE(!e->rotateSelectedTile(true));
+    ASSERT_EQ_INT(1, e->selectedCell());
+    ASSERT_TRUE(e->flipSelectedTile(false)); /* mirroring is fine for any tile */
+    ASSERT_EQ_INT(1 | TILE_FLIP_Y, e->selectedCell());
+    delete e;
+    e = editor_with_tiles();
+    e->addTilesetFromCel(4, 4);
+    e->addTilemap(0, 2, 2);
+    e->selectTile(1);
+    ASSERT_TRUE(e->rotateSelectedTile(true));
+    ASSERT_EQ_INT(tile_rotated(1, true), e->selectedCell());
+    delete e;
+}
+
+TEST(the_eraser_has_no_orientation)
+{
+    Editor *e = editor_with_tiles();
+    e->addTilesetFromCel(4, 4);
+    e->addTilemap(0, 2, 2);
+    e->selectTile(1);
+    e->flipSelectedTile(true);
+    e->selectTile(0);
+    ASSERT_EQ_INT(0, e->selectedCell());
+    ASSERT_TRUE(!e->flipSelectedTile(true));
+    e->selectTile(1);
+    ASSERT_EQ_INT(1 | TILE_FLIP_X, e->selectedCell()); /* the turn is kept for the next tile */
+    delete e;
+}
+
+TEST(moving_a_map_is_undoable_and_shows_on_the_canvas)
+{
+    Editor *e = editor_with_tiles();
+    e->addTilesetFromCel(4, 3);
+    e->addTilemap(0, 2, 2);
+    e->paintTile(0, 0, 1);
+    e->endTilePaint();
+    e->updateTexture();
+    ASSERT_EQ_INT(200, e->shownPixel(4, 3).r); /* the layer's own pixel */
+    const uint64_t before = e->tilesRevision();
+    ASSERT_TRUE(e->moveTilemap(0, 4, 3));
+    ASSERT_TRUE(e->tilesRevision() != before);
+    ASSERT_EQ_INT(4, e->sprite().tilemaps()[0].x);
+    ASSERT_EQ_INT(3, e->sprite().tilemaps()[0].y);
+    e->updateTexture();
+    ASSERT_EQ_INT(50, e->shownPixel(4, 3).r); /* the map's red corner moved here */
+    e->undo();
+    e->updateTexture();
+    ASSERT_EQ_INT(0, e->sprite().tilemaps()[0].x);
+    ASSERT_EQ_INT(200, e->shownPixel(4, 3).r);
+    ASSERT_TRUE(!e->moveTilemap(5, 0, 0));                      /* no such map */
+    ASSERT_TRUE(!e->moveTilemap(0, TILEMAP_OFFSET_MAX + 1, 0)); /* too far */
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -246,6 +324,10 @@ int main()
     RUN(undo_and_redo_are_held_off_while_tiles_are_painted);
     RUN(cancelling_puts_the_painted_tiles_back);
     RUN(the_canvas_shows_a_visible_tilemap_and_follows_its_edits);
+    RUN(the_picked_tile_can_be_flipped_and_painted_that_way);
+    RUN(rotating_the_picked_tile_needs_square_tiles);
+    RUN(the_eraser_has_no_orientation);
+    RUN(moving_a_map_is_undoable_and_shows_on_the_canvas);
     ui_quit();
     return TEST_SUMMARY();
 }

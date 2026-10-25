@@ -168,6 +168,8 @@ void TilemapPanel::details(int index)
         if (!nameActive_) {
             columns_ = map.columns;
             rows_ = map.rows;
+            x_ = map.x;
+            y_ = map.y;
         }
         shownMap_ = index;
         shownRevision_ = editor_->tilesRevision();
@@ -197,10 +199,19 @@ void TilemapPanel::details(int index)
     intField("##map_cols", &columns_, 1, TILEMAP_MAX_DIMENSION, " tiles");
     label("Rows");
     intField("##map_rows", &rows_, 1, TILEMAP_MAX_DIMENSION, " tiles");
+    label("X");
+    intField("##map_x", &x_, -TILEMAP_OFFSET_MAX, TILEMAP_OFFSET_MAX, " px");
+    label("Y");
+    intField("##map_y", &y_, -TILEMAP_OFFSET_MAX, TILEMAP_OFFSET_MAX, " px");
     ImGui::EndTable();
     const bool changed = columns_ != map.columns || rows_ != map.rows;
     if (theme::actionButton("Resize", "Change the grid; cells that stay inside are kept.",
                             theme::columnWidth(1), changed)) {
         editor_->resizeTilemap(index, columns_, rows_);
+    }
+    const bool moved = x_ != map.x || y_ != map.y;
+    if (theme::actionButton("Move", "Put the map's top-left corner at X, Y of the sprite.",
+                            theme::columnWidth(1), moved)) {
+        editor_->moveTilemap(index, x_, y_);
     }
 }

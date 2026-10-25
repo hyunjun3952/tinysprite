@@ -182,18 +182,17 @@ Rgba ghostsAt(const Sprite &sprite, int frame, int x, int y, const OnionPlan &pl
 namespace
 {
 
-/* The tile pixel of `map` at sprite position (x, y); transparent over an empty cell, or one that
- * names a tile the tileset does not have. */
+/* The pixel of `map` at sprite position (x, y), the map's origin taken into account; transparent
+ * outside the map, over an empty cell, or one that names a tile the tileset does not have. */
 Rgba tilemapPixel(const Tileset &tileset, const TileMap &map, int x, int y)
 {
-    uint32_t cell = map.cell(x / tileset.tileWidth, y / tileset.tileHeight);
-    if (cell == 0 || cell > static_cast<uint32_t>(tileset.tileCount())) {
+    const int mapX = x - map.x;
+    const int mapY = y - map.y;
+    if (mapX < 0 || mapY < 0) {
         return Rgba{};
     }
-    int tile = static_cast<int>(cell) - 1;
-    return tileset.atlas->get(tile % tileset.columns() * tileset.tileWidth + x % tileset.tileWidth,
-                              tile / tileset.columns() * tileset.tileHeight +
-                                  y % tileset.tileHeight);
+    return tile_pixel(tileset, map.cell(mapX / tileset.tileWidth, mapY / tileset.tileHeight),
+                      mapX % tileset.tileWidth, mapY % tileset.tileHeight);
 }
 
 /* Whether the map can be drawn: it is shown, has one cell per grid position and a usable tileset.

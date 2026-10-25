@@ -159,7 +159,7 @@ Neither is touched by `--frames` smoke runs unless `--config-dir` is given.
 reader skips tags it does not know, so later versions can add chunks (the version is still 1), and rejects other versions
 and truncated data.
 
-The chunk list (`HEAD`, `FRAM`, `PALT`, `LAYR`, `LINK`, `BLND`, `TAGS`, `SLCE`, `TSET`, `TMAP`, `GUID`), what each holds and in
+The chunk list (`HEAD`, `FRAM`, `PALT`, `LAYR`, `LINK`, `BLND`, `TAGS`, `SLCE`, `TSET`, `TMAP`, `TPOS`, `GUID`), what each holds and in
 which order the writer emits them are described once, in the comment in `include/tinysprite/io.hpp`.
 
 Every writer goes through `file_write_atomic` (temporary file plus rename), so a failed write never destroys an existing

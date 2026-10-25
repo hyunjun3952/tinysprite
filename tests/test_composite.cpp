@@ -226,8 +226,55 @@ TEST(a_tilemap_is_clipped_to_the_region_and_the_sprite)
     composite_tilemaps(s, Rect{0, 0, 4, 4}, nullptr); /* nothing to write to */
 }
 
+/* The map of sprite_with_map moved to (x, y), its first cell holding `cell`. */
+static void place_map(Sprite &s, int x, int y, uint32_t cell)
+{
+    TileMap map = s.tilemaps()[0];
+    map.x = x;
+    map.y = y;
+    map.cells[0] = cell;
+    s.setTileData(s.tilesets(), {map});
+}
+
+TEST(a_tilemap_is_drawn_at_its_offset)
+{
+    Sprite s = sprite_with_map(true);
+    place_map(s, 1, 1, 1);
+    std::vector<Rgba> out = make_out(s, CLEAR);
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 1, 1), RED));
+    ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
+}
+
+TEST(a_tilemap_past_the_edges_is_cut_off)
+{
+    Sprite s = sprite_with_map(true);
+    place_map(s, -1, -1,
+              1 | TILE_FLIP_X | TILE_FLIP_Y); /* the red pixel is at (1, 1) of the tile */
+    std::vector<Rgba> out = make_out(s, CLEAR);
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 0, 0), RED));
+    place_map(s, 3, 3, 1);
+    out = make_out(s, CLEAR);
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 3, 3), RED));
+}
+
+TEST(a_turned_tile_is_drawn_turned)
+{
+    Sprite s = sprite_with_map(true);
+    place_map(s, 0, 0, 1 | TILE_FLIP_X);
+    std::vector<Rgba> out = make_out(s, CLEAR);
+    composite_tilemaps(s, Rect{0, 0, 4, 4}, out.data());
+    ASSERT_TRUE(same(at(s, out, 1, 0), RED));
+    ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
+}
+
 int main()
 {
+    RUN(a_tilemap_is_drawn_at_its_offset);
+    RUN(a_tilemap_past_the_edges_is_cut_off);
+    RUN(a_turned_tile_is_drawn_turned);
     RUN(a_visible_tilemap_is_drawn_over_the_layers);
     RUN(a_hidden_tilemap_is_not_drawn);
     RUN(a_tilemap_is_clipped_to_the_region_and_the_sprite);

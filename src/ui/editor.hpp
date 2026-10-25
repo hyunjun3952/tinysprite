@@ -689,6 +689,14 @@ class Editor
     void selectTileset(int index);
     uint32_t selectedTile() const;
     void selectTile(uint32_t cell);
+    /* The cell the brush paints: the selected tile with the turn picked by flipSelectedTile and
+     * rotateSelectedTile (plain when the selected map's tiles cannot take it); 0 for the eraser. */
+    uint32_t selectedCell() const;
+    /* Mirrors or turns the brush's tile on screen, on top of its turn so far. Refused (false) for
+     * the eraser, without a selected map, and for a quarter turn of tiles that are not square. The
+     * turn stays when another tile is picked. */
+    bool flipSelectedTile(bool horizontal);
+    bool rotateSelectedTile(bool clockwise);
 
     /* Bumped by every change of tiles, tilesets or maps, undo and redo included, so a picture of
      * them knows when to be drawn again; a tile stroke ends with tilesChanged. The canvas shows
@@ -712,6 +720,8 @@ class Editor
     bool addTilemap(int tileset, int columns, int rows);
     bool removeTilemap(int index);
     bool resizeTilemap(int index, int columns, int rows);
+    /* Puts the map's top-left corner at (x, y) of the sprite (within TILEMAP_OFFSET_MAX). */
+    bool moveTilemap(int index, int x, int y);
     bool setTilemapVisible(int index, bool visible);
     bool renameTilemap(int index, const std::string &name);
     /* Paints the selected map; null without one or while a tool is being dragged. */
@@ -851,6 +861,7 @@ class Editor
     int selectedTilemap_ = -1;
     int selectedTileset_ = -1;
     uint32_t selectedTile_ = 1;
+    uint32_t tileTurn_ = 1; /* a cell of tile 1 whose flags are the brush's turn */
 
     SDL_Renderer *renderer_;
     Sprite sprite_;

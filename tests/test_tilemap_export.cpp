@@ -55,6 +55,34 @@ TEST(layer_cells_become_global_tile_ids)
     ASSERT_TRUE(has(json, "\"data\": [5, 0, 0, 0, 4, 0]"));
 }
 
+TEST(turned_cells_carry_tiled_flip_flags_in_their_tile_id)
+{
+    Sprite s = sample();
+    TileMap ground = s.tilemaps()[0];
+    ground.cells[0] = 1 | TILE_FLIP_X;
+    ground.cells[1] = 2 | TILE_FLIP_Y;
+    ground.cells[2] = 3 | TILE_TRANSPOSE;
+    TileMap props = s.tilemaps()[1];
+    props.cells[0] = 2 | TILE_FLIP_X; /* the second tileset starts at gid 4: tile 1 is gid 5 */
+    s.setTileData(s.tilesets(), {ground, props});
+    std::string json = tilemap_json(s, {"a.png", "b.png"});
+    /* 0x80000001, 0x40000002, 0x20000003 */
+    ASSERT_TRUE(has(json, "\"data\": [2147483649, 1073741826, 536870915, 0, 0, 1]"));
+    ASSERT_TRUE(has(json, "\"data\": [2147483653, 0, 0, 0, 4, 0]")); /* 0x80000005 */
+}
+
+TEST(a_layer_carries_the_position_of_its_map)
+{
+    Sprite s = sample();
+    TileMap ground = s.tilemaps()[0];
+    ground.x = 8;
+    ground.y = -4;
+    s.setTileData(s.tilesets(), {ground, s.tilemaps()[1]});
+    std::string json = tilemap_json(s, {"a.png", "b.png"});
+    ASSERT_TRUE(has(json, "\"offsetx\": 8, \"offsety\": -4"));
+    ASSERT_TRUE(has(json, "\"offsetx\": 0, \"offsety\": 0"));
+}
+
 TEST(layers_keep_their_name_and_visibility)
 {
     std::string json = tilemap_json(sample(), {"a.png", "b.png"});
@@ -122,6 +150,8 @@ int main()
 {
     RUN(the_map_json_describes_the_size_tilesets_and_layers);
     RUN(layer_cells_become_global_tile_ids);
+    RUN(turned_cells_carry_tiled_flip_flags_in_their_tile_id);
+    RUN(a_layer_carries_the_position_of_its_map);
     RUN(layers_keep_their_name_and_visibility);
     RUN(names_are_escaped);
     RUN(image_names_follow_the_file_stem_and_stay_distinct);
