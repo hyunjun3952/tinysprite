@@ -265,7 +265,8 @@ a branch + PR of its own (`.rules`).
 ### Refactoring
 
 Smaller refactoring candidates from the pattern survey: an `Editor` change observer, a `theme::labeledRow`
-helper, merging the tool tables, declarative settings bindings, one holder for `Slot` (frames) and `Membership` (layers),
+helper (the slices and tilemap panels now share `theme::field_label` and `theme::begin_field_table`; the other panels
+may follow), merging the tool tables, declarative settings bindings, one holder for `Slot` (frames) and `Membership` (layers),
 and a `Playback` state if a fourth mode is added. The `if (stroking()) return;` guard (about forty times in `Editor`) has
 no helper: a function cannot return for its caller, so only a macro would shorten it; reconsider if `Editor` gets a command
 dispatch that can refuse in one place.
@@ -273,3 +274,12 @@ dispatch that can refuse in one place.
 Functions at cognitive complexity 12 or 13 that were left alone (split one when it is next edited): `Mask::build`,
 `drawRulerAxis`, `rotateSelection`, `addCommand` (script), `parse_color_hex`, `TilemapPanel::details`, `tagControls`,
 `fileDialog`.
+
+Parallel code that was tried or weighed and left, because merging it did not make the code shorter or simpler (a helper
+costs about what the copies do): the tag and slice lists of `Sprite` (a template over both measured 7 lines longer),
+`tag_ops` / `slice_ops` / `tilemap_ops` / `cel_ops` and their "record the swap" step, the two `move_stroke` overloads,
+the layer eye and lock toggles, the Filter and View menu items, the onion skin fields of the timeline,
+`settings_get_int` / `settings_get_float` (a template saved 2 lines), the whole-file reads of `io` (each site is
+as long as a call to a shared helper would be) and the selected-index fix-up after removing a tileset or tilemap.
+Worth another look if a third pair appears, or if one of them needs the same bug fix twice. The case-insensitive
+"ends with extension" test exists in `io/util.hpp` and in `ui/file/file_paths.cpp`; sharing it needs a public header.
