@@ -33,6 +33,7 @@ enum LayerFlag : unsigned { LAYER_VISIBLE = 1, LAYER_EDITABLE = 2, LAYER_BACKGRO
 enum LayerKind : unsigned { LAYER_IMAGE = 0, LAYER_GROUP = 1, LAYER_TILEMAP = 2 };
 enum CelKind : unsigned { CEL_RAW = 0, CEL_LINKED = 1, CEL_COMPRESSED = 2 };
 enum SliceFlag : unsigned { SLICE_NINE_PATCH = 1, SLICE_PIVOT = 2 };
+enum HeaderFlag : unsigned { HEADER_LAYER_OPACITY_VALID = 1 };
 
 int16_t signed16(uint32_t value)
 {
@@ -155,7 +156,8 @@ class AseDecoder
     int width_ = 0;
     int height_ = 0;
     int bytesPerPixel_ = 4;
-    int frames_ = 0; /* the frames that are read: at most SPRITE_MAX_FRAMES */
+    bool layerOpacityValid_ = true; /* older files leave the layer opacity byte unset */
+    int frames_ = 0;                /* the frames that are read: at most SPRITE_MAX_FRAMES */
     unsigned speed_ = FRAME_DURATION_DEFAULT;
     unsigned transparentIndex_ = 0;
     std::vector<LayerInfo> layers_;
@@ -177,7 +179,7 @@ void AseDecoder::readHeader()
     unsigned width = h.u16();
     unsigned height = h.u16();
     unsigned depth = h.u16();
-    h.u32(); /* flags */
+    layerOpacityValid_ = (h.u32() & HEADER_LAYER_OPACITY_VALID) != 0;
     speed_ = h.u16();
     h.take(8);
     transparentIndex_ = h.u8();
@@ -267,7 +269,8 @@ void AseDecoder::readLayer(Reader &chunk)
     chunk.take(4); /* default size, unused */
     unsigned blend = chunk.u16();
     LayerInfo info;
-    info.opacity = static_cast<uint8_t>(chunk.u8());
+    const auto opacity = static_cast<uint8_t>(chunk.u8());
+    info.opacity = layerOpacityValid_ ? opacity : uint8_t{255};
     chunk.take(3);
     info.name = readString(chunk);
     if (level >= MAX_LEVELS) {

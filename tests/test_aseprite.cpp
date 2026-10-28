@@ -72,7 +72,7 @@ static Bytes frame(unsigned duration, const std::vector<Bytes> &chunks)
 }
 
 static Bytes file(int width, int height, int depth, const std::vector<Bytes> &frames,
-                  unsigned transparentIndex = 0)
+                  unsigned transparentIndex = 0, unsigned headerFlags = 1)
 {
     Bytes body;
     for (const Bytes &f : frames) {
@@ -85,7 +85,7 @@ static Bytes file(int width, int height, int depth, const std::vector<Bytes> &fr
     h.u16(static_cast<unsigned>(width))
         .u16(static_cast<unsigned>(height))
         .u16(static_cast<unsigned>(depth));
-    h.u32(1).u16(100).u32(0).u32(0).u8(transparentIndex).zeros(3).u16(0).u8(1).u8(1);
+    h.u32(headerFlags).u16(100).u32(0).u32(0).u8(transparentIndex).zeros(3).u16(0).u8(1).u8(1);
     h.zeros(128 - h.v.size());
     return h.add(body);
 }
@@ -224,6 +224,16 @@ TEST(layer_flags_opacity_and_blend_mode_are_kept)
     ASSERT_TRUE(s.layer(2)->blendMode() == BlendMode::Add);
     ASSERT_TRUE(s.layer(2)->locked());
     ASSERT_TRUE(s.layer(3)->blendMode() == BlendMode::Normal); /* hue has no counterpart */
+}
+
+TEST(layer_opacity_is_255_when_the_header_does_not_mark_it_valid)
+{
+    Bytes bytes =
+        file(1, 1, 32, {frame(100, {layer(VISIBLE | EDITABLE, 0, 0, 0, 0, "old")})}, 0, 0);
+    Sprite s = must_have(aseprite_decode(bytes.v));
+    ASSERT_EQ_INT(255, s.layer(0)->opacity()); /* the byte is only valid with header flag 1 */
+    Bytes marked = file(1, 1, 32, {frame(100, {layer(VISIBLE | EDITABLE, 0, 0, 0, 0, "zero")})});
+    ASSERT_EQ_INT(0, must_have(aseprite_decode(marked.v)).layer(0)->opacity());
 }
 
 TEST(groups_are_flattened_and_a_hidden_group_hides_its_layers)
@@ -494,6 +504,7 @@ int main()
     RUN(a_compressed_cel_reads_like_a_raw_one);
     RUN(a_cel_is_placed_at_its_offset_and_clipped_to_the_sprite);
     RUN(layer_flags_opacity_and_blend_mode_are_kept);
+    RUN(layer_opacity_is_255_when_the_header_does_not_mark_it_valid);
     RUN(groups_are_flattened_and_a_hidden_group_hides_its_layers);
     RUN(the_opacity_of_a_cel_goes_into_its_pixels);
     RUN(a_linked_cel_shares_the_cel_of_the_earlier_frame);
