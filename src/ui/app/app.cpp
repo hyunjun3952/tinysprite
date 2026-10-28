@@ -308,7 +308,9 @@ void App::shutdown()
     settings_set_int(settings, "window.height", height);
     settings_save(configDir_, settings);
     if (recovered_.empty()) {
-        recovery_clear(configDir_);
+        for (const Document &document : docs_) {
+            recovery_clear_slot(configDir_, document.serial); /* copies kept for a next start stay */
+        }
     }
 }
 

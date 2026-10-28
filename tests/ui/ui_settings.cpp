@@ -190,6 +190,27 @@ TEST(a_copy_in_the_old_single_file_layout_is_still_offered)
     fs::remove_all("test_recovery_legacy");
 }
 
+TEST(a_loaded_copy_knows_its_slot_and_can_move_to_another)
+{
+    std::string dir = scratch("test_recovery_move");
+    ASSERT_TRUE(recovery_save(dir, 4, Sprite(3, 3), "/work/d.pxa"));
+    std::vector<Recovered> back = recovery_load(dir);
+    ASSERT_EQ_INT(1, static_cast<int>(back.size()));
+    if (back.size() != 1) {
+        return;
+    }
+    ASSERT_EQ_INT(4, back[0].slot);
+    ASSERT_TRUE(recovery_move_slot(dir, 4, 9));
+    back = recovery_load(dir);
+    ASSERT_EQ_INT(1, static_cast<int>(back.size()));
+    if (back.size() == 1) {
+        ASSERT_EQ_INT(9, back[0].slot);
+        ASSERT_TRUE(back[0].path == "/work/d.pxa");
+    }
+    ASSERT_TRUE(!recovery_move_slot(dir, 4, 5)); /* nothing in slot 4 any more */
+    fs::remove_all("test_recovery_move");
+}
+
 TEST(a_corrupt_recovery_copy_is_ignored)
 {
     std::string dir = scratch("test_recovery_bad");
@@ -259,6 +280,7 @@ int main()
     RUN(recovery_round_trips_the_document_and_its_path);
     RUN(recovery_keeps_one_copy_per_document_and_clears_them_one_by_one);
     RUN(a_copy_in_the_old_single_file_layout_is_still_offered);
+    RUN(a_loaded_copy_knows_its_slot_and_can_move_to_another);
     RUN(a_corrupt_recovery_copy_is_ignored);
     RUN(a_corrupt_recovery_copy_does_not_hide_the_good_ones_after_it);
     RUN(recent_list_puts_the_newest_first_without_repeats);

@@ -188,8 +188,21 @@ void App::recoverList()
     }
 }
 
-/* Opens every recovered copy in a tab, marked as having unsaved changes. A copy whose file is open
- * in another tab becomes an untitled document, so two tabs never share one file. */
+/*
+ * Moves the copy of a recovered document that could not be opened to a slot no tab has or will
+ * get, so the autosave of a tab and the clean exit leave it for the next start.
+ */
+void App::keepRecovered(const Recovered &copy)
+{
+    recovery_move_slot(configDir_, copy.slot, nextSerial_++);
+}
+
+/*
+ * Opens every recovered copy in a tab, marked as having unsaved changes, and removes its copy from
+ * disk once it is open (the tab's own autosave takes over). A copy whose file is open in another
+ * tab becomes an untitled document, so two tabs never share one file. A copy that could not be
+ * opened stays on disk (see keepRecovered); false if there was one.
+ */
 bool App::recoverAll()
 {
     bool all = true;
@@ -197,7 +210,9 @@ bool App::recoverAll()
         const std::string path = findDocument(copy.path) >= 0 ? std::string() : copy.path;
         if (addDocument(std::move(copy.sprite), path, true)) {
             editor_->markModified();
+            recovery_clear_slot(configDir_, copy.slot);
         } else {
+            keepRecovered(copy);
             all = false;
         }
     }
@@ -220,21 +235,17 @@ void App::recoverDialog()
     recoverList();
     bool close = false;
     const int clicked = theme::dialog_buttons({"Discard", "Recover"}, 1);
-    bool keepFiles = false;
     if (clicked == 1) {
-        keepFiles = !recoverAll();
         close = true;
-        if (keepFiles) { /* the copies on disk are all that is left of what did not open */
+        if (!recoverAll()) { /* the copies on disk are all that is left of what did not open */
             toast("Not enough memory to open every recovered document; the copies were kept", true);
         }
     } else if (clicked == 0) {
         close = true;
+        recovery_clear(configDir_);
     }
     if (close) {
         recovered_.clear();
-        if (!keepFiles) {
-            recovery_clear(configDir_);
-        }
     }
     theme::end_modal(close);
 }

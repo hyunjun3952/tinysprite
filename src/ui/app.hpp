@@ -318,6 +318,7 @@ class App
     void recoverDialog();
     void recoverList();
     bool recoverAll();
+    void keepRecovered(const Recovered &copy);
     void autosave();
     bool autosaveDocument(Document &document, bool due);
     /* Saves the preferences, the window size and the layout, and drops the autosave copy: a clean

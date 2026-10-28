@@ -100,9 +100,23 @@ std::vector<Recovered> recovery_load(const std::string &dir)
         if (file) {
             path.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
         }
-        found.push_back({std::move(*sprite), path});
+        found.push_back({std::move(*sprite), path, slot});
     }
     return found;
+}
+
+bool recovery_move_slot(const std::string &dir, int from, int to)
+{
+    if (dir.empty()) {
+        return false;
+    }
+    std::error_code error;
+    fs::rename(path_from_utf8(pxaFile(dir, from)), path_from_utf8(pxaFile(dir, to)), error);
+    if (error) {
+        return false;
+    }
+    fs::rename(path_from_utf8(pathFile(dir, from)), path_from_utf8(pathFile(dir, to)), error);
+    return true; /* a copy without a .path file is an untitled one */
 }
 
 void recovery_clear_slot(const std::string &dir, int slot)

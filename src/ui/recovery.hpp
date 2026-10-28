@@ -16,6 +16,7 @@
 struct Recovered {
     Sprite sprite;
     std::string path;
+    int slot = 0; /* the slot the copy was read from; -1 for the old single copy */
 };
 
 /* Writes the copy of the document in `slot` (replacing its earlier one); false if it could not be
@@ -25,6 +26,10 @@ bool recovery_save(const std::string &dir, int slot, const Sprite &sprite, const
 /* The copies left by an earlier session, in slot order (an old single copy first); the unreadable
  * ones are left out. */
 std::vector<Recovered> recovery_load(const std::string &dir);
+
+/* Moves the copy in slot `from` to slot `to` (replacing what is there); false if there is no copy
+ * in `from`. */
+bool recovery_move_slot(const std::string &dir, int from, int to);
 
 /* Removes the copy of one document, or all of them (no error if there are none). */
 void recovery_clear_slot(const std::string &dir, int slot);

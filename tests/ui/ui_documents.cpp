@@ -164,6 +164,20 @@ struct AppTestAccess {
         app.recoverAll();
         app.recovered_.clear();
     }
+    void recoverCopy(Recovered copy)
+    {
+        app.recovered_.push_back(std::move(copy));
+        app.recoverAll();
+        app.recovered_.clear();
+    }
+    void keepUnopened(const Recovered &copy)
+    {
+        app.keepRecovered(copy);
+    }
+    void shutdown()
+    {
+        app.shutdown();
+    }
     bool saveAs(const std::string &path)
     {
         return app.runSaveAs(path);
@@ -713,6 +727,55 @@ TEST(recovered_copies_open_as_tabs_and_never_share_a_file)
     }
 }
 
+TEST(a_recovered_copy_is_removed_from_disk_once_it_is_open)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "tinysprite_recover_clear_test";
+    fs::remove_all(dir);
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(dir.string()));
+    ASSERT_TRUE(recovery_save(dir.string(), 41, Sprite(5, 5), ""));
+    std::vector<Recovered> found = recovery_load(dir.string());
+    ASSERT_EQ_INT(1, static_cast<int>(found.size()));
+    if (found.size() == 1) {
+        t.recoverCopy(std::move(found[0]));
+    }
+    ASSERT_TRUE(recovery_load(dir.string()).empty());
+    fs::remove_all(dir);
+}
+
+/* A copy that could not be opened (no memory) stays on disk for the next start: the quit of this
+ * session must not delete it, and a document made later must not take its place. */
+TEST(a_copy_that_could_not_be_opened_survives_the_quit_and_new_documents)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "tinysprite_recover_keep_test";
+    fs::remove_all(dir);
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(dir.string()));
+    ASSERT_TRUE(recovery_save(dir.string(), 1, Sprite(9, 9), "/work/kept.pxa"));
+    std::vector<Recovered> found = recovery_load(dir.string());
+    ASSERT_EQ_INT(1, static_cast<int>(found.size()));
+    if (found.size() != 1) {
+        return;
+    }
+    t.keepUnopened(found[0]);
+    t.dot(1, 1); /* the first tab (serial 1) has changes: its own copy is written */
+    t.autosaveNow();
+    ASSERT_TRUE(t.addBlank(8, 8));
+    t.dot(2, 2);
+    t.autosaveNow();
+    ASSERT_EQ_INT(3, static_cast<int>(recovery_load(dir.string()).size())); /* none overwritten */
+    t.shutdown();
+    std::vector<Recovered> left = recovery_load(dir.string());
+    ASSERT_EQ_INT(1, static_cast<int>(left.size()));
+    if (left.size() == 1) {
+        ASSERT_EQ_INT(9, left[0].sprite.width());
+        ASSERT_TRUE(left[0].path == "/work/kept.pxa");
+    }
+    fs::remove_all(dir);
+}
+
 TEST(save_as_onto_the_file_of_another_tab_is_refused)
 {
     AppTestAccess t;
@@ -850,6 +913,8 @@ int main()
     RUN(a_file_dropped_while_a_dialog_is_open_is_ignored);
     RUN(each_document_with_changes_gets_its_own_autosave_copy);
     RUN(recovered_copies_open_as_tabs_and_never_share_a_file);
+    RUN(a_recovered_copy_is_removed_from_disk_once_it_is_open);
+    RUN(a_copy_that_could_not_be_opened_survives_the_quit_and_new_documents);
     RUN(save_as_onto_the_file_of_another_tab_is_refused);
     RUN(the_same_file_under_another_spelling_is_still_the_same_file);
     RUN(a_tab_cannot_be_closed_while_a_tool_is_being_dragged);
