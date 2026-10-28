@@ -191,6 +191,14 @@ Warnings are errors. Enabled: `bugprone-*`, `clang-analyzer-*`, `misc-*`, `moder
 
 These rules exist because they were broken repeatedly; follow them without being reminded.
 
+**Build folder**
+- **One build folder: `build/`.** Never create `build-fast/`, `build-release/`, `build-asan/` or any other `build-*` folder, and never point a
+  preset or a script at one. clang-tidy, clangd and the pre-commit hooks read `build/compile_commands.json`, so a second folder leaves them
+  looking at a stale one. To change the configuration (build type, sanitizers, UI on or off), run `cmake --preset <name>` again in `build/`;
+  after a change of generator, delete `build/` first. The `dev` preset (Debug, Ninja, lld, ccache, no sanitizers) is the default; add
+  `-DTINYSPRITE_SANITIZE=ON` to match the Linux CI job.
+- A comparison of two configurations (a benchmark) builds in the scratchpad or another folder outside the repo, and deletes it afterwards.
+
 **Lint and format**
 - Run the hooks (`pre-commit run --all-files --hook-stage manual`, or the clang-tidy hook on the changed files while iterating) before every commit that touches C++, and fix everything they report. Run the full set before opening or updating a PR.
 - Judge a check by its real exit code. Never pipe it through `tail`/`head` and read `$?` (that is the pipe's status): redirect to a log file, then test `$?` and read the log.
