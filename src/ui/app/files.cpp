@@ -24,6 +24,11 @@ namespace
 
 constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the browse button after it */
 
+/* The extensions the file list shows for each kind of file. */
+constexpr const char *OPEN_FILTER = ".pxa .aseprite .ase .png .jpg .jpeg .bmp .tga .gif";
+constexpr const char *IMAGE_FILTER = ".png .jpg .jpeg .bmp .tga";
+constexpr const char *PALETTE_FILTER = ".gpl .hex";
+
 } // namespace
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
@@ -32,20 +37,20 @@ constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the browse button af
  * a method, not a case in each of several switches. */
 const App::FileActionInfo &App::fileInfo(FileAction action)
 {
+    /* title, extension, toast, run, options, filter, confirm */
     static const FileActionInfo TABLE[] = {
         {"", "", "", nullptr, nullptr, "", ""},
-        {"Open", "", "Opened ", &App::runOpen, nullptr,
-         ".pxa .aseprite .ase .png .jpg .jpeg .bmp .tga .gif", "Open"},
+        {"Open", "", "Opened ", &App::runOpen, nullptr, OPEN_FILTER, "Open"},
         {"Save as", ".pxa", "Saved ", &App::runSaveAs, nullptr, ".pxa", "Save"},
         {"Export image", ".png", "Exported ", &App::runExportImage, &App::imageOptions,
-         ".png .jpg .jpeg .bmp .tga", "Export"},
-        {"Import palette", "", "Imported palette ", &App::runImportPalette, nullptr, ".gpl .hex",
+         IMAGE_FILTER, "Export"},
+        {"Import palette", "", "Imported palette ", &App::runImportPalette, nullptr, PALETTE_FILTER,
          "Import"},
-        {"Export palette", ".gpl", "Exported ", &App::runExportPalette, nullptr, ".gpl .hex",
+        {"Export palette", ".gpl", "Exported ", &App::runExportPalette, nullptr, PALETTE_FILTER,
          "Export"},
         {"Export GIF", ".gif", "Exported ", &App::runExportGif, &App::gifOptions, ".gif", "Export"},
         {"Export sprite sheet", ".png", "Exported ", &App::runExportSheet, &App::sheetOptions,
-         ".png .jpg .jpeg .bmp .tga", "Export"},
+         IMAGE_FILTER, "Export"},
     };
     static_assert(std::size(TABLE) == static_cast<size_t>(FileAction::Count),
                   "one FileActionInfo row per FileAction");
