@@ -14,6 +14,56 @@ namespace
 
 constexpr const char *SELECT_FIRST = "Select an area first."; /* why a selection item is greyed */
 
+/* One row of the shortcuts window: the keys and what they do. */
+struct HelpRow {
+    const char *keys;
+    const char *action;
+};
+
+/* Every shortcut, grouped: tools, drawing, view, editing, layers, frames and tabs, files, help. */
+const HelpRow HELP_ROWS[] = {
+    {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
+    {"T D H S C", "Triangle, diamond, hexagon, star, cross (shapes)"},
+    {"K P", "Slice, pan (a left drag moves the view)"},
+    {"W Q", "Magic wand, lasso (Shift adds to the selection)"},
+    {"X", "Swap foreground / background colors"},
+    {"Hold middle button", "Eyedropper while held (drag instead to pan)"},
+
+    {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
+    {"Shift + click", "Pencil / eraser: straight line from the last point"},
+    {"Shift (while dragging a shape)", "Square box or circle; a line snaps to 45 degrees"},
+    {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},
+    {"X, Y, Z / Shift+Z (Tilemap window focused)",
+     "Mirror the picked tile left to right, top to bottom, turn it clockwise / back"},
+
+    {"Wheel", "Zoom at the cursor"},
+    {"Ctrl + / Ctrl - / Ctrl+0, F", "Zoom in / out / fit the sprite"},
+    {"Right / middle drag, Space + drag", "Pan"},
+    {"Ctrl+T", "Show / hide the timeline (or drag its top edge; double-click the edge to reset)"},
+
+    {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
+    {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
+    {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
+    {"Arrow keys (Shift: 8 px)", "Move the selected pixels (the whole cel without a selection)"},
+
+    {"Click / Ctrl+click / Shift+click on layers",
+     "Select one layer, add or remove one, select a range"},
+    {"Right click on the layer list", "Layer actions (the same as the Layer menu)"},
+    {"Ctrl+Shift+N, Ctrl+Shift+D, Ctrl+Shift+M", "New layer, duplicate layer, merge down"},
+    {"Ctrl+], Ctrl+[", "Move the selected layers up / down"},
+    {"Delete (layer list focused)", "Delete the selected layers, after asking"},
+
+    {", .", "Previous / next frame"},
+    {"Ctrl+Shift+F, Ctrl+Shift+J", "New frame, duplicate frame"},
+    {"Enter", "Play / stop the animation (Esc also stops it)"},
+    {"Ctrl+W, Ctrl+Tab / Ctrl+PgDn, Ctrl+Shift+Tab / Ctrl+PgUp",
+     "Close tab, next tab, previous tab"},
+
+    {"Ctrl+N, Ctrl+O", "New, open"},
+    {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},
+    {"F1", "This window"},
+};
+
 } // namespace
 
 /* The recent files; picking one asks about unsaved changes first. */
@@ -404,55 +454,16 @@ void App::helpWindow()
     if (!showHelp_) {
         return;
     }
-    static const char *const ROWS[][2] = {
-        {"B E G I L R O M", "Pencil, eraser, bucket, eyedropper, line, rectangle, ellipse, select"},
-        {"T D H S C", "Triangle, diamond, hexagon, star, cross (shapes)"},
-        {"K P", "Slice, pan (a left drag moves the view)"},
-        {"W Q", "Magic wand, lasso (Shift adds to the selection)"},
-        {"Hold middle button", "Eyedropper while held (drag instead to pan)"},
-        {"X", "Swap foreground / background colors"},
-        {"X, Y, Z / Shift+Z (Tilemap window focused)",
-         "Mirror the picked tile left to right, top to bottom, turn it clockwise / back"},
-        {"+  -  or  [  ]", "Larger / smaller brush by 1 px"},
-        {"Shift + click", "Pencil / eraser: straight line from the last point"},
-        {"Left drag", "Draw with the active tool (inside the selection, if there is one)"},
-        {"Wheel", "Zoom at the cursor"},
-        {"Ctrl + / Ctrl - / Ctrl+0", "Zoom in / out / fit the sprite"},
-        {"Shift (while dragging a shape)", "Square box or circle; a line snaps to 45 degrees"},
-        {"Right / middle drag, Space + drag", "Pan"},
-        {"Mouse wheel, F", "Zoom at the cursor, fit the sprite"},
-        {"Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z", "Undo, redo"},
-        {"Ctrl+A, Delete, Esc", "Select all, clear the selection's pixels, cancel / deselect"},
-        {"Arrow keys (Shift: 8 px)",
-         "Move the selected pixels (the whole cel without a selection)"},
-        {"Click / Ctrl+click / Shift+click on layers",
-         "Select one layer, add or remove one, select a range"},
-        {"Delete (layer list focused)", "Delete the selected layers, after asking"},
-        {", .", "Previous / next frame"},
-        {"Ctrl+Shift+F, Ctrl+Shift+J", "New frame, duplicate frame"},
-        {"Ctrl+W, Ctrl+Tab / Ctrl+PgDn, Ctrl+Shift+Tab / Ctrl+PgUp",
-         "Close tab, next tab, previous tab"},
-        {"Enter", "Play / stop the animation (Esc also stops it)"},
-        {"Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"},
-        {"Right click on the layer list", "Layer actions (the same as the Layer menu)"},
-        {"Ctrl+Shift+N, Ctrl+Shift+D, Ctrl+Shift+M", "New layer, duplicate layer, merge down"},
-        {"Ctrl+], Ctrl+[", "Move the selected layers up / down"},
-        {"Ctrl+T",
-         "Show / hide the timeline (or drag its top edge; double-click the edge to reset)"},
-        {"Ctrl+N, Ctrl+O", "New, open"},
-        {"Ctrl+S, Ctrl+Shift+S, Ctrl+E", "Save, save as, export image"},
-        {"F1", "This window"},
-    };
     ImGui::SetNextWindowSize(ImVec2(theme::px(620.0f), 0), ImGuiCond_Appearing);
     if (ImGui::Begin("Keyboard shortcuts", &showHelp_, ImGuiWindowFlags_NoCollapse)) {
         if (ImGui::BeginTable("shortcuts", 2,
                               ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
-            for (const auto &row : ROWS) {
+            for (const HelpRow &row : HELP_ROWS) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::TextUnformatted(row[0]);
+                ImGui::TextUnformatted(row.keys);
                 ImGui::TableNextColumn();
-                ImGui::TextUnformatted(row[1]);
+                ImGui::TextUnformatted(row.action);
             }
             ImGui::EndTable();
         }
