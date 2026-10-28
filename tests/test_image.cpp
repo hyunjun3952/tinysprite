@@ -291,6 +291,19 @@ TEST(an_animation_longer_than_the_frame_limit_is_cut_at_it)
     }
 }
 
+TEST(an_animation_the_frame_counter_cannot_read_is_not_decoded_as_one)
+{
+    const char *path = "test_image_bad_trailer.gif";
+    std::vector<uint8_t> gif = tinyAnimation(5);
+    gif.back() = 0x99; /* the trailer is gone: the counter gives 0, stb_image would still read 5 */
+    std::ofstream(path, std::ios::binary)
+        .write(reinterpret_cast<const char *>(gif.data()),
+               static_cast<std::streamsize>(gif.size()));
+    std::optional<Sprite> sprite = image_import(path);
+    std::remove(path);
+    ASSERT_TRUE(!sprite || sprite->frameCount() < 2);
+}
+
 TEST(a_failed_image_write_says_why)
 {
     Sprite s(2, 2);
@@ -335,6 +348,7 @@ int main()
     RUN(export_rejects_a_bad_scale);
     RUN(write_formats_list_what_export_accepts);
     RUN(an_animation_longer_than_the_frame_limit_is_cut_at_it);
+    RUN(an_animation_the_frame_counter_cannot_read_is_not_decoded_as_one);
     RUN(an_export_follows_the_layer_blend_mode);
 #ifdef __linux__
     RUN(an_oversized_image_is_refused_before_it_is_decoded);

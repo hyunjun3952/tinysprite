@@ -189,9 +189,17 @@ std::optional<Sprite> importAnimatedGif(const std::vector<unsigned char> &data)
         !fitsCel(headerWidth, headerHeight)) {
         return std::nullopt;
     }
-    /* stb_image decodes every frame before SPRITE_MAX_FRAMES can cut them, so refuse here an
-     * animation whose frames alone would not fit the cel budget. */
-    const unsigned long long decoded = static_cast<unsigned long long>(gif_frame_count(data)) *
+    /*
+     * stb_image decodes every frame before SPRITE_MAX_FRAMES can cut them, so refuse here an
+     * animation whose frames alone would not fit the cel budget. A count below 2 (one image, or a
+     * file the counter cannot read, which stb_image may still decode in full) is not an animation
+     * for this loader.
+     */
+    const int counted = gif_frame_count(data);
+    if (counted < 2) {
+        return std::nullopt;
+    }
+    const unsigned long long decoded = static_cast<unsigned long long>(counted) *
                                        static_cast<unsigned long long>(headerWidth) *
                                        static_cast<unsigned long long>(headerHeight) * sizeof(Rgba);
     if (decoded > SPRITE_MAX_CEL_BYTES) {
