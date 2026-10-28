@@ -4,11 +4,15 @@
     "configurePresets": [
         {
             "name": "dev",
-            "displayName": "Debug, ASan/UBSan, UI",
-            "description": "Needs VCPKG_ROOT set (see README). Same options as the linux CI job.",
+            "displayName": "Debug, no sanitizers, UI",
+            "description": "Needs VCPKG_ROOT set (see README), plus ninja, lld and ccache. CI builds with ASan/UBSan: add -DTINYSPRITE_SANITIZE=ON to match it.",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "TINYSPRITE_SANITIZE": "OFF",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld",
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "TINYSPRITE_BUILD_UI": "ON",
                 "TINYSPRITE_WERROR": "ON"
@@ -26,7 +30,6 @@
             "name": "release",
             "displayName": "Release, no sanitizers",
             "inherits": "dev",
-            "binaryDir": "${sourceDir}/build-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "TINYSPRITE_SANITIZE": "OFF"
