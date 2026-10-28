@@ -7,7 +7,7 @@ a pointer here; every rule lives in this file, the workflow (section 7) as well 
 
 Where a rule comes from is in brackets: [CLAUDE.md] is a rule stated there before this file existed,
 [.clang-format] and [.clang-tidy] are checks the hooks enforce (the config is the source of truth),
-[seen] is a failure that actually happened in this repo, and [probed] is a check confirmed by running
+[CI] is a split of work between this machine and CI (section 8), [seen] is a failure that actually happened in this repo, and [probed] is a check confirmed by running
 `clang-tidy` on a scratch file that breaks it (recursion, unused parameter, uninitialized local, `int` as a
 condition, `return true / false`, `.size() == 0`, `int` -> `float`).
 
@@ -160,12 +160,12 @@ Warnings are errors. Enabled: `bugprone-*`, `clang-analyzer-*`, `misc-*`, `moder
 ## 6. Order of work that keeps lint cheap
 
 1. Write the test and the code to this file; do not leave style to the hooks.
-2. While iterating, format and tidy only the changed files:
-   `pre-commit run clang-format --files <files>` then
+2. While iterating, format only the changed files (`pre-commit run clang-format --files <files>`) and build and run
+   the tests of the area (section 8). The full clang-tidy is CI's job; to check one file before CI does, run
    `pre-commit run clang-tidy-full --hook-stage manual --files <files>` (needs `build/compile_commands.json`).
-3. Once, when all the work is done, the full set (`pre-commit run --all-files --hook-stage manual > log`).
-   Its exit code is 1 when the formatter changed a file even if nothing else failed: run it again and judge
-   the second run. Read the diagnostics with `grep -E '(error|warning): ' log | grep -v 'warnings generated'`.
+3. The full set over everything (`pre-commit run --all-files --hook-stage manual > log`) is for CI; run it locally
+   only to reproduce a CI failure. Its exit code is 1 when the formatter changed a file even if nothing else failed: run it
+   again and judge the second run. Read the diagnostics with `grep -E '(error|warning): ' log | grep -v 'warnings generated'`.
 4. A commit hook that reformats a file stops the commit: `git add` the file and commit again.
 
 ## 7. Workflow and commits (mandatory) [CLAUDE.md]
@@ -180,9 +180,9 @@ Warnings are errors. Enabled: `bugprone-*`, `clang-analyzer-*`, `misc-*`, `moder
 - **Look before you add.** Run `git status --short` and add files by name, never `git add -A` / `git add .`: a binary, a log or an
   editor file (`pitch.pxa`, 65 KB) once went into a UI fix and stayed in the history. A file that does not belong to the change is
   left out, and a new kind of local file goes into `.gitignore` in its own commit. [seen]
-- **Check before the commit, not after CI.** Format and tidy the changed files and build the tests first (section 6). A follow-up
+- **Check before the commit what section 8 says is local** (format, build, tests, and the fast clang-tidy on push). A follow-up
   commit named "satisfy clang-tidy" or "clear the findings CI reported" means this step was skipped; it happened at least seven
-  times. [seen]
+  times. What section 8 gives to CI is checked there, not by hand before every commit. [seen]
 - **CI builds on Linux with GCC and ASan/UBSan** and a `switch` over an enum must name every enumerator (`-Werror=switch`). A lambda
   or callback that outlives the function never captures a local by reference (stack-use-after-return). A test closes its streams
   before it removes the folder. A change that only built on Windows is not checked. [seen]
@@ -200,7 +200,7 @@ These rules exist because they were broken repeatedly; follow them without being
 - A comparison of two configurations (a benchmark) builds in the scratchpad or another folder outside the repo, and deletes it afterwards.
 
 **Lint and format**
-- Run the hooks (`pre-commit run --all-files --hook-stage manual`, or the clang-tidy hook on the changed files while iterating) before every commit that touches C++, and fix everything they report. Run the full set before opening or updating a PR.
+- The clang-format hook runs on every commit that touches C++ and the fast clang-tidy runs on push (both installed by `pre-commit install`); fix everything they report. The full clang-tidy and the full set over all files belong to CI (section 8).
 - Judge a check by its real exit code. Never pipe it through `tail`/`head` and read `$?` (that is the pipe's status): redirect to a log file, then test `$?` and read the log.
 - CI runs the same pinned hooks, but it is the source of truth (it lints with the UI build, a stale local `build/` may not). If CI lint fails and the local run is clean, change the code so the flagged construct is gone (do not assume the first fix worked), then watch CI again.
 - Never report "lint passed" or "tests passed" without having checked the exit code of that run.
@@ -215,3 +215,31 @@ These rules exist because they were broken repeatedly; follow them without being
 2. Wait for CI: `gh pr checks <n> --watch`. The watch can end with "no checks reported" before CI registers: re-check until the jobs really ran. Merge only when every job passed.
 3. Merge with `gh pr merge <n> --merge --delete-branch`, then `git checkout main && git pull --ff-only` and `git branch -d <branch>` for the local copy. A merged branch is never left behind, locally or on the remote.
 4. If CI on `main` turns red after a merge, fixing it comes before any new work.
+
+## 8. What CI/CD does and what stays local [CI]
+
+The local loop has to be fast (a `dev` build is about 25 s, a clean rebuild with a warm ccache about 2 s), so only that goes
+on this machine. Everything slow, everything that needs another platform or another configuration, and everything periodic
+is CI's. `.github/workflows/ci.yml` is the source of truth for what CI runs; this table is what each side is for.
+
+| Task | Where | How |
+|---|---|---|
+| clang-format on the changed files | local | pre-commit hook on commit |
+| Build and tests of the area you changed | local | `cmake --preset dev`, `cmake --build --preset dev`, `ctest --preset dev -R <name>` |
+| Fast clang-tidy (no bugprone, analyzer, misc, modernize) on the pushed files | local | pre-push hook |
+| Full ctest before a push | local | `ctest --preset dev`, about 10 s |
+| Full clang-tidy, every check, over the changed files (everything when a header or a lint config changed) | CI `lint` | on push to `main` and on PRs |
+| Full clang-tidy over every file, to catch drift | CI `lint` | weekly (`schedule`) or by hand (`workflow_dispatch`) |
+| ASan/UBSan build and tests, UI included, `-Werror` | CI `linux` | on push to `main` and on PRs |
+| Windows (MinGW, Release) build and tests | CI `windows` | on push to `main` and on PRs |
+| Pinned GitHub Actions versions kept current (weekly PRs, prefix `ci`) | CI | `.github/dependabot.yml` |
+
+- The vcpkg `builtin-baseline` in `vcpkg.json` is not updated by any bot; it is bumped by hand, in its own commit.
+- A sanitizer build is not run locally by default. To reproduce a CI sanitizer failure: `cmake --preset dev -DTINYSPRITE_SANITIZE=ON`
+  in `build/` (one build folder, section 7), then switch back with `-DTINYSPRITE_SANITIZE=OFF`.
+- A change that only builds or passes on one platform is not checked: Windows is verified by CI only, never assumed.
+- CI runs only when `src/`, `include/`, `tests/`, the root `CMakeLists.txt`, `vcpkg.json`, `.github/actions/` or a lint config
+  change; a docs-only change gets no checks, which is expected.
+- **CD does not exist yet.** There is no release, packaging or deploy workflow; nothing publishes from CI. A release job
+  (Linux and Windows artifacts on a tag) is added to `ci.yml` or its own workflow when it is needed, and this table gets a row for it.
+- A CI failure is read from the log of the failed job, fixed, and pushed; do not mark a change done on a red CI.
