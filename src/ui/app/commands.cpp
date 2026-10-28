@@ -7,32 +7,49 @@
 #include "imgui.h"
 #include "theme.hpp"
 
+namespace
+{
+
+/* No stroke is open: the editor accepts a command that changes the document. */
+bool notStroking(const Editor &editor)
+{
+    return !editor.stroking();
+}
+
+/* The tab `step` places after `index` among `count` tabs, wrapping at both ends. */
+int cycled(int index, int step, int count)
+{
+    return (index + step + count) % count;
+}
+
+} // namespace
+
 /* What each command does and when it can run, one row per CommandId in the same order as COMMANDS
  * (command_table.cpp holds the labels and keys). A new command is a row here, not a case in two
  * switches. */
 const App::CommandAction &App::commandAction(CommandId id)
 {
     auto always = [](const App &) { return true; };
-    auto idle = [](const App &app) { return !app.editor_->stroking(); };
+    auto idle = [](const App &app) { return notStroking(*app.editor_); };
     auto canUndo = [](const App &app) {
-        return !app.editor_->stroking() && app.editor_->history().canUndo();
+        return notStroking(*app.editor_) && app.editor_->history().canUndo();
     };
     auto canRedo = [](const App &app) {
-        return !app.editor_->stroking() && app.editor_->history().canRedo();
+        return notStroking(*app.editor_) && app.editor_->history().canRedo();
     };
     auto selected = [](const App &app) {
-        return !app.editor_->stroking() && app.editor_->hasSelection();
+        return notStroking(*app.editor_) && app.editor_->hasSelection();
     };
     auto canMerge = [](const App &app) {
-        return !app.editor_->stroking() && app.editor_->canMergeLayers();
+        return notStroking(*app.editor_) && app.editor_->canMergeLayers();
     };
     auto canMoveUp = [](const App &app) {
-        return !app.editor_->stroking() && app.editor_->canMoveLayersUp();
+        return notStroking(*app.editor_) && app.editor_->canMoveLayersUp();
     };
     auto canMoveDown = [](const App &app) {
-        return !app.editor_->stroking() && app.editor_->canMoveLayersDown();
+        return notStroking(*app.editor_) && app.editor_->canMoveLayersDown();
     };
-    auto hasTabs = [](const App &app) { return !app.editor_->stroking() && app.docs_.size() > 1; };
+    auto hasTabs = [](const App &app) { return notStroking(*app.editor_) && app.docs_.size() > 1; };
     static const CommandAction TABLE[] = {
         {[](App &app) { app.openNew_ = true; }, idle},
         {[](App &app) { app.askForPath(FileAction::Open); }, idle},
@@ -59,12 +76,11 @@ const App::CommandAction &App::commandAction(CommandId id)
         {[](App &app) { app.editor_->duplicateFrame(); }, idle},
         {[](App &app) { app.closeDocument(app.active_); }, idle},
         {[](App &app) {
-             app.activateDocument((app.active_ + 1) % static_cast<int>(app.docs_.size()));
+             app.activateDocument(cycled(app.active_, 1, static_cast<int>(app.docs_.size())));
          },
          hasTabs},
         {[](App &app) {
-             const int count = static_cast<int>(app.docs_.size());
-             app.activateDocument((app.active_ + count - 1) % count);
+             app.activateDocument(cycled(app.active_, -1, static_cast<int>(app.docs_.size())));
          },
          hasTabs},
     };
