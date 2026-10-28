@@ -175,9 +175,12 @@ void Editor::addTag()
     }
 }
 
+/* Applies an edit of tag `index`; a name cut down to nothing drops the whole edit, as for a map. */
 void Editor::editTag(int index, const Sprite::Tag &tag)
 {
-    if (!stroking()) {
+    const bool named = index >= 0 && index < static_cast<int>(sprite().tags().size()) &&
+                       !sprite().tags()[static_cast<size_t>(index)].name.empty();
+    if (!stroking() && !(named && tag.name.empty())) {
         tag_op_set(history(), sprite(), index, tag);
         if (playing()) {
             startPlayback();

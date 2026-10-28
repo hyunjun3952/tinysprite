@@ -442,6 +442,20 @@ TEST(adding_a_tag_covers_the_current_frame_and_selects_it)
     delete e;
 }
 
+TEST(a_tag_cannot_be_renamed_to_nothing)
+{
+    Editor *e = make_editor();
+    e->addTag();
+    Sprite::Tag t = e->sprite().tags()[0];
+    const std::string name = t.name;
+    t.name = "";
+    t.direction = PlayMode::Reverse; /* the rest of the edit is dropped with it */
+    e->editTag(0, t);
+    ASSERT_TRUE(e->sprite().tags()[0].name == name);
+    ASSERT_TRUE(e->sprite().tags()[0].direction == PlayMode::Forward);
+    delete e;
+}
+
 TEST(tags_can_be_edited_removed_and_undone)
 {
     Editor *e = make_editor();
@@ -681,6 +695,7 @@ int main()
     RUN(onion_skin_settings_survive_a_settings_round_trip);
     RUN(onion_skin_settings_are_limited);
     RUN(frames_stop_at_the_limit_and_say_so);
+    RUN(a_tag_cannot_be_renamed_to_nothing);
     RUN(the_selected_tag_stays_the_same_tag_when_a_frame_removes_an_earlier_one);
     RUN(the_selected_tag_stays_the_same_tag_across_undo_of_a_removal);
     RUN(a_selected_tag_that_vanishes_with_its_frame_selects_nothing);
