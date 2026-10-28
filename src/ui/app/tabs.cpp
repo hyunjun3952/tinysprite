@@ -14,6 +14,11 @@ namespace
 constexpr float TAB_PADDING_X = 6.0f; /* the bar's own padding */
 constexpr float TAB_PADDING_Y = 3.0f;
 
+constexpr ImGuiTabBarFlags TAB_BAR_FLAGS =
+    ImGuiTabBarFlags_FittingPolicyResizeDown | ImGuiTabBarFlags_Reorderable;
+constexpr ImGuiTabItemFlags NEW_TAB_BUTTON_FLAGS =
+    ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip;
+
 } // namespace
 
 float App::tabBarHeight()
@@ -109,6 +114,27 @@ void App::tabItem(int index, bool forced, int &picked, int &closeRequest, ImGuiI
     }
 }
 
+/* The tab bar inside the tabs window: one tab per document in order, the trailing "+" button that
+ * asks for a new document, and the order the user dragged them into. `forced` is true when the app
+ * itself just changed the active document; `picked` and `closeRequest` get the index of the tab
+ * the user chose or closed, -1 for none. */
+void App::tabStrip(bool forced, int &picked, int &closeRequest)
+{
+    if (!ImGui::BeginTabBar("##doc_tabs", TAB_BAR_FLAGS)) {
+        return;
+    }
+    std::vector<ImGuiID> ids(docs_.size(), 0);
+    for (size_t i = 0; i < docs_.size(); i++) {
+        tabItem(static_cast<int>(i), forced, picked, closeRequest, ids[i]);
+    }
+    syncTabOrder(ids);
+    if (ImGui::TabItemButton("+", NEW_TAB_BUTTON_FLAGS)) {
+        openNew_ = true;
+    }
+    theme::tip("New document");
+    ImGui::EndTabBar();
+}
+
 void App::tabBar(float x, float y, float width, float height)
 {
     ImGui::SetNextWindowPos(ImVec2(x, y));
@@ -126,20 +152,7 @@ void App::tabBar(float x, float y, float width, float height)
      * answer is only believed when the app did not just change it */
     const bool forced = tabSelected_ != active_;
     if (ImGui::Begin("##tabs", nullptr, FLAGS)) {
-        if (ImGui::BeginTabBar("##doc_tabs", ImGuiTabBarFlags_FittingPolicyResizeDown |
-                                                 ImGuiTabBarFlags_Reorderable)) {
-            std::vector<ImGuiID> ids(docs_.size(), 0);
-            for (int i = 0; i < static_cast<int>(docs_.size()); i++) {
-                tabItem(i, forced, picked, closeRequest, ids[static_cast<size_t>(i)]);
-            }
-            syncTabOrder(ids);
-            if (ImGui::TabItemButton("+",
-                                     ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)) {
-                openNew_ = true;
-            }
-            theme::tip("New document");
-            ImGui::EndTabBar();
-        }
+        tabStrip(forced, picked, closeRequest);
     }
     ImGui::End();
     ImGui::PopStyleColor();

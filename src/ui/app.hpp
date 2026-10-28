@@ -277,6 +277,7 @@ class App
      * tabBarHeight(). */
     void tabBar(float x, float y, float width, float height);
     static float tabBarHeight();
+    void tabStrip(bool forced, int &picked, int &closeRequest);
     void tabItem(int index, bool forced, int &picked, int &closeRequest, ImGuiID &id);
     void syncTabOrder(const std::vector<ImGuiID> &ids);
     void tabMenu(int index, int &closeRequest);
