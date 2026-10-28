@@ -173,14 +173,15 @@ void Editor::drag(int cx, int cy, bool shift)
 
 void Editor::release()
 {
-    if (drag_) {
-        finishingDrag_ = true;
-        drag_->finish();
-        finishingDrag_ = false;
-        drag_.reset();
-        history_.setClip(std::nullopt);
-        history_.setClipMask(nullptr);
+    if (!drag_) {
+        return;
     }
+    finishingDrag_ = true;
+    drag_->finish();
+    finishingDrag_ = false;
+    drag_.reset();
+    history_.setClip(std::nullopt);
+    history_.setClipMask(nullptr);
 }
 
 void Editor::cancelDrag()

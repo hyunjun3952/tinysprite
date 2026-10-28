@@ -804,15 +804,16 @@ void Canvas::updateFit(ImVec2 avail)
     }
     editor_->view().canvas_w = avail.x;
     editor_->view().canvas_h = avail.y;
-    if (editor_->view().needs_fit && avail.x > 0.0f && avail.y > 0.0f) {
-        editor_->view().viewport.fit(editor_->sprite().width(), editor_->sprite().height(),
-                                     std::max(avail.x - FIT_MARGIN, 1.0f),
-                                     std::max(avail.y - FIT_MARGIN, 1.0f));
-        editor_->view().viewport.pan_x += FIT_MARGIN / 2.0f;
-        editor_->view().viewport.pan_y += FIT_MARGIN / 2.0f;
-        editor_->view().needs_fit = false;
-        editor_->view().auto_fit = true;
+    if (!editor_->view().needs_fit || !(avail.x > 0.0f) || !(avail.y > 0.0f)) {
+        return;
     }
+    editor_->view().viewport.fit(editor_->sprite().width(), editor_->sprite().height(),
+                                 std::max(avail.x - FIT_MARGIN, 1.0f),
+                                 std::max(avail.y - FIT_MARGIN, 1.0f));
+    editor_->view().viewport.pan_x += FIT_MARGIN / 2.0f;
+    editor_->view().viewport.pan_y += FIT_MARGIN / 2.0f;
+    editor_->view().needs_fit = false;
+    editor_->view().auto_fit = true;
 }
 
 /* The workspace, the sprite over its checkerboard, the grid and the overlays, clipped to the canvas

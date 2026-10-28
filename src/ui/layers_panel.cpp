@@ -206,17 +206,20 @@ void LayersPanel::rowDropTarget(int index, Drop &drop)
     /* Looked at while hovering (before the drop), to draw where the layer would land. */
     constexpr ImGuiDragDropFlags FLAGS =
         ImGuiDragDropFlags_AcceptBeforeDelivery | ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
-    if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("LAYER_ROW", FLAGS)) {
-        int from = *static_cast<const int *>(payload->Data);
-        /* Dropping a selection onto one of its own layers moves nothing. */
-        bool onItself =
-            from == index || (editor_->layerSelected(from) && editor_->layerSelected(index));
-        if (!onItself) {
-            drawDropLine(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), from < index);
-            if (payload->IsDelivery()) {
-                drop = {from, index};
-            }
-        }
+    const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("LAYER_ROW", FLAGS);
+    if (payload == nullptr) {
+        return;
+    }
+    int from = *static_cast<const int *>(payload->Data);
+    /* Dropping a selection onto one of its own layers moves nothing. */
+    bool onItself =
+        from == index || (editor_->layerSelected(from) && editor_->layerSelected(index));
+    if (onItself) {
+        return;
+    }
+    drawDropLine(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), from < index);
+    if (payload->IsDelivery()) {
+        drop = {from, index};
     }
 }
 
