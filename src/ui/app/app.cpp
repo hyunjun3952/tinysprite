@@ -308,8 +308,9 @@ void App::shutdown()
     settings_set_int(settings, "window.height", height);
     settings_save(configDir_, settings);
     if (recovered_.empty()) {
+        /* only the open tabs' copies go: one kept for the next start stays */
         for (const Document &document : docs_) {
-            recovery_clear_slot(configDir_, document.serial); /* copies kept for a next start stay */
+            recovery_clear_slot(configDir_, document.serial);
         }
     }
 }
