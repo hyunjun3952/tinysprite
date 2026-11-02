@@ -245,3 +245,25 @@ std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map)
     }
     return picture;
 }
+
+std::optional<Cel> tilemap_preview(const Tileset &tileset, const TileMap &map, int maxSide)
+{
+    if (maxSide < 1 || maxSide > CEL_MAX_DIMENSION || !tileset_valid(tileset) ||
+        !gridFits(map, tileset.tileCount(), tileset.tileWidth == tileset.tileHeight)) {
+        return std::nullopt;
+    }
+    const int width = map.columns * tileset.tileWidth;
+    const int height = map.rows * tileset.tileHeight;
+    const int step = (std::max(width, height) + maxSide - 1) / maxSide;
+    Cel picture(std::max(width / step, 1), std::max(height / step, 1));
+    for (int y = 0; y < picture.height(); y++) {
+        const int py = y * step;
+        for (int x = 0; x < picture.width(); x++) {
+            const int px = x * step;
+            const uint32_t cell = map.cell(px / tileset.tileWidth, py / tileset.tileHeight);
+            picture.set(x, y,
+                        tile_pixel(tileset, cell, px % tileset.tileWidth, py % tileset.tileHeight));
+        }
+    }
+    return picture;
+}

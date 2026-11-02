@@ -12,6 +12,7 @@ namespace
 {
 
 constexpr float PICKER_HEIGHT = 130.0f; /* at UI scale 1 */
+constexpr int PREVIEW_SIDE = 2048; /* pixels, of the picture of a map too big for tilemap_render */
 
 ImTextureRef textureRef(const CelTexture &t)
 {
@@ -58,6 +59,9 @@ void TilemapWindow::refresh(SDL_Renderer *renderer, const Editor &editor, const 
     shownAtlas_ = tileset.atlas.get();
     atlas_.set(renderer, *tileset.atlas);
     std::optional<Cel> picture = tilemap_render(tileset, map);
+    if (!picture) {
+        picture = tilemap_preview(tileset, map, PREVIEW_SIDE);
+    }
     if (picture) {
         picture_.set(renderer, *picture);
     } else {
