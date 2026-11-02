@@ -47,6 +47,7 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
     retiredSurface_ = std::move(surface_);
     surface_ = std::move(surface);
     tileStroke_.reset();                      /* before the history it records into is replaced */
+    outsideEdits_ += history_.revision() + 1; /* documentRevision never goes back */
     history_ = History{};
     selectedTilemap_ = -1;
     selectedTileset_ = -1;

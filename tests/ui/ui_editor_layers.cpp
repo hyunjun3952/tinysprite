@@ -733,6 +733,16 @@ TEST(removing_layers_is_allowed_only_while_one_stays_and_not_while_stroking)
     delete e;
 }
 
+TEST(a_new_document_never_repeats_a_revision)
+{
+    Editor *e = make_editor();
+    e->addLayer();
+    const uint64_t before = e->documentRevision();
+    ASSERT_TRUE(e->newDocument(8, 6));
+    ASSERT_TRUE(e->documentRevision() > before);
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -784,6 +794,7 @@ int main()
     RUN(an_unchanged_blend_mode_records_nothing);
     RUN(a_blend_mode_edit_is_held_off_while_stroking);
     RUN(removing_layers_is_allowed_only_while_one_stays_and_not_while_stroking);
+    RUN(a_new_document_never_repeats_a_revision);
     ui_quit();
     return TEST_SUMMARY();
 }
