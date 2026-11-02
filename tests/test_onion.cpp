@@ -166,6 +166,14 @@ static Sprite varied()
     return s;
 }
 
+/* Makes (x, y) of `frame` see-through on every layer, so the ghosts under it show. */
+static void open_hole(Sprite &s, int frame, int x, int y)
+{
+    for (int l = 0; l < s.layerCount(); l++) {
+        s.layer(l)->cel(frame)->set(x, y, CLEAR);
+    }
+}
+
 /* The ghost of `frame` at (x, y) as composite_onion mixes it with its tint. */
 static Rgba ghost(const Sprite &s, int frame, int x, int y, Rgba tint)
 {
@@ -187,7 +195,8 @@ static Rgba expected_onion(const Sprite &s, int x, int y)
 
 TEST(a_region_holds_the_ghosts_of_both_sides_far_to_near)
 {
-    const Sprite s = varied();
+    Sprite s = varied();
+    open_hole(s, 1, 2, 1);
     OnionSkin skin;
     skin.before = 3; /* frame 1 has one frame before it, so the fade is spread over more */
     skin.after = 1;
@@ -207,7 +216,9 @@ TEST(a_region_holds_the_ghosts_of_both_sides_far_to_near)
 
 TEST(a_far_ghost_fades_by_the_count_wanted_on_its_side)
 {
-    const Sprite s = varied();
+    Sprite s = varied();
+    open_hole(s, 0, 2, 1);
+    open_hole(s, 2, 3, 2);
     OnionSkin skin;
     skin.before = 1;
     skin.after = 3; /* frame 0 has two after it: the far one shows 2 / 3 of the opacity */
@@ -217,17 +228,15 @@ TEST(a_far_ghost_fades_by_the_count_wanted_on_its_side)
     Rgba expected;
     expected = composite_over(expected, ghost(s, 2, 2, 1, ONION_FUTURE_TINT), 133);
     expected = composite_over(expected, ghost(s, 1, 2, 1, ONION_FUTURE_TINT), 200);
-    expected = composite_over(expected, composite_pixel(s, 0, 2, 1), 255);
     ASSERT_TRUE(out[1 * 5 + 2] == expected);
 
     skin.before = 3;
     skin.after = 1;
     composite_onion(s, 2, skin, Rect{0, 0, 5, 4}, out.data());
     expected = Rgba{};
-    expected = composite_over(expected, ghost(s, 0, 2, 1, ONION_PAST_TINT), 133);
-    expected = composite_over(expected, ghost(s, 1, 2, 1, ONION_PAST_TINT), 200);
-    expected = composite_over(expected, composite_pixel(s, 2, 2, 1), 255);
-    ASSERT_TRUE(out[1 * 5 + 2] == expected);
+    expected = composite_over(expected, ghost(s, 0, 3, 2, ONION_PAST_TINT), 133);
+    expected = composite_over(expected, ghost(s, 1, 3, 2, ONION_PAST_TINT), 200);
+    ASSERT_TRUE(out[2 * 5 + 3] == expected);
 }
 
 int main()
