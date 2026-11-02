@@ -270,6 +270,51 @@ TEST(a_turned_tile_is_drawn_turned)
     ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
 }
 
+/* Five by four, three frames, with colors that differ per cel, frame and layer: an opaque layer, a
+ * half transparent one in Multiply and a hidden one. */
+static Sprite varied()
+{
+    Sprite s(5, 4);
+    s.addLayer("multiplied");
+    s.addLayer("hidden");
+    s.insertFrame(1, s.makeFrame());
+    s.insertFrame(2, s.makeFrame());
+    s.layer(1)->setBlendMode(BlendMode::Multiply);
+    s.layer(1)->setOpacity(180);
+    s.layer(2)->setVisible(false);
+    for (int l = 0; l < 3; l++) {
+        for (int f = 0; f < 3; f++) {
+            for (int y = 0; y < 4; y++) {
+                for (int x = 0; x < 5; x++) {
+                    const int mix = 20 * l + 30 * f + 7 * x + 11 * y;
+                    s.layer(l)->cel(f)->set(x, y,
+                                            Rgba{static_cast<uint8_t>(mix),
+                                                 static_cast<uint8_t>(255 - mix),
+                                                 static_cast<uint8_t>(x * 40),
+                                                 static_cast<uint8_t>(l == 0 ? 255 : 90 + y * 40)});
+                }
+            }
+        }
+    }
+    return s;
+}
+
+TEST(a_region_holds_the_same_pixels_as_composite_pixel)
+{
+    const Sprite s = varied();
+    const Rect region{1, 1, 3, 2};
+    const Rgba untouched{1, 2, 3, 4};
+    std::vector<Rgba> out = make_out(s, untouched);
+    composite_sprite(s, 1, region, out.data());
+    for (int y = 0; y < s.height(); y++) {
+        for (int x = 0; x < s.width(); x++) {
+            const Rgba expected =
+                rect_contains(region, x, y) ? composite_pixel(s, 1, x, y) : untouched;
+            ASSERT_TRUE(same(at(s, out, x, y), expected));
+        }
+    }
+}
+
 int main()
 {
     RUN(a_tilemap_is_drawn_at_its_offset);
@@ -290,5 +335,6 @@ int main()
     RUN(invalid_frame_leaves_output_untouched);
     RUN(composite_pixel_matches_full_composite);
     RUN(composite_over_scales_by_opacity);
+    RUN(a_region_holds_the_same_pixels_as_composite_pixel);
     return TEST_SUMMARY();
 }

@@ -137,6 +137,74 @@ TEST(huge_ghost_counts_are_harmless)
     ASSERT_TRUE(out[0].a > 0);
 }
 
+/* Five by four, three frames, with colors that differ per cel, frame and layer: an opaque layer, a
+ * half transparent one in Multiply and a hidden one. */
+static Sprite varied()
+{
+    Sprite s(5, 4);
+    s.addLayer("multiplied");
+    s.addLayer("hidden");
+    s.insertFrame(1, s.makeFrame());
+    s.insertFrame(2, s.makeFrame());
+    s.layer(1)->setBlendMode(BlendMode::Multiply);
+    s.layer(1)->setOpacity(180);
+    s.layer(2)->setVisible(false);
+    for (int l = 0; l < 3; l++) {
+        for (int f = 0; f < 3; f++) {
+            for (int y = 0; y < 4; y++) {
+                for (int x = 0; x < 5; x++) {
+                    const int mix = 20 * l + 30 * f + 7 * x + 11 * y;
+                    s.layer(l)->cel(f)->set(x, y,
+                                            Rgba{static_cast<uint8_t>(mix),
+                                                 static_cast<uint8_t>(255 - mix),
+                                                 static_cast<uint8_t>(x * 40),
+                                                 static_cast<uint8_t>(l == 0 ? 255 : 90 + y * 40)});
+                }
+            }
+        }
+    }
+    return s;
+}
+
+/* The ghost of `frame` at (x, y) as composite_onion mixes it with its tint. */
+static Rgba ghost(const Sprite &s, int frame, int x, int y, Rgba tint)
+{
+    const Rgba p = composite_pixel(s, frame, x, y);
+    return Rgba{static_cast<uint8_t>((p.r + tint.r + 1) / 2),
+                static_cast<uint8_t>((p.g + tint.g + 1) / 2),
+                static_cast<uint8_t>((p.b + tint.b + 1) / 2), p.a};
+}
+
+/* Frame 1 of varied() over its one ghost on each side, for 3 ghosts wanted before and 1 after at
+ * opacity 200: the one after first, as both are as near. */
+static Rgba expected_onion(const Sprite &s, int x, int y)
+{
+    Rgba acc;
+    acc = composite_over(acc, ghost(s, 2, x, y, ONION_FUTURE_TINT), 200);
+    acc = composite_over(acc, ghost(s, 0, x, y, ONION_PAST_TINT), 200);
+    return composite_over(acc, composite_pixel(s, 1, x, y), 255);
+}
+
+TEST(a_region_holds_the_ghosts_of_both_sides_far_to_near)
+{
+    const Sprite s = varied();
+    OnionSkin skin;
+    skin.before = 3; /* frame 1 has one frame before it, so the fade is spread over more */
+    skin.after = 1;
+    skin.opacity = 200;
+    const Rect region{1, 1, 3, 2};
+    const Rgba untouched{1, 2, 3, 4};
+    std::vector<Rgba> out(20, untouched);
+    composite_onion(s, 1, skin, region, out.data());
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 5; x++) {
+            const Rgba seen = out[static_cast<size_t>(y) * 5 + static_cast<size_t>(x)];
+            ASSERT_TRUE(seen ==
+                        (rect_contains(region, x, y) ? expected_onion(s, x, y) : untouched));
+        }
+    }
+}
+
 int main()
 {
     RUN(without_ghosts_it_is_the_plain_frame);
@@ -150,5 +218,6 @@ int main()
     RUN(only_the_region_is_written);
     RUN(bad_input_changes_nothing);
     RUN(huge_ghost_counts_are_harmless);
+    RUN(a_region_holds_the_ghosts_of_both_sides_far_to_near);
     return TEST_SUMMARY();
 }
