@@ -188,11 +188,11 @@ struct AppTestAccess {
         frame();
         frame();
     }
-    /* Ctrl and one key, in a frame where an item (a slider, say) is held down. */
-    void pressChordWhileHoldingAnItem(ImGuiKey key)
+    /* One key, with Ctrl if asked, in a frame where an item (a slider, say) is held down. */
+    void pressWhileHoldingAnItem(ImGuiKey key, bool ctrl)
     {
         ImGuiIO &io = ImGui::GetIO();
-        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddKeyEvent(ImGuiMod_Ctrl, ctrl);
         io.AddKeyEvent(key, true);
         app.pollEvents();
         ImGui_ImplSDLRenderer3_NewFrame();
@@ -835,10 +835,25 @@ TEST(ctrl_z_waits_while_an_item_is_held_down)
     ASSERT_TRUE(t.start());
     t.editor().addLayer();
     ASSERT_EQ_INT(2, t.editor().sprite().layerCount());
-    t.pressChordWhileHoldingAnItem(ImGuiKey_Z);
+    t.pressWhileHoldingAnItem(ImGuiKey_Z, true);
     ASSERT_EQ_INT(2, t.editor().sprite().layerCount());
     t.pressChord(ImGuiKey_Z, false);
     ASSERT_EQ_INT(1, t.editor().sprite().layerCount());
+}
+
+TEST(plain_keys_and_delete_wait_while_an_item_is_held_down)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.editor().addFrame();
+    ASSERT_EQ_INT(1, t.editor().frame());
+    t.pressWhileHoldingAnItem(ImGuiKey_Comma, false);
+    ASSERT_EQ_INT(1, t.editor().frame());
+    Cel &cel = *t.editor().sprite().layer(0)->cel(1);
+    cel.set(0, 0, Rgba{255, 0, 0, 255});
+    t.editor().selectAll();
+    t.pressWhileHoldingAnItem(ImGuiKey_Delete, false);
+    ASSERT_EQ_INT(255, cel.get(0, 0).a);
 }
 
 int main()
@@ -868,5 +883,6 @@ int main()
     RUN(ctrl_t_hides_and_shows_the_timeline);
     RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
     RUN(ctrl_z_waits_while_an_item_is_held_down);
+    RUN(plain_keys_and_delete_wait_while_an_item_is_held_down);
     return TEST_SUMMARY();
 }
