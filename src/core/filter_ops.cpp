@@ -179,16 +179,17 @@ struct CelChange {
 };
 
 /* The pixels `params` would change in `cel`, found by running it on a copy. */
-void collectChanges(const Cel &cel, Cel &target, const FilterParams &params,
-                    std::optional<Rect> area, std::vector<CelChange> &out)
+void collectChanges(Cel &cel, const FilterParams &params, std::optional<Rect> area,
+                    const std::shared_ptr<const Mask> &mask, std::vector<CelChange> &out)
 {
     Cel copy = cel;
     History scratch;
+    scratch.setClipMask(mask);
     filter_apply(scratch, copy, params, area);
     size_t count = static_cast<size_t>(cel.width()) * static_cast<size_t>(cel.height());
     for (size_t i = 0; i < count; i++) {
         if (copy.pixels()[i] != cel.pixels()[i]) {
-            out.push_back(CelChange{&target, i, cel.pixels()[i], copy.pixels()[i]});
+            out.push_back(CelChange{&cel, i, cel.pixels()[i], copy.pixels()[i]});
         }
     }
 }
@@ -196,14 +197,14 @@ void collectChanges(const Cel &cel, Cel &target, const FilterParams &params,
 } // namespace
 
 bool filter_apply_cels(History &history, const std::vector<Cel *> &cels, const FilterParams &params,
-                       std::optional<Rect> area)
+                       std::optional<Rect> area, const std::shared_ptr<const Mask> &mask)
 {
     if (history.strokeActive()) {
         return false;
     }
     std::vector<CelChange> changes;
     for (Cel *cel : cels) {
-        collectChanges(*cel, *cel, params, area, changes);
+        collectChanges(*cel, params, area, mask, changes);
     }
     if (changes.empty()) {
         return true;

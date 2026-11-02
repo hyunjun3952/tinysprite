@@ -312,6 +312,31 @@ TEST(filtering_cels_pixel_steps_interleave)
     ASSERT_TRUE(a.get(0, 0) == RED);
 }
 
+TEST(a_filter_on_several_cels_stays_inside_the_mask)
+{
+    Cel cel(4, 1);
+    for (int x = 0; x < 4; x++) {
+        cel.set(x, 0, RED);
+    }
+    const Mask mask = Mask::fromPlot(4, 1, [](const RasterPlotFn &plot) {
+        plot(0, 0);
+        plot(3, 0);
+    });
+    FilterParams params;
+    params.kind = FilterParams::Kind::ReplaceColor;
+    params.from = RED;
+    params.to = BLUE;
+    History h;
+    ASSERT_TRUE(
+        filter_apply_cels(h, {&cel}, params, mask.bounds(), std::make_shared<const Mask>(mask)));
+    ASSERT_TRUE(cel.get(0, 0) == BLUE);
+    ASSERT_TRUE(cel.get(1, 0) == RED);
+    ASSERT_TRUE(cel.get(2, 0) == RED);
+    ASSERT_TRUE(cel.get(3, 0) == BLUE);
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(cel.get(0, 0) == RED);
+}
+
 int main()
 {
     RUN(outline_surrounds_a_pixel_on_its_four_sides);
@@ -337,5 +362,6 @@ int main()
     RUN(filtering_cels_that_do_not_change_records_nothing);
     RUN(filtering_cels_is_refused_while_a_stroke_is_active);
     RUN(filtering_cels_pixel_steps_interleave);
+    RUN(a_filter_on_several_cels_stays_inside_the_mask);
     return TEST_SUMMARY();
 }
