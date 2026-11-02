@@ -187,6 +187,14 @@ TEST(a_gpl_without_channels_takes_a_number_as_the_name)
     ASSERT_TRUE(p.get(0) == (Rgba{1, 2, 3, 255}));
 }
 
+TEST(the_channels_header_may_be_spelled_loosely)
+{
+    for (const char *header : {"Channels:RGBA", "Channels:   RGBA", "Channels: rgba"}) {
+        const std::string text = std::string("GIMP Palette\n") + header + "\n1 2 3 128 a\n";
+        ASSERT_EQ_INT(128, must_have(palette_decode(text)).get(0).a);
+    }
+}
+
 int main()
 {
     RUN(hex_round_trips_with_alpha);
@@ -203,5 +211,6 @@ int main()
     RUN(atomic_write_replaces_a_file_and_leaves_no_temp);
     RUN(a_gpl_with_rgba_channels_keeps_its_alpha);
     RUN(a_gpl_without_channels_takes_a_number_as_the_name);
+    RUN(the_channels_header_may_be_spelled_loosely);
     return TEST_SUMMARY();
 }

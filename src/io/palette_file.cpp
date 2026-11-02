@@ -178,6 +178,21 @@ static bool isHexComment(const std::string &line)
     return line[0] == ';' || line.rfind("//", 0) == 0;
 }
 
+/* Whether the lines of a GPL file have a "Channels:" header that says RGBA, in any case. */
+static bool gplHasAlpha(const std::vector<std::string> &lines)
+{
+    static const std::string prefix = "Channels:";
+    return std::any_of(lines.begin(), lines.end(), [](const std::string &line) {
+        if (line.rfind(prefix, 0) != 0) {
+            return false;
+        }
+        std::string value = trim(line.substr(prefix.size()));
+        std::transform(value.begin(), value.end(), value.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        return value == "RGBA";
+    });
+}
+
 /* The color on a line of a palette file, or nullopt for a line that is not one. */
 static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl, bool hasAlpha)
 {
@@ -203,7 +218,7 @@ std::optional<Palette> palette_decode(const std::string &text)
         return std::nullopt;
     }
     bool gpl = *header == "GIMP Palette";
-    bool hasAlpha = gpl && std::find(all.begin(), all.end(), "Channels: RGBA") != all.end();
+    bool hasAlpha = gpl && gplHasAlpha(all);
     Palette palette;
     for (auto it = gpl ? header + 1 : header; it != all.end(); ++it) {
         if (isNoise(*it, gpl)) {
