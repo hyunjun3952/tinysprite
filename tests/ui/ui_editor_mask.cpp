@@ -383,6 +383,21 @@ TEST(an_empty_mask_is_no_selection)
     delete e;
 }
 
+TEST(a_selection_mask_counts_toward_the_history_limit)
+{
+    Editor *e = make_editor();
+    e->setSelectionMask(Mask::fromPlot(8, 6, [](const RasterPlotFn &plot) {
+        plot(0, 0);
+        plot(5, 3);
+    }));
+    e->history().setLimit(10); /* each step holds two masks of 6 x 4 cels */
+    ASSERT_TRUE(e->nudgeSelection(1, 0));
+    ASSERT_TRUE(e->nudgeSelection(1, 0));
+    ASSERT_TRUE(e->history().undo());
+    ASSERT_TRUE(!e->history().canUndo());
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -409,6 +424,7 @@ int main()
     RUN(rotating_a_masked_selection_turns_its_pixels_and_its_shape);
     RUN(a_new_rectangular_selection_or_select_all_or_dismissing_drops_the_mask);
     RUN(an_empty_mask_is_no_selection);
+    RUN(a_selection_mask_counts_toward_the_history_limit);
     ui_quit();
     return TEST_SUMMARY();
 }
