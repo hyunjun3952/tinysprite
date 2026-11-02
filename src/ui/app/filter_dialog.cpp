@@ -3,22 +3,18 @@
 #include "app.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstring>
 
+#include "editor/detail.hpp"
 #include "imgui.h"
 #include "theme.hpp"
 
 namespace
 {
 
-uint8_t toByte(float v)
-{
-    return static_cast<uint8_t>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f));
-}
-
 Rgba toRgba(const float *c)
 {
+    using editor_detail::toByte;
     return Rgba{toByte(c[0]), toByte(c[1]), toByte(c[2]), toByte(c[3])};
 }
 
