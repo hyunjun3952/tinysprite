@@ -218,7 +218,8 @@ void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
 }
 
 /* One slice of an SLCE payload: its name, rectangle (four u32) and a flags byte (bit 0: a pivot
- * follows as two u32, relative to the rectangle). */
+ * follows as two u32, relative to the rectangle). A value past INT_MAX reads as negative, which
+ * Decoder::keepValidSlices drops like any other slice that does not fit. */
 Sprite::Slice readSlice(Reader &chunk)
 {
     Sprite::Slice slice;
@@ -228,21 +229,15 @@ Sprite::Slice readSlice(Reader &chunk)
         value = chunk.u32();
     }
     uint32_t flags = chunk.u8();
-    if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX) ||
-        *std::max_element(values, values + 4) > INT32_MAX) {
+    if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX)) {
         throw std::out_of_range("pxa: bad slice");
     }
     slice.rect = Rect{static_cast<int>(values[0]), static_cast<int>(values[1]),
                       static_cast<int>(values[2]), static_cast<int>(values[3])};
     slice.hasPivot = flags == 1;
     if (slice.hasPivot) {
-        uint32_t px = chunk.u32();
-        uint32_t py = chunk.u32();
-        if (px > INT32_MAX || py > INT32_MAX) {
-            throw std::out_of_range("pxa: bad slice pivot");
-        }
-        slice.pivotX = static_cast<int>(px);
-        slice.pivotY = static_cast<int>(py);
+        slice.pivotX = static_cast<int>(chunk.u32());
+        slice.pivotY = static_cast<int>(chunk.u32());
     }
     return slice;
 }

@@ -538,6 +538,20 @@ TEST(a_blend_entry_for_a_missing_layer_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
+TEST(a_slice_with_a_coordinate_past_int_costs_only_the_slice)
+{
+    Sprite s = animated();
+    Sprite::Slice slice;
+    slice.name = "x";
+    s.addSlice(slice);
+    std::vector<uint8_t> data = pxa_encode(s);
+    /* the SLCE chunk is last: ... the top byte of h, then the flags byte */
+    data[data.size() - 2] = 0x80;
+    Sprite back = must_have(pxa_decode(data));
+    ASSERT_EQ_INT(0, static_cast<int>(back.slices().size()));
+    ASSERT_EQ_INT(3, back.width());
+}
+
 int main()
 {
     RUN(round_trip_keeps_everything);
@@ -575,5 +589,6 @@ int main()
     RUN(a_reader_that_skips_the_blend_chunk_still_loads_the_layers);
     RUN(an_unknown_blend_mode_reads_as_normal);
     RUN(a_blend_entry_for_a_missing_layer_is_rejected);
+    RUN(a_slice_with_a_coordinate_past_int_costs_only_the_slice);
     return TEST_SUMMARY();
 }
