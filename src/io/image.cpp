@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <new>
 #include <utility>
 #include <vector>
 
@@ -235,9 +236,8 @@ std::optional<Sprite> importAnimatedGif(const std::vector<unsigned char> &data)
     return sprite;
 }
 
-} // namespace
-
-std::optional<Sprite> image_import(const std::string &path)
+/* The sprite in the file at `path`: an Aseprite file, an animated GIF or a plain image. */
+std::optional<Sprite> importFile(const std::string &path)
 {
     if (std::optional<Sprite> aseprite = aseprite_load(path)) {
         return aseprite;
@@ -264,4 +264,15 @@ std::optional<Sprite> image_import(const std::string &path)
     std::memcpy(cel.pixels(), pixels.get(),
                 static_cast<size_t>(width) * static_cast<size_t>(height) * sizeof(Rgba));
     return sprite;
+}
+
+} // namespace
+
+std::optional<Sprite> image_import(const std::string &path)
+{
+    try {
+        return importFile(path);
+    } catch (const std::bad_alloc &) {
+        return std::nullopt;
+    }
 }

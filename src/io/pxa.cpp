@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <new>
 #include <stdexcept>
 #include <utility>
 
@@ -851,13 +852,19 @@ std::optional<Sprite> pxa_decode(const std::vector<uint8_t> &data)
         return std::nullopt;
     } catch (const std::invalid_argument &) {
         return std::nullopt;
+    } catch (const std::bad_alloc &) {
+        return std::nullopt;
     }
 }
 
 bool pxa_save(const Sprite &sprite, const std::string &path)
 {
-    std::vector<uint8_t> data = pxa_encode(sprite);
-    return file_write_atomic(path, data.data(), data.size());
+    try {
+        std::vector<uint8_t> data = pxa_encode(sprite);
+        return file_write_atomic(path, data.data(), data.size());
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
 }
 
 std::optional<Sprite> pxa_load(const std::string &path)
@@ -866,6 +873,10 @@ std::optional<Sprite> pxa_load(const std::string &path)
     if (!file) {
         return std::nullopt;
     }
-    return pxa_decode(std::vector<uint8_t>(std::istreambuf_iterator<char>(file),
-                                           std::istreambuf_iterator<char>()));
+    try {
+        return pxa_decode(std::vector<uint8_t>(std::istreambuf_iterator<char>(file),
+                                               std::istreambuf_iterator<char>()));
+    } catch (const std::bad_alloc &) {
+        return std::nullopt;
+    }
 }
