@@ -213,9 +213,11 @@ class Sprite
     /* Appends a new layer on top and returns it. */
     Layer &addLayer(const std::string &name);
 
-    /* Takes the layer at `index` out and hands it to the caller; the layers above it shift down. A
+    /*
+     * Takes the layer at `index` out and hands it to the caller; the layers above it shift down. A
      * sprite always keeps at least one layer. Returns null if index is out of range or only one
-     * layer is left. */
+     * layer is left.
+     */
     std::unique_ptr<Layer> detachLayer(int index);
 
     /* Inserts a layer (made for this sprite's size and frame count) so it ends up at `index`,

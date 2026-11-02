@@ -172,8 +172,10 @@ struct OnionPlan {
     int wantAfter;
 };
 
-/* The region of a composite_onion: where its first pixel is and how its rows lie in `out`, and a
- * buffer of the region's size for one flattened frame. */
+/*
+ * The region of a composite_onion: where its first pixel is and how its rows lie in `out`, and a
+ * buffer of the region's size for one flattened frame.
+ */
 struct OnionRegion {
     Rect rect;
     Rgba *out;

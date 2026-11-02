@@ -270,8 +270,10 @@ TEST(a_turned_tile_is_drawn_turned)
     ASSERT_TRUE(same(at(s, out, 0, 0), CLEAR));
 }
 
-/* Five by four, three frames, with colors that differ per cel, frame and layer: an opaque layer, a
- * half transparent one in Multiply and a hidden one. */
+/*
+ * Five by four, three frames, with colors that differ per cel, frame and layer: an opaque layer, a
+ * half transparent one in Multiply and a hidden one.
+ */
 static Sprite varied()
 {
     Sprite s(5, 4);

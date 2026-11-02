@@ -38,9 +38,11 @@ std::vector<std::string> settings_get_recent(const SettingsMap &settings, size_t
  * Empty when no home directory can be found, in which case nothing is persisted. */
 std::string config_dir();
 
-/* The environment variable as UTF-8, which is what every path in the program is (on Windows the
+/*
+ * The environment variable as UTF-8, which is what every path in the program is (on Windows the
  * narrow environment is in the ANSI code page, so a non-ASCII user name would come out garbled);
- * "" when it is not set. */
+ * "" when it is not set.
+ */
 std::string env_utf8(const char *name);
 
 /* Reads / writes <dir>/settings.ini. Loading a missing file gives an empty map; saving creates the

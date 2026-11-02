@@ -27,8 +27,10 @@ bool recovery_save(const std::string &dir, int slot, const Sprite &sprite, const
  * ones are left out. */
 std::vector<Recovered> recovery_load(const std::string &dir);
 
-/* Moves the copy in slot `from` to slot `to`; false if there is no copy in `from` or `to` already
- * holds one. */
+/*
+ * Moves the copy in slot `from` to slot `to`; false if there is no copy in `from` or `to` already
+ * holds one.
+ */
 bool recovery_move_slot(const std::string &dir, int from, int to);
 
 /* The first slot from `from` on that holds no copy. */

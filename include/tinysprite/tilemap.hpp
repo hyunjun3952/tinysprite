@@ -124,9 +124,11 @@ std::optional<Tileset> tileset_from_cel(const Cel &cel, Rect area, int tileWidth
  * picture would be wider or taller than CEL_MAX_DIMENSION. */
 std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map);
 
-/* The map as one picture of at most `maxSide` (1..CEL_MAX_DIMENSION) pixels each way, keeping every
+/*
+ * The map as one picture of at most `maxSide` (1..CEL_MAX_DIMENSION) pixels each way, keeping every
  * nth pixel of what tilemap_render would draw: how a map too big for that one is shown. Returns
- * nothing if the map is not valid or `maxSide` is out of range. */
+ * nothing if the map is not valid or `maxSide` is out of range.
+ */
 std::optional<Cel> tilemap_preview(const Tileset &tileset, const TileMap &map, int maxSide);
 
 #endif

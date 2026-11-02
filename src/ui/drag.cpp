@@ -73,8 +73,10 @@ class PickDrag : public Drag
     }
 };
 
-/* A drag that edits the cel through a live stroke: finishing ends the stroke, cancelling reverts
- * it. */
+/*
+ * A drag that edits the cel through a live stroke: finishing ends the stroke, cancelling reverts
+ * it.
+ */
 template <class Stroke> class StrokeDrag : public Drag
 {
   public:

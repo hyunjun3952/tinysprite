@@ -6,8 +6,10 @@
 namespace
 {
 
-/* The pixels of the atlases of `from` that `to` does not have: what a step keeps alive on its own,
- * since an atlas both lists share is held by the sprite anyway. */
+/*
+ * The pixels of the atlases of `from` that `to` does not have: what a step keeps alive on its own,
+ * since an atlas both lists share is held by the sprite anyway.
+ */
 size_t atlasBytesOnlyIn(const std::vector<Tileset> &from, const std::vector<Tileset> &to)
 {
     size_t bytes = 0;

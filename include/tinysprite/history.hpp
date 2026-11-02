@@ -108,8 +108,10 @@ class History
     bool undo();
     bool redo();
 
-    /* A number that changes whenever a step is added, undone or redone, so a caller can tell
-     * whether the document changed since it last looked. */
+    /*
+     * A number that changes whenever a step is added, undone or redone, so a caller can tell
+     * whether the document changed since it last looked.
+     */
     uint64_t revision() const
     {
         return revision_;

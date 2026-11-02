@@ -137,8 +137,10 @@ TEST(huge_ghost_counts_are_harmless)
     ASSERT_TRUE(out[0].a > 0);
 }
 
-/* Five by four, three frames, with colors that differ per cel, frame and layer: an opaque layer, a
- * half transparent one in Multiply and a hidden one. */
+/*
+ * Five by four, three frames, with colors that differ per cel, frame and layer: an opaque layer, a
+ * half transparent one in Multiply and a hidden one.
+ */
 static Sprite varied()
 {
     Sprite s(5, 4);
@@ -183,8 +185,10 @@ static Rgba ghost(const Sprite &s, int frame, int x, int y, Rgba tint)
                 static_cast<uint8_t>((p.b + tint.b + 1) / 2), p.a};
 }
 
-/* Frame 1 of varied() over its one ghost on each side, for 3 ghosts wanted before and 1 after at
- * opacity 200: the one after first, as both are as near. */
+/*
+ * Frame 1 of varied() over its one ghost on each side, for 3 ghosts wanted before and 1 after at
+ * opacity 200: the one after first, as both are as near.
+ */
 static Rgba expected_onion(const Sprite &s, int x, int y)
 {
     Rgba acc;
