@@ -205,6 +205,31 @@ TEST(a_region_holds_the_ghosts_of_both_sides_far_to_near)
     }
 }
 
+TEST(a_far_ghost_fades_by_the_count_wanted_on_its_side)
+{
+    const Sprite s = varied();
+    OnionSkin skin;
+    skin.before = 1;
+    skin.after = 3; /* frame 0 has two after it: the far one shows 2 / 3 of the opacity */
+    skin.opacity = 200;
+    std::vector<Rgba> out(20);
+    composite_onion(s, 0, skin, Rect{0, 0, 5, 4}, out.data());
+    Rgba expected;
+    expected = composite_over(expected, ghost(s, 2, 2, 1, ONION_FUTURE_TINT), 133);
+    expected = composite_over(expected, ghost(s, 1, 2, 1, ONION_FUTURE_TINT), 200);
+    expected = composite_over(expected, composite_pixel(s, 0, 2, 1), 255);
+    ASSERT_TRUE(out[1 * 5 + 2] == expected);
+
+    skin.before = 3;
+    skin.after = 1;
+    composite_onion(s, 2, skin, Rect{0, 0, 5, 4}, out.data());
+    expected = Rgba{};
+    expected = composite_over(expected, ghost(s, 0, 2, 1, ONION_PAST_TINT), 133);
+    expected = composite_over(expected, ghost(s, 1, 2, 1, ONION_PAST_TINT), 200);
+    expected = composite_over(expected, composite_pixel(s, 2, 2, 1), 255);
+    ASSERT_TRUE(out[1 * 5 + 2] == expected);
+}
+
 int main()
 {
     RUN(without_ghosts_it_is_the_plain_frame);
@@ -219,5 +244,6 @@ int main()
     RUN(bad_input_changes_nothing);
     RUN(huge_ghost_counts_are_harmless);
     RUN(a_region_holds_the_ghosts_of_both_sides_far_to_near);
+    RUN(a_far_ghost_fades_by_the_count_wanted_on_its_side);
     return TEST_SUMMARY();
 }
