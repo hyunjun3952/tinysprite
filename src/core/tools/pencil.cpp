@@ -216,8 +216,10 @@ bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry 
         return false;
     }
     RasterPlotFn plot = history_plot(history, cel, color);
+    /* every seed looks at the cel as it was: a reflection must not start from the fill's color */
+    const Cel before = cel;
     for (ToolPoint seed : symmetry_points(symmetry, cel.width(), cel.height(), {x, y})) {
-        raster_flood_fill(cel, seed.x, seed.y, plot, options);
+        raster_flood_fill(before, seed.x, seed.y, plot, options);
     }
     return history.endStroke();
 }
