@@ -247,6 +247,42 @@ TEST(painting_a_turned_tile_is_one_undo_step)
     ASSERT_EQ_INT(0, s.tilemaps()[0].cell(1, 0));
 }
 
+TEST(a_removed_atlas_counts_toward_the_history_limit)
+{
+    Sprite s(4, 4);
+    History h;
+    h.setLimit(size_t{1} << 20);
+    for (int i = 0; i < 3; i++) {
+        Tileset big;
+        big.tileWidth = 8;
+        big.tileHeight = 8;
+        big.atlas = std::make_shared<Cel>(1024, 1024); /* 4 MiB */
+        ASSERT_TRUE(tileset_op_add(h, s, big));
+        ASSERT_TRUE(tileset_op_remove(h, s, 0));
+    }
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(!h.canUndo()); /* only the newest step fits */
+}
+
+TEST(a_map_edit_does_not_count_the_atlas_it_shares)
+{
+    Sprite s(4, 4);
+    History h;
+    Tileset big;
+    big.tileWidth = 8;
+    big.tileHeight = 8;
+    big.atlas = std::make_shared<Cel>(1024, 1024); /* 4 MiB */
+    ASSERT_TRUE(tileset_op_add(h, s, big));
+    h.setLimit(size_t{5} << 20);
+    for (int i = 1; i <= 4; i++) {
+        ASSERT_TRUE(tilemap_op_add(h, s, tilemap_blank("m", 0, i, 1)));
+    }
+    for (int i = 0; i < 4; i++) {
+        ASSERT_TRUE(h.undo());
+    }
+    ASSERT_TRUE(h.undo()); /* the tileset's own step is still there */
+}
+
 int main()
 {
     RUN(moving_a_map_is_one_undo_step);
@@ -266,5 +302,7 @@ int main()
     RUN(a_stroke_destroyed_unfinished_puts_the_cells_back);
     RUN(a_stroke_needs_a_map_and_a_free_history);
     RUN(tile_steps_interleave_with_pixel_steps);
+    RUN(a_removed_atlas_counts_toward_the_history_limit);
+    RUN(a_map_edit_does_not_count_the_atlas_it_shares);
     return TEST_SUMMARY();
 }
