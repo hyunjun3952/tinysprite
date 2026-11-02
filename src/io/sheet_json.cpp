@@ -115,11 +115,13 @@ bool spritesheet_export_with_json(const Sprite &sprite, const std::string &path,
                                   const std::string &jsonPath, const SheetOptions &options)
 {
     file_write_error_clear();
-    std::optional<SpriteSheet> sheet = spritesheet_render(sprite, options);
-    if (!sheet || !image_write_rgba(path, sheet->width, sheet->height, sheet->pixels)) {
-        return false;
-    }
-    return file_write_atomic(
-        jsonPath, spritesheet_metadata_json(sprite, options, *sheet,
-                                            path_to_utf8(path_from_utf8(path).filename())));
+    return within_memory([&] {
+        std::optional<SpriteSheet> sheet = spritesheet_render(sprite, options);
+        if (!sheet || !image_write_rgba(path, sheet->width, sheet->height, sheet->pixels)) {
+            return false;
+        }
+        return file_write_atomic(
+            jsonPath, spritesheet_metadata_json(sprite, options, *sheet,
+                                                path_to_utf8(path_from_utf8(path).filename())));
+    });
 }

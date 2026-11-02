@@ -147,16 +147,20 @@ bool tilemap_export(const Sprite &sprite, const std::string &path)
     if (sprite.tilemaps().empty()) {
         return false;
     }
-    const std::filesystem::path file = path_from_utf8(path);
-    const std::vector<std::string> images = tilemap_image_names(sprite, path_to_utf8(file.stem()));
-    for (size_t i = 0; i < images.size(); i++) {
-        const Cel &atlas = *sprite.tilesets()[i].atlas;
-        std::vector<Rgba> pixels(
-            atlas.pixels(), atlas.pixels() + static_cast<size_t>(atlas.width()) * atlas.height());
-        std::string target = path_to_utf8(file.parent_path() / path_from_utf8(images[i]));
-        if (!image_write_rgba(target, atlas.width(), atlas.height(), pixels)) {
-            return false;
+    return within_memory([&] {
+        const std::filesystem::path file = path_from_utf8(path);
+        const std::vector<std::string> images =
+            tilemap_image_names(sprite, path_to_utf8(file.stem()));
+        for (size_t i = 0; i < images.size(); i++) {
+            const Cel &atlas = *sprite.tilesets()[i].atlas;
+            std::vector<Rgba> pixels(atlas.pixels(),
+                                     atlas.pixels() +
+                                         static_cast<size_t>(atlas.width()) * atlas.height());
+            std::string target = path_to_utf8(file.parent_path() / path_from_utf8(images[i]));
+            if (!image_write_rgba(target, atlas.width(), atlas.height(), pixels)) {
+                return false;
+            }
         }
-    }
-    return file_write_atomic(path, tilemap_json(sprite, images));
+        return file_write_atomic(path, tilemap_json(sprite, images));
+    });
 }

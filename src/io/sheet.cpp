@@ -167,6 +167,8 @@ std::optional<SpriteSheet> spritesheet_render(const Sprite &sprite, const SheetO
 bool spritesheet_export(const Sprite &sprite, const std::string &path, const SheetOptions &options)
 {
     file_write_error_clear();
-    std::optional<SpriteSheet> sheet = spritesheet_render(sprite, options);
-    return sheet && image_write_rgba(path, sheet->width, sheet->height, sheet->pixels);
+    return within_memory([&] {
+        std::optional<SpriteSheet> sheet = spritesheet_render(sprite, options);
+        return sheet && image_write_rgba(path, sheet->width, sheet->height, sheet->pixels);
+    });
 }

@@ -7,8 +7,10 @@
 #include "minitest.hpp"
 #include "tinysprite/io.hpp"
 
-/* What happens to the file functions when the allocator gives up: they report a failure instead of
- * letting std::bad_alloc take the program down. */
+/*
+ * What happens to the file functions when the allocator gives up: they report a failure instead of
+ * letting std::bad_alloc take the program down.
+ */
 
 /* The largest allocation that still succeeds while `refusing` is set. */
 static constexpr size_t LARGEST_ALLOWED = size_t{1} << 20;
@@ -81,11 +83,38 @@ TEST(image_import_reports_a_failed_allocation)
     std::remove(path.c_str());
 }
 
+TEST(the_exports_report_a_failed_allocation)
+{
+    const Sprite sprite = big_sprite();
+    ASSERT_TRUE(
+        !refused([&] { return image_export(sprite, 0, "test_memory_failure_out.png", 1); }));
+    GifOptions gif;
+    ASSERT_TRUE(!refused([&] { return gif_export(sprite, "test_memory_failure_out.gif", gif); }));
+    SheetOptions sheet;
+    ASSERT_TRUE(
+        !refused([&] { return spritesheet_export(sprite, "test_memory_failure_out.png", sheet); }));
+    ASSERT_TRUE(!refused([&] {
+        return spritesheet_export_with_json(sprite, "test_memory_failure_out.png",
+                                            "test_memory_failure_out.json", sheet);
+    }));
+}
+
+TEST(the_tilemap_export_reports_a_failed_allocation)
+{
+    Sprite sprite(4, 4);
+    const Cel atlas(1024, 1024);
+    Tileset tileset = must_have(tileset_from_cel(atlas, Rect{0, 0, 1024, 1024}, 8, 8, "t"));
+    ASSERT_TRUE(sprite.setTileData({tileset}, {tilemap_blank("m", 0, 1, 1)}));
+    ASSERT_TRUE(!refused([&] { return tilemap_export(sprite, "test_memory_failure_out.tmj"); }));
+}
+
 int main()
 {
     RUN(pxa_decode_reports_a_failed_allocation);
     RUN(pxa_load_reports_a_failed_allocation);
     RUN(pxa_save_reports_a_failed_allocation);
     RUN(image_import_reports_a_failed_allocation);
+    RUN(the_exports_report_a_failed_allocation);
+    RUN(the_tilemap_export_reports_a_failed_allocation);
     return TEST_SUMMARY();
 }

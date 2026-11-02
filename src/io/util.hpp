@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <new>
 #include <string>
 
 #include "tinysprite/sprite.hpp"
@@ -32,6 +33,19 @@ inline int frame_range_end(const Sprite &sprite, int first, int last)
 {
     int end = last < 0 ? sprite.frameCount() - 1 : last;
     return first < 0 || end >= sprite.frameCount() || first > end ? -1 : end;
+}
+
+/*
+ * Runs `write`, a step of an export that returns whether it worked, and turns the allocator
+ * giving up into a failed export.
+ */
+template <class Write> bool within_memory(Write write)
+{
+    try {
+        return write();
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
 }
 
 #endif

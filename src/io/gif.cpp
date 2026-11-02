@@ -575,6 +575,8 @@ bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions 
     if (!path_has_extension(path, ".gif")) {
         return false;
     }
-    std::vector<uint8_t> data = gif_encode(sprite, options);
-    return !data.empty() && file_write_atomic(path, data.data(), data.size());
+    return within_memory([&] {
+        std::vector<uint8_t> data = gif_encode(sprite, options);
+        return !data.empty() && file_write_atomic(path, data.data(), data.size());
+    });
 }

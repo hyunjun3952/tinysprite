@@ -51,14 +51,16 @@ bool image_export(const Sprite &sprite, int frame, const std::string &path, int 
         sprite.height() * scale > IMAGE_EXPORT_MAX_SIZE) {
         return false;
     }
-    const int sourceWidth = sprite.width();
-    const int sourceHeight = sprite.height();
-    std::vector<Rgba> source(static_cast<size_t>(sourceWidth) * static_cast<size_t>(sourceHeight));
-    composite_sprite(sprite, frame, Rect{0, 0, sourceWidth, sourceHeight}, source.data());
-    const int width = sourceWidth * scale;
-    const int height = sourceHeight * scale;
-    std::vector<Rgba> flat = scale == 1 ? std::move(source) : enlarge(source, sourceWidth, scale);
-    return image_write_rgba(path, width, height, flat);
+    return within_memory([&] {
+        const int sourceWidth = sprite.width();
+        const int sourceHeight = sprite.height();
+        std::vector<Rgba> source(static_cast<size_t>(sourceWidth) *
+                                 static_cast<size_t>(sourceHeight));
+        composite_sprite(sprite, frame, Rect{0, 0, sourceWidth, sourceHeight}, source.data());
+        std::vector<Rgba> flat =
+            scale == 1 ? std::move(source) : enlarge(source, sourceWidth, scale);
+        return image_write_rgba(path, sourceWidth * scale, sourceHeight * scale, flat);
+    });
 }
 
 namespace
