@@ -1,6 +1,9 @@
 #include "tinysprite/tools.hpp"
 
 #include <cstdlib>
+#include <new>
+#include <optional>
+#include <vector>
 
 #include "history_plot.hpp"
 #include "tinysprite/composite.hpp"
@@ -212,14 +215,25 @@ void PencilStroke::extend(int x, int y)
 bool bucket_fill(History &history, Cel &cel, int x, int y, Rgba color, Symmetry symmetry,
                  const FillOptions &options)
 {
-    if (!cel.inBounds(x, y) || !history.beginStroke(cel)) {
+    if (!cel.inBounds(x, y) || history.strokeActive()) {
+        return false;
+    }
+    const std::vector<ToolPoint> seeds =
+        symmetry_points(symmetry, cel.width(), cel.height(), {x, y});
+    /* every seed looks at the cel as it was: a reflection must not start from the fill's color */
+    const std::optional<Cel> before =
+        seeds.size() > 1 ? std::optional<Cel>(cel) : std::optional<Cel>();
+    if (!history.beginStroke(cel)) {
         return false;
     }
     RasterPlotFn plot = history_plot(history, cel, color);
-    /* every seed looks at the cel as it was: a reflection must not start from the fill's color */
-    const Cel before = cel;
-    for (ToolPoint seed : symmetry_points(symmetry, cel.width(), cel.height(), {x, y})) {
-        raster_flood_fill(before, seed.x, seed.y, plot, options);
+    try {
+        for (ToolPoint seed : seeds) {
+            raster_flood_fill(before ? *before : cel, seed.x, seed.y, plot, options);
+        }
+    } catch (const std::bad_alloc &) {
+        history.cancelStroke();
+        throw;
     }
     return history.endStroke();
 }

@@ -1,5 +1,7 @@
 #include "composite_surface.hpp"
 
+#include <new>
+
 #include "tinysprite/composite.hpp"
 
 CompositeSurface::CompositeSurface(std::unique_ptr<SDL_Texture, TextureDeleter> texture, int width,
@@ -39,6 +41,20 @@ void CompositeSurface::markAllDirty()
     dirty_ = true;
 }
 
+/* The frame with its ghosts; short of memory for those (they take a buffer) it goes without. */
+void CompositeSurface::composeFrame(const Sprite &sprite, int frame, const OnionSkin *onion, Rect r)
+{
+    try {
+        if (onion) {
+            composite_onion(sprite, frame, *onion, r, pixels_.data());
+            return;
+        }
+    } catch (const std::bad_alloc &) {
+        /* the ghosts wait for the next redraw */
+    }
+    composite_sprite(sprite, frame, r, pixels_.data());
+}
+
 void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *onion)
 {
     if (!dirty_) {
@@ -49,11 +65,7 @@ void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *
     if (rect_is_empty(r)) {
         return;
     }
-    if (onion) {
-        composite_onion(sprite, frame, *onion, r, pixels_.data());
-    } else {
-        composite_sprite(sprite, frame, r, pixels_.data());
-    }
+    composeFrame(sprite, frame, onion, r);
     composite_tilemaps(sprite, r, pixels_.data());
     SDL_Rect rect = {r.x, r.y, r.w, r.h};
     const Rgba *origin =

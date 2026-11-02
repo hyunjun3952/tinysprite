@@ -46,7 +46,7 @@ void Editor::resetDocument(std::unique_ptr<CompositeSurface> surface)
 {
     retiredSurface_ = std::move(surface_);
     surface_ = std::move(surface);
-    tileStroke_.reset(); /* before the history it records into is replaced */
+    tileStroke_.reset();                      /* before the history it records into is replaced */
     history_ = History{};
     selectedTilemap_ = -1;
     selectedTileset_ = -1;
@@ -155,7 +155,7 @@ void Editor::press(int cx, int cy, bool shift, bool ctrl)
     if (shift && tool_traits(tool_).group == ToolGroup::Brush) {
         lineFrom_ = lastDrawPoint_;
     }
-    drag_ = beginDrag(*this, cx, cy);
+    guarded([&] { drag_ = beginDrag(*this, cx, cy); });
     lineFrom_.reset();
     if (!drag_) {
         history_.setClip(std::nullopt);
