@@ -124,17 +124,21 @@ bool parseHexColor(const std::string &line, Rgba &out)
     return true;
 }
 
-/* "R G B optional name": three numbers 0..255, then anything. */
-bool parseGplColor(const std::string &line, Rgba &out)
+/* "R G B optional name": three numbers 0..255, then anything. `hasAlpha` (the file says
+ * "Channels: RGBA") means a fourth number comes before the name. */
+bool parseGplColor(const std::string &line, bool hasAlpha, Rgba &out)
 {
     std::istringstream in(line);
     int r = 0;
     int g = 0;
     int b = 0;
-    if (!(in >> r >> g >> b) || std::min({r, g, b}) < 0 || std::max({r, g, b}) > 255) {
+    int a = 255;
+    if (!(in >> r >> g >> b) || (hasAlpha && !(in >> a)) || std::min({r, g, b, a}) < 0 ||
+        std::max({r, g, b, a}) > 255) {
         return false;
     }
-    out = Rgba{static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b), 255};
+    out = Rgba{static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b),
+               static_cast<uint8_t>(a)};
     return true;
 }
 
@@ -168,10 +172,11 @@ std::string palette_encode_gpl(const Palette &palette, const std::string &name)
     return out;
 }
 
-/* A GPL line that carries no color: a comment or the Name / Columns header. */
+/* A GPL line that carries no color: a comment or the Name / Columns / Channels header. */
 static bool isGplMetadata(const std::string &line)
 {
-    return line[0] == '#' || line.rfind("Name:", 0) == 0 || line.rfind("Columns:", 0) == 0;
+    return line[0] == '#' || line.rfind("Name:", 0) == 0 || line.rfind("Columns:", 0) == 0 ||
+           line.rfind("Channels:", 0) == 0;
 }
 
 /* A line of a .hex file that is a comment: ";" or "//" starts one ("#" is a color's prefix). */
@@ -181,10 +186,10 @@ static bool isHexComment(const std::string &line)
 }
 
 /* The color on a line of a palette file, or nullopt for a line that is not one. */
-static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl)
+static std::optional<Rgba> parseColorLine(const std::string &line, bool gpl, bool hasAlpha)
 {
     Rgba color;
-    bool ok = gpl ? parseGplColor(line, color) : parseHexColor(line, color);
+    bool ok = gpl ? parseGplColor(line, hasAlpha, color) : parseHexColor(line, color);
     return ok ? std::optional<Rgba>(color) : std::nullopt;
 }
 
@@ -205,12 +210,13 @@ std::optional<Palette> palette_decode(const std::string &text)
         return std::nullopt;
     }
     bool gpl = *header == "GIMP Palette";
+    bool hasAlpha = gpl && std::find(all.begin(), all.end(), "Channels: RGBA") != all.end();
     Palette palette;
     for (auto it = gpl ? header + 1 : header; it != all.end(); ++it) {
         if (isNoise(*it, gpl)) {
             continue;
         }
-        std::optional<Rgba> color = parseColorLine(*it, gpl);
+        std::optional<Rgba> color = parseColorLine(*it, gpl, hasAlpha);
         if (!color) {
             return std::nullopt;
         }

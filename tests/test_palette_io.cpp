@@ -173,6 +173,20 @@ TEST(formats_list_the_extensions_that_save_and_load_accept)
     ASSERT_TRUE(!palette_save(p, "test_palette_formats.txt"));
 }
 
+TEST(a_gpl_with_rgba_channels_keeps_its_alpha)
+{
+    Palette p =
+        must_have(palette_decode("GIMP Palette\nName: x\nChannels: RGBA\n#\n1 2 3 128 a\n"));
+    ASSERT_EQ_INT(1, p.count());
+    ASSERT_TRUE(p.get(0) == (Rgba{1, 2, 3, 128}));
+}
+
+TEST(a_gpl_without_channels_takes_a_number_as_the_name)
+{
+    Palette p = must_have(palette_decode("GIMP Palette\n1 2 3 128\n"));
+    ASSERT_TRUE(p.get(0) == (Rgba{1, 2, 3, 255}));
+}
+
 int main()
 {
     RUN(hex_round_trips_with_alpha);
@@ -187,5 +201,7 @@ int main()
     RUN(save_and_load_follow_the_extension);
     RUN(formats_list_the_extensions_that_save_and_load_accept);
     RUN(atomic_write_replaces_a_file_and_leaves_no_temp);
+    RUN(a_gpl_with_rgba_channels_keeps_its_alpha);
+    RUN(a_gpl_without_channels_takes_a_number_as_the_name);
     return TEST_SUMMARY();
 }
