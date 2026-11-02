@@ -1,7 +1,6 @@
 #include "tinysprite/tilemap.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <stdexcept>
 #include <utility>
 
@@ -55,7 +54,7 @@ bool gridFits(const TileMap &map, int tileCount, bool square)
 {
     return gridOk(map.columns) && gridOk(map.rows) &&
            map.cells.size() == static_cast<size_t>(map.columns) * static_cast<size_t>(map.rows) &&
-           std::abs(map.x) <= TILEMAP_OFFSET_MAX && std::abs(map.y) <= TILEMAP_OFFSET_MAX &&
+           tilemap_offset_valid(map.x) && tilemap_offset_valid(map.y) &&
            std::all_of(map.cells.begin(), map.cells.end(),
                        [tiles = static_cast<uint32_t>(tileCount), square](uint32_t cell) {
                            return cellFits(cell, tiles, square);

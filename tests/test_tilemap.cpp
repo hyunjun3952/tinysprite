@@ -317,6 +317,14 @@ TEST(set_tile_takes_a_flipped_cell_and_refuses_a_flag_on_nothing)
     ASSERT_TRUE(!s.setTile(0, 1, 0, TILE_FLIP_Y));
 }
 
+TEST(the_lowest_int_is_not_a_valid_map_origin)
+{
+    std::vector<Tileset> sets = {two_tiles()};
+    TileMap map = tilemap_blank("m", 0, 1, 1);
+    map.x = INT_MIN;
+    ASSERT_TRUE(!tilemap_valid(map, sets));
+}
+
 int main()
 {
     RUN(a_cell_keeps_its_tile_number_below_the_flag_bits);
@@ -344,5 +352,6 @@ int main()
     RUN(a_sprite_keeps_tilesets_and_maps_that_fit_together);
     RUN(a_sprite_refuses_tile_data_that_does_not_fit_and_keeps_what_it_had);
     RUN(set_tile_changes_one_cell_if_the_tile_exists);
+    RUN(the_lowest_int_is_not_a_valid_map_origin);
     return TEST_SUMMARY();
 }

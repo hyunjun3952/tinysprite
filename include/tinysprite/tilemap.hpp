@@ -22,6 +22,12 @@ inline constexpr int SPRITE_MAX_TILEMAPS = 64;
 inline constexpr int TILEMAP_OFFSET_MAX =
     CEL_MAX_DIMENSION; /* pixels, either way, of a map's origin */
 
+/* Whether `offset` can be a map's origin on one axis. */
+constexpr bool tilemap_offset_valid(int offset)
+{
+    return offset >= -TILEMAP_OFFSET_MAX && offset <= TILEMAP_OFFSET_MAX;
+}
+
 /* The top three bits of a cell say how its tile is turned, as in Tiled: mirrored left-right,
  * mirrored top-bottom, and transposed (rows and columns swapped, only for square tiles). A tile is
  * transposed first, then mirrored left-right, then top-bottom. The rest of the cell is 0 for "no

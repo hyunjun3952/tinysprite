@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -384,7 +383,7 @@ class Decoder
     {
         for (size_t i = 0; i < origins_.size() && i < maps_.size(); i++) {
             const auto [x, y] = origins_[i];
-            if (std::abs(x) <= TILEMAP_OFFSET_MAX && std::abs(y) <= TILEMAP_OFFSET_MAX) {
+            if (tilemap_offset_valid(x) && tilemap_offset_valid(y)) {
                 maps_[i].x = x;
                 maps_[i].y = y;
             }
