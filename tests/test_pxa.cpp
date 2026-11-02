@@ -57,7 +57,7 @@ TEST(save_replaces_atomically_and_reports_failure)
 {
     const char *path = "test_pxa_atomic.pxa";
     ASSERT_TRUE(pxa_save(sample(), path));
-    ASSERT_TRUE(!std::ifstream(std::string(path) + ".tmp").good());
+    ASSERT_TRUE(!std::ifstream(std::string(path) + ".tinysprite-tmp").good());
     ASSERT_TRUE(pxa_load(path).has_value());
     /* A target in a missing directory fails and leaves nothing behind. */
     ASSERT_TRUE(!pxa_save(sample(), "no_such_dir/x.pxa"));

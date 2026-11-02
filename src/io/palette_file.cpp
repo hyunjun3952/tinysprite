@@ -38,23 +38,14 @@ bool file_write_atomic(const std::string &path, const std::string &data)
     return file_write_atomic(path, reinterpret_cast<const uint8_t *>(data.data()), data.size());
 }
 
-/* A name beside `path` for the file being written: one nothing has, so a file of the user's that
- * happens to be called "<name>.tmp" stays. */
-static std::string freeTemporaryName(const std::string &path)
-{
-    std::error_code ignored;
-    std::string name = path + ".tmp";
-    for (int n = 1; std::filesystem::exists(path_from_utf8(name), ignored); n++) {
-        name = path + ".tmp" + std::to_string(n);
-    }
-    return name;
-}
-
 bool file_write_atomic(const std::string &path, const uint8_t *data, size_t size)
 {
-    /* Write beside the target and rename, so a failed write never destroys an existing file. */
+    /*
+     * Write beside the target and rename, so a failed write never destroys an existing file. The
+     * suffix is our own: a file of the user's stays, and what a crash left behind is reused.
+     */
     last_write_error().clear();
-    const std::string temp = freeTemporaryName(path);
+    const std::string temp = path + ".tinysprite-tmp";
     {
         errno = 0;
         std::ofstream file(path_from_utf8(temp), std::ios::binary);
@@ -124,8 +115,10 @@ bool parseHexColor(const std::string &line, Rgba &out)
     return true;
 }
 
-/* "R G B optional name": three numbers 0..255, then anything. `hasAlpha` (the file says
- * "Channels: RGBA") means a fourth number comes before the name. */
+/*
+ * "R G B optional name": three numbers 0..255, then anything. `hasAlpha` (the file says
+ * "Channels: RGBA") means a fourth number comes before the name.
+ */
 bool parseGplColor(const std::string &line, bool hasAlpha, Rgba &out)
 {
     std::istringstream in(line);

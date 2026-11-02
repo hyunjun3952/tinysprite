@@ -67,6 +67,19 @@ TEST(writing_leaves_a_file_named_like_the_temporary_one_alone)
     std::remove(path.c_str());
 }
 
+TEST(a_temporary_file_left_by_a_crash_is_reused)
+{
+    const std::string path = "test_file_write_leftover.txt";
+    const std::string leftover = path + ".tinysprite-tmp";
+    {
+        std::ofstream file(leftover, std::ios::binary);
+        file << "half a write";
+    }
+    ASSERT_TRUE(file_write_atomic(path, "x"));
+    ASSERT_TRUE(!std::ifstream(leftover).good());
+    std::remove(path.c_str());
+}
+
 int main()
 {
     RUN(bytes_are_written_without_a_string_copy);
@@ -74,5 +87,6 @@ int main()
     RUN(a_successful_write_clears_the_reason);
     RUN(a_utf8_path_round_trips_and_a_file_there_can_be_written_and_read);
     RUN(writing_leaves_a_file_named_like_the_temporary_one_alone);
+    RUN(a_temporary_file_left_by_a_crash_is_reused);
     return TEST_SUMMARY();
 }

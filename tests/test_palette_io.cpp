@@ -154,7 +154,7 @@ TEST(atomic_write_replaces_a_file_and_leaves_no_temp)
     std::ifstream in(path);
     std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     ASSERT_TRUE(text == "two");
-    ASSERT_TRUE(!std::ifstream(std::string(path) + ".tmp").good());
+    ASSERT_TRUE(!std::ifstream(std::string(path) + ".tinysprite-tmp").good());
     ASSERT_TRUE(!file_write_atomic("no_such_dir/x.txt", "x"));
     std::remove(path);
 }
