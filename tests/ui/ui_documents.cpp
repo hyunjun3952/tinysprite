@@ -906,6 +906,28 @@ TEST(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_imag
     fs::remove_all(dir);
 }
 
+TEST(a_kept_recovery_copy_never_replaces_another)
+{
+
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "tinysprite_recover_slots_test";
+    fs::remove_all(dir);
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(dir.string()));
+    /* slot 2 is the one the next tab would get, and it is not free */
+    ASSERT_TRUE(recovery_save(dir.string(), 1, Sprite(1, 1), ""));
+    ASSERT_TRUE(recovery_save(dir.string(), 2, Sprite(2, 2), ""));
+    std::vector<Recovered> found = recovery_load(dir.string());
+    ASSERT_EQ_INT(2, static_cast<int>(found.size()));
+    if (found.size() == 2) {
+        t.keepUnopened(found[0]);
+    }
+    ASSERT_EQ_INT(2, static_cast<int>(recovery_load(dir.string()).size()));
+    ASSERT_TRUE(!recovery_move_slot(dir.string(), 1, 2));
+    t.shutdown();
+    fs::remove_all(dir);
+}
+
 int main()
 {
     RUN(an_aseprite_file_opens_as_an_untitled_document);
@@ -943,5 +965,6 @@ int main()
     RUN(closing_a_tab_with_unsaved_changes_asks_first);
     RUN(quitting_asks_about_every_tab_with_unsaved_changes);
     RUN(quitting_with_nothing_unsaved_leaves_at_once);
+    RUN(a_kept_recovery_copy_never_replaces_another);
     return TEST_SUMMARY();
 }

@@ -194,7 +194,9 @@ void App::recoverList()
  */
 void App::keepRecovered(const Recovered &copy)
 {
-    recovery_move_slot(configDir_, copy.slot, nextSerial_++);
+    const int slot = recovery_free_slot(configDir_, nextSerial_);
+    nextSerial_ = slot + 1;
+    recovery_move_slot(configDir_, copy.slot, slot);
 }
 
 /*
