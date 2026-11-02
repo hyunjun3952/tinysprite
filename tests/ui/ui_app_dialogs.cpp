@@ -188,6 +188,26 @@ struct AppTestAccess {
         frame();
         frame();
     }
+    /* Ctrl and one key, in a frame where an item (a slider, say) is held down. */
+    void pressChordWhileHoldingAnItem(ImGuiKey key)
+    {
+        ImGuiIO &io = ImGui::GetIO();
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddKeyEvent(key, true);
+        app.pollEvents();
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+        ImGui::Begin("holder");
+        ImGui::SetActiveID(ImGui::GetID("held"), ImGui::GetCurrentWindow());
+        ImGui::End();
+        app.buildUi();
+        ImGui::Render();
+        io.AddKeyEvent(key, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        frame();
+        frame();
+    }
     void pressCtrlT()
     {
         ImGui::GetIO().AddKeyEvent(ImGuiMod_Ctrl, true);
@@ -809,6 +829,18 @@ TEST(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard)
     ASSERT_EQ_INT(1, static_cast<int>(editor.selectedCell()));
 }
 
+TEST(ctrl_z_waits_while_an_item_is_held_down)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.editor().addLayer();
+    ASSERT_EQ_INT(2, t.editor().sprite().layerCount());
+    t.pressChordWhileHoldingAnItem(ImGuiKey_Z);
+    ASSERT_EQ_INT(2, t.editor().sprite().layerCount());
+    t.pressChord(ImGuiKey_Z, false);
+    ASSERT_EQ_INT(1, t.editor().sprite().layerCount());
+}
+
 int main()
 {
     RUN(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard);
@@ -835,5 +867,6 @@ int main()
     RUN(the_export_scale_is_kept_between_one_and_the_most_the_dialog_allows);
     RUN(ctrl_t_hides_and_shows_the_timeline);
     RUN(a_folder_with_very_many_files_does_not_slow_the_file_dialog_down);
+    RUN(ctrl_z_waits_while_an_item_is_held_down);
     return TEST_SUMMARY();
 }

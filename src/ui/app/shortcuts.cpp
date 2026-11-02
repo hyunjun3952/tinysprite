@@ -159,7 +159,10 @@ void App::handleShortcuts(bool controlsHaveKeys)
     }
     deleteShortcut();
     if (io.KeyCtrl) {
-        ctrlShortcuts();
+        /* a held slider records its step on release: an undo under it would mix the two up */
+        if (!ImGui::IsAnyItemActive()) {
+            ctrlShortcuts();
+        }
     } else if (!io.KeyAlt) {
         plainShortcuts(controlsHaveKeys);
     }
