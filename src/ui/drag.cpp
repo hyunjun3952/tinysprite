@@ -73,8 +73,10 @@ class PickDrag : public Drag
     }
 };
 
-/* A drag that edits the cel through a live stroke: finishing ends the stroke (repainting
- * everything if it changed nothing to mark more precisely), cancelling reverts it. */
+/*
+ * A drag that edits the cel through a live stroke: finishing ends the stroke, cancelling reverts
+ * it.
+ */
 template <class Stroke> class StrokeDrag : public Drag
 {
   public:
@@ -85,11 +87,8 @@ template <class Stroke> class StrokeDrag : public Drag
 
     void finish() override
     {
-        bool changed = stroke_->end(endAction());
-        if (!changed) {
-            editor_.markAllDirty();
-        }
-        onFinish(changed);
+        stroke_->end(endAction());
+        onFinish();
     }
     void cancel() override
     {
@@ -103,8 +102,8 @@ template <class Stroke> class StrokeDrag : public Drag
         return HistoryAction{};
     }
 
-    /* After the stroke ended; `changed` is false when it left the cel as it was. */
-    virtual void onFinish(bool /*changed*/)
+    /* After the stroke ended. */
+    virtual void onFinish()
     {
     }
 
@@ -133,7 +132,7 @@ class PencilDrag : public StrokeDrag<PencilStroke>
     }
 
   protected:
-    void onFinish(bool /*unused*/) override
+    void onFinish() override
     {
         editor_.setLastDrawPoint(lastX_, lastY_);
     }
@@ -211,11 +210,9 @@ class MoveDrag : public StrokeDrag<MoveStroke>
     }
 
     /* The selection follows its pixels; the part that left the sprite is gone. */
-    void onFinish(bool changed) override
+    void onFinish() override
     {
-        if (changed) {
-            editor_.setSelectionState(editor_.selectionMovedBy(editor_.moveDx(), editor_.moveDy()));
-        }
+        editor_.setSelectionState(editor_.selectionMovedBy(editor_.moveDx(), editor_.moveDy()));
         editor_.setMoveOffset(0, 0);
     }
 

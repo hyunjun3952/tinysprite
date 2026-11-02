@@ -1,6 +1,5 @@
 #include "tinysprite/selection.hpp"
 
-#include <functional>
 #include <utility>
 
 MoveStroke::MoveStroke(History &history, Cel &cel, Rect area, Clip pixels, std::optional<Mask> mask)
@@ -30,7 +29,7 @@ std::unique_ptr<MoveStroke> MoveStroke::begin(History &history, Cel &cel, const 
         new MoveStroke(history, cel, area, std::move(*pixels), selection));
 }
 
-void MoveStroke::eachSelected(const std::function<void(int, int)> &visit) const
+template <class Visit> void MoveStroke::eachSelected(Visit visit) const
 {
     for (int j = 0; j < area_.h; j++) {
         for (int i = 0; i < area_.w; i++) {

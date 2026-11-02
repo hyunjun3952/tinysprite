@@ -23,8 +23,11 @@ bool replaceCel(History &history, Layer &layer, int frame, std::shared_ptr<Cel> 
     CelList before = layer.celList();
     CelList next = before;
     next[static_cast<size_t>(frame)] = std::move(cel);
+    /* the step keeps the cel that left the frame alive */
+    const size_t bytes = static_cast<size_t>(layer.cel(frame)->width()) *
+                         static_cast<size_t>(layer.cel(frame)->height()) * sizeof(Rgba);
     return history.perform(HistoryAction{[&layer, before] { layer.setCelList(before); },
-                                         [&layer, next] { layer.setCelList(next); }});
+                                         [&layer, next] { layer.setCelList(next); }, bytes});
 }
 
 } // namespace

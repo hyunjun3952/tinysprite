@@ -155,8 +155,8 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   durations and the tags in step. Tags shift with their frames (insert or remove before or inside, a tag vanishes with its
   last frame; moving a frame leaves them); a frame step records the tag list before and after so undo brings back a tag
   that vanished.
-- Linked cels are one `Cel` shared by several frames, so a stroke shows on all of them and `History::forgetCel` and pixel
-  deltas need no special case. Duplicating a frame copies instead of linking; duplicating a layer keeps its links; merging
+- Linked cels are one `Cel` shared by several frames, so a stroke shows on all of them and pixel deltas need no
+  special case. Duplicating a frame copies instead of linking; duplicating a layer keeps its links; merging
   onto a layer with linked cels gives each frame its own cel for the merge and undo links them again.
 - A removed layer or frame lives on in its history step so pixel steps on its cels stay valid. Release callbacks must not
   dereference layers because steps are dropped oldest-first. A refused `Sprite::insertFrame` leaves the frame it was given
@@ -209,6 +209,15 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - The animated GIF import is bounded in memory, saving no longer copies the whole file, and an animation plays in both panes
   of a split.
 - The dependencies moved from vendored copies to vcpkg, and the UI from SDL2 to SDL3.
+
+- A code audit found, now fixed: a filter ignored a selection that is not a rectangle, an Aseprite file of only group layers
+  passed the cel budget, running out of memory while reading or saving a file ended the program, replaced cels, tileset
+  atlases and selection masks weighed 0 bytes in the history limit, `~` broke for a Korean user name on Windows, a mirrored fill
+  with a tolerance spread past the region, a kept recovery copy could replace another, and saving replaced a neighbouring
+  `<name>.tmp`. A `.gpl` may have a `Channels: RGBA` header, and a slice value past `INT_MAX` costs only that slice.
+- A tilemap too big for one cel shows in the Tilemap window as a smaller picture (`tilemap_preview`).
+- `composite_sprite` and `composite_onion` walk rows and flatten each ghost once, and a document is autosaved only after it
+  changed (`Editor::documentRevision`). `History::forgetCel` and `Sprite::removeLayer` had no caller and are gone.
 
 ## Known limits
 

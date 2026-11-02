@@ -193,10 +193,17 @@ HistoryAction Editor::selectionAction(std::optional<Rect> before, std::optional<
     return selectionAction(SelectionState{before, nullptr}, SelectionState{after, nullptr});
 }
 
+/* The memory of a selection's mask, which a history step keeps alive. */
+static size_t maskBytes(const std::shared_ptr<const Mask> &mask)
+{
+    return mask ? static_cast<size_t>(mask->bounds().w) * static_cast<size_t>(mask->bounds().h) : 0;
+}
+
 HistoryAction Editor::selectionAction(const SelectionState &before, const SelectionState &after)
 {
     return HistoryAction{[this, before] { setSelectionState(before); },
-                         [this, after] { setSelectionState(after); }};
+                         [this, after] { setSelectionState(after); },
+                         maskBytes(before.mask) + maskBytes(after.mask)};
 }
 
 namespace

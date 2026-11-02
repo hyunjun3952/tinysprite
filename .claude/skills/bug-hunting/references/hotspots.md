@@ -17,6 +17,11 @@ Load this in Step 0. These come from the architecture rules in `.rules` and `doc
   A stroke destroyed unfinished must cancel and restore pixels.
 - **Tags**: ranges after frame insert, remove or move; a selected tag limiting playback when frames shrink.
 
+- **Clip of a scratch history**: a filter runs on a copy through its own `History`, so a clip set on the real one does not
+  reach it. Anything that edits a copy takes the clip as a parameter.
+- **Memory a step keeps alive**: every `HistoryAction` that holds a cel, an atlas, a mask or a snapshot sets `bytes`, counting
+  only what the document itself no longer holds.
+
 ## Raster and tools
 
 - Off-by-one at the canvas edge, negative coordinates, shapes entirely outside the canvas, 1x1 sprite.
@@ -51,6 +56,10 @@ Load this in Step 0. These come from the architecture rules in `.rules` and `doc
 - `std::bad_alloc` must not leave a half-built document or an open stroke; history trims old steps when over its byte budget.
 - A file that declares more than it contains must be refused before it allocates (`.pxa`, GIF, Aseprite, images).
 
+- A budget check that multiplies by a count of what a file declares: zero of them (only group layers) must not pass while the
+  sprite still gets its default layer.
+- `std::abs(INT_MIN)` passes a range check: compare with both ends instead.
+
 ## Text and paths
 
 - Windows paths: non-ASCII names, backslashes, `%APPDATA%`, roots (`C:\`), one tab per file for the same path spelled two ways. The same bug was fixed in
@@ -58,6 +67,8 @@ Load this in Step 0. These come from the architecture rules in `.rules` and `doc
 - Korean and other non-Latin text: layer and tag names, text fields, the fallback font, clipped and ellipsized names, a name cut in the middle of a
   multi-byte character (names are cut at TAG/SLICE/TILE_NAME_MAX bytes).
 - JSON output must stay valid UTF-8 (sheet export).
+
+- `std::getenv` gives the ANSI code page on Windows: read the environment through `env_utf8`.
 
 ## Platform differences (CI is Linux/GCC with sanitizers, and Windows/MinGW)
 

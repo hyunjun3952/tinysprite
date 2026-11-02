@@ -1,6 +1,7 @@
 #ifndef TINYSPRITE_FILTER_OPS_HPP
 #define TINYSPRITE_FILTER_OPS_HPP
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -43,8 +44,11 @@ bool filter_apply(History &history, Cel &cel, const FilterParams &params,
 
 /* Runs the filter on several cels as one undo step (a History group cannot hold strokes, so the
  * changes of all cels are kept together in one action). Returns false while a stroke is active;
- * nothing is recorded when no pixel changes. The cels must outlive the history step. */
+ * nothing is recorded when no pixel changes. The cels must outlive the history step. `mask`, when
+ * given, limits the pixels further, for a selection that is not a rectangle: the clip of `history`
+ * does not reach these cels, since each is filtered on a copy first. */
 bool filter_apply_cels(History &history, const std::vector<Cel *> &cels, const FilterParams &params,
-                       std::optional<Rect> area = std::nullopt);
+                       std::optional<Rect> area = std::nullopt,
+                       const std::shared_ptr<const Mask> &mask = nullptr);
 
 #endif

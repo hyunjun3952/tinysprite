@@ -156,6 +156,19 @@ TEST(a_search_stops_at_the_depth_and_the_result_limits)
         search_directory(scratch.root.string(), "", "", 5, 100).empty()); /* no query: nothing */
 }
 
+TEST(the_home_folder_is_utf8)
+{
+#ifdef _WIN32
+    const wchar_t korean[] = {'C', ':', '/', 0xD55C, 0xAE00, 0};
+    const wchar_t none[] = {0};
+    const wchar_t home[] = {'H', 'O', 'M', 'E', 0};
+    const wchar_t profile[] = {'U', 'S', 'E', 'R', 'P', 'R', 'O', 'F', 'I', 'L', 'E', 0};
+    _wputenv_s(home, none);
+    _wputenv_s(profile, korean);
+    ASSERT_TRUE(home_directory() == "C:/\xED\x95\x9C\xEA\xB8\x80");
+#endif
+}
+
 int main()
 {
     RUN(folders_come_first_then_the_matching_files_each_sorted_ignoring_case);
@@ -168,5 +181,6 @@ int main()
     RUN(a_leading_tilde_means_the_home_folder);
     RUN(a_search_finds_matches_in_the_folders_below_with_their_relative_paths);
     RUN(a_search_stops_at_the_depth_and_the_result_limits);
+    RUN(the_home_folder_is_utf8);
     return TEST_SUMMARY();
 }

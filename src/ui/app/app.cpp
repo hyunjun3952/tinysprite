@@ -249,7 +249,8 @@ void App::updateTitle()
 }
 
 /* Keeps the recovery copy of one document in step with it: dropped once it has no unsaved changes,
- * written when `due` (not in the middle of a stroke). True if a copy was written. */
+ * written when `due` (not in the middle of a stroke) unless it is up to date, as saving a big
+ * document stalls the frame. True if a copy was written. */
 bool App::autosaveDocument(Document &document, bool due)
 {
     if (!dirty(document)) {
@@ -259,12 +260,15 @@ bool App::autosaveDocument(Document &document, bool due)
         }
         return false;
     }
-    if (!due || document.editor->stroking()) {
+    const uint64_t revision = document.editor->documentRevision();
+    const bool upToDate = document.recovery && document.autosaved == revision;
+    if (!due || upToDate || document.editor->stroking()) {
         return false;
     }
-    document.recovery =
-        recovery_save(configDir_, document.serial, document.editor->sprite(), document.path) ||
-        document.recovery;
+    if (recovery_save(configDir_, document.serial, document.editor->sprite(), document.path)) {
+        document.recovery = true;
+        document.autosaved = revision;
+    }
     return true;
 }
 

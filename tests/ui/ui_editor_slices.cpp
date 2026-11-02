@@ -286,6 +286,23 @@ TEST(the_slice_tool_works_on_a_hidden_layer)
     delete e;
 }
 
+TEST(a_long_name_stays_unique_when_it_is_numbered)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->addSlice(Rect{0, 0, 1, 1}));
+    ASSERT_TRUE(e->addSlice(Rect{1, 0, 1, 1}));
+    const std::string longest(SLICE_NAME_MAX, 'x');
+    Sprite::Slice slice = e->sprite().slices()[0];
+    slice.name = longest;
+    ASSERT_TRUE(e->updateSlice(0, slice));
+    slice = e->sprite().slices()[1];
+    slice.name = longest;
+    ASSERT_TRUE(e->updateSlice(1, slice));
+    ASSERT_TRUE(e->sprite().slices()[0].name != e->sprite().slices()[1].name);
+    ASSERT_TRUE(e->sprite().slices()[1].name.size() <= static_cast<size_t>(SLICE_NAME_MAX));
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -308,6 +325,7 @@ int main()
     RUN(the_selection_stays_on_the_same_slice_through_undo_and_redo);
     RUN(a_renamed_slice_stays_selected_and_names_stay_unique);
     RUN(the_slice_tool_works_on_a_hidden_layer);
+    RUN(a_long_name_stays_unique_when_it_is_numbered);
     ui_quit();
     return TEST_SUMMARY();
 }

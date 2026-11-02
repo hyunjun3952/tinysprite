@@ -115,7 +115,7 @@ class MoveStroke : public LiveStroke
     MoveStroke(History &history, Cel &cel, Rect area, Clip pixels, std::optional<Mask> mask);
 
     /* Calls `visit(i, j)` for every selected cell of the area, as its offset from the corner. */
-    void eachSelected(const std::function<void(int, int)> &visit) const;
+    template <class Visit> void eachSelected(Visit visit) const;
 
     Rect area_;                /* selection clipped to the cel */
     Clip pixels_;              /* the selection as it was when the move began */

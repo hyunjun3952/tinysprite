@@ -65,7 +65,7 @@ TEST(remove_layer_shifts_upper_layers_down)
     Sprite s(4, 4);
     s.addLayer("B");
     s.addLayer("C");
-    ASSERT_TRUE(s.removeLayer(1));
+    ASSERT_TRUE(s.detachLayer(1) != nullptr);
     ASSERT_EQ_INT(2, s.layerCount());
     ASSERT_TRUE(strcmp(s.layer(0)->name().c_str(), "Layer 1") == 0);
     ASSERT_TRUE(strcmp(s.layer(1)->name().c_str(), "C") == 0);
@@ -75,11 +75,11 @@ TEST(remove_layer_shifts_upper_layers_down)
 TEST(remove_layer_keeps_at_least_one_layer)
 {
     Sprite s(4, 4);
-    ASSERT_TRUE(!s.removeLayer(0));
+    ASSERT_TRUE(!s.detachLayer(0));
     ASSERT_EQ_INT(1, s.layerCount());
     s.addLayer("B");
-    ASSERT_TRUE(!s.removeLayer(2));
-    ASSERT_TRUE(!s.removeLayer(-1));
+    ASSERT_TRUE(!s.detachLayer(2));
+    ASSERT_TRUE(!s.detachLayer(-1));
     ASSERT_EQ_INT(2, s.layerCount());
 }
 

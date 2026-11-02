@@ -154,7 +154,8 @@ void App::handleShortcuts(bool controlsHaveKeys)
     }
     helpShortcut();
     escapeShortcut();
-    if (editor_->stroking()) {
+    /* a held slider records its step on release: an edit under it would mix the two up */
+    if (editor_->stroking() || ImGui::IsAnyItemActive()) {
         return;
     }
     deleteShortcut();

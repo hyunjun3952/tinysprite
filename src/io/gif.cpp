@@ -133,6 +133,7 @@ Rgba averageColor(const Box &box)
             sum[ch] += static_cast<uint64_t>(channelOf(c, ch)) * c.count;
         }
     }
+    total = std::max<uint64_t>(total, 1); /* a box of no pixels has no color to divide by */
     auto avg = [&](int ch) { return static_cast<uint8_t>((sum[ch] + total / 2) / total); };
     return Rgba{avg(0), avg(1), avg(2), 255};
 }
@@ -575,6 +576,8 @@ bool gif_export(const Sprite &sprite, const std::string &path, const GifOptions 
     if (!path_has_extension(path, ".gif")) {
         return false;
     }
-    std::vector<uint8_t> data = gif_encode(sprite, options);
-    return !data.empty() && file_write_atomic(path, data.data(), data.size());
+    return within_memory([&] {
+        std::vector<uint8_t> data = gif_encode(sprite, options);
+        return !data.empty() && file_write_atomic(path, data.data(), data.size());
+    });
 }

@@ -125,6 +125,21 @@ TEST(a_huge_atlas_header_is_rejected_without_allocating)
     ASSERT_TRUE(!pxa_decode(data).has_value());
 }
 
+TEST(the_lowest_int_as_a_map_origin_is_ignored)
+{
+    Sprite s = with_tiles();
+    std::vector<TileMap> maps = s.tilemaps();
+    maps[0].x = 1;
+    ASSERT_TRUE(s.setTileData(s.tilesets(), maps));
+    std::vector<uint8_t> data = pxa_encode(s);
+    /* tag, length, count, then x as a u32 */
+    size_t x = chunk_at(data, "TPOS") + 4 + 4 + 2;
+    data[x] = 0;
+    data[x + 3] = 0x80;
+    Sprite back = must_have(pxa_decode(data));
+    ASSERT_EQ_INT(0, back.tilemaps()[0].x);
+}
+
 int main()
 {
     RUN(tiles_survive_a_save_and_load);
@@ -135,5 +150,6 @@ int main()
     RUN(a_map_that_points_at_a_missing_tileset_drops_the_tiles_but_keeps_the_pixels);
     RUN(a_truncated_tile_chunk_is_an_invalid_file);
     RUN(a_huge_atlas_header_is_rejected_without_allocating);
+    RUN(the_lowest_int_as_a_map_origin_is_ignored);
     return TEST_SUMMARY();
 }

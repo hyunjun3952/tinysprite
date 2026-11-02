@@ -1,5 +1,7 @@
 #include "composite_surface.hpp"
 
+#include <new>
+
 #include "tinysprite/composite.hpp"
 
 CompositeSurface::CompositeSurface(std::unique_ptr<SDL_Texture, TextureDeleter> texture, int width,
@@ -39,6 +41,18 @@ void CompositeSurface::markAllDirty()
     dirty_ = true;
 }
 
+/* Draws the frame with its ghosts, which take a buffer; false when there is no memory for it. */
+bool CompositeSurface::composeWithGhosts(const Sprite &sprite, int frame, const OnionSkin &onion,
+                                         Rect r)
+{
+    try {
+        composite_onion(sprite, frame, onion, r, pixels_.data());
+        return true;
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
+}
+
 void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *onion)
 {
     if (!dirty_) {
@@ -49,9 +63,7 @@ void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *
     if (rect_is_empty(r)) {
         return;
     }
-    if (onion) {
-        composite_onion(sprite, frame, *onion, r, pixels_.data());
-    } else {
+    if (!onion || !composeWithGhosts(sprite, frame, *onion, r)) {
         composite_sprite(sprite, frame, r, pixels_.data());
     }
     composite_tilemaps(sprite, r, pixels_.data());

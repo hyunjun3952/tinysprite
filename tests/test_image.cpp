@@ -325,7 +325,7 @@ TEST(a_failed_image_write_leaves_no_file_behind)
 {
     Sprite s(2, 2);
     ASSERT_TRUE(image_export(s, 0, "test_image_atomic.png"));
-    std::ifstream file("test_image_atomic.png.tmp");
+    std::ifstream file("test_image_atomic.png.tinysprite-tmp");
     ASSERT_TRUE(!file.good());
     std::remove("test_image_atomic.png");
 }

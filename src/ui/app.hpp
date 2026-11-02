@@ -215,7 +215,8 @@ class App
         std::string path; /* the .pxa it was opened from / saved to, "" if none */
         int serial =
             0; /* names an untitled one: "untitled", "untitled 2", ...; also its autosave slot */
-        bool recovery = false; /* an autosave copy of it is on disk */
+        bool recovery = false;  /* an autosave copy of it is on disk */
+        uint64_t autosaved = 0; /* its Editor::documentRevision when that copy was written */
     };
 
     /* Opens a .pxa file or imports an image in a new tab (an untouched untitled tab is reused, and

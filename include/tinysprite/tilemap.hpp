@@ -22,6 +22,12 @@ inline constexpr int SPRITE_MAX_TILEMAPS = 64;
 inline constexpr int TILEMAP_OFFSET_MAX =
     CEL_MAX_DIMENSION; /* pixels, either way, of a map's origin */
 
+/* Whether `offset` can be a map's origin on one axis. */
+constexpr bool tilemap_offset_valid(int offset)
+{
+    return offset >= -TILEMAP_OFFSET_MAX && offset <= TILEMAP_OFFSET_MAX;
+}
+
 /* The top three bits of a cell say how its tile is turned, as in Tiled: mirrored left-right,
  * mirrored top-bottom, and transposed (rows and columns swapped, only for square tiles). A tile is
  * transposed first, then mirrored left-right, then top-bottom. The rest of the cell is 0 for "no
@@ -117,5 +123,12 @@ std::optional<Tileset> tileset_from_cel(const Cel &cel, Rect area, int tileWidth
  * nothing if the grid is not valid or a cell names a tile the tileset does not have, or the
  * picture would be wider or taller than CEL_MAX_DIMENSION. */
 std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map);
+
+/*
+ * The map as one picture of at most `maxSide` (1..CEL_MAX_DIMENSION) pixels each way, keeping every
+ * nth pixel of what tilemap_render would draw: how a map too big for that one is shown. Returns
+ * nothing if the map is not valid or `maxSide` is out of range.
+ */
+std::optional<Cel> tilemap_preview(const Tileset &tileset, const TileMap &map, int maxSide);
 
 #endif

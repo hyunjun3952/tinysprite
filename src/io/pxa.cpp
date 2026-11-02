@@ -1,11 +1,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <new>
 #include <stdexcept>
 #include <utility>
 
@@ -218,7 +218,8 @@ void readTags(Reader &chunk, std::vector<Sprite::Tag> &tags)
 }
 
 /* One slice of an SLCE payload: its name, rectangle (four u32) and a flags byte (bit 0: a pivot
- * follows as two u32, relative to the rectangle). */
+ * follows as two u32, relative to the rectangle). A value past INT_MAX reads as negative, which
+ * Decoder::keepValidSlices drops like any other slice that does not fit. */
 Sprite::Slice readSlice(Reader &chunk)
 {
     Sprite::Slice slice;
@@ -228,21 +229,15 @@ Sprite::Slice readSlice(Reader &chunk)
         value = chunk.u32();
     }
     uint32_t flags = chunk.u8();
-    if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX) ||
-        *std::max_element(values, values + 4) > INT32_MAX) {
+    if (flags > 1 || slice.name.size() > static_cast<size_t>(SLICE_NAME_MAX)) {
         throw std::out_of_range("pxa: bad slice");
     }
     slice.rect = Rect{static_cast<int>(values[0]), static_cast<int>(values[1]),
                       static_cast<int>(values[2]), static_cast<int>(values[3])};
     slice.hasPivot = flags == 1;
     if (slice.hasPivot) {
-        uint32_t px = chunk.u32();
-        uint32_t py = chunk.u32();
-        if (px > INT32_MAX || py > INT32_MAX) {
-            throw std::out_of_range("pxa: bad slice pivot");
-        }
-        slice.pivotX = static_cast<int>(px);
-        slice.pivotY = static_cast<int>(py);
+        slice.pivotX = static_cast<int>(chunk.u32());
+        slice.pivotY = static_cast<int>(chunk.u32());
     }
     return slice;
 }
@@ -383,7 +378,7 @@ class Decoder
     {
         for (size_t i = 0; i < origins_.size() && i < maps_.size(); i++) {
             const auto [x, y] = origins_[i];
-            if (std::abs(x) <= TILEMAP_OFFSET_MAX && std::abs(y) <= TILEMAP_OFFSET_MAX) {
+            if (tilemap_offset_valid(x) && tilemap_offset_valid(y)) {
                 maps_[i].x = x;
                 maps_[i].y = y;
             }
@@ -851,13 +846,19 @@ std::optional<Sprite> pxa_decode(const std::vector<uint8_t> &data)
         return std::nullopt;
     } catch (const std::invalid_argument &) {
         return std::nullopt;
+    } catch (const std::bad_alloc &) {
+        return std::nullopt;
     }
 }
 
 bool pxa_save(const Sprite &sprite, const std::string &path)
 {
-    std::vector<uint8_t> data = pxa_encode(sprite);
-    return file_write_atomic(path, data.data(), data.size());
+    try {
+        std::vector<uint8_t> data = pxa_encode(sprite);
+        return file_write_atomic(path, data.data(), data.size());
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
 }
 
 std::optional<Sprite> pxa_load(const std::string &path)
@@ -866,6 +867,10 @@ std::optional<Sprite> pxa_load(const std::string &path)
     if (!file) {
         return std::nullopt;
     }
-    return pxa_decode(std::vector<uint8_t>(std::istreambuf_iterator<char>(file),
-                                           std::istreambuf_iterator<char>()));
+    try {
+        return pxa_decode(std::vector<uint8_t>(std::istreambuf_iterator<char>(file),
+                                               std::istreambuf_iterator<char>()));
+    } catch (const std::bad_alloc &) {
+        return std::nullopt;
+    }
 }

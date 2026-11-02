@@ -213,14 +213,11 @@ class Sprite
     /* Appends a new layer on top and returns it. */
     Layer &addLayer(const std::string &name);
 
-    /* Destroys the layer at `index`; the layers above it shift down. A sprite always keeps at
-     * least one layer. Returns false if index is out of range or only one layer is left. The
-     * layer's cels are freed, so callers must drop them from any history first
-     * (History::forgetCel). */
-    bool removeLayer(int index);
-
-    /* Like removeLayer, but hands the layer to the caller instead of destroying it (its cels stay
-     * valid). Returns null under the same conditions removeLayer fails. */
+    /*
+     * Takes the layer at `index` out and hands it to the caller; the layers above it shift down. A
+     * sprite always keeps at least one layer. Returns null if index is out of range or only one
+     * layer is left.
+     */
     std::unique_ptr<Layer> detachLayer(int index);
 
     /* Inserts a layer (made for this sprite's size and frame count) so it ends up at `index`,

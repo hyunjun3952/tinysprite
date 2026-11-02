@@ -6,6 +6,13 @@
 
 #include "editor.hpp"
 
+/* The tileset that map `map` of the sprite refers to. */
+static const Tileset &tilesetOfMap(const Sprite &sprite, int map)
+{
+    const TileMap &tilemap = sprite.tilemaps()[static_cast<size_t>(map)];
+    return sprite.tilesets()[static_cast<size_t>(tilemap.tileset)];
+}
+
 int Editor::selectedTilemap() const
 {
     return selectedTilemap_ < static_cast<int>(sprite_.tilemaps().size()) ? selectedTilemap_ : -1;
@@ -34,9 +41,7 @@ uint32_t Editor::selectedTile() const
     if (map < 0) {
         return selectedTile_;
     }
-    const Tileset &tileset =
-        sprite_
-            .tilesets()[static_cast<size_t>(sprite_.tilemaps()[static_cast<size_t>(map)].tileset)];
+    const Tileset &tileset = tilesetOfMap(sprite_, map);
     return std::min(selectedTile_, static_cast<uint32_t>(tileset.tileCount()));
 }
 
@@ -53,9 +58,7 @@ uint32_t Editor::selectedCell() const
     if (tile == 0 || map < 0) {
         return tile;
     }
-    const Tileset &tileset =
-        sprite_
-            .tilesets()[static_cast<size_t>(sprite_.tilemaps()[static_cast<size_t>(map)].tileset)];
+    const Tileset &tileset = tilesetOfMap(sprite_, map);
     return tile_cell_valid(tileset, cell) ? cell : tile;
 }
 
@@ -74,9 +77,7 @@ bool Editor::rotateSelectedTile(bool clockwise)
     if (selectedTile() == 0 || map < 0) {
         return false;
     }
-    const Tileset &tileset =
-        sprite_
-            .tilesets()[static_cast<size_t>(sprite_.tilemaps()[static_cast<size_t>(map)].tileset)];
+    const Tileset &tileset = tilesetOfMap(sprite_, map);
     if (tileset.tileWidth != tileset.tileHeight) {
         return false;
     }

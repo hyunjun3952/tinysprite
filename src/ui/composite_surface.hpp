@@ -46,6 +46,8 @@ class CompositeSurface
     Rgba pixelAt(int x, int y) const;
 
   private:
+    bool composeWithGhosts(const Sprite &sprite, int frame, const OnionSkin &onion, Rect r);
+
     struct TextureDeleter {
         void operator()(SDL_Texture *texture) const
         {

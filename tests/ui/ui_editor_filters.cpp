@@ -80,6 +80,24 @@ TEST(a_linked_cel_is_filtered_once)
     delete e;
 }
 
+TEST(a_filter_stays_inside_a_selection_that_is_not_a_rectangle)
+{
+    Editor *e = make_editor();
+    Cel &cel = *e->sprite().layer(0)->cel(0);
+    for (int x = 0; x < 8; x++) {
+        cel.set(x, 0, RED);
+    }
+    e->setSelectionMask(Mask::fromPlot(8, 6, [](const RasterPlotFn &plot) {
+        plot(0, 0);
+        plot(7, 0);
+    }));
+    ASSERT_TRUE(e->applyFilter(replace_red_with_blue(), false));
+    ASSERT_TRUE(cel.get(0, 0) == BLUE);
+    ASSERT_TRUE(cel.get(3, 0) == RED);
+    ASSERT_TRUE(cel.get(7, 0) == BLUE);
+    delete e;
+}
+
 int main()
 {
     if (!ui_init()) {
@@ -90,6 +108,7 @@ int main()
     RUN(a_filter_is_limited_to_the_selection);
     RUN(a_locked_or_hidden_layer_is_skipped);
     RUN(a_linked_cel_is_filtered_once);
+    RUN(a_filter_stays_inside_a_selection_that_is_not_a_rectangle);
     ui_quit();
     return TEST_SUMMARY();
 }

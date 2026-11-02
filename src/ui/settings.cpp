@@ -23,9 +23,12 @@ const std::string *find(const SettingsMap &settings, const std::string &key)
     return it == settings.end() ? nullptr : &it->second;
 }
 
-/* The variable as UTF-8, which is what every path in the program is (on Windows the narrow
- * environment is in the ANSI code page, so a non-ASCII user name would come out garbled). */
-std::string env(const char *name)
+constexpr int MIN_WIDTH = 640;
+constexpr int MIN_HEIGHT = 420;
+
+} // namespace
+
+std::string env_utf8(const char *name)
 {
 #ifdef _WIN32
     std::wstring wide(name, name + std::strlen(name));
@@ -36,11 +39,6 @@ std::string env(const char *name)
     return value != nullptr ? value : "";
 #endif
 }
-
-constexpr int MIN_WIDTH = 640;
-constexpr int MIN_HEIGHT = 420;
-
-} // namespace
 
 std::string settings_format(const SettingsMap &settings)
 {
@@ -171,18 +169,18 @@ std::vector<std::string> settings_get_recent(const SettingsMap &settings, size_t
 
 std::string config_dir()
 {
-    if (std::string dir = env("TINYSPRITE_CONFIG_DIR"); !dir.empty()) {
+    if (std::string dir = env_utf8("TINYSPRITE_CONFIG_DIR"); !dir.empty()) {
         return dir;
     }
 #ifdef _WIN32
-    if (std::string base = env("APPDATA"); !base.empty()) {
+    if (std::string base = env_utf8("APPDATA"); !base.empty()) {
         return path_to_utf8(path_from_utf8(base) / "tinysprite");
     }
 #endif
-    if (std::string base = env("XDG_CONFIG_HOME"); !base.empty()) {
+    if (std::string base = env_utf8("XDG_CONFIG_HOME"); !base.empty()) {
         return path_to_utf8(path_from_utf8(base) / "tinysprite");
     }
-    if (std::string home = env("HOME"); !home.empty()) {
+    if (std::string home = env_utf8("HOME"); !home.empty()) {
         return path_to_utf8(path_from_utf8(home) / ".config" / "tinysprite");
     }
     return "";

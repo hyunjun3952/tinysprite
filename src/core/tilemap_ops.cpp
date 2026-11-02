@@ -6,6 +6,25 @@
 namespace
 {
 
+/*
+ * The pixels of the atlases of `from` that `to` does not have: what a step keeps alive on its own,
+ * since an atlas both lists share is held by the sprite anyway.
+ */
+size_t atlasBytesOnlyIn(const std::vector<Tileset> &from, const std::vector<Tileset> &to)
+{
+    size_t bytes = 0;
+    for (const Tileset &tileset : from) {
+        const bool shared = std::any_of(to.begin(), to.end(), [&](const Tileset &other) {
+            return other.atlas == tileset.atlas;
+        });
+        if (!shared) {
+            bytes += static_cast<size_t>(tileset.atlas->width()) *
+                     static_cast<size_t>(tileset.atlas->height()) * sizeof(Rgba);
+        }
+    }
+    return bytes;
+}
+
 /* Records the change of all tile data from what it is now to the given lists and applies it. */
 bool replaceTileData(History &history, Sprite &sprite, std::vector<Tileset> tilesets,
                      std::vector<TileMap> maps)
@@ -23,7 +42,8 @@ bool replaceTileData(History &history, Sprite &sprite, std::vector<Tileset> tile
         cells += map.cells.size();
     }
     HistoryAction action;
-    action.bytes = cells * sizeof(uint32_t);
+    action.bytes = cells * sizeof(uint32_t) + atlasBytesOnlyIn(oldSets, tilesets) +
+                   atlasBytesOnlyIn(tilesets, oldSets);
     action.undo = [&sprite, oldSets, oldMaps] { sprite.setTileData(oldSets, oldMaps); };
     action.redo = [&sprite, tilesets = std::move(tilesets), maps = std::move(maps)] {
         sprite.setTileData(tilesets, maps);

@@ -1,3 +1,4 @@
+#include <climits>
 #include <stdexcept>
 
 #include "minitest.hpp"
@@ -317,6 +318,36 @@ TEST(set_tile_takes_a_flipped_cell_and_refuses_a_flag_on_nothing)
     ASSERT_TRUE(!s.setTile(0, 1, 0, TILE_FLIP_Y));
 }
 
+TEST(the_lowest_int_is_not_a_valid_map_origin)
+{
+    std::vector<Tileset> sets = {two_tiles()};
+    TileMap map = tilemap_blank("m", 0, 1, 1);
+    map.x = INT_MIN;
+    ASSERT_TRUE(!tilemap_valid(map, sets));
+}
+
+TEST(a_preview_shows_a_map_too_big_for_one_picture)
+{
+    Cel cel(2, 2);
+    cel.set(0, 0, RED);
+    cel.set(1, 0, RED);
+    cel.set(0, 1, RED);
+    cel.set(1, 1, RED);
+    Tileset tileset = must_have(tileset_from_cel(cel, Rect{0, 0, 2, 2}, 2, 2, "t"));
+    /* 2048 x 8 pixels, shown at half that size */
+    TileMap map = tilemap_blank("m", 0, 1024, 4);
+    map.cells[0] = 1;
+    map.cells[1023] = 1;
+    map.cells[4095] = 1;
+    Cel preview = must_have(tilemap_preview(tileset, map, 1024));
+    ASSERT_EQ_INT(1024, preview.width()); /* every second pixel */
+    ASSERT_EQ_INT(4, preview.height());
+    ASSERT_TRUE(preview.get(0, 0) == RED);
+    ASSERT_TRUE(preview.get(1023, 0) == RED);
+    ASSERT_EQ_INT(0, preview.get(500, 0).a);
+    ASSERT_TRUE(preview.get(1023, 3) == RED);
+}
+
 int main()
 {
     RUN(a_cell_keeps_its_tile_number_below_the_flag_bits);
@@ -344,5 +375,7 @@ int main()
     RUN(a_sprite_keeps_tilesets_and_maps_that_fit_together);
     RUN(a_sprite_refuses_tile_data_that_does_not_fit_and_keeps_what_it_had);
     RUN(set_tile_changes_one_cell_if_the_tile_exists);
+    RUN(the_lowest_int_is_not_a_valid_map_origin);
+    RUN(a_preview_shows_a_map_too_big_for_one_picture);
     return TEST_SUMMARY();
 }

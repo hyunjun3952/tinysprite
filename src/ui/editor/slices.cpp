@@ -45,7 +45,9 @@ std::string uniqueName(const Sprite &sprite, const std::string &wanted, int exce
         return wanted;
     }
     for (int n = 2;; n++) {
-        const std::string name = wanted + " " + std::to_string(n);
+        const std::string number = " " + std::to_string(n);
+        const std::string name =
+            layer_name_truncate(wanted, SLICE_NAME_MAX - number.size()) + number;
         if (!nameTaken(sprite, name, except)) {
             return name;
         }

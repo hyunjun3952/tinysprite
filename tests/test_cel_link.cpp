@@ -258,6 +258,21 @@ TEST(a_link_for_a_missing_layer_is_rejected)
     ASSERT_TRUE(!pxa_decode(data));
 }
 
+TEST(an_unlinked_cel_counts_toward_the_history_limit)
+{
+    Sprite s(1024, 1024); /* a cel is 4 MiB */
+    History h;
+    ASSERT_TRUE(frame_op_add(h, s, 1));
+    h.setLimit(size_t{1} << 20);
+    Layer &layer = *s.layer(0);
+    for (int i = 0; i < 3; i++) {
+        ASSERT_TRUE(cel_op_link(h, layer, 0, 1));
+        ASSERT_TRUE(cel_op_unlink(h, layer, 1));
+    }
+    ASSERT_TRUE(h.undo());
+    ASSERT_TRUE(!h.canUndo());
+}
+
 int main()
 {
     RUN(cels_start_unlinked);
@@ -278,5 +293,6 @@ int main()
     RUN(a_sprite_without_links_writes_no_link_chunk);
     RUN(a_link_to_a_later_frame_is_rejected);
     RUN(a_link_for_a_missing_layer_is_rejected);
+    RUN(an_unlinked_cel_counts_toward_the_history_limit);
     return TEST_SUMMARY();
 }

@@ -52,10 +52,16 @@ inline constexpr uint32_t PXA_VERSION = 1;
 
 std::vector<uint8_t> pxa_encode(const Sprite &sprite);
 
-/* Returns nothing for data that is not a valid .pxa file of a version this build understands. */
+/*
+ * Returns nothing for data that is not a valid .pxa file of a version this build understands, or
+ * that does not fit in memory.
+ */
 std::optional<Sprite> pxa_decode(const std::vector<uint8_t> &data);
 
-/* Return false / nothing if the file cannot be written / read or its content is invalid. */
+/*
+ * Return false / nothing if the file cannot be written / read, its content is invalid or there is
+ * not enough memory.
+ */
 bool pxa_save(const Sprite &sprite, const std::string &path);
 std::optional<Sprite> pxa_load(const std::string &path);
 
@@ -72,9 +78,10 @@ std::string file_write_error();
  * Palette files. A .hex file has one color per line as RRGGBB or RRGGBBAA (an optional leading # is
  * accepted; a line starting with ; or // is a comment). A .gpl file is the GIMP palette format,
  * which has no alpha (an export drops it): the "GIMP Palette" header, then "R G B name" lines, with
- * # comments and the Name: and Columns: lines skipped. The decoder tells the two apart by the
- * header, ignores a UTF-8 byte order mark and blank lines, and keeps the first PALETTE_MAX_COLORS
- * colors. It returns nothing for text without a valid color or with an invalid line.
+ * # comments and the Name:, Columns: and Channels: lines skipped; after "Channels: RGBA" an import
+ * reads a fourth number as the alpha. The decoder tells the two apart by the header, ignores a
+ * UTF-8 byte order mark and blank lines, and keeps the first PALETTE_MAX_COLORS colors. It returns
+ * nothing for text without a valid color or with an invalid line.
  */
 std::string palette_encode_hex(const Palette &palette);
 std::string palette_encode_gpl(const Palette &palette, const std::string &name);
@@ -221,8 +228,8 @@ std::optional<Sprite> aseprite_load(const std::string &path);
 /* Reads any format image_export writes (and the other formats stb_image knows) as a sprite with the
  * image as its single layer and an empty palette. An animated GIF becomes one frame per GIF frame
  * (each with its delay as the duration; at most SPRITE_MAX_FRAMES), and an Aseprite file is read by
- * aseprite_load. Returns
- * nothing if the file is not a readable image or exceeds CEL_MAX_DIMENSION. */
+ * aseprite_load. Returns nothing if the file is not a readable image, exceeds CEL_MAX_DIMENSION or
+ * does not fit in memory. */
 std::optional<Sprite> image_import(const std::string &path);
 
 #endif

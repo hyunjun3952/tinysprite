@@ -188,6 +188,28 @@ TEST(mirror_x_with_four_corners_fills_four_regions)
     ASSERT_EQ_INT(255, c.get(5, 3).r);
 }
 
+TEST(a_mirrored_fill_reads_the_cel_as_it_was_before_the_fill)
+{
+    const Rgba target{100, 100, 100, 255};
+    const Rgba neighbour{200, 200, 200, 255};
+    const Rgba other{0, 0, 0, 255};
+    const Rgba fill{205, 205, 205, 255};
+    Cel cel(4, 2);
+    for (int x = 0; x < 4; x++) {
+        cel.set(x, 0, target);
+        cel.set(x, 1, other);
+    }
+    cel.set(1, 1, neighbour);
+    History h;
+    Symmetry symmetry;
+    symmetry.mirror_x = true;
+    FillOptions options;
+    options.tolerance = 10;
+    ASSERT_TRUE(bucket_fill(h, cel, 0, 0, fill, symmetry, options));
+    ASSERT_TRUE(cel.get(3, 0) == fill);
+    ASSERT_TRUE(cel.get(1, 1) == neighbour);
+}
+
 int main()
 {
     RUN(fills_the_connected_region_only);
@@ -201,5 +223,6 @@ int main()
     RUN(mirror_x_fills_the_reflected_region_too);
     RUN(mirror_seed_on_the_axis_fills_once);
     RUN(mirror_x_with_four_corners_fills_four_regions);
+    RUN(a_mirrored_fill_reads_the_cel_as_it_was_before_the_fill);
     return TEST_SUMMARY();
 }

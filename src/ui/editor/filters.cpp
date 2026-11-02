@@ -46,10 +46,8 @@ bool Editor::applyFilter(const FilterParams &params, bool allFrames)
     bool done = false;
     /* A selection that is not a rectangle limits the filter to its pixels, as it limits a stroke.
      */
-    history_.setClipMask(mask_);
     const bool ran =
-        guarded([&] { done = filter_apply_cels(history(), cels, params, selection_); });
-    history_.setClipMask(nullptr);
+        guarded([&] { done = filter_apply_cels(history(), cels, params, selection_, mask_); });
     if (!ran) {
         return false;
     }

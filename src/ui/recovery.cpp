@@ -111,12 +111,26 @@ bool recovery_move_slot(const std::string &dir, int from, int to)
         return false;
     }
     std::error_code error;
+    if (fs::exists(path_from_utf8(pxaFile(dir, to)), error)) {
+        return false;
+    }
     fs::rename(path_from_utf8(pxaFile(dir, from)), path_from_utf8(pxaFile(dir, to)), error);
     if (error) {
         return false;
     }
+    fs::remove(path_from_utf8(pathFile(dir, to)), error);
     fs::rename(path_from_utf8(pathFile(dir, from)), path_from_utf8(pathFile(dir, to)), error);
     return true; /* a copy without a .path file is an untitled one */
+}
+
+int recovery_free_slot(const std::string &dir, int from)
+{
+    int slot = from;
+    std::error_code error;
+    while (fs::exists(path_from_utf8(pxaFile(dir, slot)), error)) {
+        slot++;
+    }
+    return slot;
 }
 
 void recovery_clear_slot(const std::string &dir, int slot)

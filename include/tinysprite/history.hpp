@@ -2,6 +2,7 @@
 #define TINYSPRITE_HISTORY_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -14,9 +15,9 @@
 
 /* A non-pixel edit with its own undo / redo (layer operations). The callables are destroyed
  * exactly once when the step is dropped (a new edit discards it from the redo side, the history's
- * limit drops it as one of the oldest, forgetCel removes it, or the history goes away), so state
- * they own is released with them. That must not touch objects other steps refer to, since steps
- * are dropped oldest-first. Either callable may be empty. */
+ * limit drops it as one of the oldest, or the history goes away), so state they own is released
+ * with them. That must not touch objects other steps refer to, since steps are dropped
+ * oldest-first. Either callable may be empty. */
 struct HistoryAction {
     std::function<void()> undo;
     std::function<void()> redo;
@@ -107,9 +108,18 @@ class History
     bool undo();
     bool redo();
 
+    /*
+     * A number that changes whenever a step is added, undone or redone, so a caller can tell
+     * whether the document changed since it last looked.
+     */
+    uint64_t revision() const
+    {
+        return revision_;
+    }
+
     /* Remembers the current state as the saved one. atSavePoint() is true again whenever undo /
-     * redo bring the history back to it, and false once an edit replaces the steps it stood on
-     * (or forgetCel drops steps). A new history counts as saved. */
+     * redo bring the history back to it, and false once an edit replaces the steps it stood on.
+     * A new history counts as saved. */
     void markSaved();
     bool atSavePoint() const
     {
@@ -123,11 +133,6 @@ class History
     {
         limit_ = bytes;
     }
-
-    /* Drops every undo/redo step that touches `cel` (cancelling the active stroke if it is on
-     * `cel`), so the cel can be destroyed. The remaining steps keep their order and the undo/redo
-     * boundary. Steps on other cels are assumed independent of the dropped ones. */
-    void forgetCel(Cel *cel);
 
   private:
     struct Delta {
@@ -156,6 +161,7 @@ class History
 
     std::vector<Step> steps_; /* steps_[0..cursor_) are applied, the rest can be redone */
     size_t cursor_ = 0;
+    uint64_t revision_ = 0; /* see revision() */
     std::optional<Rect> clip_;
     std::shared_ptr<const Mask> clipMask_;
     bool grouping_ = false;
