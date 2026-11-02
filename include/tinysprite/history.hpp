@@ -15,9 +15,9 @@
 
 /* A non-pixel edit with its own undo / redo (layer operations). The callables are destroyed
  * exactly once when the step is dropped (a new edit discards it from the redo side, the history's
- * limit drops it as one of the oldest, forgetCel removes it, or the history goes away), so state
- * they own is released with them. That must not touch objects other steps refer to, since steps
- * are dropped oldest-first. Either callable may be empty. */
+ * limit drops it as one of the oldest, or the history goes away), so state they own is released
+ * with them. That must not touch objects other steps refer to, since steps are dropped
+ * oldest-first. Either callable may be empty. */
 struct HistoryAction {
     std::function<void()> undo;
     std::function<void()> redo;
@@ -116,8 +116,8 @@ class History
     }
 
     /* Remembers the current state as the saved one. atSavePoint() is true again whenever undo /
-     * redo bring the history back to it, and false once an edit replaces the steps it stood on
-     * (or forgetCel drops steps). A new history counts as saved. */
+     * redo bring the history back to it, and false once an edit replaces the steps it stood on.
+     * A new history counts as saved. */
     void markSaved();
     bool atSavePoint() const
     {
@@ -131,11 +131,6 @@ class History
     {
         limit_ = bytes;
     }
-
-    /* Drops every undo/redo step that touches `cel` (cancelling the active stroke if it is on
-     * `cel`), so the cel can be destroyed. The remaining steps keep their order and the undo/redo
-     * boundary. Steps on other cels are assumed independent of the dropped ones. */
-    void forgetCel(Cel *cel);
 
   private:
     struct Delta {

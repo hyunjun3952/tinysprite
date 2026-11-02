@@ -229,35 +229,6 @@ bool History::redo()
     return true;
 }
 
-void History::forgetCel(Cel *cel)
-{
-    if (!cel) {
-        return;
-    }
-    if (active_.cel == cel) {
-        cancelStroke();
-    }
-    size_t kept = 0;
-    size_t keptApplied = 0;
-    for (size_t i = 0; i < steps_.size(); i++) {
-        if (steps_[i].cel == cel) {
-            continue;
-        }
-        if (i < cursor_) {
-            keptApplied++;
-        }
-        if (kept != i) {
-            steps_[kept] = std::move(steps_[i]);
-        }
-        kept++;
-    }
-    if (kept != steps_.size()) {
-        saved_.reset();
-    }
-    steps_.resize(kept);
-    cursor_ = keptApplied;
-}
-
 LiveStroke::LiveStroke(History &history, Cel &cel) : history_(history), cel_(cel)
 {
     history_.beginStroke(cel_);

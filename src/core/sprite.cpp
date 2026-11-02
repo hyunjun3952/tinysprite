@@ -65,11 +65,6 @@ bool Sprite::insertLayer(int index, std::unique_ptr<Layer> &&layer)
     return true;
 }
 
-bool Sprite::removeLayer(int index)
-{
-    return detachLayer(index) != nullptr;
-}
-
 bool Sprite::moveLayer(int from, int to)
 {
     return move_element(layers_, from, to);

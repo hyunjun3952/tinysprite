@@ -225,97 +225,6 @@ TEST(cancel_stroke_restores_pixels_and_keeps_history)
     ASSERT_TRUE(!h.canUndo());
 }
 
-TEST(forget_cel_drops_only_that_cels_steps)
-{
-    History h;
-    Cel a(4, 4);
-    Cel b(4, 4);
-    Rgba red = {255, 0, 0, 255};
-    h.beginStroke(a);
-    h.setPixel(0, 0, red);
-    h.endStroke();
-    h.beginStroke(b);
-    h.setPixel(1, 1, red);
-    h.endStroke();
-    h.beginStroke(a);
-    h.setPixel(2, 2, red);
-    h.endStroke();
-
-    h.forgetCel(&a);
-    ASSERT_TRUE(h.undo()); /* only b's stroke is left */
-    ASSERT_EQ_INT(0, b.get(1, 1).a);
-    ASSERT_TRUE(!h.canUndo());
-    ASSERT_TRUE(h.redo());
-    ASSERT_EQ_INT(255, b.get(1, 1).a);
-    ASSERT_TRUE(!h.canRedo());
-}
-
-TEST(forget_cel_keeps_undo_redo_boundary)
-{
-    History h;
-    Cel a(4, 4);
-    Cel b(4, 4);
-    Rgba red = {255, 0, 0, 255};
-    h.beginStroke(a);
-    h.setPixel(0, 0, red);
-    h.endStroke();
-    h.beginStroke(b);
-    h.setPixel(1, 1, red);
-    h.endStroke();
-    h.beginStroke(a);
-    h.setPixel(2, 2, red);
-    h.endStroke();
-    h.undo(); /* a(2,2) is redoable; a(0,0) and b(1,1) are applied */
-
-    h.forgetCel(&a);
-    ASSERT_TRUE(!h.canRedo());
-    ASSERT_TRUE(h.canUndo());
-    ASSERT_TRUE(h.undo());
-    ASSERT_EQ_INT(0, b.get(1, 1).a);
-}
-
-TEST(forget_cel_keeps_redo_steps_of_other_cels)
-{
-    History h;
-    Cel a(4, 4);
-    Cel b(4, 4);
-    Rgba red = {255, 0, 0, 255};
-    h.beginStroke(a);
-    h.setPixel(0, 0, red);
-    h.endStroke();
-    h.beginStroke(b);
-    h.setPixel(1, 1, red);
-    h.endStroke();
-    h.beginStroke(b);
-    h.setPixel(2, 2, red);
-    h.endStroke();
-    h.undo(); /* b(2,2) is redoable; a(0,0) and b(1,1) are applied */
-
-    h.forgetCel(&a);
-    ASSERT_TRUE(h.canRedo());
-    ASSERT_TRUE(h.redo());
-    ASSERT_EQ_INT(255, b.get(2, 2).a);
-    ASSERT_TRUE(!h.canRedo());
-    ASSERT_TRUE(h.undo());
-    ASSERT_TRUE(h.undo());
-    ASSERT_EQ_INT(0, b.get(1, 1).a);
-    ASSERT_TRUE(!h.canUndo());
-}
-
-TEST(forget_cel_cancels_active_stroke_on_it)
-{
-    History h;
-    Cel a(4, 4);
-    Rgba red = {255, 0, 0, 255};
-    h.beginStroke(a);
-    h.setPixel(0, 0, red);
-    h.forgetCel(&a);
-    ASSERT_EQ_INT(0, a.get(0, 0).a);
-    ASSERT_TRUE(!h.endStroke());
-    ASSERT_TRUE(h.beginStroke(a));
-    h.endStroke();
-}
-
 struct Counter {
     int undos = 0, redos = 0, releases = 0;
 };
@@ -421,22 +330,6 @@ TEST(action_rejected_during_stroke_is_released)
     ASSERT_TRUE(!h.pushAction(counter_action(&n)));
     ASSERT_EQ_INT(1, n.releases);
     h.endStroke();
-}
-
-TEST(forget_cel_keeps_actions)
-{
-    History h;
-    Cel c(4, 4);
-    Counter n;
-    h.beginStroke(c);
-    h.setPixel(0, 0, RED);
-    h.endStroke();
-    h.pushAction(counter_action(&n));
-    h.forgetCel(&c);
-    ASSERT_EQ_INT(0, n.releases);
-    ASSERT_TRUE(h.undo());
-    ASSERT_EQ_INT(1, n.undos);
-    ASSERT_TRUE(!h.canUndo());
 }
 
 static void paint(History &h, Cel &c, int x)
@@ -549,18 +442,6 @@ TEST(save_point_is_lost_when_a_new_edit_discards_it)
     paint(h, c, 2);
     paint(h, c, 3);
     /* Two steps are applied again, as when saved, but they are not the saved ones. */
-    ASSERT_TRUE(!h.atSavePoint());
-}
-
-TEST(save_point_is_lost_when_forgetting_cels)
-{
-    History h;
-    Cel a(4, 4);
-    Cel b(4, 4);
-    paint(h, a, 0);
-    paint(h, b, 0);
-    h.markSaved();
-    h.forgetCel(&a);
     ASSERT_TRUE(!h.atSavePoint());
 }
 
@@ -772,10 +653,6 @@ int main()
     RUN(destroy_with_active_stroke_and_redo_is_clean);
     RUN(many_strokes_grow_storage);
     RUN(cancel_stroke_restores_pixels_and_keeps_history);
-    RUN(forget_cel_drops_only_that_cels_steps);
-    RUN(forget_cel_keeps_undo_redo_boundary);
-    RUN(forget_cel_keeps_redo_steps_of_other_cels);
-    RUN(forget_cel_cancels_active_stroke_on_it);
     RUN(action_undo_redo_calls_callbacks);
     RUN(perform_runs_redo_and_records_the_step);
     RUN(perform_refused_during_stroke_runs_nothing);
@@ -783,7 +660,6 @@ int main()
     RUN(action_interleaves_with_strokes);
     RUN(new_edit_releases_redone_actions);
     RUN(action_rejected_during_stroke_is_released);
-    RUN(forget_cel_keeps_actions);
     RUN(clip_rejects_pixels_outside_the_rect);
     RUN(a_clip_mask_lets_only_its_pixels_change);
     RUN(a_clip_mask_and_a_clip_rect_both_have_to_allow_a_pixel);
@@ -802,6 +678,5 @@ int main()
     RUN(save_point_starts_clean);
     RUN(save_point_follows_edits_undo_and_redo);
     RUN(save_point_is_lost_when_a_new_edit_discards_it);
-    RUN(save_point_is_lost_when_forgetting_cels);
     return TEST_SUMMARY();
 }
