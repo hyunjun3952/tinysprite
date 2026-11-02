@@ -2,12 +2,12 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
 #include <filesystem>
 #include <iterator>
 #include <sstream>
 
 #include "file/file_paths.hpp"
+#include "settings.hpp"
 #include "tinysprite/io.hpp"
 
 namespace fs = std::filesystem;
@@ -104,11 +104,8 @@ std::string browse_directory(const std::string &typed, const std::string &fallba
 
 std::string home_directory()
 {
-    const char *home = std::getenv("HOME");
-    if (home == nullptr) {
-        home = std::getenv("USERPROFILE"); /* Windows */
-    }
-    return home == nullptr ? "" : home;
+    const std::string home = env_utf8("HOME");
+    return home.empty() ? env_utf8("USERPROFILE") /* Windows */ : home;
 }
 
 std::vector<DirEntry> filter_entries(const std::vector<DirEntry> &entries, const std::string &query)
