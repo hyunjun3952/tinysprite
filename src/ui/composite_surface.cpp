@@ -41,18 +41,16 @@ void CompositeSurface::markAllDirty()
     dirty_ = true;
 }
 
-/* The frame with its ghosts; short of memory for those (they take a buffer) it goes without. */
-void CompositeSurface::composeFrame(const Sprite &sprite, int frame, const OnionSkin *onion, Rect r)
+/* Draws the frame with its ghosts, which take a buffer; false when there is no memory for it. */
+bool CompositeSurface::composeWithGhosts(const Sprite &sprite, int frame, const OnionSkin &onion,
+                                         Rect r)
 {
     try {
-        if (onion) {
-            composite_onion(sprite, frame, *onion, r, pixels_.data());
-            return;
-        }
+        composite_onion(sprite, frame, onion, r, pixels_.data());
+        return true;
     } catch (const std::bad_alloc &) {
-        /* the ghosts wait for the next redraw */
+        return false;
     }
-    composite_sprite(sprite, frame, r, pixels_.data());
 }
 
 void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *onion)
@@ -65,7 +63,9 @@ void CompositeSurface::update(const Sprite &sprite, int frame, const OnionSkin *
     if (rect_is_empty(r)) {
         return;
     }
-    composeFrame(sprite, frame, onion, r);
+    if (!onion || !composeWithGhosts(sprite, frame, *onion, r)) {
+        composite_sprite(sprite, frame, r, pixels_.data());
+    }
     composite_tilemaps(sprite, r, pixels_.data());
     SDL_Rect rect = {r.x, r.y, r.w, r.h};
     const Rgba *origin =
