@@ -1,5 +1,8 @@
+#include <memory>
+
 #include "minitest.hpp"
 #include "tinysprite/filter_ops.hpp"
+#include "tinysprite/mask.hpp"
 
 static const Rgba RED = {255, 0, 0, 255};
 static const Rgba GREEN = {0, 255, 0, 255};

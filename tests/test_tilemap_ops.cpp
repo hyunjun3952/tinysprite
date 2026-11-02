@@ -1,3 +1,5 @@
+#include <memory>
+
 #include "minitest.hpp"
 #include "tinysprite/tilemap_ops.hpp"
 
