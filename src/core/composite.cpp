@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
+#include <vector>
 
 namespace
 {
@@ -72,6 +73,32 @@ const Cel *drawnCel(const Layer &layer, int frame)
     return layer.visible() ? layer.cel(frame) : nullptr;
 }
 
+/*
+ * Flattens `frame` over the cels of `r`, which lies inside the sprite, into `out`: its first pixel
+ * is the top-left of `r` and its rows are `stride` pixels apart. It walks the cels' rows directly,
+ * because every cel of a sprite has the sprite's size.
+ */
+void flatten(const Sprite &sprite, int frame, const Rect &r, Rgba *out, size_t stride)
+{
+    for (int y = 0; y < r.h; y++) {
+        std::fill_n(out + static_cast<size_t>(y) * stride, r.w, Rgba{});
+    }
+    for (int i = 0; i < sprite.layerCount(); i++) {
+        const Layer &layer = *sprite.layer(i);
+        const Cel *cel = drawnCel(layer, frame);
+        if (!cel) {
+            continue;
+        }
+        for (int y = 0; y < r.h; y++) {
+            const Rgba *from = cel->pixels() + cel->indexOf(r.x, r.y + y);
+            Rgba *to = out + static_cast<size_t>(y) * stride;
+            for (int x = 0; x < r.w; x++) {
+                to[x] = composite_blend(to[x], from[x], layer.opacity(), layer.blendMode());
+            }
+        }
+    }
+}
+
 } // namespace
 
 Rgba composite_over(Rgba dst, Rgba src, uint8_t opacity)
@@ -114,24 +141,10 @@ void composite_sprite(const Sprite &sprite, int frame, Rect region, Rgba *out)
     if (!out || frame < 0 || frame >= sprite.frameCount()) {
         return;
     }
-    auto width = static_cast<size_t>(sprite.width());
-    Rect r = rect_clip(region, sprite.width(), sprite.height());
-    auto dstAt = [&](int x, int y) -> Rgba & {
-        return out[static_cast<size_t>(y) * width + static_cast<size_t>(x)];
-    };
-
-    for_each_cell(r, [&](int x, int y) { dstAt(x, y) = Rgba{}; });
-    for (int i = 0; i < sprite.layerCount(); i++) {
-        const Layer &layer = *sprite.layer(i);
-        const Cel *cel = drawnCel(layer, frame);
-        if (!cel) {
-            continue;
-        }
-        for_each_cell(r, [&](int x, int y) {
-            Rgba &dst = dstAt(x, y);
-            dst = composite_blend(dst, cel->get(x, y), layer.opacity(), layer.blendMode());
-        });
-    }
+    const auto width = static_cast<size_t>(sprite.width());
+    const Rect r = rect_clip(region, sprite.width(), sprite.height());
+    flatten(sprite, frame, r, out + static_cast<size_t>(r.y) * width + static_cast<size_t>(r.x),
+            width);
 }
 
 namespace
@@ -143,10 +156,9 @@ uint8_t ghostOpacity(const OnionSkin &skin, int distance, int count)
     return static_cast<uint8_t>(skin.opacity * (count - distance + 1) / count);
 }
 
-/* The ghost of `frame` at (x, y): its flattened pixel mixed with the tint. */
-Rgba ghostPixel(const Sprite &sprite, int frame, int x, int y, Rgba tint)
+/* A pixel of a ghost: the flattened one mixed with the tint. */
+Rgba ghostPixel(Rgba p, Rgba tint)
 {
-    Rgba p = composite_pixel(sprite, frame, x, y);
     auto half = [](int a, int b) { return static_cast<uint8_t>((a + b + 1) / 2); };
     return Rgba{half(p.r, tint.r), half(p.g, tint.g), half(p.b, tint.b), p.a};
 }
@@ -160,21 +172,45 @@ struct OnionPlan {
     int wantAfter;
 };
 
-/* The ghosts under the frame at (x, y), far to near so the nearest ends up on top. */
-Rgba ghostsAt(const Sprite &sprite, int frame, int x, int y, const OnionPlan &plan)
+/* The region of a composite_onion: where its first pixel is and how its rows lie in `out`, and a
+ * buffer of the region's size for one flattened frame. */
+struct OnionRegion {
+    Rect rect;
+    Rgba *out;
+    size_t stride;
+    std::vector<Rgba> flat;
+};
+
+/* Puts `frame`, each of its pixels made by `pixel` from the flattened one, over the region. */
+template <class Pixel>
+void overRegion(OnionRegion &region, const Sprite &sprite, int frame, uint8_t opacity, Pixel pixel)
 {
-    Rgba acc;
-    for (int d = std::max(plan.before, plan.after); d >= 1; d--) {
-        if (d <= plan.after) {
-            acc = composite_over(acc, ghostPixel(sprite, frame + d, x, y, ONION_FUTURE_TINT),
-                                 ghostOpacity(plan.skin, d, plan.wantAfter));
-        }
-        if (d <= plan.before) {
-            acc = composite_over(acc, ghostPixel(sprite, frame - d, x, y, ONION_PAST_TINT),
-                                 ghostOpacity(plan.skin, d, plan.wantBefore));
+    const Rect &r = region.rect;
+    const auto width = static_cast<size_t>(r.w);
+    flatten(sprite, frame, r, region.flat.data(), width);
+    for (int y = 0; y < r.h; y++) {
+        const Rgba *from = region.flat.data() + static_cast<size_t>(y) * width;
+        Rgba *to = region.out + static_cast<size_t>(y) * region.stride;
+        for (int x = 0; x < r.w; x++) {
+            to[x] = composite_over(to[x], pixel(from[x]), opacity);
         }
     }
-    return acc;
+}
+
+/* The ghosts of the frame, far to near so the nearest ends up on top. */
+void drawGhosts(OnionRegion &region, const Sprite &sprite, int frame, const OnionPlan &plan)
+{
+    auto tinted = [](Rgba tint) { return [tint](Rgba p) { return ghostPixel(p, tint); }; };
+    for (int d = std::max(plan.before, plan.after); d >= 1; d--) {
+        if (d <= plan.after) {
+            overRegion(region, sprite, frame + d, ghostOpacity(plan.skin, d, plan.wantAfter),
+                       tinted(ONION_FUTURE_TINT));
+        }
+        if (d <= plan.before) {
+            overRegion(region, sprite, frame - d, ghostOpacity(plan.skin, d, plan.wantBefore),
+                       tinted(ONION_PAST_TINT));
+        }
+    }
 }
 
 } // namespace
@@ -232,15 +268,17 @@ void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rec
     if (!out || frame < 0 || frame >= sprite.frameCount()) {
         return;
     }
-    auto width = static_cast<size_t>(sprite.width());
-    Rect r = rect_clip(region, sprite.width(), sprite.height());
+    const auto width = static_cast<size_t>(sprite.width());
+    const Rect r = rect_clip(region, sprite.width(), sprite.height());
     /* Ghosts beyond the animation do not exist, so the count is what can actually be drawn. */
-    OnionPlan plan{skin, std::clamp(skin.before, 0, frame),
-                   std::clamp(skin.after, 0, sprite.frameCount() - 1 - frame),
-                   std::max(skin.before, 1), std::max(skin.after, 1)};
-
-    for_each_cell(r, [&](int x, int y) {
-        out[static_cast<size_t>(y) * width + static_cast<size_t>(x)] = composite_over(
-            ghostsAt(sprite, frame, x, y, plan), composite_pixel(sprite, frame, x, y), 255);
-    });
+    const OnionPlan plan{skin, std::clamp(skin.before, 0, frame),
+                         std::clamp(skin.after, 0, sprite.frameCount() - 1 - frame),
+                         std::max(skin.before, 1), std::max(skin.after, 1)};
+    OnionRegion area{r, out + static_cast<size_t>(r.y) * width + static_cast<size_t>(r.x), width,
+                     std::vector<Rgba>(static_cast<size_t>(r.w) * static_cast<size_t>(r.h))};
+    for (int y = 0; y < r.h; y++) {
+        std::fill_n(area.out + static_cast<size_t>(y) * width, r.w, Rgba{});
+    }
+    drawGhosts(area, sprite, frame, plan);
+    overRegion(area, sprite, frame, 255, [](Rgba p) { return p; });
 }
