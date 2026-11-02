@@ -50,11 +50,29 @@ TEST(bytes_are_written_without_a_string_copy)
     ASSERT_EQ_INT(255, static_cast<uint8_t>(back[3]));
 }
 
+TEST(writing_leaves_a_file_named_like_the_temporary_one_alone)
+{
+    const std::string path = "test_file_write_neighbour.txt";
+    {
+        std::ofstream neighbour(path + ".tmp", std::ios::binary);
+        neighbour << "notes";
+    }
+    ASSERT_TRUE(file_write_atomic(path, "x"));
+    std::ifstream left(path + ".tmp", std::ios::binary);
+    const std::string kept((std::istreambuf_iterator<char>(left)),
+                           std::istreambuf_iterator<char>());
+    left.close();
+    ASSERT_TRUE(kept == "notes");
+    std::remove((path + ".tmp").c_str());
+    std::remove(path.c_str());
+}
+
 int main()
 {
     RUN(bytes_are_written_without_a_string_copy);
     RUN(a_failed_write_says_why);
     RUN(a_successful_write_clears_the_reason);
     RUN(a_utf8_path_round_trips_and_a_file_there_can_be_written_and_read);
+    RUN(writing_leaves_a_file_named_like_the_temporary_one_alone);
     return TEST_SUMMARY();
 }

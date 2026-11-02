@@ -38,11 +38,23 @@ bool file_write_atomic(const std::string &path, const std::string &data)
     return file_write_atomic(path, reinterpret_cast<const uint8_t *>(data.data()), data.size());
 }
 
+/* A name beside `path` for the file being written: one nothing has, so a file of the user's that
+ * happens to be called "<name>.tmp" stays. */
+static std::string freeTemporaryName(const std::string &path)
+{
+    std::error_code ignored;
+    std::string name = path + ".tmp";
+    for (int n = 1; std::filesystem::exists(path_from_utf8(name), ignored); n++) {
+        name = path + ".tmp" + std::to_string(n);
+    }
+    return name;
+}
+
 bool file_write_atomic(const std::string &path, const uint8_t *data, size_t size)
 {
     /* Write beside the target and rename, so a failed write never destroys an existing file. */
     last_write_error().clear();
-    std::string temp = path + ".tmp";
+    const std::string temp = freeTemporaryName(path);
     {
         errno = 0;
         std::ofstream file(path_from_utf8(temp), std::ios::binary);
