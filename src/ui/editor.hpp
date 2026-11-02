@@ -446,6 +446,7 @@ class Editor
     void markModified()
     {
         modifiedOutsideHistory_ = true;
+        outsideEdits_++;
     }
 
     /* A blank document of the given size with the default palette, replacing the current one.
@@ -472,6 +473,12 @@ class Editor
     bool modifiedOutsideHistory() const
     {
         return modifiedOutsideHistory_;
+    }
+
+    /* A number that changes with every edit of the document, in the history or outside it. */
+    uint64_t documentRevision() const
+    {
+        return history_.revision() + outsideEdits_;
     }
     void palettePick(int index);
     /* Replaces the palette with the default colors. */
@@ -876,6 +883,7 @@ class Editor
     std::unique_ptr<CompositeSurface> retiredSurface_;
     std::optional<Clip> clipboard_; /* last copied / cut selection */
     uint64_t revision_ = 0;
+    uint64_t outsideEdits_ = 0; /* how often markModified was called */
     uint64_t tilesRevision_ = 0;
 
     std::optional<ToolPoint> lastDrawPoint_;

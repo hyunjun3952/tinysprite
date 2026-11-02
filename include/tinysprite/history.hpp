@@ -2,6 +2,7 @@
 #define TINYSPRITE_HISTORY_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -107,6 +108,13 @@ class History
     bool undo();
     bool redo();
 
+    /* A number that changes whenever a step is added, undone or redone, so a caller can tell
+     * whether the document changed since it last looked. */
+    uint64_t revision() const
+    {
+        return revision_;
+    }
+
     /* Remembers the current state as the saved one. atSavePoint() is true again whenever undo /
      * redo bring the history back to it, and false once an edit replaces the steps it stood on
      * (or forgetCel drops steps). A new history counts as saved. */
@@ -156,6 +164,7 @@ class History
 
     std::vector<Step> steps_; /* steps_[0..cursor_) are applied, the rest can be redone */
     size_t cursor_ = 0;
+    uint64_t revision_ = 0; /* see revision() */
     std::optional<Rect> clip_;
     std::shared_ptr<const Mask> clipMask_;
     bool grouping_ = false;

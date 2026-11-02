@@ -141,6 +141,7 @@ void History::commit(Step &&step)
     steps_.erase(steps_.begin() + static_cast<std::ptrdiff_t>(cursor_), steps_.end());
     steps_.push_back(std::move(step));
     cursor_ = steps_.size();
+    revision_++;
     trim();
 }
 
@@ -214,6 +215,7 @@ bool History::undo()
         return false;
     }
     revert(steps_[--cursor_]);
+    revision_++;
     return true;
 }
 
@@ -223,6 +225,7 @@ bool History::redo()
         return false;
     }
     apply(steps_[cursor_++]);
+    revision_++;
     return true;
 }
 
