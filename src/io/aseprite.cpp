@@ -528,7 +528,8 @@ std::optional<Sprite> AseDecoder::build()
     }
     unsigned long long perLayer = static_cast<unsigned long long>(width_) * height_ * sizeof(Rgba) *
                                   static_cast<unsigned long long>(frames_);
-    if (imageLayers * perLayer > SPRITE_MAX_CEL_BYTES) {
+    /* a file without an image layer still gets the sprite's first layer */
+    if (std::max(imageLayers, 1ULL) * perLayer > SPRITE_MAX_CEL_BYTES) {
         return std::nullopt;
     }
     Sprite sprite(width_, height_);

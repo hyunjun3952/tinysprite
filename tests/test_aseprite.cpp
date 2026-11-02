@@ -498,6 +498,15 @@ TEST(a_file_is_loaded_by_its_content_and_image_import_opens_it_too)
     std::remove(path.c_str());
 }
 
+TEST(a_file_of_only_groups_stays_within_the_cel_budget)
+{
+    /* 33 x 64 MiB is past SPRITE_MAX_CEL_BYTES, and the default layer would hold all of it */
+    std::vector<Bytes> frames(33, frame(100, {}));
+    frames[0] = frame(100, {layer(VISIBLE | EDITABLE, 1, 0, 0, 255, "group")});
+    Bytes bytes = file(4096, 4096, 32, frames);
+    ASSERT_TRUE(!aseprite_decode(bytes.v).has_value());
+}
+
 int main()
 {
     RUN(a_plain_rgba_file_becomes_a_sprite_with_frames_and_layers);
@@ -521,5 +530,6 @@ int main()
     RUN(a_cel_whose_data_does_not_match_its_size_is_refused);
     RUN(damaged_bytes_never_crash_the_reader);
     RUN(a_file_is_loaded_by_its_content_and_image_import_opens_it_too);
+    RUN(a_file_of_only_groups_stays_within_the_cel_budget);
     return TEST_SUMMARY();
 }
