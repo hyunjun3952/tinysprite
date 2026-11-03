@@ -97,6 +97,10 @@ class App
     void pollEvents();
     void buildUi();
     void loadSettings(const SettingsMap &settings);
+    /* The tabs and the split view kept in the settings between runs (app/documents.cpp): storing
+     * writes the saved documents that are open, restoring opens them again. */
+    void storeSession(SettingsMap &settings) const;
+    void restoreSession(const SettingsMap &settings);
 
     void setUiScale(float scale);
     float maxUiScale() const; /* the largest scale whose minimum window fits this display */

@@ -125,6 +125,10 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   down / Close others / Close to the right); Ctrl+W, Ctrl+Tab. A split shows a second `Canvas` beside or under the first
   (ratio 0.15 to 0.85); a click in a pane makes its document active; an animation plays in every pane that is shown. Closing
   a tab destroys its editor a frame later (`App::retired_`), and a tab cannot be closed while a tool is being dragged.
+  The saved tabs and the split (direction, ratio, which pane was active) are kept between runs: `session.hpp` turns a
+  `Session` into the `session.*` keys of `settings.ini` and back (a damaged value falls back to its default),
+  `App::storeSession` / `restoreSession` (`app/documents.cpp`) fill it from the tabs and open them again. A file that is
+  gone is skipped, and restoring leaves the recent files in their order.
 - **Autosave** keeps one copy per document with unsaved changes (`recovery_<serial>.pxa` / `.path`); a recovered copy
   whose file is open in another tab becomes untitled, and Save As onto a file another tab has is refused.
 - **Layer selection**: a click selects one layer, Ctrl+click adds or removes one (the last one stays), Shift+click selects a
@@ -232,7 +236,8 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
 - Guides are whole cel edges only.
 - Tilemaps are a canvas preview: not in the image exports, and a map has no layer order (see the backlog).
-- The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
+- Only tabs that were saved to a file come back in the next run (the autosave recovery covers unsaved work), at most
+  `SESSION_MAX_TABS`; the window's panels and size are saved, a tab's zoom and scroll are not.
 - Not done: HiDPI window flags (the UI scale follows the display's content scale instead).
 - The Windows (MinGW) job is not built locally.
 - A GIF has no partial transparency and at most 256 colors (the format's limit).
@@ -255,7 +260,6 @@ a branch + PR of its own (`.rules`).
    the `.pxa`.
 4. **Writing Aseprite files**: only reading exists (milestone 24).
 5. **Small ones** (each a day or less):
-   - save the open tabs and the split between runs (paths only; `settings.ini`);
    - guides at a fraction of a cel;
    - a preview of the turned brush tile in the tilemap window.
 

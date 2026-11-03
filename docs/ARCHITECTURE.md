@@ -149,7 +149,7 @@ frame that closes a tab must not free its textures before the frame is rendered:
 
 Icons are Material Symbols glyphs merged into the UI font (`icons.cpp`), each drawn at the size that gives its ink the
 same length; the 14 tool and shape icons are instead 16 x 16 bitmaps (`icon_bitmaps.cpp`) drawn one square per cell at a
-whole-pixel scale, so they are the same size whatever the font does. Settings (`settings.cpp`) are a sorted `key=value` file in the config directory. `recovery.cpp` writes an
+whole-pixel scale, so they are the same size whatever the font does. Settings (`settings.cpp`) are a sorted `key=value` file in the config directory; `session.cpp` keeps the open tabs and the split view in it. `recovery.cpp` writes an
 autosave copy of each document with unsaved changes (one file per document); the next start offers to recover them.
 Neither is touched by `--frames` smoke runs unless `--config-dir` is given.
 

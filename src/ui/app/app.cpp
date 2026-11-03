@@ -225,6 +225,9 @@ bool App::init(const AppOptions &options)
     layersPanel_->setContextMenu([this] { layerMenuItems(); });
     timelinePanel_ = std::make_unique<TimelinePanel>(*editor_);
     lastTick_ = SDL_GetTicks();
+    if (persist_) {
+        restoreSession(settings);
+    }
     if (!options.file.empty() && !openPath(options.file)) {
         std::fprintf(stderr, "%s\n", fileError_.c_str());
         return false;
@@ -310,6 +313,7 @@ void App::shutdown()
     SDL_GetWindowSize(window_, &width, &height);
     settings_set_int(settings, "window.width", width);
     settings_set_int(settings, "window.height", height);
+    storeSession(settings);
     settings_save(configDir_, settings);
     if (recovered_.empty()) {
         /* only the open tabs' copies go: one kept for the next start stays */

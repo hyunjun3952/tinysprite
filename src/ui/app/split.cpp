@@ -6,14 +6,13 @@
 
 #include "app.hpp"
 #include "imgui.h"
+#include "session.hpp"
 #include "theme.hpp"
 
 namespace
 {
 
 constexpr float SASH_WIDTH = 5.0f; /* the gap between the panes, which is also the handle */
-constexpr float RATIO_MIN = 0.15f; /* the smallest share a pane may keep */
-constexpr float RATIO_MAX = 0.85f;
 
 } // namespace
 
@@ -109,7 +108,7 @@ void App::canvasArea(float x, float y, float width, float height)
 /* The handle was dragged to `offset` pixels from the start of the area. */
 void App::dragSash(float offset, float total, float thickness)
 {
-    splitRatio_ = std::clamp((offset - thickness / 2.0f) / total, RATIO_MIN, RATIO_MAX);
+    splitRatio_ = std::clamp((offset - thickness / 2.0f) / total, SPLIT_RATIO_MIN, SPLIT_RATIO_MAX);
 }
 
 /* The handle itself, inside its window: the cursor, the drag, the double click and the fill. */
