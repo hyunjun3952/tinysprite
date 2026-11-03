@@ -1,6 +1,7 @@
 /* The icons are Material Symbols glyphs from the embedded font (Apache 2.0). Check the table is
  * well formed, that every glyph is really in the font, and that an icon is centered by the ink of
  * its glyph, not by the glyph's em box (which would sit most icons off to one side). */
+#include <algorithm>
 #include <cmath>
 #include <set>
 
@@ -171,8 +172,49 @@ TEST(a_disabled_icon_button_with_a_reason_says_it)
     ASSERT_TRUE(ImGui::GetMouseCursor() == ImGuiMouseCursor_NotAllowed);
 }
 
+namespace
+{
+
+/* WCAG relative luminance of an ImGui color. */
+double relativeLuminance(const ImVec4 &c)
+{
+    auto lin = [](float v) {
+        return v <= 0.04045f ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * lin(c.x) + 0.7152 * lin(c.y) + 0.0722 * lin(c.z);
+}
+
+/* `top` with its alpha over the opaque `bottom`. */
+ImVec4 over(const ImVec4 &top, const ImVec4 &bottom)
+{
+    auto mix = [&](float a, float b) { return a * top.w + b * (1.0f - top.w); };
+    return {mix(top.x, bottom.x), mix(top.y, bottom.y), mix(top.z, bottom.z), 1.0f};
+}
+
+} // namespace
+
+/* A disabled icon button still shows what it is: its icon keeps the 3:1 DESIGN.md asks of icons
+ * against the button as it is drawn disabled (the soft fill faded by DisabledAlpha over the panel).
+ * It was mute at 45% alpha, about 2.1:1. */
+TEST(a_disabled_icon_keeps_the_icon_contrast)
+{
+    ImGui::CreateContext();
+    theme::apply();
+    const ImVec4 *c = ImGui::GetStyle().Colors;
+    ImVec4 fill = c[ImGuiCol_Button];
+    fill.w *= ImGui::GetStyle().DisabledAlpha;
+    const ImVec4 button = over(fill, c[ImGuiCol_WindowBg]);
+    const ImVec4 icon = over(ImGui::ColorConvertU32ToFloat4(icons::disabled_color()), button);
+    const double a = relativeLuminance(icon);
+    const double b = relativeLuminance(button);
+    const double ratio = (std::max(a, b) + 0.05) / (std::min(a, b) + 0.05);
+    ImGui::DestroyContext();
+    ASSERT_TRUE(ratio >= 3.0);
+}
+
 int main()
 {
+    RUN(a_disabled_icon_keeps_the_icon_contrast);
     RUN(a_chevron_icon_points_at_its_side_and_is_centered);
     RUN(a_disabled_icon_button_with_a_reason_says_it);
     RUN(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons);

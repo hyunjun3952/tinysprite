@@ -111,6 +111,10 @@ ImVec2 glyph_origin(ImVec2 min, ImVec2 max, float x0, float y0, float x1, float 
 /* Draws the icon centered in the rectangle [min, max]. */
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color);
 
+/* The color of the icon of a disabled button: mute, which keeps the 3:1 of an icon against the
+ * faded button (DESIGN.md, Colors). */
+ImU32 disabled_color();
+
 /* A framed button with the icon centered, like the other buttons. `id` must be unique in the ID
  * scope and start with "##" (there is no label). While disabled it shows the "not allowed" cursor
  * instead of the tooltip, and `reason` (why it is disabled) as a tooltip when it has one. Returns

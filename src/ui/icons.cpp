@@ -234,6 +234,11 @@ void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
     drawGlyph(list, icon, min, max, color, glyph_size(theme::scale()));
 }
 
+ImU32 disabled_color()
+{
+    return withAlpha(theme::MUTE, 1.0f);
+}
+
 bool round_button(Icon icon, const char *id, const char *tooltip, float diameter, bool enabled)
 {
     ImGui::BeginDisabled(!enabled);
@@ -250,8 +255,7 @@ bool round_button(Icon icon, const char *id, const char *tooltip, float diameter
     ImDrawList *list = ImGui::GetWindowDrawList();
     list->AddCircleFilled(ImVec2((min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f), diameter / 2.0f,
                           ImGui::GetColorU32(fill), 0);
-    drawGlyph(list, icon, min, max,
-              enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f),
+    drawGlyph(list, icon, min, max, enabled ? withAlpha(theme::INK, 1.0f) : disabled_color(),
               round_glyph_size(theme::scale()));
     ImGui::RenderNavCursor(ImRect(min, max), ImGui::GetItemID());
     theme::hint(tooltip, enabled);
@@ -265,7 +269,7 @@ bool button(Icon icon, const char *id, const char *tooltip, ImVec2 size, bool en
     bool clicked = ImGui::Button(id, size);
     ImGui::EndDisabled();
     draw(ImGui::GetWindowDrawList(), icon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-         enabled ? withAlpha(theme::INK, 1.0f) : withAlpha(theme::MUTE, 0.45f));
+         enabled ? withAlpha(theme::INK, 1.0f) : disabled_color());
     theme::hint(tooltip, enabled, reason);
     return clicked && enabled;
 }
