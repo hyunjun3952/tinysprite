@@ -38,7 +38,9 @@ SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --frames 3 --sc
 - Build with the UI first (`CLAUDE.md`, Commands). Use a scratchpad `--config-dir` so the user's settings and autosave are untouched.
 - Without `--script` the app gets no input, so the screen is the state right after start. To show another state, write a `.pxa` in that state
   (from a test or a small program with the `io` API, in the scratchpad) and pass it as `file`, or drive the app with a script (next section).
-- `--scale` is a percent from 100 to 300 and is taken as given. A saved or DPI scale is capped to the display; the dummy driver's display is small.
+- `--scale` is a percent from 100 to 300 and is taken as given. A saved or DPI scale is capped to the display; the dummy driver's display is small
+  (1024 x 768), so give the window size with `--window WxH` (taken as given, like `--scale`: `--window 1100x720` is the default layout, and the
+  minimum window at scale 2 or 3 is `1280x840` or `1920x1260`). Without it the window is fitted to the small display.
 - Save images in the scratchpad, never in the repo, and give the user the absolute path of each (SendUserFile when they follow remotely).
 - Describe only what is visible. Never describe pixels you did not see.
 
@@ -48,12 +50,17 @@ SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --frames 3 --sc
 on the screen can end up in an image:
 
 ```sh
-SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --script SCRIPT --config-dir TMPDIR [--scale PERCENT]
+SDL_VIDEODRIVER=dummy ./build/src/ui/tinysprite [file.pxa | W H] --script SCRIPT --config-dir TMPDIR [--scale PERCENT] [--window WxH]
 ```
 
 ```
-click 25 105          # the left button at a point of the window (rclick: the right one)
-drag 300 200 360 260  # press, move in 8 steps, release
+click 25 105          # the left button at a point of the window (rclick: the right one; or end with right / middle)
+drag 300 200 360 260  # press, move in 8 steps, release (end with middle to pan; path X0 Y0 X1 Y1 ... for more points)
+press 300 200         # press only (left, right or middle after it): a shot now sees the button held (the loupe, a drop line)
+release 300 200       # let it go
+wheel 300 200 0 -2 ctrl  # turn the wheel at a point by DX DY notches, modifiers held around it (shift+wheel scrolls the options bar)
+drop /abs/file.pxa    # drop a file on the window (the rest of the line), as the system does
+resize 800 500        # resize the window
 key ctrl+shift+Z      # ImGui key names: Z, Enter, Escape, Delete, LeftArrow, F1 ...
 type Layer 2          # the rest of the line, into a focused text field
 wait 3                # frames with no input; a click shows its result a frame later
@@ -66,8 +73,12 @@ shot out.png          # the frame just rendered (the rest of the line is the pat
   sleep lets the clock pass and the frames after it draw what the clock allows (a fade, a tooltip); without them the image shows the state before.
 - A bad line stops the run with `FILE: line N: why` and exit code 2. An unknown key name is reported on stderr and skipped.
 - Like `--frames`, a script run neither reads nor writes the user's settings unless `--config-dir` is given. Use a scratchpad one.
-- Still out of reach: native file dialogs of the OS (the app has its own, which works), and anything that needs real time input (holding a key).
-- The parser is `src/ui/script.cpp`; the feed to ImGui is `feedScript` in `src/ui/app/app.cpp`; `tests/ui/smoke.script` is the ctest example.
+- `sleep` takes at most 10000 ms: wait for the 30 s autosave (the recovery scenario) with several `sleep` lines, then kill the run (`timeout -s KILL`).
+- Still out of reach: native file dialogs of the OS (the app has its own, which works), anything that needs real time input (holding a key),
+  and a GPU renderer: the dummy driver draws with SDL's software renderer, so a look that may come from rasterizing (line widths, a grid that
+  differs by quadrant) is rechecked on a real window before it is reported.
+- The parser and `script_feed` are `src/ui/script.cpp`; `App::run` and `App::applyScriptWindow` (drop, resize) are in `src/ui/app/app.cpp`;
+  `tests/ui/smoke.script` is the ctest example.
 - A start-up screenshot proves only what runs at start-up. To show code that runs on input (tabs, panes, dialogs, menus, a drag), write a script
   that reaches that state and take `shot` there; compare the same script before and after a change.
 

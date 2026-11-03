@@ -307,6 +307,12 @@ struct AppTestAccess {
         frame();
         frame();
     }
+    /* What a --script frame asks of the window before ImGui sees it (drop, resize). */
+    void script(const ScriptInput &input)
+    {
+        app.applyScriptWindow(input);
+        frame();
+    }
 };
 
 TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
@@ -776,6 +782,54 @@ TEST(opening_a_file_that_has_guides_shows_them)
     fs::remove_all(root, ignored);
 }
 
+/* A scripted drop opens the file as a dropped file does, and a scripted resize changes the window,
+ * so a headless audit can reach both. */
+TEST(a_script_drops_a_file_and_resizes_the_window)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_script_drop";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    const std::string file = (root / "dropped.pxa").string();
+    ASSERT_TRUE(pxa_save(Sprite(8, 8), file));
+    t.editor().addLayer(); /* an edit, so the drop opens a tab of its own */
+    ScriptInput drop;
+    drop.drop = file;
+    t.script(drop);
+    ASSERT_EQ_INT(2, t.documents());
+    ASSERT_EQ_INT(8, t.editor().sprite().width());
+    ScriptInput resize;
+    resize.resizeWidth = 900;
+    resize.resizeHeight = 600;
+    t.script(resize);
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(t.window(), &width, &height);
+    ASSERT_EQ_INT(900, width);
+    ASSERT_EQ_INT(600, height);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
+/* --window is taken as given, even larger than the (dummy) display, like an explicit --scale. */
+TEST(a_window_size_asked_for_is_not_fitted_to_the_display)
+{
+    AppTestAccess t;
+    AppOptions options;
+    options.width = 16;
+    options.height = 16;
+    options.maxFrames = 1;
+    options.window = WindowSize{1920, 1260};
+    ASSERT_TRUE(t.app.init(options));
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(t.window(), &width, &height);
+    ASSERT_EQ_INT(1920, width);
+    ASSERT_EQ_INT(1260, height);
+}
+
 /* "New tab" of the New dialog takes the untouched untitled tab, as File > Open does, instead of
  * leaving an empty one behind; a tab that has been drawn on or has a file keeps its own. */
 TEST(the_new_dialog_reuses_an_untouched_untitled_tab)
@@ -894,6 +948,8 @@ int main()
     RUN(a_file_chosen_in_the_system_window_goes_into_the_path_field);
     RUN(an_answer_that_came_after_the_dialog_was_closed_does_not_fill_the_next_one);
     RUN(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard);
+    RUN(a_script_drops_a_file_and_resizes_the_window);
+    RUN(a_window_size_asked_for_is_not_fitted_to_the_display);
     RUN(the_new_dialog_reuses_an_untouched_untitled_tab);
     RUN(opening_a_file_that_has_guides_shows_them);
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);

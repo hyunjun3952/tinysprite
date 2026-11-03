@@ -13,9 +13,10 @@
 namespace
 {
 
-constexpr int DRAG_STEPS = 8;        /* frames a drag takes to get from its start to its end */
-constexpr long MAX_WAIT = 100000;    /* the most frames one wait may last */
-constexpr long MAX_SLEEP_MS = 10000; /* the longest one sleep may last */
+constexpr int DRAG_STEPS = 8;           /* frames a drag takes to get from its start to its end */
+constexpr long MAX_WAIT = 100000;       /* the most frames one wait may last */
+constexpr long MAX_SLEEP_MS = 10000;    /* the longest one sleep may last */
+constexpr long MAX_WINDOW_SIDE = 16384; /* pixels, the largest side resize takes */
 
 using Words = std::vector<std::string>;
 using Frames = std::vector<ScriptInput>;
@@ -87,15 +88,59 @@ ScriptInput buttonAt(float x, float y, int button, bool down)
     return input;
 }
 
-bool addClick(const Words &args, int button, Frames &frames, std::string &why)
+/* The button a word names: left, right or middle; -1 for any other word. */
+int buttonNamed(const std::string &word)
 {
+    static const char *const NAMES[] = {"left", "right", "middle"};
+    for (int i = 0; i < 3; i++) {
+        if (word == NAMES[i]) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/* Takes a button word off the end of `args` into `button`, if the last word is not a number.
+ * False, with the reason, for a last word that is neither a number nor a button. */
+bool takeButton(Words &args, int &button, std::string &why)
+{
+    float number = 0.0f;
+    if (args.empty() || parseFloat(args.back(), number)) {
+        return true;
+    }
+    button = buttonNamed(args.back());
+    if (button < 0) {
+        why = "'" + args.back() + "' is not a button (left, right or middle)";
+        return false;
+    }
+    args.pop_back();
+    return true;
+}
+
+/* click and rclick: `button` is the command's own, which a button word replaces. */
+bool addClick(const Words &words, int button, Frames &frames, std::string &why)
+{
+    Words args = words;
     float n[4] = {};
-    if (!parseNumbers(args, 2, n, why)) {
+    if (!takeButton(args, button, why) || !parseNumbers(args, 2, n, why)) {
         return false;
     }
     frames.push_back(pointerAt(n[0], n[1]));
     frames.push_back(buttonAt(n[0], n[1], button, true));
     frames.push_back(buttonAt(n[0], n[1], button, false));
+    return true;
+}
+
+/* press or release (`down`): one frame that moves the mouse and changes one button. */
+bool addPress(const Words &words, bool down, Frames &frames, std::string &why)
+{
+    Words args = words;
+    float n[4] = {};
+    int button = 0;
+    if (!takeButton(args, button, why) || !parseNumbers(args, 2, n, why)) {
+        return false;
+    }
+    frames.push_back(buttonAt(n[0], n[1], button, down));
     return true;
 }
 
@@ -109,26 +154,33 @@ bool addMove(const Words &args, Frames &frames, std::string &why)
     return true;
 }
 
-bool addDrag(const Words &args, Frames &frames, std::string &why)
+bool addDrag(const Words &words, Frames &frames, std::string &why)
 {
+    Words args = words;
     float n[4] = {};
-    if (!parseNumbers(args, 4, n, why)) {
+    int button = 0;
+    if (!takeButton(args, button, why) || !parseNumbers(args, 4, n, why)) {
         return false;
     }
     frames.push_back(pointerAt(n[0], n[1]));
-    frames.push_back(buttonAt(n[0], n[1], 0, true));
+    frames.push_back(buttonAt(n[0], n[1], button, true));
     for (int step = 1; step <= DRAG_STEPS; step++) {
         float t = static_cast<float>(step) / static_cast<float>(DRAG_STEPS);
         frames.push_back(pointerAt(n[0] + (n[2] - n[0]) * t, n[1] + (n[3] - n[1]) * t));
     }
-    frames.push_back(buttonAt(n[2], n[3], 0, false));
+    frames.push_back(buttonAt(n[2], n[3], button, false));
     return true;
 }
 
 /* path X0 Y0 X1 Y1 ...: press at the first point, move through the others, release at the last. */
-bool addPath(const Words &args, Frames &frames, std::string &why)
+bool addPath(const Words &words, Frames &frames, std::string &why)
 {
+    Words args = words;
     constexpr size_t MIN_NUMBERS = 4; /* two points */
+    int button = 0;
+    if (!takeButton(args, button, why)) {
+        return false;
+    }
     if (args.size() < MIN_NUMBERS || args.size() % 2 != 0) {
         why = "needs at least two points, as pairs of numbers";
         return false;
@@ -143,7 +195,7 @@ bool addPath(const Words &args, Frames &frames, std::string &why)
         n.push_back(value);
     }
     frames.push_back(pointerAt(n[0], n[1]));
-    frames.push_back(buttonAt(n[0], n[1], 0, true));
+    frames.push_back(buttonAt(n[0], n[1], button, true));
     for (size_t i = 2; i < n.size(); i += 2) {
         const float x0 = n[i - 2];
         const float y0 = n[i - 1];
@@ -152,7 +204,7 @@ bool addPath(const Words &args, Frames &frames, std::string &why)
             frames.push_back(pointerAt(x0 + (n[i] - x0) * t, y0 + (n[i + 1] - y0) * t));
         }
     }
-    frames.push_back(buttonAt(n[n.size() - 2], n[n.size() - 1], 0, false));
+    frames.push_back(buttonAt(n[n.size() - 2], n[n.size() - 1], button, false));
     return true;
 }
 
@@ -205,11 +257,92 @@ bool addKey(const Words &args, Frames &frames, std::string &why)
     return true;
 }
 
-bool addWait(const Words &args, Frames &frames, std::string &why)
+/* Reads "ctrl+shift" (any of ctrl, shift and alt, joined by +, any case) into the modifiers of
+ * `input`; false for any other word. */
+bool parseModifiers(const std::string &spec, ScriptInput &input)
+{
+    std::istringstream in(spec);
+    std::string part;
+    while (std::getline(in, part, '+')) {
+        std::transform(part.begin(), part.end(), part.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        input.ctrl = input.ctrl || part == "ctrl";
+        input.shift = input.shift || part == "shift";
+        input.alt = input.alt || part == "alt";
+        if (part != "ctrl" && part != "shift" && part != "alt") {
+            return false;
+        }
+    }
+    return !spec.empty() && spec.back() != '+';
+}
+
+/* wheel X Y DX DY [MODS]: like a key, a modified turn holds the modifiers a frame before and lets
+ * them go a frame after, so ImGui never sees them change in the turn's own frame. */
+bool addWheel(const Words &words, Frames &frames, std::string &why)
+{
+    Words args = words;
+    ScriptInput held;
+    constexpr size_t NUMBERS = 4;
+    if (args.size() == NUMBERS + 1) {
+        if (!parseModifiers(args.back(), held)) {
+            why = "'" + args.back() + "' is not a modifier (ctrl, shift, alt)";
+            return false;
+        }
+        args.pop_back();
+    }
+    float n[4] = {};
+    if (!parseNumbers(args, NUMBERS, n, why)) {
+        return false;
+    }
+    ScriptInput turn = held;
+    turn.moved = true;
+    turn.x = n[0];
+    turn.y = n[1];
+    turn.wheelX = n[2];
+    turn.wheelY = n[3];
+    const bool modified = held.ctrl || held.shift || held.alt;
+    if (modified) {
+        frames.push_back(held);
+    }
+    frames.push_back(turn);
+    if (modified) {
+        frames.emplace_back();
+    }
+    return true;
+}
+
+/* Reads a whole word as a whole number within [min, max]. */
+bool parseCount(const std::string &word, long min, long max, long &out)
 {
     char *end = nullptr;
-    long count = args.size() == 1 ? std::strtol(args[0].c_str(), &end, 10) : -1;
-    if (args.size() != 1 || *end != '\0' || count < 0 || count > MAX_WAIT) {
+    const long value = std::strtol(word.c_str(), &end, 10);
+    if (end == word.c_str() || *end != '\0' || value < min || value > max) {
+        return false;
+    }
+    out = value;
+    return true;
+}
+
+bool addResize(const Words &args, Frames &frames, std::string &why)
+{
+    long width = 0;
+    long height = 0;
+    if (args.size() != 2 || !parseCount(args[0], 1, MAX_WINDOW_SIDE, width) ||
+        !parseCount(args[1], 1, MAX_WINDOW_SIDE, height)) {
+        why = "needs a width and a height from 1 to " + std::to_string(MAX_WINDOW_SIDE);
+        return false;
+    }
+    ScriptInput input;
+    input.resizeWidth = static_cast<int>(width);
+    input.resizeHeight = static_cast<int>(height);
+    frames.push_back(input);
+    return true;
+}
+
+bool addWait(const Words &args, Frames &frames, std::string &why)
+{
+    long count = 0;
+    if (args.size() != 1 || !parseCount(args[0], 0, MAX_WAIT, count)) {
         why = "needs a number of frames from 0 to " + std::to_string(MAX_WAIT);
         return false;
     }
@@ -219,9 +352,8 @@ bool addWait(const Words &args, Frames &frames, std::string &why)
 
 bool addSleep(const Words &args, Frames &frames, std::string &why)
 {
-    char *end = nullptr;
-    long millis = args.size() == 1 ? std::strtol(args[0].c_str(), &end, 10) : -1;
-    if (args.size() != 1 || *end != '\0' || millis < 0 || millis > MAX_SLEEP_MS) {
+    long millis = 0;
+    if (args.size() != 1 || !parseCount(args[0], 0, MAX_SLEEP_MS, millis)) {
         why = "needs milliseconds from 0 to " + std::to_string(MAX_SLEEP_MS);
         return false;
     }
@@ -246,39 +378,58 @@ bool addText(const std::string &rest, std::string ScriptInput::*field, const cha
     return true;
 }
 
+/* A command whose arguments are words: it adds its frames, or says why it cannot. */
+using WordCommand = bool (*)(const Words &, Frames &, std::string &);
+
+/* The commands whose arguments are words, by name. */
+struct WordEntry {
+    const char *name;
+    WordCommand add;
+};
+
+const WordEntry WORD_COMMANDS[] = {
+    {"move", addMove},
+    {"click", [](const Words &a, Frames &f, std::string &w) { return addClick(a, 0, f, w); }},
+    {"rclick", [](const Words &a, Frames &f, std::string &w) { return addClick(a, 1, f, w); }},
+    {"press", [](const Words &a, Frames &f, std::string &w) { return addPress(a, true, f, w); }},
+    {"release", [](const Words &a, Frames &f, std::string &w) { return addPress(a, false, f, w); }},
+    {"drag", addDrag},
+    {"path", addPath},
+    {"wheel", addWheel},
+    {"resize", addResize},
+    {"key", addKey},
+    {"wait", addWait},
+    {"sleep", addSleep},
+};
+
+/* The commands whose argument is the rest of the line, comment marks and spaces included. */
+struct TextEntry {
+    const char *name;
+    std::string ScriptInput::*field;
+    const char *missing; /* the reason given when the line has no argument */
+};
+
+const TextEntry TEXT_COMMANDS[] = {
+    {"type", &ScriptInput::text, "needs the text to type"},
+    {"shot", &ScriptInput::shot, "needs a file to save to"},
+    {"drop", &ScriptInput::drop, "needs the file to drop"},
+};
+
 /* Expands one command line; `why` says what is wrong when it returns false. */
 bool addCommand(const std::string &line, Frames &frames, std::string &why)
 {
     size_t space = line.find_first_of(" \t");
     std::string command = line.substr(0, space);
     std::string rest = space == std::string::npos ? "" : trim(line.substr(space));
-    if (command == "type") {
-        return addText(rest, &ScriptInput::text, "needs the text to type", frames, why);
+    for (const TextEntry &entry : TEXT_COMMANDS) {
+        if (command == entry.name) {
+            return addText(rest, entry.field, entry.missing, frames, why);
+        }
     }
-    if (command == "shot") {
-        return addText(rest, &ScriptInput::shot, "needs a file to save to", frames, why);
-    }
-    Words args = split(withoutComment(rest));
-    if (command == "move") {
-        return addMove(args, frames, why);
-    }
-    if (command == "click" || command == "rclick") {
-        return addClick(args, command == "click" ? 0 : 1, frames, why);
-    }
-    if (command == "drag") {
-        return addDrag(args, frames, why);
-    }
-    if (command == "path") {
-        return addPath(args, frames, why);
-    }
-    if (command == "key") {
-        return addKey(args, frames, why);
-    }
-    if (command == "wait") {
-        return addWait(args, frames, why);
-    }
-    if (command == "sleep") {
-        return addSleep(args, frames, why);
+    for (const WordEntry &entry : WORD_COMMANDS) {
+        if (command == entry.name) {
+            return entry.add(split(withoutComment(rest)), frames, why);
+        }
     }
     why = "unknown command '" + command + "'";
     return false;
@@ -345,6 +496,9 @@ void script_feed(ImGuiIO &io, const ScriptInput &input)
     }
     if (input.button >= 0) {
         io.AddMouseButtonEvent(input.button, input.buttonDown);
+    }
+    if (input.wheelX != 0.0f || input.wheelY != 0.0f) {
+        io.AddMouseWheelEvent(input.wheelX, input.wheelY);
     }
     if (!input.key.empty()) {
         ImGuiKey key = findKey(input.key);

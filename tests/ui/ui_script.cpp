@@ -139,6 +139,86 @@ TEST(comments_and_blank_lines_are_ignored)
     ASSERT_TRUE(frames.size() == 1);
 }
 
+TEST(a_button_word_picks_the_button_of_a_click_a_drag_and_a_path)
+{
+    std::string error;
+    std::vector<ScriptInput> frames = expand("click 5 6 middle", error);
+    ASSERT_TRUE(error.empty());
+    ASSERT_TRUE(frames.size() == 3);
+    ASSERT_TRUE(frames[1].button == 2 && frames[1].buttonDown);
+    ASSERT_TRUE(frames[2].button == 2 && !frames[2].buttonDown);
+    frames = expand("drag 1 2 30 40 right", error);
+    ASSERT_TRUE(frames[1].button == 1 && frames[1].buttonDown);
+    ASSERT_TRUE(frames.back().button == 1 && !frames.back().buttonDown);
+    frames = expand("path 1 2 30 40 50 60 middle", error);
+    ASSERT_TRUE(frames[1].button == 2 && frames.back().button == 2);
+    ASSERT_TRUE(frames.back().x == 50.0f && frames.back().y == 60.0f);
+    ASSERT_TRUE(expand("click 5 6 thumb", error).empty());
+}
+
+/* press and release split a click, so a shot can see the state while the button is held (the
+ * eyedropper's loupe, a drop line, a selection being moved). */
+TEST(press_and_release_are_one_frame_each)
+{
+    std::string error;
+    std::vector<ScriptInput> frames =
+        expand("press 7 8\nshot held.png\nrelease 9 10 middle", error);
+    ASSERT_TRUE(error.empty());
+    ASSERT_TRUE(frames.size() == 3);
+    ASSERT_TRUE(frames[0].moved && frames[0].x == 7.0f && frames[0].button == 0);
+    ASSERT_TRUE(frames[0].buttonDown);
+    ASSERT_TRUE(frames[1].shot == "held.png");
+    ASSERT_TRUE(frames[2].x == 9.0f && frames[2].button == 2 && !frames[2].buttonDown);
+    ASSERT_TRUE(expand("press 7", error).empty());
+}
+
+/* Like a key, a modified wheel holds its modifiers a frame before and lets them go a frame after.
+ */
+TEST(a_wheel_turns_at_a_point_with_its_modifiers_held_around_it)
+{
+    std::string error;
+    std::vector<ScriptInput> frames = expand("wheel 100 200 0 -2 ctrl", error);
+    ASSERT_TRUE(error.empty());
+    ASSERT_TRUE(frames.size() == 3);
+    ASSERT_TRUE(frames[0].ctrl && frames[0].wheelY == 0.0f);
+    ASSERT_TRUE(frames[1].ctrl && frames[1].moved && frames[1].x == 100.0f);
+    ASSERT_TRUE(frames[1].wheelX == 0.0f && frames[1].wheelY == -2.0f);
+    ASSERT_TRUE(!frames[2].ctrl && frames[2].wheelY == 0.0f);
+    frames = expand("wheel 1 2 3 0", error);
+    ASSERT_TRUE(frames.size() == 1 && frames[0].wheelX == 3.0f && !frames[0].ctrl);
+    ASSERT_TRUE(expand("wheel 1 2 3", error).empty());
+    ASSERT_TRUE(expand("wheel 1 2 3 4 hyper", error).empty());
+}
+
+TEST(drop_and_resize_are_handed_to_the_app)
+{
+    std::string error;
+    std::vector<ScriptInput> frames = expand("drop /a b/c.pxa\nresize 800 500", error);
+    ASSERT_TRUE(error.empty());
+    ASSERT_TRUE(frames.size() == 2);
+    ASSERT_TRUE(frames[0].drop == "/a b/c.pxa"); /* the rest of the line, spaces kept */
+    ASSERT_TRUE(frames[1].resizeWidth == 800 && frames[1].resizeHeight == 500);
+    ASSERT_TRUE(expand("drop", error).empty());
+    ASSERT_TRUE(expand("resize 0 500", error).empty());
+    ASSERT_TRUE(expand("resize 800", error).empty());
+}
+
+/* script_feed gives ImGui the wheel of a frame. */
+TEST(a_scripted_wheel_reaches_imgui)
+{
+    test_ui::Harness h;
+    float wheel = 0.0f;
+    h.body = [&] { wheel += ImGui::GetIO().MouseWheel; };
+    Script script;
+    std::string error;
+    ASSERT_TRUE(script.parse("wheel 10 10 0 -3", error));
+    for (int i = 0; i < 3; i++) {
+        script_feed(ImGui::GetIO(), script.next());
+        h.frame(10.0f, 10.0f, false);
+    }
+    ASSERT_TRUE(wheel == -3.0f);
+}
+
 TEST(a_bad_line_is_refused_with_its_number)
 {
     std::string error;
@@ -222,6 +302,11 @@ int main()
     RUN(sleep_waits_real_time_after_one_frame);
     RUN(type_sends_the_rest_of_the_line_as_text);
     RUN(comments_and_blank_lines_are_ignored);
+    RUN(a_button_word_picks_the_button_of_a_click_a_drag_and_a_path);
+    RUN(press_and_release_are_one_frame_each);
+    RUN(a_wheel_turns_at_a_point_with_its_modifiers_held_around_it);
+    RUN(drop_and_resize_are_handed_to_the_app);
+    RUN(a_scripted_wheel_reaches_imgui);
     RUN(a_bad_line_is_refused_with_its_number);
     RUN(next_after_the_end_gives_an_empty_input);
     RUN(a_scripted_key_is_pressed_once_with_its_modifiers_held);

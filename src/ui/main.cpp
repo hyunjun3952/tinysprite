@@ -30,7 +30,7 @@ bool parseNumber(const char *text, int min, int max, int &out)
 
 constexpr const char *USAGE =
     "usage: %s [file | width [height]] [--frames N [--screenshot "
-    "out.png]] [--script FILE] [--config-dir DIR] [--scale PERCENT] [--help]\n"
+    "out.png]] [--script FILE] [--config-dir DIR] [--scale PERCENT] [--window WxH] [--help]\n"
     "       %s export <input> --sheet|--image|--gif out [...]  (no window)\n";
 
 /* The command line, one argument at a time; a flag takes the argument after it as its value. */
@@ -73,7 +73,7 @@ Flag parseFlag(Args &args, AppOptions &options)
     const char *name = args.current();
     bool known = std::strcmp(name, "--frames") == 0 || std::strcmp(name, "--config-dir") == 0 ||
                  std::strcmp(name, "--scale") == 0 || std::strcmp(name, "--screenshot") == 0 ||
-                 std::strcmp(name, "--script") == 0;
+                 std::strcmp(name, "--script") == 0 || std::strcmp(name, "--window") == 0;
     if (!known) {
         return Flag::NotAFlag;
     }
@@ -92,6 +92,8 @@ Flag parseFlag(Args &args, AppOptions &options)
         options.uiScale = static_cast<float>(percent) / 100.0f;
     } else if (std::strcmp(name, "--script") == 0) {
         options.scriptPath = value;
+    } else if (std::strcmp(name, "--window") == 0) {
+        ok = parse_window_size(value, options.window);
     } else {
         options.screenshot = value;
     }

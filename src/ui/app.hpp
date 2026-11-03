@@ -35,9 +35,11 @@ struct AppOptions {
     float uiScale = 0.0f;   /* the UI scale to use instead of the saved / detected one; 0 = none */
     std::string configDir;  /* keep settings / autosave here (also in a --frames run); "" = the
                              * user's config directory, which a --frames run leaves alone */
-    std::string scriptPath; /* the --script file, "" for none: input commands run instead of the
-                             * user (a smoke run like --frames, and it ends with the script) */
-    Script script;          /* the commands of scriptPath, parsed */
+    WindowSize window = {0, 0}; /* --window: the size to open with, taken as given; 0 x 0 = the
+                                 * saved or default size, fitted to the display */
+    std::string scriptPath;     /* the --script file, "" for none: input commands run instead of the
+                                 * user (a smoke run like --frames, and it ends with the script) */
+    Script script;              /* the commands of scriptPath, parsed */
 };
 
 /* Owns the window, the ImGui context and the editor, and runs the main loop. Everything it sets up
@@ -89,12 +91,15 @@ class App
     static constexpr float TREE_ROW_PADDING = 5.0f; /* above and below a row of the file tree */
     static constexpr size_t RECENT_MAX = 10;        /* entries kept in the recent files list */
 
-    bool createWindow(int width, int height);
+    /* Opens the window at `width` x `height`, shrunk to the display first when `fit`. */
+    bool createWindow(int width, int height, bool fit);
     bool initImGui();
     bool startEditor(const AppOptions &options);
     void helpShortcut();
     void deleteShortcut();
     void pollEvents();
+    /* What a --script frame asks of the window before ImGui sees it: a file dropped, a new size. */
+    void applyScriptWindow(const ScriptInput &input);
     void buildUi();
     void loadSettings(const SettingsMap &settings);
     /* The tabs and the split view kept in the settings between runs (app/documents.cpp): storing

@@ -4,7 +4,7 @@ description: Audits the tinysprite UI/UX by driving the real app with computer-u
 argument-hint: "[area | scenario id | all]"
 metadata:
   author: tinysprite
-  version: 0.2.0
+  version: 0.3.0
 ---
 
 # UI audit
@@ -184,3 +184,6 @@ Tests, code, lint, branches and commits follow `.rules` (sections 2, 3, 5, 6 and
 - A static start-up screenshot cannot prove a fix to code that runs on input; drive the state with `--script` and compare the same script before and after.
 - Icons, ruler labels, the Recent colors row and the floating tool bar each needed several rounds of fixes in the history: check them at scale 1 and 2
   (X07), and after any theme change, before calling a pass done.
+- Read menu and control coordinates from the original screenshot, not from a montage of several (it is scaled): a menu hover missed its row.
+- A checked checkbox turned blue after an ImGui upgrade (a new `ImGuiCol_` slot the theme did not set): after a dependency bump, sample the
+  colors of every widget state against DESIGN.md.
