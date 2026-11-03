@@ -62,7 +62,8 @@ the backlog at the end. Rules: `.rules`. How the code is put together: [ARCHITEC
       `offsetx` / `offsety` follow it). The top three bits of a cell are Tiled's flip flags (`TILE_FLIP_X`, `TILE_FLIP_Y`,
       `TILE_TRANSPOSE`, the last only for square tiles); `tile_flipped` / `tile_rotated` compose them as 2 x 2 matrices,
       `tile_pixel` samples a turned tile for the canvas, the tilemap window and `tilemap_render`, and the `.tmj` ids carry
-      the same bits. The window has Flip H, Flip V and Turn buttons. An older reader drops all tile data of a file that
+      the same bits. The window has Flip H, Flip V and Turn buttons, and a small picture of the brush tile as they left it
+      (`tile_render`, drawn by `TilemapWindow::brushPreview`). An older reader drops all tile data of a file that
       has a turned cell (it is all or nothing), but keeps the pixels.
 - [x] **24. Aseprite import**: `aseprite_decode` / `aseprite_load`: image layers (name, visibility, lock, opacity, the blend
       modes this editor has), cels (offset, opacity baked into alpha, links), RGBA / grayscale / indexed color, durations,
@@ -260,8 +261,7 @@ a branch + PR of its own (`.rules`).
    the `.pxa`.
 4. **Writing Aseprite files**: only reading exists (milestone 24).
 5. **Small ones** (each a day or less):
-   - guides at a fraction of a cel;
-   - a preview of the turned brush tile in the tilemap window.
+   - guides at a fraction of a cel.
 
 ### Environment
 
