@@ -326,6 +326,34 @@ TEST(the_lowest_int_is_not_a_valid_map_origin)
     ASSERT_TRUE(!tilemap_valid(map, sets));
 }
 
+TEST(one_tile_is_drawn_as_a_picture_of_its_own_size_with_its_turn_applied)
+{
+    Tileset ts = corner_tile();
+    Cel plain = must_have(tile_render(ts, 1));
+    ASSERT_EQ_INT(2, plain.width());
+    ASSERT_EQ_INT(2, plain.height());
+    ASSERT_TRUE(plain.get(0, 0) == RED);
+    ASSERT_TRUE(plain.get(1, 0) == GREEN);
+    Cel flipped = must_have(tile_render(ts, 1 | TILE_FLIP_X));
+    ASSERT_TRUE(flipped.get(0, 0) == GREEN);
+    ASSERT_TRUE(flipped.get(1, 0) == RED);
+    Cel turned = must_have(tile_render(ts, tile_rotated(1, true)));
+    ASSERT_TRUE(turned.get(1, 0) == RED);
+    ASSERT_TRUE(turned.get(0, 0) == BLUE);
+}
+
+TEST(a_tile_is_not_drawn_for_an_empty_cell_or_one_the_tileset_cannot_show)
+{
+    Tileset ts = corner_tile();
+    ASSERT_TRUE(!tile_render(ts, 0).has_value());
+    ASSERT_TRUE(!tile_render(ts, 3).has_value());           /* a tile it lacks */
+    ASSERT_TRUE(!tile_render(ts, TILE_FLIP_X).has_value()); /* a turn with no tile */
+    Tileset wide = two_tiles();
+    wide.tileHeight = 1;
+    ASSERT_TRUE(!tile_render(wide, 1 | TILE_TRANSPOSE).has_value()); /* not square */
+    ASSERT_TRUE(!tile_render(Tileset{}, 1).has_value());             /* no atlas */
+}
+
 TEST(a_preview_shows_a_map_too_big_for_one_picture)
 {
     Cel cel(2, 2);
@@ -350,6 +378,8 @@ TEST(a_preview_shows_a_map_too_big_for_one_picture)
 
 int main()
 {
+    RUN(one_tile_is_drawn_as_a_picture_of_its_own_size_with_its_turn_applied);
+    RUN(a_tile_is_not_drawn_for_an_empty_cell_or_one_the_tileset_cannot_show);
     RUN(a_cell_keeps_its_tile_number_below_the_flag_bits);
     RUN(a_flipped_tile_shows_its_pixels_mirrored);
     RUN(a_transposed_tile_swaps_rows_and_columns);

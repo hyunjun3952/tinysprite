@@ -117,6 +117,11 @@ TileMap tilemap_blank(const std::string &name, int tileset, int columns, int row
 std::optional<Tileset> tileset_from_cel(const Cel &cel, Rect area, int tileWidth, int tileHeight,
                                         const std::string &name);
 
+/* The tile `cell` names, turned as the cell says, as a picture of tileWidth x tileHeight pixels.
+ * Returns nothing for an empty cell, a tile the tileset does not have, a transposed cell of
+ * non-square tiles or a tileset that is not valid. */
+std::optional<Cel> tile_render(const Tileset &tileset, uint32_t cell);
+
 /* The map drawn as one picture of (columns x tile width) x (rows x tile height) pixels, every tile
  * turned as its cell says; empty cells stay transparent. `tileset` is the one the map refers to;
  * the map's own tileset index (its slot in the sprite) and its origin are not used. Returns
