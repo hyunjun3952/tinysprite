@@ -220,6 +220,14 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 - A UI audit (headless): icon ink lengths made equal, the UI scale capped to the display, a chevron on a cut-off options
   bar, readable shortcut hints while pressed, and the tile picker colors moved to `theme::overlay`.
+- A second UI audit (headless, every scenario of the ui-audit catalog): the script driver gained press / release, wheel,
+  drop, resize and `--window`; Enter presses a dialog's primary button and the recovery question can be left with Esc;
+  the tag range reads "From n To m"; ImGui 1.92.9's blue checkbox is grey; the palette Reset says Ctrl+Z restores it;
+  the unsaved-changes question names the file; short lists do not scroll; thumbnails, the loupe and the path field follow
+  the UI scale; onion skin ghosts can go over an opaque background ("On top", the default); overlapping tags get lanes;
+  a pan keeps a strip of the sprite on the canvas; the rulers no longer refit a fitted sprite; many tabs scroll instead
+  of shrinking to "s..."; the help window wraps; Slices and Tilemaps are in Window > Sections; disabled icons are mute;
+  and the tool and shape icons are vector paths (see Icons above).
 - An audit of the comments against the code found real bugs, now fixed: a refused `insertFrame` took the frame's cels,
   `tilemap_render` refused a map whose tileset slot was not 0, `image_import` could not open a Korean file name on
   Windows, and removed layers and frames weighed 0 bytes in the history limit.

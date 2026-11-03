@@ -2,6 +2,9 @@
 
 One line per change, newest first. Versions are in each skill's front matter.
 
+- ui-audit 0.3.1: scenarios S08, S18, S24 and X07 check what the second audit fixed (pan clamp, tag lanes, readable
+  tabs, icon brightness and smooth scaling); a lesson on checking drawn icons in the app rather than in a mockup.
+
 - ui-audit 0.3.0: the script driver gained press / release, a button word, wheel, drop, resize and `--window`, so the loupe, panning, zooming,
   dropping and the default and scale 2-3 windows run headless; lessons on montage coordinates and new ImGui color slots.
 

@@ -27,7 +27,7 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 | id | goal | fixture | do | check | edges |
 |---|---|---|---|---|---|
 | S07 core | draw a line of pixels and undo it | empty16 | pencil, drag, Ctrl+Z, Ctrl+Y | canvas updates at once, one undo step per stroke, cursor outline matches footprint | stroke leaves the window, Esc mid-drag, tool switch mid-drag |
-| S08 | zoom and pan | big512 | wheel, Ctrl+wheel, middle drag, fit | grid appears from zoom 4, fit margin, nearest sampling, cursor-anchored zoom | min/max zoom, window resize, pan far away |
+| S08 | zoom and pan | big512 | wheel, Ctrl+wheel, middle drag, fit | grid appears from zoom 4, fit margin, nearest sampling, cursor-anchored zoom, a far pan leaves a strip of the sprite on the canvas | min/max zoom (one `wheel` line is one step), window resize, pan far away (`drag ... middle`) |
 | S09 | every tool once | empty16 | each tool in the tool bar, its options bar | options bar shows only that tool's options, tooltip with shortcut, active tool inverted, status bar names the tool | mirror axes, fill option, 1x1 sprite (`tiny1`) |
 | S10 | selection: select, move, copy, paste | anim64 | select tool, drag, move, copy/paste | marching ants visible on light and dark art, one undo step, selection survives frame change as designed | selection at the edge, paste larger than sprite |
 | S11 | color: pick, swap, edit hex, palette | empty16 | color block, hex field, palette add/replace/reset | foreground/background clear, hex field accepts #RGB/#RRGGBB/#RRGGBBAA, invalid input does not corrupt, palette buttons enable/disable correctly | 256 colors, translucent color |
@@ -45,7 +45,7 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 |---|---|---|---|---|---|
 | S16 core | play the animation | anim64 | Play, Enter, stop by editing | current frame highlighted on timeline and canvas, play state obvious, edit stops it | duration 0, 1 frame, ping-pong |
 | S17 | frames: add, duplicate, delete, reorder, link cels | anim64 | timeline buttons and menu | cell highlight, linked-cel marker, undo of each | 60 frames (`many`), delete last frame |
-| S18 | tags | anim64 | add, rename, change range and direction, select a tag | tag row readable, range shown, selected tag clear | tag edited while playing, overlapping tags |
+| S18 | tags | anim64 | add, rename, change range and direction, select a tag | tag row readable, range shown ("From n To m", labels before fields), selected tag clear, overlapping tags in lanes, both visible | tag edited while playing, overlapping tags |
 | S19 | onion skin | anim64 | toggle, change range | ghost frames distinguishable from the current, controls labeled | first/last frame |
 | S20 | timeline sash | anim64 | drag, fold, double-click, Ctrl+T | grab area found without hint, minimum height, fold remembers height | window short, 70% cap |
 
@@ -55,7 +55,7 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 | S21 core | new, save, close with unsaved changes | none | New dialog, draw, Close, each answer | dialog text names the file, danger primary only when destroying, Esc cancels, Enter = primary | cancel then continue editing |
 | S22 | open and save as with the file dialog | scratch dir | navigate, type a path, `../`, overwrite | existing file asks before overwriting, errors shown, no way to leave the scratch dir by accident | invalid name, read-only dir, long path |
 | S23 | export: PNG, sprite sheet + json, GIF | anim64 | each export dialog | options labeled with units, preview or size shown, success/failure feedback, overwrite prompt | 1x1, 512x512, zero-length name |
-| S24 | tabs: open several, reorder, close others, split view | anim64, empty16 | open both, drag tab, split | active tab visible, unsaved mark, per-tab undo, tool/colors carried | 10 tabs in a narrow window |
+| S24 | tabs: open several, reorder, close others, split view | anim64, empty16 | open both (`drop`), drag tab, split | active tab visible, unsaved mark, per-tab undo, tool/colors carried, names stay readable (the bar scrolls instead) | 10 tabs in a narrow window; wait for the bar's scroll animation before the shot |
 | S25 | drag a file onto the window | anim64 | drop with and without a dialog open | opens a tab; ignored while a dialog is open | non-.pxa file |
 | S26 | slices | slices | slice tool, list, details, pivot | overlay labels readable, list scrolls after 5 rows, edits undoable | label wider than slice |
 
@@ -86,5 +86,5 @@ For every scenario also run the general checks in `heuristics.md`. "Edges" are t
 | X04 | rapid and repeated input | double-click, hold a shortcut, click during a fade | no double actions, no stuck hover, no dropped input |
 | X05 | contrast and legibility | screenshots of S01, S13, S18 | measure mute-on-soft and every text/icon pair against `heuristics.md` thresholds |
 | X06 | first-time user walkthrough | new sprite; "draw a 4-frame blink and export a GIF" using only what the UI shows | where do you stop and wonder; count dead ends and guesses |
-| X07 | icon consistency | zoom the tool bar, layer rows, timeline toolbar and palette buttons at scale 1 and 2 | the longer side of every icon's ink is about the same (15 px at scale 1); no icon looks heavier or lighter than its neighbours (the plus, the refresh arrow and the bucket were the outliers) |
+| X07 | icon consistency | zoom the tool bar, layer rows, timeline toolbar and palette buttons at scale 1, 1.25, 1.5 and 2 | the longer side of every icon's ink is about the same (15 px at scale 1); no icon looks heavier or lighter than its neighbours (the plus, the refresh arrow and the bucket were the outliers); the size grows smoothly between whole scales; sample the brightest pixel of each icon: a straight path line that peaks below the glyphs' 247 is too thin for ImGui's anti-aliasing; a disabled icon is mute, at least 3:1 on its button |
 | X08 | the same task with a script | re-run S07, S13 and S21 with `--script` (`../../_shared/audit-conventions.md`) | the script reaches the same state as the manual run and its screenshots match; a difference is the driver, not the app |
