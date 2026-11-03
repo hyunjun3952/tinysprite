@@ -3,7 +3,14 @@
 #include <algorithm>
 #include <climits>
 
-Mask Mask::build(Rect area, const std::function<bool(int, int)> &in)
+namespace
+{
+
+/*
+ * The smallest rectangle inside `area` that holds every pixel `in` accepts; an empty rectangle
+ * when it accepts none.
+ */
+Rect accepted_bounds(Rect area, const std::function<bool(int, int)> &in)
 {
     int x0 = INT_MAX;
     int y0 = INT_MAX;
@@ -19,17 +26,28 @@ Mask Mask::build(Rect area, const std::function<bool(int, int)> &in)
             }
         }
     }
-    Mask mask;
     if (x1 < x0) {
+        return Rect{};
+    }
+    return Rect{x0, y0, x1 - x0 + 1, y1 - y0 + 1};
+}
+
+} // namespace
+
+Mask Mask::build(Rect area, const std::function<bool(int, int)> &in)
+{
+    Mask mask;
+    mask.bounds_ = accepted_bounds(area, in);
+    if (rect_is_empty(mask.bounds_)) {
+        mask.bounds_ = Rect{};
         return mask;
     }
-    mask.bounds_ = Rect{x0, y0, x1 - x0 + 1, y1 - y0 + 1};
     mask.bits_.assign(static_cast<size_t>(mask.bounds_.w) * static_cast<size_t>(mask.bounds_.h), 0);
-    for (int y = y0; y <= y1; y++) {
-        for (int x = x0; x <= x1; x++) {
-            if (in(x, y)) {
-                mask.bits_[static_cast<size_t>(y - y0) * static_cast<size_t>(mask.bounds_.w) +
-                           static_cast<size_t>(x - x0)] = 1;
+    for (int y = 0; y < mask.bounds_.h; y++) {
+        for (int x = 0; x < mask.bounds_.w; x++) {
+            if (in(mask.bounds_.x + x, mask.bounds_.y + y)) {
+                mask.bits_[static_cast<size_t>(y) * static_cast<size_t>(mask.bounds_.w) +
+                           static_cast<size_t>(x)] = 1;
                 mask.count_++;
             }
         }
