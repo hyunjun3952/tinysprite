@@ -426,6 +426,22 @@ TEST(an_aseprite_file_opens_as_an_untitled_document)
     std::filesystem::remove(path);
 }
 
+/* A file that is neither a sprite nor an image is refused with a message that names it and says
+ * what can be opened (it used to be "Cannot read <whole path>"). */
+TEST(opening_a_file_that_is_not_an_image_says_what_can_be_opened)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    const std::string path = "tinysprite_doc_notes.txt";
+    std::ofstream(path) << "not an image\n";
+    ASSERT_TRUE(!t.open(path));
+    const std::string error = t.error();
+    ASSERT_TRUE(error.find("tinysprite_doc_notes.txt") != std::string::npos);
+    ASSERT_TRUE(error.find(".pxa") != std::string::npos);
+    ASSERT_TRUE(error.find(".png") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST(an_edited_untitled_tab_is_kept_when_a_file_is_opened)
 {
     AppTestAccess t;
@@ -1197,6 +1213,7 @@ int main()
     RUN(restoring_the_tabs_leaves_the_recent_files_in_their_order);
     RUN(a_run_without_a_config_folder_neither_reads_nor_writes_a_session);
     RUN(an_aseprite_file_opens_as_an_untitled_document);
+    RUN(opening_a_file_that_is_not_an_image_says_what_can_be_opened);
     RUN(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_image);
     RUN(a_file_dropped_while_a_dialog_is_open_is_ignored);
     RUN(each_document_with_changes_gets_its_own_autosave_copy);

@@ -192,7 +192,10 @@ bool App::openPath(const std::string &path)
         sprite = image_import(path);
     }
     if (!sprite) {
-        fileError_ = "Cannot read " + path;
+        /* the path is in the dialog's field already; say what this program opens instead */
+        fileError_ = "Cannot open " + file_name_of(path) +
+                     ": tinysprite opens .pxa and .aseprite files and images (.gif, " +
+                     image_write_formats() + ")";
     } else if (!addDocument(std::move(*sprite), isPxa ? path : "", true)) {
         fileError_ = "Cannot open " + path + " right now";
     } else {
