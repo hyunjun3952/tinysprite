@@ -115,7 +115,10 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - **File dialog**: the path field holds the whole path (`~` is home); a folder button shows a search field and a folder
   tree (`app/file_browser_ui.cpp`): a folder's name picks it as the place to save to, its arrow opens it, a double click on
   a file in a dialog that reads opens it. The search goes 6 levels deep (300 hits); "Expand all" opens up to 4 levels (400
-  folders). Hidden names are left out.
+  folders). Hidden names are left out. A "..." button beside the folder button opens the operating system's file window
+  (`native_dialog.cpp`: `SDL_ShowOpenFileDialog` / `SDL_ShowSaveFileDialog`, filtered by the extensions the dialog lists);
+  the answer may arrive on another thread, so it waits in a mailbox that the path field takes from, and an answer that
+  outlived its dialog is dropped when the next one opens.
 - **Narrow windows**: the window opens inside the display's usable area with a minimum size (`settings.hpp`); docked
   panels are drawn narrower so the canvas keeps `PANELS_CANVAS_MIN`; the timeline scrolls sideways; the options bar has no
   scrollbar but marks a cut with a chevron (click it, or Shift + wheel, to scroll). A saved or detected UI scale is capped
@@ -234,7 +237,8 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - Rasterizers clip no pixels; the caller bounds-checks (filled ones take an optional clip rect that only skips fill rows
   and columns outside it). A selection is a rectangle or one mask (no several-region selections).
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
-- No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
+- The path dialog is the main file chooser; its "..." button opens the system's own window (`native_dialog.hpp`; only the
+  headless case, where SDL answers with an error, has been run, no real window on any system yet). One UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
 - Guides are whole cel edges only.
 - Tilemaps are a canvas preview: not in the image exports, and a map has no layer order (see the backlog).
 - Only tabs that were saved to a file come back in the next run (the autosave recovery covers unsaved work), at most
@@ -265,7 +269,7 @@ a branch + PR of its own (`.rules`).
 
 ### Environment
 
-- A native file chooser (a path dialog now), HiDPI window flags, a mono font and CJK glyphs beyond KS X 1001.
+- HiDPI window flags, a mono font and CJK glyphs beyond KS X 1001.
 - A local clang-tidy that works on Windows: the pip wheel (18.1.8) reads the MSVC headers and stops at `STL1000`. The
   workaround used so far is adding `-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH` and
   `-D"_MSVC_STL_DOOM_FUNCTION(mesg)=__builtin_trap()"` to the commands of the untracked `build/compile_commands.json`

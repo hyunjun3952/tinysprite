@@ -14,6 +14,7 @@
 #include "imgui_impl_sdlrenderer3.h"
 #include "imgui_internal.h"
 #include "minitest.hpp"
+#include "native_dialog.hpp"
 #include "theme.hpp"
 #include "timeline_panel.hpp"
 #include "tinysprite/io.hpp"
@@ -222,6 +223,14 @@ struct AppTestAccess {
     std::string path() const
     {
         return app.pathInput_;
+    }
+    /* Opens the file dialog of `action` and lets a few frames run. */
+    void openFileDialog(App::FileAction action)
+    {
+        app.askForPath(action);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
     }
     /* Opens "Save as" showing the folder list with `typed` in the path field. */
     void openSaveDialog(const std::string &typed)
@@ -856,8 +865,34 @@ TEST(plain_keys_and_delete_wait_while_an_item_is_held_down)
     ASSERT_EQ_INT(255, cel.get(0, 0).a);
 }
 
+TEST(a_file_chosen_in_the_system_window_goes_into_the_path_field)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.openFileDialog(App::FileAction::Open);
+    const char *const chosen[] = {"/art/hero.pxa", nullptr};
+    native_dialog_finish(chosen);
+    t.frame();
+    t.frame();
+    ASSERT_TRUE(t.path() == "/art/hero.pxa");
+    t.frame();
+    ASSERT_TRUE(t.path() == "/art/hero.pxa"); /* taken once: typing over it is not undone */
+}
+
+TEST(an_answer_that_came_after_the_dialog_was_closed_does_not_fill_the_next_one)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    const char *const late[] = {"/art/late.pxa", nullptr};
+    native_dialog_finish(late); /* the dialog it was for is gone */
+    t.openFileDialog(App::FileAction::Open);
+    ASSERT_TRUE(t.path().find("late.pxa") == std::string::npos);
+}
+
 int main()
 {
+    RUN(a_file_chosen_in_the_system_window_goes_into_the_path_field);
+    RUN(an_answer_that_came_after_the_dialog_was_closed_does_not_fill_the_next_one);
     RUN(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard);
     RUN(the_new_dialog_reuses_an_untouched_untitled_tab);
     RUN(opening_a_file_that_has_guides_shows_them);

@@ -168,6 +168,7 @@ class App
     bool runFileAction(const FileActionInfo &info, const std::string &path);
     void closeFileDialog();
     bool pathField();
+    void systemFileWindow();
 
     /* The folder tree and search under the path field (app/file_browser_ui.cpp): a folder's name
      * picks it as the place to save to and its arrow opens it, a file goes into the path field.
