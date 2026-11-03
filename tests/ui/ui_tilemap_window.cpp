@@ -52,6 +52,8 @@ struct Fixture {
     }
     Fixture(const Fixture &) = delete;
     Fixture &operator=(const Fixture &) = delete;
+    Fixture(Fixture &&) = delete;
+    Fixture &operator=(Fixture &&) = delete;
 
     void frames()
     {

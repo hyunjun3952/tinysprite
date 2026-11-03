@@ -994,6 +994,8 @@ struct SessionFiles {
     }
     SessionFiles(const SessionFiles &) = delete;
     SessionFiles &operator=(const SessionFiles &) = delete;
+    SessionFiles(SessionFiles &&) = delete;
+    SessionFiles &operator=(SessionFiles &&) = delete;
 
     std::string save(const char *name, int size) const
     {
