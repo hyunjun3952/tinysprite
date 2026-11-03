@@ -759,9 +759,11 @@ void field_label(const char *text)
 
 bool begin_list(const char *id, size_t count, float maxRows)
 {
+    /* the rows with the spacing between them, and the child's padding above and below */
     const float rows = std::min(static_cast<float>(count), maxRows);
-    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows +
-                                ImGui::GetStyle().WindowPadding.y);
+    const ImGuiStyle &style = ImGui::GetStyle();
+    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows - style.ItemSpacing.y +
+                                2.0f * style.WindowPadding.y);
     if (ImGui::BeginChild(id, size, ImGuiChildFlags_Borders)) {
         return true;
     }

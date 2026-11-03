@@ -241,6 +241,35 @@ TEST(a_submenu_stays_open_while_the_mouse_rests_on_it)
     ASSERT_EQ_INT(0, closedFrames);
 }
 
+/* A list of up to maxRows rows shows them all: it scrolls only past that (a list of one slice
+ * used to show a scrollbar, because the child's padding was counted once instead of twice). */
+TEST(a_list_within_its_row_limit_does_not_scroll)
+{
+    for (int rows = 1; rows <= 5; rows++) {
+        test_ui::Harness h;
+        float scrollMax = -1.0f;
+        h.body = [&] {
+            ImGui::SetNextWindowPos(ImVec2(100.0f, 100.0f));
+            ImGui::SetNextWindowSize(ImVec2(260.0f, 400.0f));
+            ImGui::Begin("##list_rig", nullptr, ImGuiWindowFlags_NoDecoration);
+            if (theme::begin_list("##list", static_cast<size_t>(rows), 5.0f)) {
+                for (int i = 0; i < rows; i++) {
+                    ImGui::PushID(i);
+                    ImGui::Selectable("row");
+                    ImGui::PopID();
+                }
+                scrollMax = ImGui::GetScrollMaxY();
+                ImGui::EndChild();
+            }
+            ImGui::End();
+        };
+        for (int i = 0; i < 3; i++) {
+            h.frame(0.0f, 0.0f, false);
+        }
+        ASSERT_TRUE(scrollMax == 0.0f);
+    }
+}
+
 int main()
 {
     RUN(dragging_a_slider_sets_the_value_by_the_mouse_position);
@@ -253,5 +282,6 @@ int main()
     RUN(clicking_the_open_menu_title_closes_it_and_it_stays_closed_while_hovered);
     RUN(a_menu_stays_open_while_the_mouse_rests_on_its_title_in_a_tall_bar);
     RUN(a_submenu_stays_open_while_the_mouse_rests_on_it);
+    RUN(a_list_within_its_row_limit_does_not_scroll);
     return TEST_SUMMARY();
 }
