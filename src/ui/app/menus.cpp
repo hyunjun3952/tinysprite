@@ -455,14 +455,21 @@ void App::helpWindow()
     }
     ImGui::SetNextWindowSize(ImVec2(theme::px(620.0f), 0), ImGuiCond_Appearing);
     if (ImGui::Begin("Keyboard shortcuts", &showHelp_, ImGuiWindowFlags_NoCollapse)) {
-        if (ImGui::BeginTable("shortcuts", 2,
-                              ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
+        /* Esc closes it, as it closes a dialog */
+        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+            ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+            showHelp_ = false;
+        }
+        /* the keys take the width they need; the actions wrap in what is left */
+        if (ImGui::BeginTable("shortcuts", 2, ImGuiTableFlags_RowBg)) {
+            ImGui::TableSetupColumn("keys", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("action", ImGuiTableColumnFlags_WidthStretch);
             for (const HelpRow &row : HELP_ROWS) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::TextUnformatted(row.keys);
                 ImGui::TableNextColumn();
-                ImGui::TextUnformatted(row.action);
+                ImGui::TextWrapped("%s", row.action);
             }
             ImGui::EndTable();
         }

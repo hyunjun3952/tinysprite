@@ -319,6 +319,18 @@ struct AppTestAccess {
             frame();
         }
     }
+    /* Shows the keyboard shortcuts window, as F1 does. */
+    void showHelp()
+    {
+        app.showHelp_ = true;
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    bool helpShown() const
+    {
+        return app.showHelp_;
+    }
     /* The width of a file dialog's path field and its two buttons. */
     static float pathRowWidth()
     {
@@ -428,6 +440,33 @@ TEST(the_path_field_grows_with_the_ui_scale)
     const float two = AppTestAccess::pathRowWidth();
     theme::setScale(1.0f);
     ASSERT_TRUE(two == 2.0f * one);
+}
+
+/* The help window shows every row whole (the descriptions used to run past its right edge) and,
+ * like the dialogs, closes with Esc. */
+TEST(the_help_window_fits_its_text_and_escape_closes_it)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.showHelp();
+    const ImGuiWindow *help = ImGui::FindWindowByName("Keyboard shortcuts");
+    ASSERT_TRUE(help != nullptr);
+    /* every column's text ends inside the table (a clipped column does not widen the window) */
+    ImPool<ImGuiTable> &tables = ImGui::GetCurrentContext()->Tables;
+    int checked = 0;
+    for (int n = 0; n < tables.GetMapSize(); n++) {
+        const ImGuiTable *table = tables.TryGetMapData(n);
+        if (table == nullptr || table->OuterWindow != help) {
+            continue;
+        }
+        for (const ImGuiTableColumn &column : table->Columns) {
+            ASSERT_TRUE(column.ContentMaxXUnfrozen <= table->InnerClipRect.Max.x + 1.0f);
+            checked++;
+        }
+    }
+    ASSERT_EQ_INT(2, checked);
+    t.pressEscape();
+    ASSERT_TRUE(!t.helpShown());
 }
 
 TEST(the_filter_dialog_opens_and_escape_closes_it)
@@ -1055,6 +1094,7 @@ int main()
     RUN(enter_in_the_unsaved_changes_dialog_saves_and_goes_on);
     RUN(escape_and_enter_answer_the_recovery_dialog);
     RUN(the_path_field_grows_with_the_ui_scale);
+    RUN(the_help_window_fits_its_text_and_escape_closes_it);
     RUN(the_filter_dialog_opens_and_escape_closes_it);
     RUN(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes);
     RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);
