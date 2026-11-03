@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "editor.hpp"
 
@@ -159,6 +160,49 @@ TEST(clicking_a_tag_band_selects_the_tag_and_again_deselects_it)
     ASSERT_EQ_INT(-1, f.editor->selectedTag());
 }
 
+/* Overlapping tags go in lanes, one row each, so neither hides the other: a tag takes the first
+ * lane where it overlaps no tag already there. */
+TEST(overlapping_tags_get_lanes_of_their_own)
+{
+    using Tag = Sprite::Tag;
+    auto lanes = [](const std::vector<Tag> &tags) { return tag_lanes(tags); };
+    ASSERT_TRUE(lanes({}).empty());
+    ASSERT_TRUE((lanes({Tag{"a", 0, 1}, Tag{"b", 2, 3}}) == std::vector<int>{0, 0}));
+    ASSERT_TRUE((lanes({Tag{"a", 0, 1}, Tag{"b", 1, 2}}) == std::vector<int>{0, 1}));
+    ASSERT_TRUE(
+        (lanes({Tag{"a", 0, 5}, Tag{"b", 1, 2}, Tag{"c", 3, 4}}) == std::vector<int>{0, 1, 1}));
+    ASSERT_TRUE(
+        (lanes({Tag{"a", 0, 2}, Tag{"b", 1, 3}, Tag{"c", 2, 4}}) == std::vector<int>{0, 1, 2}));
+    ASSERT_TRUE(
+        (lanes({Tag{"a", 2, 3}, Tag{"b", 0, 1}, Tag{"c", 1, 2}}) == std::vector<int>{0, 0, 1}));
+}
+
+/* Both of two overlapping tags show over their shared frame, and a click on either band picks
+ * that tag. */
+TEST(each_of_two_overlapping_tags_can_be_clicked)
+{
+    Fixture f;
+    f.editor->addFrame();
+    f.editor->addFrame();
+    f.editor->setFrame(0);
+    f.editor->addTag();
+    f.editor->editTag(0, Sprite::Tag{"walk", 0, 1});
+    f.editor->setFrame(1);
+    f.editor->addTag();
+    f.editor->editTag(1, Sprite::Tag{"jump", 1, 2});
+    f.editor->selectTag(-1);
+    f.h.frame(0.0f, 0.0f, false);
+    f.h.frame(0.0f, 0.0f, false);
+    TimelinePanel::Rect upper = f.timeline->tagCellRect(1, 0);
+    TimelinePanel::Rect lower = f.timeline->tagCellRect(1, 1);
+    ASSERT_TRUE(upper.max.y > upper.min.y && lower.max.y > lower.min.y);
+    ASSERT_TRUE(lower.min.y >= upper.max.y);
+    f.click(Fixture::center(lower));
+    ASSERT_EQ_INT(1, f.editor->selectedTag());
+    f.click(Fixture::center(f.timeline->tagCellRect(1, 0)));
+    ASSERT_EQ_INT(0, f.editor->selectedTag());
+}
+
 TEST(clicking_a_band_with_no_tag_selects_nothing)
 {
     Fixture f;
@@ -253,6 +297,8 @@ int main()
     RUN(a_dot_marks_a_cel_with_pixels);
     RUN(clicking_a_tag_band_selects_the_tag_and_again_deselects_it);
     RUN(clicking_a_band_with_no_tag_selects_nothing);
+    RUN(overlapping_tags_get_lanes_of_their_own);
+    RUN(each_of_two_overlapping_tags_can_be_clicked);
     RUN(the_edit_row_draws_for_a_selected_tag);
     RUN(the_from_and_to_labels_come_before_their_fields);
     RUN(the_play_tooltip_says_what_a_click_does_now);
