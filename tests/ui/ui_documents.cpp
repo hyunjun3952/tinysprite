@@ -1,5 +1,6 @@
 /* The open documents of the app (tabs): each has its own Editor, a file is opened in a tab, closing
  * asks about unsaved changes and the tool, colors and clipboard follow the user between tabs. */
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -14,6 +15,7 @@
 #include "imgui_internal.h"
 #include "minitest.hpp"
 #include "recovery.hpp"
+#include "theme.hpp"
 #include "tinysprite/io.hpp"
 
 struct AppTestAccess {
@@ -96,6 +98,11 @@ struct AppTestAccess {
     bool dirty() const
     {
         return app.dirty();
+    }
+    void resizeWindow(int width, int height)
+    {
+        SDL_SetWindowSize(app.window_, width, height);
+        SDL_SyncWindow(app.window_);
     }
     bool addBlank(int width, int height)
     {
@@ -549,6 +556,44 @@ TEST(quitting_with_nothing_unsaved_leaves_at_once)
     ASSERT_TRUE(t.addBlank(8, 8));
     t.quit();
     ASSERT_TRUE(!t.running());
+}
+
+/* Many tabs in a narrow window shrink only down to a width that still shows a few letters of the
+ * name, then the bar scrolls, and the active tab is always in view (DESIGN.md, Responsive
+ * behavior). They used to shrink until every name was "s...". */
+TEST(many_tabs_keep_a_readable_width_and_the_active_one_in_view)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.resizeWindow(800, 600);
+    for (int i = 0; i < 11; i++) {
+        ASSERT_TRUE(t.addBlank(8, 8));
+    }
+    for (int i = 0; i < 6; i++) {
+        t.frame();
+    }
+    ImPool<ImGuiTabBar> &bars = ImGui::GetCurrentContext()->TabBars;
+    int documents = 0;
+    for (int n = 0; n < bars.GetMapSize(); n++) {
+        const ImGuiTabBar *bar = bars.TryGetMapData(n);
+        if (bar == nullptr || bar->Tabs.Size < 12) {
+            continue;
+        }
+        for (const ImGuiTabItem &tab : bar->Tabs) {
+            if ((tab.Flags & ImGuiTabItemFlags_Button) != 0) {
+                continue; /* the "+" */
+            }
+            documents++;
+            /* not shrunk below its name or the minimum, whichever is narrower */
+            ASSERT_TRUE(tab.Width >= std::min(tab.ContentWidth, theme::px(100.0f)) - 1.0f);
+            if (tab.ID == bar->SelectedTabId) {
+                const float left = bar->BarRect.Min.x + tab.Offset - bar->ScrollingAnim;
+                ASSERT_TRUE(left >= bar->BarRect.Min.x - 1.0f);
+                ASSERT_TRUE(left + tab.Width <= bar->BarRect.Max.x + 1.0f);
+            }
+        }
+    }
+    ASSERT_EQ_INT(12, documents);
 }
 
 TEST(tabs_can_be_reordered_and_the_active_one_stays_the_same_document)
@@ -1234,6 +1279,7 @@ int main()
     RUN(picking_a_tab_fills_the_active_pane_and_a_tab_in_the_other_pane_just_focuses_it);
     RUN(closing_a_tab_that_is_shown_in_a_pane_ends_the_split);
     RUN(closing_a_tab_that_is_not_shown_keeps_the_split);
+    RUN(many_tabs_keep_a_readable_width_and_the_active_one_in_view);
     RUN(tabs_can_be_reordered_and_the_active_one_stays_the_same_document);
     RUN(the_app_starts_with_one_untitled_document);
     RUN(a_new_document_is_a_new_tab_and_is_shown);

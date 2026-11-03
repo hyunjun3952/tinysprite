@@ -159,6 +159,9 @@ void apply()
     style.GrabRounding = ROUND_SMALL;
     style.ScrollbarRounding = ROUND_SMALL;
     style.TabRounding = ROUND_SMALL;
+#if IMGUI_VERSION_NUM >= 19220
+    style.TabMinWidthShrink = 110.0f; /* about eight letters of a name and the close button */
+#endif
     style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
 
     ImVec4 *c = style.Colors;
