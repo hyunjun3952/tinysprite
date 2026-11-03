@@ -291,7 +291,7 @@ Icons are Material Symbols Outlined (unfilled), except the tool and shape icons,
 - The cursor shows the tool's footprint. The loupe (14 px cells) follows the mouse with a 22 px gap.
 
 ### Dialogs
-- Modal, auto-sized, fade in 0.12 s over a 50% dim. Title, content, hairline, buttons right-aligned. Esc cancels, Enter confirms, and neither is eaten by a focused text field.
+- Modal, auto-sized, fade in 0.12 s over a 50% dim. Title, content, hairline, buttons right-aligned. Esc cancels, Enter presses the primary button, and neither is eaten by a focused text field (`theme::dialog_buttons`). The keyboard focus starts on the primary; once the user moves it to another button with Tab, Enter presses that one.
 - Destructive confirmations use the danger primary and name the thing destroyed ("Discard changes to cat.pxa?"). Overwriting a file always asks first.
 - A dropped file is ignored while a dialog is open.
 

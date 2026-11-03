@@ -155,7 +155,7 @@ void App::newDialog()
     newSizeFields();
     const int clicked = theme::dialog_buttons({"Cancel", "This tab", "New tab"}, 2);
     bool close = theme::dialog_cancelled(clicked, 0);
-    if (clicked == 2 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    if (clicked == 2) {
         if (addBlankDocument(newWidth_, newHeight_, true)) {
             close = true;
         }
@@ -235,8 +235,15 @@ void App::recoverDialog()
     }
     ImGui::TextUnformatted("tinysprite did not exit cleanly last time.");
     recoverList();
-    bool close = false;
     const int clicked = theme::dialog_buttons({"Discard", "Recover"}, 1);
+    /* Esc decides nothing. recovered_ stays filled, which keeps the copies on disk for the next
+     * start: autosave() writes no copy over them and shutdown() clears no slot while it is. */
+    if (clicked < 0 && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        toast("The unsaved work is kept for the next start; autosave is off until then");
+        theme::end_modal(true);
+        return;
+    }
+    bool close = false;
     if (clicked == 1) {
         close = true;
         if (!recoverAll()) { /* the copies on disk are all that is left of what did not open */

@@ -524,7 +524,7 @@ void LayersPanel::deleteDialog()
     ImGui::TextDisabled("Ctrl+Z brings it back.");
     const int clicked = theme::dialog_buttons({"Cancel", "Delete"}, 1, true);
     bool close = theme::dialog_cancelled(clicked, 0);
-    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    if (clicked == 1) {
         editor_->removeSelectedLayers();
         close = true;
     }

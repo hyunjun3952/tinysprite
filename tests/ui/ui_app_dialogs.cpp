@@ -7,6 +7,8 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
+#include <optional>
 #include <string>
 
 #include "app.hpp"
@@ -15,6 +17,7 @@
 #include "imgui_internal.h"
 #include "minitest.hpp"
 #include "native_dialog.hpp"
+#include "recovery.hpp"
 #include "theme.hpp"
 #include "timeline_panel.hpp"
 #include "tinysprite/io.hpp"
@@ -307,6 +310,30 @@ struct AppTestAccess {
         frame();
         frame();
     }
+    /* Asks before leaving the document, as closing it would; `proceed` runs once that is
+     * settled. */
+    void askBeforeLeaving(std::function<void()> proceed)
+    {
+        app.guardUnsaved(std::move(proceed));
+        for (int i = 0; i < 3; i++) {
+            frame();
+        }
+    }
+    /* Whether recovered copies wait for an answer (autosave writes none over them meanwhile). */
+    bool recoveryPending() const
+    {
+        return !app.recovered_.empty();
+    }
+    /* Shows the recovery question for one untitled copy, as a start after a crash does. */
+    void askToRecover()
+    {
+        Recovered copy{Sprite(8, 8), "", 0};
+        app.recovered_.push_back(std::move(copy));
+        app.openRecover_ = true;
+        for (int i = 0; i < 3; i++) {
+            frame();
+        }
+    }
     /* What a --script frame asks of the window before ImGui sees it (drop, resize). */
     void script(const ScriptInput &input)
     {
@@ -331,6 +358,52 @@ TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
     t.pressEscape();
     ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
     ASSERT_TRUE(editor.hasSelection());
+}
+
+/* Enter confirms a dialog (DESIGN.md, Dialogs): in "Unsaved changes" it saves, then goes on. */
+TEST(enter_in_the_unsaved_changes_dialog_saves_and_goes_on)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_unsaved_enter";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    const std::string file = (root / "cat.pxa").string();
+    ASSERT_TRUE(pxa_save(Sprite(8, 8), file));
+    ASSERT_TRUE(t.openPath(file));
+    t.editor().setFrameDuration(0, 250); /* an edit: the document is dirty */
+    bool proceeded = false;
+    t.askBeforeLeaving([&proceeded] { proceeded = true; });
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    t.pressEnter();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    ASSERT_TRUE(proceeded);
+    ASSERT_TRUE(!t.dirty());
+    std::optional<Sprite> saved = pxa_load(file);
+    ASSERT_EQ_INT(250, saved ? saved->frameDuration(0) : -1);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
+/* Every modal can be left with Esc: the recovery question closes, opens nothing and keeps the
+ * copies pending for the next start; Enter recovers them. */
+TEST(escape_and_enter_answer_the_recovery_dialog)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.askToRecover();
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    t.pressEscape();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    ASSERT_EQ_INT(1, t.documents());
+    ASSERT_TRUE(t.recoveryPending());
+    t.askToRecover();
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    t.pressEnter();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    ASSERT_EQ_INT(8, t.editor().sprite().width()); /* the copies are open */
+    ASSERT_TRUE(!t.recoveryPending());
 }
 
 TEST(the_filter_dialog_opens_and_escape_closes_it)
@@ -955,6 +1028,8 @@ int main()
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
     RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
+    RUN(enter_in_the_unsaved_changes_dialog_saves_and_goes_on);
+    RUN(escape_and_enter_answer_the_recovery_dialog);
     RUN(the_filter_dialog_opens_and_escape_closes_it);
     RUN(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes);
     RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);

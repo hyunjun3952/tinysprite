@@ -460,7 +460,7 @@ float dialogRowWidth(std::initializer_list<const char *> labels)
 } // namespace
 
 int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool danger,
-                   unsigned disabled)
+                   unsigned disabled, bool enterConfirms)
 {
     ImGui::Dummy(ImVec2(0.0f, px(4.0f)));
     ImGui::Separator();
@@ -471,6 +471,7 @@ int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool
     }
     int clicked = -1;
     int index = 0;
+    bool chosenByKeyboard = false; /* a button the user moved the keyboard focus to */
     for (const char *label : labels) {
         if (index > 0) {
             ImGui::SameLine(0.0f, px(DIALOG_BUTTON_GAP));
@@ -479,9 +480,24 @@ int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool
         if (dialogButton(label, index == primary, danger, off)) {
             clicked = index;
         }
+        if (index == primary) {
+            ImGui::SetItemDefaultFocus(); /* the keyboard starts on the primary, never on Discard */
+        }
+        chosenByKeyboard =
+            chosenByKeyboard || (ImGui::IsItemFocused() && ImGui::GetIO().NavVisible);
         index++;
     }
+    const bool primaryOn = primary >= 0 && (disabled & (1u << static_cast<unsigned>(primary))) == 0;
+    if (clicked < 0 && primaryOn && enterConfirms && !chosenByKeyboard && enter_pressed()) {
+        clicked = primary;
+    }
     return clicked;
+}
+
+bool enter_pressed()
+{
+    return ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
+           ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
 }
 
 std::string color_hex(const float *rgba)

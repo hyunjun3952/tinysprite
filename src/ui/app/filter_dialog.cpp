@@ -114,9 +114,9 @@ void App::filterDialog()
     ImGui::Spacing();
     filterFields();
     ImGui::TextDisabled(editor_->hasSelection() ? "Inside the selection." : "The whole cel.");
-    const int clicked = theme::dialog_buttons({"Cancel", "Apply"}, 1);
+    const int clicked = theme::dialog_buttons({"Cancel", "Apply"}, 1, false, 0, !typing);
     bool close = theme::dialog_cancelled(clicked, 0);
-    if ((clicked == 1 || (!typing && ImGui::IsKeyPressed(ImGuiKey_Enter))) && runFilter()) {
+    if (clicked == 1 && runFilter()) {
         close = true;
     }
     theme::end_modal(close);
