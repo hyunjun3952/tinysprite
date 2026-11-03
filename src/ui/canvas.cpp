@@ -51,29 +51,30 @@ void drawRectOutline(ImDrawList *draw, ImVec2 p0, ImVec2 p1, ImU32 color)
 
 constexpr int LOUPE_RADIUS = 4;
 constexpr int LOUPE_CELLS = 2 * LOUPE_RADIUS + 1;
-constexpr float LOUPE_CELL = 14.0f;
-constexpr float LOUPE_SIZE = static_cast<float>(LOUPE_CELLS) * LOUPE_CELL;
-constexpr float LOUPE_LABEL = 20.0f;
-constexpr float LOUPE_GAP = 22.0f; /* from the cursor */
+constexpr float LOUPE_CELL = 14.0f;  /* at UI scale 1, like the four below */
+constexpr float LOUPE_LABEL = 20.0f; /* the row of the hex value under the cells */
+constexpr float LOUPE_GAP = 22.0f;   /* from the cursor */
 constexpr float LOUPE_PAD = 4.0f;
+constexpr float LOUPE_TEXT_TOP = 3.0f; /* from the cells to the hex value */
+constexpr float LOUPE_ROUNDING = 3.0f; /* the corners of its background */
 
 /* Top-left of the loupe: above and right of the cursor, flipped or clamped to stay inside the
  * canvas. */
 ImVec2 loupePosition(ImVec2 mouse, ImVec2 origin, ImVec2 avail)
 {
-    float x = mouse.x + LOUPE_GAP;
-    float y = mouse.y - LOUPE_GAP - LOUPE_SIZE - LOUPE_LABEL;
-    if (x + LOUPE_SIZE + LOUPE_PAD > origin.x + avail.x) {
-        x = mouse.x - LOUPE_GAP - LOUPE_SIZE;
+    const LoupeLayout l = loupe_layout();
+    float x = mouse.x + l.gap;
+    float y = mouse.y - l.gap - l.size - l.label;
+    if (x + l.size + l.pad > origin.x + avail.x) {
+        x = mouse.x - l.gap - l.size;
     }
-    if (y - LOUPE_PAD < origin.y) {
-        y = mouse.y + LOUPE_GAP;
+    if (y - l.pad < origin.y) {
+        y = mouse.y + l.gap;
     }
-    x = std::clamp(x, origin.x + LOUPE_PAD,
-                   std::max(origin.x + avail.x - LOUPE_SIZE - LOUPE_PAD, origin.x + LOUPE_PAD));
-    y = std::clamp(
-        y, origin.y + LOUPE_PAD,
-        std::max(origin.y + avail.y - LOUPE_SIZE - LOUPE_LABEL - LOUPE_PAD, origin.y + LOUPE_PAD));
+    x = std::clamp(x, origin.x + l.pad,
+                   std::max(origin.x + avail.x - l.size - l.pad, origin.x + l.pad));
+    y = std::clamp(y, origin.y + l.pad,
+                   std::max(origin.y + avail.y - l.size - l.label - l.pad, origin.y + l.pad));
     return {x, y};
 }
 
@@ -754,23 +755,29 @@ void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
     }
 }
 
+LoupeLayout loupe_layout()
+{
+    const float cell = theme::px(LOUPE_CELL);
+    return LoupeLayout{cell, static_cast<float>(LOUPE_CELLS) * cell, theme::px(LOUPE_LABEL),
+                       theme::px(LOUPE_GAP), theme::px(LOUPE_PAD)};
+}
+
 /* While the eyedropper is picking: a magnifier beside the cursor showing the cels around it, the
  * cel being picked outlined in the middle, and its color underneath. */
 void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
 {
     ImDrawList *draw = ImGui::GetForegroundDrawList();
+    const LoupeLayout l = loupe_layout();
     ImVec2 at = loupePosition(ImGui::GetMousePos(), origin, avail);
-    draw->AddRectFilled(
-        ImVec2(at.x - LOUPE_PAD, at.y - LOUPE_PAD),
-        ImVec2(at.x + LOUPE_SIZE + LOUPE_PAD, at.y + LOUPE_SIZE + LOUPE_LABEL + LOUPE_PAD),
-        theme::overlay::LOUPE_BACKGROUND, 3.0f);
+    draw->AddRectFilled(ImVec2(at.x - l.pad, at.y - l.pad),
+                        ImVec2(at.x + l.size + l.pad, at.y + l.size + l.label + l.pad),
+                        theme::overlay::LOUPE_BACKGROUND, theme::px(LOUPE_ROUNDING));
     const int cx = editor_->hoverX();
     const int cy = editor_->hoverY();
     for (int j = 0; j < LOUPE_CELLS; j++) {
         for (int i = 0; i < LOUPE_CELLS; i++) {
-            ImVec2 p0(at.x + static_cast<float>(i) * LOUPE_CELL,
-                      at.y + static_cast<float>(j) * LOUPE_CELL);
-            ImVec2 p1(p0.x + LOUPE_CELL, p0.y + LOUPE_CELL);
+            ImVec2 p0(at.x + static_cast<float>(i) * l.cell, at.y + static_cast<float>(j) * l.cell);
+            ImVec2 p1(p0.x + l.cell, p0.y + l.cell);
             std::optional<Rgba> color = eyedropper_pick_sprite(
                 editor_->sprite(), editor_->frame(), cx - LOUPE_RADIUS + i, cy - LOUPE_RADIUS + j);
             if (!color) {
@@ -783,9 +790,9 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
             draw->AddRectFilled(p0, p1, IM_COL32(color->r, color->g, color->b, color->a));
         }
     }
-    ImVec2 c0(at.x + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL,
-              at.y + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL);
-    ImVec2 c1(c0.x + LOUPE_CELL, c0.y + LOUPE_CELL);
+    ImVec2 c0(at.x + static_cast<float>(LOUPE_RADIUS) * l.cell,
+              at.y + static_cast<float>(LOUPE_RADIUS) * l.cell);
+    ImVec2 c1(c0.x + l.cell, c0.y + l.cell);
     draw->AddRect(ImVec2(c0.x - 1.0f, c0.y - 1.0f), ImVec2(c1.x + 1.0f, c1.y + 1.0f),
                   theme::overlay::LINE_DARK);
     draw->AddRect(c0, c1, theme::overlay::LINE_LIGHT);
@@ -797,7 +804,8 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
     } else {
         std::snprintf(text, sizeof(text), "-");
     }
-    draw->AddText(ImVec2(at.x, at.y + LOUPE_SIZE + 3.0f), theme::overlay::LINE_LIGHT, text);
+    draw->AddText(ImVec2(at.x, at.y + l.size + theme::px(LOUPE_TEXT_TOP)),
+                  theme::overlay::LINE_LIGHT, text);
 }
 
 /* Re-fits the sprite when asked to, or when the canvas was resized while it follows the window. */

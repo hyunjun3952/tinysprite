@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "editor.hpp"
+#include "imgui.h"
 #include "layer/layer_thumbnails.hpp"
 #include "panels.hpp"
 #include "slices_panel.hpp"
@@ -31,6 +32,11 @@ class LayersPanel
     void setEditor(Editor &editor);
 
     void show(const Panels &panels);
+
+    /* The box a layer's thumbnail is fitted into, and the height of a row, in whole pixels at the
+     * UI scale. */
+    static ImVec2 thumbnailSize();
+    static float rowHeight();
 
     /* What the right-click menu of the list holds: `body` draws its menu items (the App passes the
      * items of its Layer menu, so the two cannot differ). With none set there is no menu. */

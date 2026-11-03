@@ -5,6 +5,7 @@
 #include "canvas.hpp"
 #include "editor.hpp"
 #include "minitest.hpp"
+#include "theme.hpp"
 #include "ui_harness.hpp"
 
 using test_ui::Harness;
@@ -169,6 +170,22 @@ TEST(a_short_middle_click_neither_picks_nor_pans)
     ASSERT_TRUE(f.editor->foreground() == before);
 }
 
+/* The eyedropper's loupe follows the UI scale like the rest of the UI (DESIGN.md: every pixel size
+ * goes through theme::px), so its label still fits under it at scale 2. */
+TEST(the_loupe_grows_with_the_ui_scale)
+{
+    theme::setScale(1.0f);
+    const LoupeLayout one = loupe_layout();
+    theme::setScale(2.0f);
+    const LoupeLayout two = loupe_layout();
+    theme::setScale(1.0f);
+    ASSERT_TRUE(two.cell == 2.0f * one.cell);
+    ASSERT_TRUE(two.size == 2.0f * one.size);
+    ASSERT_TRUE(two.label == 2.0f * one.label);
+    ASSERT_TRUE(two.gap == 2.0f * one.gap);
+    ASSERT_TRUE(two.pad == 2.0f * one.pad);
+}
+
 int main()
 {
     RUN(the_wheel_zooms_at_the_cursor);
@@ -180,5 +197,6 @@ int main()
     RUN(middle_drag_pans_the_view);
     RUN(a_long_middle_press_picks_the_color_under_the_cursor);
     RUN(a_short_middle_click_neither_picks_nor_pans);
+    RUN(the_loupe_grows_with_the_ui_scale);
     return TEST_SUMMARY();
 }

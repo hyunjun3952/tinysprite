@@ -25,7 +25,7 @@
 namespace
 {
 
-constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the two buttons after it */
+constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the two buttons after it, at scale 1 */
 
 constexpr float DOT_SIZE = 2.0f;    /* the side of one dot of the system window button */
 constexpr float DOT_SPACING = 3.0f; /* the gap between two of them */
@@ -51,6 +51,11 @@ constexpr const char *IMAGE_FILTER = ".png .jpg .jpeg .bmp .tga";
 constexpr const char *PALETTE_FILTER = ".gpl .hex";
 
 } // namespace
+
+float App::pathRowWidth()
+{
+    return theme::px(PATH_FIELD_WIDTH);
+}
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
  * typed without one ("" for the actions that read), what the toast says once it worked, the step
@@ -463,7 +468,7 @@ bool App::pathField()
     ImGui::SameLine();
     const float button = ImGui::GetFrameHeight();
     const float gap = ImGui::GetStyle().ItemSpacing.x;
-    ImGui::SetNextItemWidth(PATH_FIELD_WIDTH - 2.0f * button - 2.0f * gap);
+    ImGui::SetNextItemWidth(pathRowWidth() - 2.0f * button - 2.0f * gap);
     const bool enter = ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
                                         ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::SameLine();

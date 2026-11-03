@@ -259,6 +259,8 @@ class App
     /* An untitled tab nobody has edited: opening a file reuses it instead of adding a tab. */
     bool pristine(const Document &document) const;
     std::string documentTitle(const Document &document) const;
+    /* The width of a file dialog's path field with its two buttons, at the UI scale. */
+    static float pathRowWidth();
     /* The question of the unsaved-changes dialog, naming the document shown. */
     std::string unsavedQuestion() const;
     int findDocument(const std::string &path) const;

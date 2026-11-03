@@ -10,6 +10,18 @@
 #include "editor.hpp"
 #include "imgui.h"
 
+/* The eyedropper's loupe at the UI scale, in pixels: the side of one magnified cel, the side of
+ * the square of cels, the row of the hex value under it, the gap from the cursor and the padding
+ * around it. */
+struct LoupeLayout {
+    float cell;
+    float size;
+    float label;
+    float gap;
+    float pad;
+};
+LoupeLayout loupe_layout();
+
 /* The canvas window: draws the checkerboard, the composited sprite and the pixel grid, and turns
  * mouse input into zoom, pan and tool strokes. With the rulers on it also lets a drag from a ruler
  * pull out a guide, and a drag on a guide move it (back onto the ruler deletes it). */

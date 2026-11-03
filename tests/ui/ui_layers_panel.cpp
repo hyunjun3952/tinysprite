@@ -427,6 +427,22 @@ TEST(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere)
     ASSERT_TRUE(!f.layers->focused());
 }
 
+/* The thumbnails and the rows follow the UI scale (DESIGN.md: every pixel size goes through
+ * theme::px), so at scale 2 a thumbnail is not half the size of the icons beside it. */
+TEST(the_thumbnail_and_the_row_grow_with_the_ui_scale)
+{
+    theme::setScale(1.0f);
+    const ImVec2 thumbOne = LayersPanel::thumbnailSize();
+    const float rowOne = LayersPanel::rowHeight();
+    theme::setScale(2.0f);
+    const ImVec2 thumbTwo = LayersPanel::thumbnailSize();
+    const float rowTwo = LayersPanel::rowHeight();
+    theme::setScale(1.0f);
+    ASSERT_TRUE(rowOne == ROW_HEIGHT);
+    ASSERT_TRUE(thumbTwo.x == 2.0f * thumbOne.x && thumbTwo.y == 2.0f * thumbOne.y);
+    ASSERT_TRUE(rowTwo == 2.0f * rowOne);
+}
+
 int main()
 {
     RUN(double_click_edits_the_name_in_place);
@@ -448,5 +464,6 @@ int main()
     RUN(right_click_on_a_row_of_the_selection_keeps_the_whole_selection);
     RUN(right_click_on_the_empty_part_of_the_list_opens_the_menu_too);
     RUN(the_list_has_focus_after_a_click_on_it_and_loses_it_elsewhere);
+    RUN(the_thumbnail_and_the_row_grow_with_the_ui_scale);
     return TEST_SUMMARY();
 }

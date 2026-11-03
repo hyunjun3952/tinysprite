@@ -319,6 +319,11 @@ struct AppTestAccess {
             frame();
         }
     }
+    /* The width of a file dialog's path field and its two buttons. */
+    static float pathRowWidth()
+    {
+        return App::pathRowWidth();
+    }
     /* What the unsaved-changes dialog asks about the document shown. */
     std::string unsavedQuestion() const
     {
@@ -411,6 +416,18 @@ TEST(escape_and_enter_answer_the_recovery_dialog)
     ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
     ASSERT_EQ_INT(8, t.editor().sprite().width()); /* the copies are open */
     ASSERT_TRUE(!t.recoveryPending());
+}
+
+/* The path field of the file dialogs follows the UI scale, so at scale 2 it is not squeezed to
+ * a few characters by its two buttons, which do grow. */
+TEST(the_path_field_grows_with_the_ui_scale)
+{
+    theme::setScale(1.0f);
+    const float one = AppTestAccess::pathRowWidth();
+    theme::setScale(2.0f);
+    const float two = AppTestAccess::pathRowWidth();
+    theme::setScale(1.0f);
+    ASSERT_TRUE(two == 2.0f * one);
 }
 
 TEST(the_filter_dialog_opens_and_escape_closes_it)
@@ -1037,6 +1054,7 @@ int main()
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
     RUN(enter_in_the_unsaved_changes_dialog_saves_and_goes_on);
     RUN(escape_and_enter_answer_the_recovery_dialog);
+    RUN(the_path_field_grows_with_the_ui_scale);
     RUN(the_filter_dialog_opens_and_escape_closes_it);
     RUN(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes);
     RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);
