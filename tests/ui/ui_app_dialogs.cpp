@@ -319,6 +319,11 @@ struct AppTestAccess {
             frame();
         }
     }
+    /* What the unsaved-changes dialog asks about the document shown. */
+    std::string unsavedQuestion() const
+    {
+        return app.unsavedQuestion();
+    }
     /* Whether recovered copies wait for an answer (autosave writes none over them meanwhile). */
     bool recoveryPending() const
     {
@@ -376,6 +381,8 @@ TEST(enter_in_the_unsaved_changes_dialog_saves_and_goes_on)
     bool proceeded = false;
     t.askBeforeLeaving([&proceeded] { proceeded = true; });
     ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    /* it names what would be lost (DESIGN.md, Dialogs) */
+    ASSERT_TRUE(t.unsavedQuestion() == "Save the changes to cat.pxa?");
     t.pressEnter();
     ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
     ASSERT_TRUE(proceeded);

@@ -259,6 +259,8 @@ class App
     /* An untitled tab nobody has edited: opening a file reuses it instead of adding a tab. */
     bool pristine(const Document &document) const;
     std::string documentTitle(const Document &document) const;
+    /* The question of the unsaved-changes dialog, naming the document shown. */
+    std::string unsavedQuestion() const;
     int findDocument(const std::string &path) const;
     /* The tab that holds `editor`, or -1; and taking that tab away (it may have moved meanwhile).
      */

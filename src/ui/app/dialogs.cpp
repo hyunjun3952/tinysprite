@@ -40,6 +40,11 @@ void App::saveAndProceed()
     afterSave_ = std::move(proceed);
 }
 
+std::string App::unsavedQuestion() const
+{
+    return "Save the changes to " + documentTitle(doc()) + "?";
+}
+
 void App::confirmDialog()
 {
     static const char *const TITLE = "Unsaved changes";
@@ -51,7 +56,8 @@ void App::confirmDialog()
     if (!confirmShown_) {
         return;
     }
-    ImGui::TextUnformatted("The sprite has changes that are not saved.");
+    ImGui::TextUnformatted(unsavedQuestion().c_str());
+    ImGui::TextDisabled("Discard loses them.");
     const int clicked = theme::dialog_buttons({"Discard", "Cancel", "Save"}, 2);
     bool close = theme::dialog_cancelled(clicked, 1);
     if (clicked == 2) {
