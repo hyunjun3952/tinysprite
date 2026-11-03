@@ -18,7 +18,8 @@ constexpr int CHECKER_TILE = 8;
 constexpr float GRID_MIN_ZOOM = 4.0f;
 constexpr float FIT_MARGIN = 16.0f;
 constexpr double MIDDLE_HOLD_SECONDS = 0.25; /* a middle press this long is the eyedropper */
-constexpr float MIDDLE_DRAG_PIXELS = 4.0f;   /* ... unless the mouse moves this far first: pan */
+constexpr float PAN_KEEP = 32.0f;          /* the strip of the sprite a pan leaves on the canvas */
+constexpr float MIDDLE_DRAG_PIXELS = 4.0f; /* ... unless the mouse moves this far first: pan */
 
 void drawCheckerboard(ImDrawList *draw, float vx0, float vy0, float vx1, float vy1, float sx0,
                       float sy0)
@@ -298,6 +299,15 @@ void Canvas::keepSpriteInPlace(float ruler)
     lastRuler_ = ruler;
 }
 
+/* After a pan or a zoom: a strip of the sprite stays on the canvas (DESIGN.md, Responsive
+ * behavior), so it cannot be lost off screen. */
+void Canvas::keepSpriteInView()
+{
+    Editor::ViewState &view = editor_->view();
+    view.viewport.clampPan(editor_->sprite().width(), editor_->sprite().height(), view.canvas_w,
+                           view.canvas_h, theme::px(PAN_KEEP));
+}
+
 /* The width of the rulers on screen; 0 while they are hidden. */
 float Canvas::rulerSize() const
 {
@@ -477,6 +487,7 @@ bool Canvas::applyPan(ImVec2 pan, bool active)
     }
     editor_->view().viewport.pan_x += pan.x;
     editor_->view().viewport.pan_y += pan.y;
+    keepSpriteInView();
     editor_->view().auto_fit = false;
     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     return true;
@@ -515,6 +526,7 @@ void Canvas::handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active)
         float zoom =
             Viewport::nextZoom(editor_->view().viewport.zoom, io.MouseWheel > 0.0f ? 1 : -1);
         editor_->view().viewport.zoomAt(zoom, localX, localY);
+        keepSpriteInView();
         editor_->view().auto_fit = false;
     }
     /* Middle button: a long press without moving is the eyedropper (as long as it is held), a

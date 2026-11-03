@@ -70,6 +70,7 @@ class Canvas
     void handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active);
     float rulerSize() const;
     void keepSpriteInPlace(float ruler);
+    void keepSpriteInView();
     bool guideInput(ImVec2 origin, ImVec2 avail);
     bool pullGuide(bool vertical, ImVec2 origin);
     bool grabGuide(ImVec2 mouse, ImVec2 origin);

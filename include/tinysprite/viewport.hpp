@@ -34,6 +34,11 @@ struct Viewport {
      * of two below 1 (never below VIEWPORT_ZOOM_MIN). Does nothing if the sprite has no pixels. */
     void fit(int sprite_w, int sprite_h, float area_w, float area_h);
 
+    /* Moves the pan as little as possible so that, on each axis, at least `keep` screen pixels of a
+     * sprite_w x sprite_h sprite lie inside the area_w x area_h area (all of it when it is smaller
+     * than that on screen), so a pan or zoom never loses the sprite off screen. */
+    void clampPan(int sprite_w, int sprite_h, float area_w, float area_h, float keep);
+
     /* Next zoom level one step in/out (direction > 0 doubles, < 0 halves), clamped. */
     static float nextZoom(float zoom, int direction);
 };

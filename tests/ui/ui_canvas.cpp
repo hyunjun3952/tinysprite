@@ -186,6 +186,21 @@ TEST(the_loupe_grows_with_the_ui_scale)
     ASSERT_TRUE(two.pad == 2.0f * one.pad);
 }
 
+/* A pan can go far, but not so far that the sprite leaves the canvas: a strip of it stays in view
+ * (DESIGN.md, Responsive behavior: the viewport clamps). */
+TEST(a_far_pan_leaves_a_strip_of_the_sprite_on_the_canvas)
+{
+    Fixture f;
+    f.drag(ImGuiMouseButton_Middle, 400.0f, 300.0f, 5000.0f, 5000.0f);
+    const Viewport &v = f.editor->view().viewport;
+    const float keep = theme::px(32.0f) - 0.5f;
+    ASSERT_TRUE(v.pan_x <= f.editor->view().canvas_w - keep);
+    ASSERT_TRUE(v.pan_y <= f.editor->view().canvas_h - keep);
+    f.drag(ImGuiMouseButton_Middle, 400.0f, 300.0f, -5000.0f, -5000.0f);
+    ASSERT_TRUE(v.pan_x + 16.0f * v.zoom >= keep);
+    ASSERT_TRUE(v.pan_y + 16.0f * v.zoom >= keep);
+}
+
 int main()
 {
     RUN(the_wheel_zooms_at_the_cursor);
@@ -198,5 +213,6 @@ int main()
     RUN(a_long_middle_press_picks_the_color_under_the_cursor);
     RUN(a_short_middle_click_neither_picks_nor_pans);
     RUN(the_loupe_grows_with_the_ui_scale);
+    RUN(a_far_pan_leaves_a_strip_of_the_sprite_on_the_canvas);
     return TEST_SUMMARY();
 }

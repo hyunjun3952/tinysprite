@@ -1,5 +1,6 @@
 #include "tinysprite/viewport.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 static float clamp_zoom(float zoom)
@@ -93,4 +94,18 @@ void Viewport::fit(int sprite_w, int sprite_h, float area_w, float area_h)
     zoom = next;
     pan_x = (area_w - static_cast<float>(sprite_w) * zoom) / 2.0f;
     pan_y = (area_h - static_cast<float>(sprite_h) * zoom) / 2.0f;
+}
+
+/* The pan of one axis kept within the range that leaves `keep` pixels of a `size` wide sprite
+ * inside an `area` wide area. */
+static float clamp_axis(float pan, float size, float area, float keep)
+{
+    const float strip = std::min({keep, size, area});
+    return std::clamp(pan, strip - size, area - strip);
+}
+
+void Viewport::clampPan(int sprite_w, int sprite_h, float area_w, float area_h, float keep)
+{
+    pan_x = clamp_axis(pan_x, static_cast<float>(sprite_w) * zoom, area_w, keep);
+    pan_y = clamp_axis(pan_y, static_cast<float>(sprite_h) * zoom, area_h, keep);
 }
