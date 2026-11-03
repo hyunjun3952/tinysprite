@@ -2,7 +2,7 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED) # built with the SDL3 and SDL3 renderer backends (vcpkg.json)
 
 add_library(tinysprite_ui STATIC
-  editor/editor.cpp editor/detail.cpp editor/layers.cpp editor/frames.cpp editor/colors.cpp editor/selection.cpp editor/preferences.cpp editor/slices.cpp editor/filters.cpp editor/tilemaps.cpp
+  editor/editor.cpp editor/detail.cpp editor/layers.cpp editor/frames.cpp editor/colors.cpp editor/selection.cpp editor/preferences.cpp editor/slices.cpp editor/guides.cpp editor/filters.cpp editor/tilemaps.cpp
   drag.cpp tool.cpp script.cpp layer/layer_selection.cpp composite_surface.cpp command_table.cpp
   app/app.cpp app/menus.cpp app/commands.cpp app/shortcuts.cpp app/dialogs.cpp app/filter_dialog.cpp app/files.cpp app/file_browser_ui.cpp app/documents.cpp app/tabs.cpp app/split.cpp
   canvas.cpp ruler.cpp statusbar.cpp file/file_paths.cpp file/file_browser.cpp panels.cpp tools_panel.cpp layers_panel.cpp slices_panel.cpp tilemap/tilemap_panel.cpp tilemap/tilemap_window.cpp cel_texture.cpp timeline_panel.cpp layer/layer_thumbnails.cpp theme.cpp icons.cpp icon_bitmaps.cpp settings.cpp recovery.cpp)

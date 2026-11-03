@@ -47,10 +47,12 @@ class Canvas
         float x0, y0, x1, y1;
     };
 
-    /* A guide being dragged: which list it is in and where. */
+    /* A guide being dragged: which list it is in and where, and the guides as they were when the
+     * drag began (what the undo step goes back to). */
     struct GuideDrag {
-        bool vertical = false;
+        Guides before;
         int index = -1; /* -1: none */
+        bool vertical = false;
     };
 
     void handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active);

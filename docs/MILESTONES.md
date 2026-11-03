@@ -100,8 +100,12 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - **Rulers and guides** (View > Rulers, off by default): `Canvas` reserves a `RULER_THICKNESS` strip above and left of the
   canvas; a drag from a strip pulls out a guide (`Editor::view().guides`, snapped to cel edges), a drag on a guide moves
   it and letting go over the ruler deletes it. Guides can only be grabbed while the rulers are shown, so drawing next to
-  one never picks it up. They live on the `Sprite` (`guides.hpp`) and are saved in the optional `GUID` chunk (off-sprite ones are dropped on load), but they are not undoable; changing one calls `Editor::markModified`. `ruler.cpp` has the tick spacing,
-  snapping and picking; the interaction is tested in `tests/ui/ui_guides.cpp`.
+  one never picks it up. They live on the `Sprite` (`guides.hpp`) and are saved in the optional `GUID` chunk (off-sprite
+  ones are dropped on load). A drag edits them in place for the live picture and ends with `Editor::commitGuides`, which
+  puts the old set back and records the change through `guide_op_set` (`guide_ops.hpp`) as one undo step; View > Clear
+  guides is `Editor::clearGuides`. While a tool is being dragged no step can be recorded, so the edit stays and counts as
+  modified outside the history. `ruler.cpp` has the tick spacing, snapping and picking; the interaction is tested in
+  `tests/ui/ui_guides.cpp`.
 - **Dialogs**: the popup color is the panel color, so a dialog's buttons and fields show; `theme::dialog_buttons` puts the
   buttons under a hairline, the main one in the accent (red for Delete / Overwrite / Reset).
 - **Motion, kept small**: a toast fades in while rising 8 px, tool buttons and the layer eye / lock ease between states
@@ -226,7 +230,7 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   and columns outside it). A selection is a rectangle or one mask (no several-region selections).
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
 - No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
-- Guides are whole cel edges only and not undoable.
+- Guides are whole cel edges only.
 - Tilemaps are a canvas preview: not in the image exports, and a map has no layer order (see the backlog).
 - The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
 - Not done: HiDPI window flags (the UI scale follows the display's content scale instead).
@@ -252,7 +256,7 @@ a branch + PR of its own (`.rules`).
 4. **Writing Aseprite files**: only reading exists (milestone 24).
 5. **Small ones** (each a day or less):
    - save the open tabs and the split between runs (paths only; `settings.ini`);
-   - guides at a fraction of a cel, and undo for guides;
+   - guides at a fraction of a cel;
    - a preview of the turned brush tile in the tilemap window.
 
 ### Environment

@@ -300,15 +300,17 @@ float Canvas::rulerSize() const
 /*
  * Starts dragging a guide: the one at `index` of the vertical or horizontal list, or, for -1, a
  * new one that begins under the mouse. A new guide switches the guides on so it can be seen.
+ * The guides are edited in place while the mouse is down; dragGuide records one undo step when
+ * it is let go.
  */
 void Canvas::beginGuide(bool vertical, int index, ImVec2 origin)
 {
+    guideDrag_.before = editor_->guides();
     if (index < 0) {
         const Viewport &view = editor_->view().viewport;
         const ImVec2 mouse = ImGui::GetMousePos();
         std::vector<int> &lines =
             vertical ? editor_->guides().vertical : editor_->guides().horizontal;
-        editor_->markModified();
         lines.push_back(vertical ? guide_snap(view.pan_x, view.zoom, mouse.x - origin.x)
                                  : guide_snap(view.pan_y, view.zoom, mouse.y - origin.y));
         index = static_cast<int>(lines.size()) - 1;
@@ -320,7 +322,8 @@ void Canvas::beginGuide(bool vertical, int index, ImVec2 origin)
 
 /*
  * Follows the mouse with the guide being dragged, snapped to the cel edges. Letting go with the
- * mouse over the ruler (or past it) deletes the guide, which is how a guide is taken away.
+ * mouse over the ruler (or past it) deletes the guide, which is how a guide is taken away. The
+ * whole drag, however it ends, is one undo step.
  */
 void Canvas::dragGuide(ImVec2 origin)
 {
@@ -329,10 +332,10 @@ void Canvas::dragGuide(ImVec2 origin)
         guideDrag_.vertical ? editor_->guides().vertical : editor_->guides().horizontal;
     const auto index = static_cast<size_t>(guideDrag_.index);
     if (index >= lines.size()) {
+        editor_->commitGuides(guideDrag_.before);
         guideDrag_ = GuideDrag();
         return;
     }
-    editor_->markModified();
     const ImVec2 mouse = ImGui::GetMousePos();
     const float local = guideDrag_.vertical ? mouse.x - origin.x : mouse.y - origin.y;
     ImGui::SetMouseCursor(guideDrag_.vertical ? ImGuiMouseCursor_ResizeEW
@@ -344,6 +347,7 @@ void Canvas::dragGuide(ImVec2 origin)
     if (local < 0.0f) {
         lines.erase(lines.begin() + static_cast<std::ptrdiff_t>(index));
     }
+    editor_->commitGuides(guideDrag_.before);
     guideDrag_ = GuideDrag();
 }
 
@@ -377,6 +381,7 @@ bool Canvas::grabGuide(ImVec2 mouse, ImVec2 origin)
         return false;
     }
     guideDrag_ = over;
+    guideDrag_.before = editor_->guides();
     return true;
 }
 

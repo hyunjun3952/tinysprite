@@ -390,8 +390,7 @@ void App::viewMenu()
     ImGui::MenuItem("Guides", nullptr, &editor_->overlays().guides);
     theme::tip("Show the guide lines pulled out of the rulers.");
     if (ImGui::MenuItem("Clear guides", nullptr, false, !editor_->guides().empty())) {
-        editor_->guides().clear();
-        editor_->markModified();
+        editor_->clearGuides();
     }
     bool onion = editor_->onionEnabled();
     if (ImGui::MenuItem("Onion skin", nullptr, &onion)) {
