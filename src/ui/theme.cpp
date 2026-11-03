@@ -181,6 +181,11 @@ void apply()
     c[ImGuiCol_ScrollbarGrabHovered] = rgb(MUTE, 0.6f);
     c[ImGuiCol_ScrollbarGrabActive] = rgb(MUTE);
     c[ImGuiCol_CheckMark] = rgb(ACCENT);
+#if IMGUI_VERSION_NUM >= 19290
+    /* the box of a checked checkbox (ImGui 1.92.9 made it blue): the same soft fill, the check in
+     * the accent */
+    c[ImGuiCol_CheckboxSelectedBg] = rgb(CANVAS_SOFT);
+#endif
     c[ImGuiCol_SliderGrab] = rgb(BODY); /* slider_int draws its own */
     c[ImGuiCol_SliderGrabActive] = rgb(ACCENT);
     c[ImGuiCol_Button] = rgb(CANVAS_SOFT);
@@ -214,6 +219,12 @@ void apply()
     c[ImGuiCol_NavWindowingHighlight] = rgb(INK, 0.7f);
     c[ImGuiCol_NavWindowingDimBg] = rgb(0x000000, 0.4f);
     c[ImGuiCol_ModalWindowDimBg] = rgb(0x000000, 0.5f);
+    /* not drawn by the app today; set so nothing in the chrome can show ImGui's default hues */
+    c[ImGuiCol_TextLink] = rgb(INK);
+    c[ImGuiCol_PlotLines] = rgb(BODY);
+    c[ImGuiCol_PlotLinesHovered] = rgb(INK);
+    c[ImGuiCol_PlotHistogram] = rgb(BODY);
+    c[ImGuiCol_PlotHistogramHovered] = rgb(INK);
 
     style.ScaleAllSizes(uiScale);
     style.FontScaleMain = uiScale;

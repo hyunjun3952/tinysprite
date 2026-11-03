@@ -2,6 +2,7 @@
  * machine and scales as vector outlines instead of stretching a 13 px bitmap. */
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 #include "icons.hpp"
@@ -164,6 +165,27 @@ TEST(a_control_fill_is_visibly_lighter_than_the_panel)
     ImGui::DestroyContext();
 }
 
+/* The chrome has no hue (DESIGN.md, Colors): every ImGui color slot is a grey of the ladder or the
+ * off-white accent, including the slots a newer ImGui adds (1.92.9 added a checkbox fill that
+ * defaults to blue). A fully transparent slot may be anything. */
+TEST(no_imgui_color_slot_carries_a_hue)
+{
+    ImGui::CreateContext();
+    theme::apply();
+    const ImVec4 *c = ImGui::GetStyle().Colors;
+    constexpr float GREY =
+        0.08f; /* body-strong #d0d6e0, the coolest grey of the ladder, spreads 0.063 */
+    for (int i = 0; i < ImGuiCol_COUNT; i++) {
+        const ImVec4 &v = c[i];
+        const float spread = std::max({v.x, v.y, v.z}) - std::min({v.x, v.y, v.z});
+        if (v.w > 0.0f && spread > GREY) {
+            std::printf("  %s has a hue\n", ImGui::GetStyleColorName(i));
+        }
+        ASSERT_TRUE(v.w == 0.0f || spread <= GREY);
+    }
+    ImGui::DestroyContext();
+}
+
 /* A number is shown with its unit ("100 ms", "16 px") so it does not have to be guessed from the
  * label. The unit goes into an ImGui printf format, so a "%" in it must not be read as a
  * conversion. */
@@ -323,5 +345,6 @@ int main()
     RUN(a_hidden_layer_name_on_a_selected_row_stays_readable);
     RUN(a_capped_scale_keeps_the_one_that_was_asked_for);
     RUN(a_shortcut_hint_stays_readable_on_every_fill_a_button_takes);
+    RUN(no_imgui_color_slot_carries_a_hue);
     return TEST_SUMMARY();
 }
