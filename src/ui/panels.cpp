@@ -56,7 +56,9 @@ void Panels::reset()
              DockSide::Left, {sections::TOOLS, sections::SHAPES});
     panels_[static_cast<size_t>(PanelId::Layers)] =
         make("layers", "Inspector", INSPECTOR_WIDTH, INSPECTOR_MIN_WIDTH, INSPECTOR_MAX_WIDTH,
-             DockSide::Right, {sections::COLOR, sections::LAYERS, sections::PROPERTIES});
+             DockSide::Right,
+             {sections::COLOR, sections::LAYERS, sections::SLICES, sections::TILEMAPS,
+              sections::PROPERTIES});
 }
 
 bool Panels::sectionVisible(PanelId id, const char *name) const

@@ -1,6 +1,7 @@
 /* Drives the side panels with synthetic mouse input: dragging a docked panel's title bar pulls it
  * out, and dragging it to a window edge docks it again. Runs under SDL_VIDEODRIVER=dummy. */
 #include "minitest.hpp"
+#include "settings.hpp"
 #include "theme.hpp"
 #include "ui_harness.hpp"
 
@@ -93,6 +94,25 @@ TEST(sections_are_visible_until_hidden)
     panels.setSectionVisible(PanelId::Tools, sections::SHAPES, false);
     ASSERT_TRUE(!panels.sectionVisible(PanelId::Tools, sections::SHAPES));
     ASSERT_TRUE(panels.sectionVisible(PanelId::Tools, sections::TOOLS));
+}
+
+/* Window > Inspector > Sections lists every section of the Inspector, Slices and Tilemaps too,
+ * and hiding one is kept between runs. */
+TEST(slices_and_tilemaps_are_sections_that_can_be_hidden)
+{
+    Panels panels;
+    for (const char *name : {sections::SLICES, sections::TILEMAPS}) {
+        ASSERT_TRUE(panels.sectionVisible(PanelId::Layers, name));
+        panels.setSectionVisible(PanelId::Layers, name, false);
+        ASSERT_TRUE(!panels.sectionVisible(PanelId::Layers, name));
+    }
+    SettingsMap settings;
+    panels.store(settings);
+    Panels again;
+    again.load(settings);
+    ASSERT_TRUE(!again.sectionVisible(PanelId::Layers, sections::SLICES));
+    ASSERT_TRUE(!again.sectionVisible(PanelId::Layers, sections::TILEMAPS));
+    ASSERT_TRUE(again.sectionVisible(PanelId::Layers, sections::LAYERS));
 }
 
 TEST(layers_panel_has_a_properties_section_that_can_be_hidden)
@@ -277,6 +297,7 @@ int main()
     RUN(releasing_away_from_an_edge_leaves_the_panel_floating);
     RUN(a_hidden_panel_can_be_skipped_for_many_frames);
     RUN(sections_are_visible_until_hidden);
+    RUN(slices_and_tilemaps_are_sections_that_can_be_hidden);
     RUN(a_name_that_is_not_a_section_counts_as_visible);
     RUN(reset_shows_every_section_again);
     RUN(reset_keeps_the_widths_at_the_current_ui_scale);
