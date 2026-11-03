@@ -90,6 +90,14 @@ void LayersPanel::setEditor(Editor &editor)
     tilemaps_.setEditor(editor);
 }
 
+std::string linked_cels_text(int linked)
+{
+    if (linked == 0) {
+        return "none in this layer";
+    }
+    return std::to_string(linked) + (linked == 1 ? " cel" : " cels") + " in this layer";
+}
+
 ImVec2 LayersPanel::thumbnailSize()
 {
     return {wholePx(THUMB_WIDTH), wholePx(THUMB_HEIGHT)};
@@ -478,7 +486,8 @@ void LayersPanel::propertyInfo(const Layer &layer)
     }
     propertyValue("Size",
                   std::to_string(sprite.width()) + " x " + std::to_string(sprite.height()) + " px");
-    propertyValue("Frames", std::to_string(frames) + "  (" + std::to_string(linked) + " linked)");
+    propertyValue("Frames", std::to_string(frames));
+    propertyValue("Linked", linked_cels_text(linked));
     theme::tip("A linked cel is shared with another frame: drawing on one changes them all.");
     propertyValue("Palette", std::to_string(sprite.palette().count()) + " colors");
 }

@@ -2,6 +2,7 @@
  * frames, and the buttons edit them. */
 
 #include <memory>
+#include <string>
 
 #include "editor.hpp"
 
@@ -199,6 +200,15 @@ TEST(the_from_and_to_labels_come_before_their_fields)
     ASSERT_TRUE(toLabel.max.x <= toField.min.x);
 }
 
+/* The Play button turns into Stop while the animation runs; its tooltip says what a click does
+ * now, not what it did before. */
+TEST(the_play_tooltip_says_what_a_click_does_now)
+{
+    ASSERT_TRUE(std::string(play_button_tip(false)) ==
+                "Play the animation (Enter); any edit stops it");
+    ASSERT_TRUE(std::string(play_button_tip(true)) == "Stop the animation (Enter or Esc)");
+}
+
 /* Dragging the timeline's top edge, like a VS Code panel: the distance from the mouse to the bottom
  * of the canvas area is the height asked for; it is kept within the limits, and below `hideBelow`
  * the timeline folds away (its last height is remembered for when it comes back). */
@@ -245,5 +255,6 @@ int main()
     RUN(clicking_a_band_with_no_tag_selects_nothing);
     RUN(the_edit_row_draws_for_a_selected_tag);
     RUN(the_from_and_to_labels_come_before_their_fields);
+    RUN(the_play_tooltip_says_what_a_click_does_now);
     return TEST_SUMMARY();
 }

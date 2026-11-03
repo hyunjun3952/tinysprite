@@ -156,7 +156,7 @@ void TimelinePanel::toolbar()
     ImVec2 iconSize(theme::px(30.0f), ImGui::GetFrameHeight());
 
     if (theme::actionButton(editor_->playing() ? "Stop" : "Play",
-                            "Play the animation (Enter); any edit stops it", theme::px(54.0f))) {
+                            play_button_tip(editor_->playing()), theme::px(54.0f))) {
         editor_->togglePlayback();
     }
     ImGui::SameLine();
@@ -557,6 +557,12 @@ void TimelinePanel::grid()
     if (move.from >= 0 && move.from != move.to) {
         editor_->moveFrame(move.from, move.to);
     }
+}
+
+const char *play_button_tip(bool playing)
+{
+    return playing ? "Stop the animation (Enter or Esc)"
+                   : "Play the animation (Enter); any edit stops it";
 }
 
 TimelineSize timeline_drag(float requested, float previous, float minHeight, float maxHeight,

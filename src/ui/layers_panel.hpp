@@ -14,6 +14,10 @@
 #include "slices_panel.hpp"
 #include "tilemap/tilemap_panel.hpp"
 
+/* What the Properties say about the linked cels of the active layer: "none in this layer",
+ * "1 cel in this layer", "3 cels in this layer". */
+std::string linked_cels_text(int linked);
+
 /*
  * Layer list (top layer first): each row shows what is painted on the layer, with visibility and
  * lock toggles (double-click a row to rename it in place). Click selects a layer, Ctrl+click adds

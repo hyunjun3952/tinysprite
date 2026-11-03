@@ -204,7 +204,7 @@ One family, one size. Hierarchy comes from color (ink, body, mute) and position,
 - Font rendering is tuned for crispness at 14 px: whole-pixel glyph positions, one sample per pixel (`PixelSnapH`, `OversampleH/V = 1`). Do not enable oversampling or fractional positions; letter spacing goes uneven.
 - Numbers that count something show their unit (`100 ms`, `50%`), drawn inside the field so it stays while typing (`theme::input_int`, `theme::slider_int`).
 - Section headers are a hairline above and a plain chevron and title, not a filled bar (`theme::section`).
-- Strings are English, sentence case, no trailing period on labels; tooltips are short imperative phrases with the shortcut in parentheses ("Play the animation (Enter)").
+- Strings are English, sentence case, no trailing period on labels; tooltips are short imperative phrases with the shortcut in parentheses ("Play the animation (Enter)"). A tooltip of one phrase has no period; one that needs a second sentence (a disabled reason, a note on what an option changes) ends each sentence with a period. A tooltip says what a click does now (Play reads "Stop the animation" while playing).
 
 ## Layout
 

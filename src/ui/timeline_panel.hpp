@@ -14,6 +14,9 @@
  * it, a bar one that shares its pixels with another frame (a linked cel), and dragging a frame
  * number onto another one moves the frame there. A row above the frame
  * numbers shows the tags as colored bands; clicking one selects it for editing and for playback. */
+/* The tooltip of the Play button, which reads Stop while `playing`. */
+const char *play_button_tip(bool playing);
+
 /* What dragging the timeline's top edge means (like a VS Code panel). `requested` is the distance
  * from the mouse to the bottom of the canvas area; it is kept between `minHeight` and `maxHeight`
  * (the minimum wins if the window is too short for it), and below `hideBelow` the timeline folds
