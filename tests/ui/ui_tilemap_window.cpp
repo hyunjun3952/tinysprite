@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "editor.hpp"
+#include "imgui_internal.h"
 #include "minitest.hpp"
 #include "tilemap/tilemap_window.hpp"
 #include "ui_harness.hpp"
@@ -114,6 +115,16 @@ TEST(a_map_of_another_tileset_gets_the_picture_of_its_own_tile)
     ASSERT_EQ_INT(4, TilemapWindowTestAccess::brushWidth(f.window));
 }
 
+/* A floating window has no collapse arrow: ImGui draws it as a filled triangle, which DESIGN.md
+ * leaves out (chevrons only), and every other window of the app turns it off. */
+TEST(the_tilemap_window_has_no_collapse_arrow)
+{
+    Fixture f;
+    const ImGuiWindow *window = ImGui::FindWindowByName("Tilemap");
+    ASSERT_TRUE(window != nullptr);
+    ASSERT_TRUE((window->Flags & ImGuiWindowFlags_NoCollapse) != 0);
+}
+
 int main()
 {
     RUN(the_brush_tile_is_shown_as_a_picture_of_one_tile);
@@ -121,5 +132,6 @@ int main()
     RUN(the_eraser_has_no_brush_picture);
     RUN(picking_another_tile_updates_the_picture);
     RUN(a_map_of_another_tileset_gets_the_picture_of_its_own_tile);
+    RUN(the_tilemap_window_has_no_collapse_arrow);
     return TEST_SUMMARY();
 }

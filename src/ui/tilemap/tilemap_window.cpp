@@ -299,7 +299,7 @@ void TilemapWindow::show(SDL_Renderer *renderer, Editor &editor)
         return;
     }
     ImGui::SetNextWindowSize(ImVec2(theme::px(520.0f), theme::px(460.0f)), ImGuiCond_FirstUseEver);
-    const bool visible = ImGui::Begin("Tilemap", &open);
+    const bool visible = ImGui::Begin("Tilemap", &open, ImGuiWindowFlags_NoCollapse);
     focused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     if (focused_) {
         tileKeys(editor);
