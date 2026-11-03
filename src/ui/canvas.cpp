@@ -281,13 +281,19 @@ void Canvas::setEditor(Editor &editor)
 
 /*
  * The canvas origin moves by the ruler's width when the rulers are shown or hidden; the pan is
- * kept in step so the sprite stays where it is on screen.
+ * kept in step so the sprite stays where it is on screen. The canvas shrinks or grows by the same
+ * width, which updateFit must not take for a resize of the window (a fitted sprite would be fitted
+ * again and move), so the size it compares with changes too.
  */
 void Canvas::keepSpriteInPlace(float ruler)
 {
     if (lastRuler_ >= 0.0f && ruler != lastRuler_) {
-        editor_->view().viewport.pan_x -= ruler - lastRuler_;
-        editor_->view().viewport.pan_y -= ruler - lastRuler_;
+        const float change = ruler - lastRuler_;
+        Editor::ViewState &view = editor_->view();
+        view.viewport.pan_x -= change;
+        view.viewport.pan_y -= change;
+        view.canvas_w -= change;
+        view.canvas_h -= change;
     }
     lastRuler_ = ruler;
 }

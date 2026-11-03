@@ -84,6 +84,24 @@ TEST(toggling_the_rulers_keeps_the_sprite_where_it_is)
     ASSERT_TRUE(std::fabs(f.ruler + f.view().pan_y - top) < 0.5f);
 }
 
+/* The same for the view fitted to the canvas: the canvas is smaller by the ruler, which must not
+ * be taken for a resize that fits the sprite again (it moved by half a ruler). */
+TEST(toggling_the_rulers_keeps_a_fitted_sprite_where_it_is)
+{
+    Fixture f(false);
+    ASSERT_TRUE(f.editor->view().auto_fit);
+    const float left = CANVAS_X + f.view().pan_x;
+    const float top = f.view().pan_y;
+    const float zoom = f.view().zoom;
+    f.editor->overlays().rulers = true;
+    for (int i = 0; i < 3; i++) {
+        f.h.frame(400, 300, false);
+    }
+    ASSERT_TRUE(f.view().zoom == zoom);
+    ASSERT_TRUE(std::fabs(CANVAS_X + f.ruler + f.view().pan_x - left) < 0.5f);
+    ASSERT_TRUE(std::fabs(f.ruler + f.view().pan_y - top) < 0.5f);
+}
+
 TEST(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers)
 {
     Fixture f;
@@ -244,6 +262,7 @@ int main()
 {
     RUN(ticks_are_a_round_number_of_cels_and_stay_apart_on_screen);
     RUN(toggling_the_rulers_keeps_the_sprite_where_it_is);
+    RUN(toggling_the_rulers_keeps_a_fitted_sprite_where_it_is);
     RUN(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers);
     RUN(a_guide_snaps_to_the_nearest_cel_edge);
     RUN(a_guide_is_picked_only_within_reach_and_the_nearest_wins);
