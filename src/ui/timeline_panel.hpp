@@ -58,6 +58,9 @@ class TimelinePanel
     Rect cellRect(int layer, int frame) const;
     Rect headerRect(int frame) const;
     Rect tagCellRect(int frame) const;
+    /* Where the selected tag's From (or `to`: To) label, or its field, was drawn in the last
+     * show(); a zero rectangle if no tag is selected. */
+    Rect tagRangeRect(bool to, bool label) const;
 
   private:
     void toolbar();
@@ -92,6 +95,7 @@ class TimelinePanel
     std::vector<Rect> tagCells_; /* the tag row, per frame */
     char tagName_[TAG_NAME_MAX + 1] = "";
     bool tagNameActive_ = false; /* the name field is being edited: keep its text */
+    Rect tagRange_[2][2] = {};   /* [From, To][label, field] as last drawn, for tests */
     int drawnFrames_ = 0;
 };
 

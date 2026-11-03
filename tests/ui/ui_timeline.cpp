@@ -180,6 +180,25 @@ TEST(the_edit_row_draws_for_a_selected_tag)
     f.h.frame(0.0f, 0.0f, false); /* the edit row is drawn for the selected tag without asserting */
 }
 
+/* The selected tag's range reads "From [n] To [m]": each label sits before its field, as in the
+ * options bar, not after it (ImGui puts an item's label on its right). */
+TEST(the_from_and_to_labels_come_before_their_fields)
+{
+    Fixture f;
+    f.editor->addTag();
+    for (int i = 0; i < 3; i++) {
+        f.h.frame(0.0f, 0.0f, false);
+    }
+    TimelinePanel::Rect fromLabel = f.timeline->tagRangeRect(false, true);
+    TimelinePanel::Rect fromField = f.timeline->tagRangeRect(false, false);
+    TimelinePanel::Rect toLabel = f.timeline->tagRangeRect(true, true);
+    TimelinePanel::Rect toField = f.timeline->tagRangeRect(true, false);
+    ASSERT_TRUE(fromLabel.max.x > fromLabel.min.x); /* drawn */
+    ASSERT_TRUE(fromLabel.max.x <= fromField.min.x);
+    ASSERT_TRUE(fromField.max.x <= toLabel.min.x);
+    ASSERT_TRUE(toLabel.max.x <= toField.min.x);
+}
+
 /* Dragging the timeline's top edge, like a VS Code panel: the distance from the mouse to the bottom
  * of the canvas area is the height asked for; it is kept within the limits, and below `hideBelow`
  * the timeline folds away (its last height is remembered for when it comes back). */
@@ -225,5 +244,6 @@ int main()
     RUN(clicking_a_tag_band_selects_the_tag_and_again_deselects_it);
     RUN(clicking_a_band_with_no_tag_selects_nothing);
     RUN(the_edit_row_draws_for_a_selected_tag);
+    RUN(the_from_and_to_labels_come_before_their_fields);
     return TEST_SUMMARY();
 }

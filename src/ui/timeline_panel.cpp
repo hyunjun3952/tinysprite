@@ -118,6 +118,11 @@ bool TimelinePanel::filled(int layer, int frame) const
                    static_cast<size_t>(frame)] != 0;
 }
 
+TimelinePanel::Rect TimelinePanel::tagRangeRect(bool to, bool label) const
+{
+    return tagRange_[to ? 1 : 0][label ? 0 : 1];
+}
+
 TimelinePanel::Rect TimelinePanel::cellRect(int layer, int frame) const
 {
     if (layer < 0 || frame < 0 || frame >= drawnFrames_) {
@@ -295,6 +300,7 @@ void TimelinePanel::tagControls()
         editor_->addTag();
     }
     int selected = editor_->selectedTag();
+    tagRange_[0][0] = tagRange_[0][1] = tagRange_[1][0] = tagRange_[1][1] = Rect{};
     if (selected < 0 || selected >= static_cast<int>(sprite.tags().size())) {
         const char *hint = tagHint(sprite.tags().size());
         if (hint != nullptr) {
@@ -310,22 +316,28 @@ void TimelinePanel::tagControls()
 
     changed |= tagNameField(tag);
 
-    auto frameField = [&](const char *id, int &value) {
-        int shown = value + 1;
+    /* "From [n]": the label before its field, as in the options bar */
+    auto frameField = [&](int which, const char *label, const char *id, int &value) {
         ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", label);
+        tagRange_[which][0] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
+        ImGui::SameLine();
+        int shown = value + 1;
         ImGui::SetNextItemWidth(theme::px(60.0f));
         bool edited = ImGui::InputInt(id, &shown, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue) ||
                       ImGui::IsItemDeactivatedAfterEdit();
+        tagRange_[which][1] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
         if (edited) {
             value = std::clamp(shown, 1, frames) - 1;
         }
         return edited;
     };
-    if (frameField("From##tag", tag.from)) {
+    if (frameField(0, "From", "##tag_from", tag.from)) {
         tag.to = std::max(tag.to, tag.from);
         changed = true;
     }
-    if (frameField("To##tag", tag.to)) {
+    if (frameField(1, "To", "##tag_to", tag.to)) {
         tag.from = std::min(tag.from, tag.to);
         changed = true;
     }
