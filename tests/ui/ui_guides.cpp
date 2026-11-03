@@ -84,6 +84,24 @@ TEST(toggling_the_rulers_keeps_the_sprite_where_it_is)
     ASSERT_TRUE(std::fabs(f.ruler + f.view().pan_y - top) < 0.5f);
 }
 
+/* The same for the view fitted to the canvas: the canvas is smaller by the ruler, which must not
+ * be taken for a resize that fits the sprite again (it moved by half a ruler). */
+TEST(toggling_the_rulers_keeps_a_fitted_sprite_where_it_is)
+{
+    Fixture f(false);
+    ASSERT_TRUE(f.editor->view().auto_fit);
+    const float left = CANVAS_X + f.view().pan_x;
+    const float top = f.view().pan_y;
+    const float zoom = f.view().zoom;
+    f.editor->overlays().rulers = true;
+    for (int i = 0; i < 3; i++) {
+        f.h.frame(400, 300, false);
+    }
+    ASSERT_TRUE(f.view().zoom == zoom);
+    ASSERT_TRUE(std::fabs(CANVAS_X + f.ruler + f.view().pan_x - left) < 0.5f);
+    ASSERT_TRUE(std::fabs(f.ruler + f.view().pan_y - top) < 0.5f);
+}
+
 TEST(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers)
 {
     Fixture f;
@@ -119,8 +137,8 @@ TEST(dragging_from_the_top_ruler_makes_a_horizontal_guide)
     ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
     ASSERT_EQ_INT(f.edgeAtY(300), f.editor->guides().horizontal[0]);
     ASSERT_TRUE(f.editor->guides().vertical.empty());
-    ASSERT_TRUE(!f.editor->history().canUndo());     /* the drag drew nothing */
-    ASSERT_TRUE(f.editor->modifiedOutsideHistory()); /* but the file differs from the saved one */
+    ASSERT_TRUE(f.editor->history().canUndo()); /* the whole drag is one undo step */
+    ASSERT_TRUE(!f.editor->modifiedOutsideHistory());
     std::optional<Sprite> saved = pxa_decode(pxa_encode(f.editor->sprite()));
     ASSERT_TRUE(saved.has_value());
     if (saved) {
@@ -145,6 +163,8 @@ TEST(a_guide_dragged_back_onto_the_ruler_is_deleted)
                     static_cast<float>(f.editor->guides().horizontal[0]) * f.view().zoom;
     f.h.drag(500, y, 500, f.ruler / 2.0f);
     ASSERT_TRUE(f.editor->guides().empty());
+    f.editor->undo(); /* the delete is a step of its own: the guide comes back where it was */
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
 }
 
 TEST(an_existing_guide_is_moved_by_dragging_it)
@@ -155,6 +175,69 @@ TEST(an_existing_guide_is_moved_by_dragging_it)
     f.h.drag(500, y, 500, y + 3.0f * f.view().zoom);
     ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
     ASSERT_EQ_INT(7, f.editor->guides().horizontal[0]);
+    f.editor->undo();
+    ASSERT_EQ_INT(4, f.editor->guides().horizontal[0]);
+    f.editor->redo();
+    ASSERT_EQ_INT(7, f.editor->guides().horizontal[0]);
+}
+
+TEST(a_new_guide_is_undone_and_redone_with_the_drag_that_made_it)
+{
+    Fixture f;
+    f.h.drag(500, f.ruler / 2.0f, 500, 300);
+    const int edge = f.editor->guides().horizontal[0];
+    f.editor->undo();
+    ASSERT_TRUE(f.editor->guides().empty());
+    ASSERT_TRUE(!f.editor->history().canUndo());
+    f.editor->redo();
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
+    ASSERT_EQ_INT(edge, f.editor->guides().horizontal[0]);
+}
+
+TEST(a_click_on_a_guide_that_does_not_move_it_records_nothing)
+{
+    Fixture f;
+    f.editor->guides().horizontal.push_back(4);
+    const float y = f.ruler + f.view().pan_y + 4.0f * f.view().zoom;
+    const uint64_t revision = f.editor->documentRevision();
+    f.h.drag(500, y, 500, y);
+    ASSERT_EQ_INT(4, f.editor->guides().horizontal[0]);
+    ASSERT_TRUE(!f.editor->history().canUndo());
+    ASSERT_TRUE(f.editor->documentRevision() == revision);
+}
+
+TEST(clearing_the_guides_is_one_step_that_undo_brings_back)
+{
+    Fixture f;
+    f.editor->guides().horizontal.push_back(4);
+    f.editor->guides().vertical.push_back(2);
+    f.editor->clearGuides();
+    ASSERT_TRUE(f.editor->guides().empty());
+    ASSERT_TRUE(f.editor->history().canUndo());
+    f.editor->undo();
+    ASSERT_EQ_INT(4, f.editor->guides().horizontal[0]);
+    ASSERT_EQ_INT(2, f.editor->guides().vertical[0]);
+}
+
+TEST(guides_changed_during_a_stroke_are_kept_and_count_as_a_change_outside_the_history)
+{
+    Fixture f;
+    f.editor->history().beginStroke(*f.editor->sprite().layer(0)->cel(0));
+    f.editor->guides().horizontal.push_back(3);
+    f.editor->commitGuides(Guides{});
+    ASSERT_EQ_INT(1, static_cast<int>(f.editor->guides().horizontal.size()));
+    if (!f.editor->guides().horizontal.empty()) {
+        ASSERT_EQ_INT(3, f.editor->guides().horizontal[0]);
+    }
+    ASSERT_TRUE(f.editor->modifiedOutsideHistory());
+    f.editor->history().cancelStroke();
+    ASSERT_TRUE(!f.editor->history().canUndo());
+}
+
+TEST(clearing_no_guides_records_nothing)
+{
+    Fixture f;
+    f.editor->clearGuides();
     ASSERT_TRUE(!f.editor->history().canUndo());
 }
 
@@ -179,6 +262,7 @@ int main()
 {
     RUN(ticks_are_a_round_number_of_cels_and_stay_apart_on_screen);
     RUN(toggling_the_rulers_keeps_the_sprite_where_it_is);
+    RUN(toggling_the_rulers_keeps_a_fitted_sprite_where_it_is);
     RUN(a_far_pan_and_a_tiny_zoom_still_draw_the_rulers);
     RUN(a_guide_snaps_to_the_nearest_cel_edge);
     RUN(a_guide_is_picked_only_within_reach_and_the_nearest_wins);
@@ -186,6 +270,11 @@ int main()
     RUN(dragging_from_the_left_ruler_makes_a_vertical_guide);
     RUN(a_guide_dragged_back_onto_the_ruler_is_deleted);
     RUN(an_existing_guide_is_moved_by_dragging_it);
+    RUN(a_new_guide_is_undone_and_redone_with_the_drag_that_made_it);
+    RUN(a_click_on_a_guide_that_does_not_move_it_records_nothing);
+    RUN(clearing_the_guides_is_one_step_that_undo_brings_back);
+    RUN(guides_changed_during_a_stroke_are_kept_and_count_as_a_change_outside_the_history);
+    RUN(clearing_no_guides_records_nothing);
     RUN(without_rulers_a_drag_at_the_edge_draws_and_makes_no_guide);
     RUN(hidden_rulers_do_not_take_a_guide_from_the_pencil);
     return TEST_SUMMARY();

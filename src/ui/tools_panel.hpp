@@ -61,6 +61,8 @@ class ToolsPanel
     void paletteSwatches();
     void resetDialog();
 
+    friend struct ToolsPanelTestAccess; /* tests/ui open the reset question */
+
     Editor *editor_;         /* the document shown; changed by setEditor */
     bool openReset_ = false; /* the confirmation still has to be opened */
     bool dialogOpen_ = false;

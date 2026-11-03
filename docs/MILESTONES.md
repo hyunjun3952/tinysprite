@@ -29,7 +29,9 @@ the backlog at the end. Rules: `.rules`. How the code is put together: [ARCHITEC
       `FRAM` chunk.
 - [x] **10. Timeline and playback**: a current frame and a `Playback` advanced by `tick()`; a strip with a cel grid, frame
       buttons, duration and play mode; `,` `.` `Enter` and a Frame menu.
-- [x] **11. Onion skin**: `composite_onion` draws the neighbouring frames tinted and fading under the current one.
+- [x] **11. Onion skin**: `composite_onion` draws the neighbouring frames tinted and fading under the current one, or (the
+      default, "On top") over it, each ghost made only of the layers that change, so an opaque background neither hides
+      the ghosts nor tints the whole sprite.
 - [x] **12. Tags**: named frame ranges with a direction (`tag_ops.hpp`, `TAGS`); a selected tag limits playback.
 - [x] **13. Linked cels**: frames of a layer share one cel (`cel_ops.hpp`, `LINK`).
 - [x] **14. Export**: `gif_encode` (our own LZW encoder) and `spritesheet_render`, with File menu dialogs; animated GIF import.
@@ -62,7 +64,8 @@ the backlog at the end. Rules: `.rules`. How the code is put together: [ARCHITEC
       `offsetx` / `offsety` follow it). The top three bits of a cell are Tiled's flip flags (`TILE_FLIP_X`, `TILE_FLIP_Y`,
       `TILE_TRANSPOSE`, the last only for square tiles); `tile_flipped` / `tile_rotated` compose them as 2 x 2 matrices,
       `tile_pixel` samples a turned tile for the canvas, the tilemap window and `tilemap_render`, and the `.tmj` ids carry
-      the same bits. The window has Flip H, Flip V and Turn buttons. An older reader drops all tile data of a file that
+      the same bits. The window has Flip H, Flip V and Turn buttons, and a small picture of the brush tile as they left it
+      (`tile_render`, drawn by `TilemapWindow::brushPreview`). An older reader drops all tile data of a file that
       has a turned cell (it is all or nothing), but keeps the pixels.
 - [x] **24. Aseprite import**: `aseprite_decode` / `aseprite_load`: image layers (name, visibility, lock, opacity, the blend
       modes this editor has), cels (offset, opacity baked into alpha, links), RGBA / grayscale / indexed color, durations,
@@ -79,8 +82,11 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   texts).
 - **Icons** are Material Symbols glyphs (a 4 KB subset) merged into the UI font, so they scale, take any color and are
   added by one codepoint. Each is centered by the ink of its glyph and drawn at the size that gives its ink the same
-  length (`icons::fitted_glyph_size`). The diamond, the folder and the slice are drawn with lines (not in the set). 16 x 16
-  bitmaps were tried first and read worse next to the Material set.
+  length (`icons::fitted_glyph_size`). The folder and the chevrons are drawn with lines (not in the set). The tool and
+  shape icons and Replace are vector paths on a 20-unit grid (`icon_paths.cpp`) at a 2 px stroke: 16 x 16 bitmaps
+  (1 px tools, 2 px shapes) read thinner or heavier than the glyphs beside them and jumped in size between whole UI
+  scales. Gotcha: ImGui draws a whole-pixel-wide anti-aliased line from a baked texture that reads heavier, so
+  `drawPath` turns `ImDrawListFlags_AntiAliasedLinesUseTex` off while it draws.
 - **Font**: Geist Regular, a 23 KB subset, 14 px. stb_truetype does not hint, so glyphs are pixel-snapped with no
   oversampling (Inter looked soft at 14 px).
 - **Layout**: a 52 px tool bar, an options bar above the canvas, and an Inspector (Color with the recent colors, Layers,
@@ -100,8 +106,12 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - **Rulers and guides** (View > Rulers, off by default): `Canvas` reserves a `RULER_THICKNESS` strip above and left of the
   canvas; a drag from a strip pulls out a guide (`Editor::view().guides`, snapped to cel edges), a drag on a guide moves
   it and letting go over the ruler deletes it. Guides can only be grabbed while the rulers are shown, so drawing next to
-  one never picks it up. They live on the `Sprite` (`guides.hpp`) and are saved in the optional `GUID` chunk (off-sprite ones are dropped on load), but they are not undoable; changing one calls `Editor::markModified`. `ruler.cpp` has the tick spacing,
-  snapping and picking; the interaction is tested in `tests/ui/ui_guides.cpp`.
+  one never picks it up. They live on the `Sprite` (`guides.hpp`) and are saved in the optional `GUID` chunk (off-sprite
+  ones are dropped on load). A drag edits them in place for the live picture and ends with `Editor::commitGuides`, which
+  puts the old set back and records the change through `guide_op_set` (`guide_ops.hpp`) as one undo step; View > Clear
+  guides is `Editor::clearGuides`. While a tool is being dragged no step can be recorded, so the edit stays and counts as
+  modified outside the history. `ruler.cpp` has the tick spacing, snapping and picking; the interaction is tested in
+  `tests/ui/ui_guides.cpp`.
 - **Dialogs**: the popup color is the panel color, so a dialog's buttons and fields show; `theme::dialog_buttons` puts the
   buttons under a hairline, the main one in the accent (red for Delete / Overwrite / Reset).
 - **Motion, kept small**: a toast fades in while rising 8 px, tool buttons and the layer eye / lock ease between states
@@ -110,7 +120,10 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - **File dialog**: the path field holds the whole path (`~` is home); a folder button shows a search field and a folder
   tree (`app/file_browser_ui.cpp`): a folder's name picks it as the place to save to, its arrow opens it, a double click on
   a file in a dialog that reads opens it. The search goes 6 levels deep (300 hits); "Expand all" opens up to 4 levels (400
-  folders). Hidden names are left out.
+  folders). Hidden names are left out. A "..." button beside the folder button opens the operating system's file window
+  (`native_dialog.cpp`: `SDL_ShowOpenFileDialog` / `SDL_ShowSaveFileDialog`, filtered by the extensions the dialog lists);
+  the answer may arrive on another thread, so it waits in a mailbox that the path field takes from, and an answer that
+  outlived its dialog is dropped when the next one opens.
 - **Narrow windows**: the window opens inside the display's usable area with a minimum size (`settings.hpp`); docked
   panels are drawn narrower so the canvas keeps `PANELS_CANVAS_MIN`; the timeline scrolls sideways; the options bar has no
   scrollbar but marks a cut with a chevron (click it, or Shift + wheel, to scroll). A saved or detected UI scale is capped
@@ -121,6 +134,10 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   down / Close others / Close to the right); Ctrl+W, Ctrl+Tab. A split shows a second `Canvas` beside or under the first
   (ratio 0.15 to 0.85); a click in a pane makes its document active; an animation plays in every pane that is shown. Closing
   a tab destroys its editor a frame later (`App::retired_`), and a tab cannot be closed while a tool is being dragged.
+  The saved tabs and the split (direction, ratio, which pane was active) are kept between runs: `session.hpp` turns a
+  `Session` into the `session.*` keys of `settings.ini` and back (a damaged value falls back to its default),
+  `App::storeSession` / `restoreSession` (`app/documents.cpp`) fill it from the tabs and open them again. A file that is
+  gone is skipped, and restoring leaves the recent files in their order.
 - **Autosave** keeps one copy per document with unsaved changes (`recovery_<serial>.pxa` / `.path`); a recovered copy
   whose file is open in another tab becomes untitled, and Save As onto a file another tab has is refused.
 - **Layer selection**: a click selects one layer, Ctrl+click adds or removes one (the last one stays), Shift+click selects a
@@ -203,6 +220,14 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 
 - A UI audit (headless): icon ink lengths made equal, the UI scale capped to the display, a chevron on a cut-off options
   bar, readable shortcut hints while pressed, and the tile picker colors moved to `theme::overlay`.
+- A second UI audit (headless, every scenario of the ui-audit catalog): the script driver gained press / release, wheel,
+  drop, resize and `--window`; Enter presses a dialog's primary button and the recovery question can be left with Esc;
+  the tag range reads "From n To m"; ImGui 1.92.9's blue checkbox is grey; the palette Reset says Ctrl+Z restores it;
+  the unsaved-changes question names the file; short lists do not scroll; thumbnails, the loupe and the path field follow
+  the UI scale; onion skin ghosts can go over an opaque background ("On top", the default); overlapping tags get lanes;
+  a pan keeps a strip of the sprite on the canvas; the rulers no longer refit a fitted sprite; many tabs scroll instead
+  of shrinking to "s..."; the help window wraps; Slices and Tilemaps are in Window > Sections; disabled icons are mute;
+  and the tool and shape icons are vector paths (see Icons above).
 - An audit of the comments against the code found real bugs, now fixed: a refused `insertFrame` took the frame's cels,
   `tilemap_render` refused a map whose tileset slot was not 0, `image_import` could not open a Korean file name on
   Windows, and removed layers and frames weighed 0 bytes in the history limit.
@@ -225,10 +250,12 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
 - Rasterizers clip no pixels; the caller bounds-checks (filled ones take an optional clip rect that only skips fill rows
   and columns outside it). A selection is a rectangle or one mask (no several-region selections).
 - Cels are RGBA only (indexed color is deferred); the palette holds at most 256 colors.
-- No native file chooser (a path dialog instead); one UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
-- Guides are whole cel edges only and not undoable.
+- The path dialog is the main file chooser; its "..." button opens the system's own window (`native_dialog.hpp`; only the
+  headless case, where SDL answers with an error, has been run, no real window on any system yet). One UI font (a Geist subset) with Hangul merged in from a Noto Sans KR subset (KS X 1001 syllables only), no mono font and no other CJK glyphs.
+- Guides are whole cel edges only.
 - Tilemaps are a canvas preview: not in the image exports, and a map has no layer order (see the backlog).
-- The split and the open tabs are not saved between runs (the autosave recovery covers unsaved work).
+- Only tabs that were saved to a file come back in the next run (the autosave recovery covers unsaved work), at most
+  `SESSION_MAX_TABS`; the window's panels and size are saved, a tab's zoom and scroll are not.
 - Not done: HiDPI window flags (the UI scale follows the display's content scale instead).
 - The Windows (MinGW) job is not built locally.
 - A GIF has no partial transparency and at most 256 colors (the format's limit).
@@ -251,13 +278,11 @@ a branch + PR of its own (`.rules`).
    the `.pxa`.
 4. **Writing Aseprite files**: only reading exists (milestone 24).
 5. **Small ones** (each a day or less):
-   - save the open tabs and the split between runs (paths only; `settings.ini`);
-   - guides at a fraction of a cel, and undo for guides;
-   - a preview of the turned brush tile in the tilemap window.
+   - guides at a fraction of a cel.
 
 ### Environment
 
-- A native file chooser (a path dialog now), HiDPI window flags, a mono font and CJK glyphs beyond KS X 1001.
+- HiDPI window flags, a mono font and CJK glyphs beyond KS X 1001.
 - A local clang-tidy that works on Windows: the pip wheel (18.1.8) reads the MSVC headers and stops at `STL1000`. The
   workaround used so far is adding `-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH` and
   `-D"_MSVC_STL_DOOM_FUNCTION(mesg)=__builtin_trap()"` to the commands of the untracked `build/compile_commands.json`

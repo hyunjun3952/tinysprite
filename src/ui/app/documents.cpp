@@ -4,10 +4,12 @@
 #include <filesystem>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "app.hpp"
 #include "file/file_paths.hpp"
 #include "recovery.hpp"
+#include "session.hpp"
 #include "tinysprite/io.hpp"
 
 namespace
@@ -278,4 +280,68 @@ void App::quit()
         removeEditor(closing);
         quit();
     });
+}
+
+/*
+ * Writes the open tabs that were saved to a file, and the split view if both of its panes show
+ * one of them, into `settings` for the next run. An untitled tab has no file to open again; its
+ * unsaved changes are the autosave's job.
+ */
+void App::storeSession(SettingsMap &settings) const
+{
+    Session session;
+    std::vector<int> tab(docs_.size(), -1); /* the place each document has among the saved ones */
+    for (size_t i = 0; i < docs_.size(); i++) {
+        if (!docs_[i].path.empty() && session.paths.size() < SESSION_MAX_TABS) {
+            tab[i] = static_cast<int>(session.paths.size());
+            session.paths.push_back(docs_[i].path);
+        }
+    }
+    session.active = std::max(0, tab[static_cast<size_t>(active_)]);
+    if (split_) {
+        session.split = true;
+        session.sideBySide = splitSideBySide_;
+        session.ratio = splitRatio_;
+        session.activePane = activePane_;
+        const int first = indexOf(pane_[0]);
+        const int second = indexOf(pane_[1]);
+        session.firstPane = first >= 0 ? tab[static_cast<size_t>(first)] : -1;
+        session.secondPane = second >= 0 ? tab[static_cast<size_t>(second)] : -1;
+    }
+    session_store(settings, session);
+}
+
+/*
+ * Opens the files of the last run's tabs again and brings back the front tab and the split view.
+ * A file that cannot be opened any more is skipped, and a split whose files are not both back is
+ * left out. Opening them is not the user's choice of a file, so the recent files stay as they were.
+ */
+void App::restoreSession(const SettingsMap &settings)
+{
+    const Session session = session_load(settings);
+    if (session.paths.empty()) {
+        return;
+    }
+    const std::vector<std::string> recent = recent_;
+    std::vector<int> tab(session.paths.size(), -1); /* the document each remembered tab became */
+    for (size_t i = 0; i < session.paths.size(); i++) {
+        if (openPath(session.paths[i])) {
+            tab[i] = findDocument(session.paths[i]);
+        }
+    }
+    recent_ = recent;
+    fileError_.clear();
+    if (session.split) {
+        const int first = tab[static_cast<size_t>(session.firstPane)];
+        const int second = tab[static_cast<size_t>(session.secondPane)];
+        if (first >= 0 && second >= 0 && first != second) {
+            activateDocument(first);
+            if (splitView(second, session.sideBySide)) {
+                splitRatio_ = session.ratio;
+                focusPane(session.activePane);
+                return;
+            }
+        }
+    }
+    activateDocument(tab[static_cast<size_t>(session.active)]);
 }

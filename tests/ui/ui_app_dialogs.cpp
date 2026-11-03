@@ -7,6 +7,8 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
+#include <optional>
 #include <string>
 
 #include "app.hpp"
@@ -14,6 +16,8 @@
 #include "imgui_impl_sdlrenderer3.h"
 #include "imgui_internal.h"
 #include "minitest.hpp"
+#include "native_dialog.hpp"
+#include "recovery.hpp"
 #include "theme.hpp"
 #include "timeline_panel.hpp"
 #include "tinysprite/io.hpp"
@@ -223,6 +227,14 @@ struct AppTestAccess {
     {
         return app.pathInput_;
     }
+    /* Opens the file dialog of `action` and lets a few frames run. */
+    void openFileDialog(App::FileAction action)
+    {
+        app.askForPath(action);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
     /* Opens "Save as" showing the folder list with `typed` in the path field. */
     void openSaveDialog(const std::string &typed)
     {
@@ -298,6 +310,58 @@ struct AppTestAccess {
         frame();
         frame();
     }
+    /* Asks before leaving the document, as closing it would; `proceed` runs once that is
+     * settled. */
+    void askBeforeLeaving(std::function<void()> proceed)
+    {
+        app.guardUnsaved(std::move(proceed));
+        for (int i = 0; i < 3; i++) {
+            frame();
+        }
+    }
+    /* Shows the keyboard shortcuts window, as F1 does. */
+    void showHelp()
+    {
+        app.showHelp_ = true;
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    }
+    bool helpShown() const
+    {
+        return app.showHelp_;
+    }
+    /* The width of a file dialog's path field and its two buttons. */
+    static float pathRowWidth()
+    {
+        return App::pathRowWidth();
+    }
+    /* What the unsaved-changes dialog asks about the document shown. */
+    std::string unsavedQuestion() const
+    {
+        return app.unsavedQuestion();
+    }
+    /* Whether recovered copies wait for an answer (autosave writes none over them meanwhile). */
+    bool recoveryPending() const
+    {
+        return !app.recovered_.empty();
+    }
+    /* Shows the recovery question for one untitled copy, as a start after a crash does. */
+    void askToRecover()
+    {
+        Recovered copy{Sprite(8, 8), "", 0};
+        app.recovered_.push_back(std::move(copy));
+        app.openRecover_ = true;
+        for (int i = 0; i < 3; i++) {
+            frame();
+        }
+    }
+    /* What a --script frame asks of the window before ImGui sees it (drop, resize). */
+    void script(const ScriptInput &input)
+    {
+        app.applyScriptWindow(input);
+        frame();
+    }
 };
 
 TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
@@ -316,6 +380,93 @@ TEST(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection)
     t.pressEscape();
     ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
     ASSERT_TRUE(editor.hasSelection());
+}
+
+/* Enter confirms a dialog (DESIGN.md, Dialogs): in "Unsaved changes" it saves, then goes on. */
+TEST(enter_in_the_unsaved_changes_dialog_saves_and_goes_on)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_unsaved_enter";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    const std::string file = (root / "cat.pxa").string();
+    ASSERT_TRUE(pxa_save(Sprite(8, 8), file));
+    ASSERT_TRUE(t.openPath(file));
+    t.editor().setFrameDuration(0, 250); /* an edit: the document is dirty */
+    bool proceeded = false;
+    t.askBeforeLeaving([&proceeded] { proceeded = true; });
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    /* it names what would be lost (DESIGN.md, Dialogs) */
+    ASSERT_TRUE(t.unsavedQuestion() == "Save the changes to cat.pxa?");
+    t.pressEnter();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    ASSERT_TRUE(proceeded);
+    ASSERT_TRUE(!t.dirty());
+    std::optional<Sprite> saved = pxa_load(file);
+    ASSERT_EQ_INT(250, saved ? saved->frameDuration(0) : -1);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
+/* Every modal can be left with Esc: the recovery question closes, opens nothing and keeps the
+ * copies pending for the next start; Enter recovers them. */
+TEST(escape_and_enter_answer_the_recovery_dialog)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.askToRecover();
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    t.pressEscape();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    ASSERT_EQ_INT(1, t.documents());
+    ASSERT_TRUE(t.recoveryPending());
+    t.askToRecover();
+    ASSERT_TRUE(ImGui::GetCurrentContext()->OpenPopupStack.Size > 0);
+    t.pressEnter();
+    ASSERT_EQ_INT(0, ImGui::GetCurrentContext()->OpenPopupStack.Size);
+    ASSERT_EQ_INT(8, t.editor().sprite().width()); /* the copies are open */
+    ASSERT_TRUE(!t.recoveryPending());
+}
+
+/* The path field of the file dialogs follows the UI scale, so at scale 2 it is not squeezed to
+ * a few characters by its two buttons, which do grow. */
+TEST(the_path_field_grows_with_the_ui_scale)
+{
+    theme::setScale(1.0f);
+    const float one = AppTestAccess::pathRowWidth();
+    theme::setScale(2.0f);
+    const float two = AppTestAccess::pathRowWidth();
+    theme::setScale(1.0f);
+    ASSERT_TRUE(two == 2.0f * one);
+}
+
+/* The help window shows every row whole (the descriptions used to run past its right edge) and,
+ * like the dialogs, closes with Esc. */
+TEST(the_help_window_fits_its_text_and_escape_closes_it)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.showHelp();
+    const ImGuiWindow *help = ImGui::FindWindowByName("Keyboard shortcuts");
+    ASSERT_TRUE(help != nullptr);
+    /* every column's text ends inside the table (a clipped column does not widen the window) */
+    ImPool<ImGuiTable> &tables = ImGui::GetCurrentContext()->Tables;
+    int checked = 0;
+    for (int n = 0; n < tables.GetMapSize(); n++) {
+        const ImGuiTable *table = tables.TryGetMapData(n);
+        if (table == nullptr || table->OuterWindow != help) {
+            continue;
+        }
+        for (const ImGuiTableColumn &column : table->Columns) {
+            ASSERT_TRUE(column.ContentMaxXUnfrozen <= table->InnerClipRect.Max.x + 1.0f);
+            checked++;
+        }
+    }
+    ASSERT_EQ_INT(2, checked);
+    t.pressEscape();
+    ASSERT_TRUE(!t.helpShown());
 }
 
 TEST(the_filter_dialog_opens_and_escape_closes_it)
@@ -767,6 +918,54 @@ TEST(opening_a_file_that_has_guides_shows_them)
     fs::remove_all(root, ignored);
 }
 
+/* A scripted drop opens the file as a dropped file does, and a scripted resize changes the window,
+ * so a headless audit can reach both. */
+TEST(a_script_drops_a_file_and_resizes_the_window)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    namespace fs = std::filesystem;
+    fs::path root = fs::temp_directory_path() / "tinysprite_script_drop";
+    fs::remove_all(root);
+    fs::create_directories(root);
+    const std::string file = (root / "dropped.pxa").string();
+    ASSERT_TRUE(pxa_save(Sprite(8, 8), file));
+    t.editor().addLayer(); /* an edit, so the drop opens a tab of its own */
+    ScriptInput drop;
+    drop.drop = file;
+    t.script(drop);
+    ASSERT_EQ_INT(2, t.documents());
+    ASSERT_EQ_INT(8, t.editor().sprite().width());
+    ScriptInput resize;
+    resize.resizeWidth = 900;
+    resize.resizeHeight = 600;
+    t.script(resize);
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(t.window(), &width, &height);
+    ASSERT_EQ_INT(900, width);
+    ASSERT_EQ_INT(600, height);
+    std::error_code ignored;
+    fs::remove_all(root, ignored);
+}
+
+/* --window is taken as given, even larger than the (dummy) display, like an explicit --scale. */
+TEST(a_window_size_asked_for_is_not_fitted_to_the_display)
+{
+    AppTestAccess t;
+    AppOptions options;
+    options.width = 16;
+    options.height = 16;
+    options.maxFrames = 1;
+    options.window = WindowSize{1920, 1260};
+    ASSERT_TRUE(t.app.init(options));
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(t.window(), &width, &height);
+    ASSERT_EQ_INT(1920, width);
+    ASSERT_EQ_INT(1260, height);
+}
+
 /* "New tab" of the New dialog takes the untouched untitled tab, as File > Open does, instead of
  * leaving an empty one behind; a tab that has been drawn on or has a file keeps its own. */
 TEST(the_new_dialog_reuses_an_untouched_untitled_tab)
@@ -856,14 +1055,46 @@ TEST(plain_keys_and_delete_wait_while_an_item_is_held_down)
     ASSERT_EQ_INT(255, cel.get(0, 0).a);
 }
 
+TEST(a_file_chosen_in_the_system_window_goes_into_the_path_field)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.openFileDialog(App::FileAction::Open);
+    const char *const chosen[] = {"/art/hero.pxa", nullptr};
+    native_dialog_finish(chosen);
+    t.frame();
+    t.frame();
+    ASSERT_TRUE(t.path() == "/art/hero.pxa");
+    t.frame();
+    ASSERT_TRUE(t.path() == "/art/hero.pxa"); /* taken once: typing over it is not undone */
+}
+
+TEST(an_answer_that_came_after_the_dialog_was_closed_does_not_fill_the_next_one)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    const char *const late[] = {"/art/late.pxa", nullptr};
+    native_dialog_finish(late); /* the dialog it was for is gone */
+    t.openFileDialog(App::FileAction::Open);
+    ASSERT_TRUE(t.path().find("late.pxa") == std::string::npos);
+}
+
 int main()
 {
+    RUN(a_file_chosen_in_the_system_window_goes_into_the_path_field);
+    RUN(an_answer_that_came_after_the_dialog_was_closed_does_not_fill_the_next_one);
     RUN(the_tilemap_window_flips_and_turns_the_picked_tile_from_the_keyboard);
+    RUN(a_script_drops_a_file_and_resizes_the_window);
+    RUN(a_window_size_asked_for_is_not_fitted_to_the_display);
     RUN(the_new_dialog_reuses_an_untouched_untitled_tab);
     RUN(opening_a_file_that_has_guides_shows_them);
     RUN(expand_all_and_collapse_all_open_and_close_the_whole_tree);
     RUN(clicking_a_folder_of_the_file_dialog_puts_it_before_the_file_name);
     RUN(escape_that_closes_the_unsaved_changes_dialog_keeps_the_selection);
+    RUN(enter_in_the_unsaved_changes_dialog_saves_and_goes_on);
+    RUN(escape_and_enter_answer_the_recovery_dialog);
+    RUN(the_path_field_grows_with_the_ui_scale);
+    RUN(the_help_window_fits_its_text_and_escape_closes_it);
     RUN(the_filter_dialog_opens_and_escape_closes_it);
     RUN(the_tilemap_window_draws_a_map_and_follows_undo_and_tab_changes);
     RUN(applying_the_filter_dialog_recolors_the_cel_in_one_undo_step);

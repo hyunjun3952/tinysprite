@@ -112,8 +112,9 @@ class Editor
         float canvas_h = 0.0f;
     };
 
-    /* The guides dragged out of the rulers. They are saved with the sprite but are not an undo
-     * step: whoever changes them calls markModified. */
+    /* The guides dragged out of the rulers, saved with the sprite. A drag edits them in place so
+     * the canvas shows them live, and ends with commitGuides; anything else changes them through
+     * commitGuides or clearGuides, so every change is an undo step. */
     Guides &guides()
     {
         return sprite_.guides();
@@ -122,6 +123,13 @@ class Editor
     {
         return sprite_.guides();
     }
+    /* The guides were edited in place from `before` to what guides() holds now: puts `before`
+     * back and records the change as one undo step (nothing when they are equal). While a tool is
+     * being dragged no step can be recorded, so the new guides stay and the document counts as
+     * modified outside the history. */
+    void commitGuides(const Guides &before);
+    /* Removes every guide as one undo step; nothing is recorded when there are none. */
+    void clearGuides();
 
     ToolKind tool() const
     {
@@ -847,7 +855,7 @@ class Editor
     PlayMode playMode_ = PlayMode::Forward;
     int selectedTag_ = -1;
     bool onionOn_ = false;
-    OnionSkin onion_;
+    OnionSkin onion_ = {1, 1, 96, true}; /* on top: an opaque background would hide the ghosts */
     ToolOptions options_;
     ViewState view_;
     int hoverX_ = 0;

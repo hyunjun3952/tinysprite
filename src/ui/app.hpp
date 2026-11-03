@@ -35,9 +35,11 @@ struct AppOptions {
     float uiScale = 0.0f;   /* the UI scale to use instead of the saved / detected one; 0 = none */
     std::string configDir;  /* keep settings / autosave here (also in a --frames run); "" = the
                              * user's config directory, which a --frames run leaves alone */
-    std::string scriptPath; /* the --script file, "" for none: input commands run instead of the
-                             * user (a smoke run like --frames, and it ends with the script) */
-    Script script;          /* the commands of scriptPath, parsed */
+    WindowSize window = {0, 0}; /* --window: the size to open with, taken as given; 0 x 0 = the
+                                 * saved or default size, fitted to the display */
+    std::string scriptPath;     /* the --script file, "" for none: input commands run instead of the
+                                 * user (a smoke run like --frames, and it ends with the script) */
+    Script script;              /* the commands of scriptPath, parsed */
 };
 
 /* Owns the window, the ImGui context and the editor, and runs the main loop. Everything it sets up
@@ -89,14 +91,21 @@ class App
     static constexpr float TREE_ROW_PADDING = 5.0f; /* above and below a row of the file tree */
     static constexpr size_t RECENT_MAX = 10;        /* entries kept in the recent files list */
 
-    bool createWindow(int width, int height);
+    /* Opens the window at `width` x `height`, shrunk to the display first when `fit`. */
+    bool createWindow(int width, int height, bool fit);
     bool initImGui();
     bool startEditor(const AppOptions &options);
     void helpShortcut();
     void deleteShortcut();
     void pollEvents();
+    /* What a --script frame asks of the window before ImGui sees it: a file dropped, a new size. */
+    void applyScriptWindow(const ScriptInput &input);
     void buildUi();
     void loadSettings(const SettingsMap &settings);
+    /* The tabs and the split view kept in the settings between runs (app/documents.cpp): storing
+     * writes the saved documents that are open, restoring opens them again. */
+    void storeSession(SettingsMap &settings) const;
+    void restoreSession(const SettingsMap &settings);
 
     void setUiScale(float scale);
     float maxUiScale() const; /* the largest scale whose minimum window fits this display */
@@ -164,6 +173,7 @@ class App
     bool runFileAction(const FileActionInfo &info, const std::string &path);
     void closeFileDialog();
     bool pathField();
+    void systemFileWindow();
 
     /* The folder tree and search under the path field (app/file_browser_ui.cpp): a folder's name
      * picks it as the place to save to and its arrow opens it, a file goes into the path field.
@@ -249,6 +259,10 @@ class App
     /* An untitled tab nobody has edited: opening a file reuses it instead of adding a tab. */
     bool pristine(const Document &document) const;
     std::string documentTitle(const Document &document) const;
+    /* The width of a file dialog's path field with its two buttons, at the UI scale. */
+    static float pathRowWidth();
+    /* The question of the unsaved-changes dialog, naming the document shown. */
+    std::string unsavedQuestion() const;
     int findDocument(const std::string &path) const;
     /* The tab that holds `editor`, or -1; and taking that tab away (it may have moved meanwhile).
      */

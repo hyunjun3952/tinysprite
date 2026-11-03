@@ -67,6 +67,15 @@ WindowSize window_fit(WindowSize wanted, WindowSize usable);
  * all visible), at UI scale `scale`. */
 WindowSize window_minimum(float scale);
 
+/* The bounds of a window size read from the settings or from --window, in pixels. */
+inline constexpr int WINDOW_SIZE_MIN_WIDTH = 320;
+inline constexpr int WINDOW_SIZE_MIN_HEIGHT = 240;
+inline constexpr int WINDOW_SIZE_MAX = 16384;
+
+/* Reads "WIDTHxHEIGHT" (an x or an X between two whole numbers, nothing else) into `size`. Returns
+ * false, leaving `size` alone, for any other text or a side outside the bounds above. */
+bool parse_window_size(const char *text, WindowSize &size);
+
 /* The largest UI scale whose minimum window (window_minimum) still fits inside `usable`, never
  * below 1. An unknown area (0 x 0) allows any scale. */
 float window_max_scale(WindowSize usable);

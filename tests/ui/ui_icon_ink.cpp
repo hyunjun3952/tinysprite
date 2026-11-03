@@ -50,79 +50,102 @@ TEST(every_glyph_icon_has_about_the_same_ink_length_at_every_scale)
     ImGui::DestroyContext();
 }
 
-/* The tool icons are bitmaps on one 16 x 16 grid, so their size does not depend on a font. */
-static bool tool_icon(icons::Icon icon)
+/* The tool and shape icons (and the palette's Replace) are drawn as strokes on one 20-unit grid,
+ * so their size and weight do not depend on a font and follow any UI scale smoothly. */
+static bool path_icon(icons::Icon icon)
 {
-    return icons::bitmap(icon) != nullptr;
+    return icons::path(icon) != nullptr;
 }
 
-TEST(only_the_tool_and_shape_icons_are_bitmaps)
+TEST(only_the_tool_shape_and_replace_icons_are_paths)
 {
-    ASSERT_TRUE(tool_icon(icons::Icon::Pencil));
-    ASSERT_TRUE(tool_icon(icons::Icon::Slice));
-    ASSERT_TRUE(tool_icon(icons::Icon::Diamond));
-    ASSERT_TRUE(!tool_icon(icons::Icon::Eye));
-    ASSERT_TRUE(!tool_icon(icons::Icon::Folder));
+    int paths = 0;
+    for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
+        paths += path_icon(static_cast<icons::Icon>(i)) ? 1 : 0;
+    }
+    ASSERT_EQ_INT(18, paths);
+    ASSERT_TRUE(path_icon(icons::Icon::Pencil));
+    ASSERT_TRUE(path_icon(icons::Icon::Slice));
+    ASSERT_TRUE(path_icon(icons::Icon::Diamond));
+    ASSERT_TRUE(path_icon(icons::Icon::Replace));
+    ASSERT_TRUE(!path_icon(icons::Icon::Eye));
+    ASSERT_TRUE(!path_icon(icons::Icon::Folder));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Pencil));
 }
 
-TEST(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box)
+/* Every path stays inside its grid and its ink has about the 15-unit length of the glyph icons
+ * (INK_TARGET): from 13 (the line, a thin diagonal) to 18 (the lasso and its tail). */
+TEST(every_path_fits_its_grid_with_about_the_same_ink_length)
 {
-    int bitmaps = 0;
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
-        const icons::Bitmap *bitmap = icons::bitmap(static_cast<icons::Icon>(i));
-        if (bitmap == nullptr) {
+        const icons::Path *path = icons::path(static_cast<icons::Icon>(i));
+        if (path == nullptr) {
             continue;
         }
-        bitmaps++;
-        int x0 = icons::BITMAP_SIZE;
-        int y0 = icons::BITMAP_SIZE;
-        int x1 = -1;
-        int y1 = -1;
-        for (int y = 0; y < icons::BITMAP_SIZE; y++) {
-            ASSERT_EQ_INT(icons::BITMAP_SIZE, static_cast<int>(std::strlen(bitmap->rows[y])));
-            for (int x = 0; x < icons::BITMAP_SIZE; x++) {
-                if (bitmap->rows[y][x] == '#') {
-                    x0 = std::min(x0, x);
-                    y0 = std::min(y0, y);
-                    x1 = std::max(x1, x);
-                    y1 = std::max(y1, y);
-                }
-            }
-        }
-        ASSERT_TRUE(x1 >= 0);
-        ASSERT_TRUE(std::max(x1 - x0, y1 - y0) + 1 >= 11);
-        ASSERT_TRUE(std::max(x1 - x0, y1 - y0) + 1 <= 14);
+        const icons::InkBox box = icons::path_ink(*path);
+        ASSERT_TRUE(box.x0 >= 0.0f && box.y0 >= 0.0f);
+        ASSERT_TRUE(box.x1 <= icons::PATH_GRID && box.y1 <= icons::PATH_GRID);
+        const float longest = std::max(box.x1 - box.x0, box.y1 - box.y0);
+        ASSERT_TRUE(longest >= 13.0f && longest <= 18.0f);
     }
-    ASSERT_EQ_INT(17, bitmaps);
 }
 
-/* The closed shapes are outlines of one weight: an empty middle (the star was a solid fill beside
- * outlines) and about the same amount of ink (the diagonal ones had a stroke of 1.4 pixels where
- * the square and the circle have 2, so they looked thin). */
-TEST(the_closed_shapes_are_outlines_of_one_weight)
+/* The closed shapes are outlines (no filled part), all of the one stroke weight. */
+TEST(the_closed_shapes_are_outlines)
 {
     using icons::Icon;
     const Icon shapes[] = {Icon::Rect,    Icon::Ellipse, Icon::Triangle, Icon::Diamond,
                            Icon::Hexagon, Icon::Star,    Icon::Cross};
     for (Icon icon : shapes) {
-        const icons::Bitmap *bitmap = icons::bitmap(icon);
-        ASSERT_TRUE(bitmap != nullptr);
-        int ink = 0;
-        for (const char *row : bitmap->rows) {
-            ink += static_cast<int>(std::count(row, row + std::strlen(row), '#'));
+        const icons::Path *path = icons::path(icon);
+        ASSERT_TRUE(path != nullptr);
+        for (int s = 0; s < path->count; s++) {
+            ASSERT_TRUE(path->strokes[s].kind != icons::StrokeKind::Fill);
         }
-        ASSERT_TRUE(bitmap->rows[8][8] == '.'); /* the middle is empty: an outline, not a fill */
-        ASSERT_TRUE(ink >= 58 && ink <= 90);
     }
 }
 
-TEST(a_bitmap_cell_is_a_whole_number_of_pixels_and_at_least_one)
+/* One stroke weight for the whole set, at any scale (PATH_STROKE says why it is 2). */
+TEST(the_stroke_follows_the_ui_scale)
 {
-    ASSERT_TRUE(icons::bitmap_cell(1.0f) == 1.0f);
-    ASSERT_TRUE(icons::bitmap_cell(1.5f) == 2.0f);
-    ASSERT_TRUE(icons::bitmap_cell(2.0f) == 2.0f);
-    ASSERT_TRUE(icons::bitmap_cell(0.5f) == 1.0f);
+    ASSERT_TRUE(icons::path_stroke(1.0f) == icons::PATH_STROKE);
+    ASSERT_TRUE(icons::path_stroke(1.25f) == 1.25f * icons::PATH_STROKE);
+    ASSERT_TRUE(icons::path_stroke(2.0f) == 2.0f * icons::PATH_STROKE);
+}
+
+/* What is really drawn grows with the scale, also between whole scales (the bitmaps jumped from
+ * 16 to 32 pixels between 1.49 and 1.5): the drawn geometry of the pencil is about 15 px times
+ * the scale at 1, 1.25, 1.5, 2 and 3. */
+TEST(a_drawn_path_icon_grows_smoothly_with_the_scale)
+{
+    for (float scale : {1.0f, 1.25f, 1.5f, 2.0f, 3.0f}) {
+        test_ui::Harness h;
+        theme::setScale(scale);
+        ImVec2 lo(1e9f, 1e9f);
+        ImVec2 hi(-1e9f, -1e9f);
+        h.body = [&] {
+            ImGui::SetNextWindowPos(ImVec2(100.0f, 100.0f));
+            ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
+            ImGui::Begin("##icon_rig", nullptr, ImGuiWindowFlags_NoDecoration);
+            ImDrawList *list = ImGui::GetWindowDrawList();
+            const int first = list->VtxBuffer.Size;
+            icons::draw(list, icons::Icon::Rect, ImVec2(150.0f, 150.0f), ImVec2(250.0f, 250.0f),
+                        IM_COL32_WHITE);
+            for (int v = first; v < list->VtxBuffer.Size; v++) {
+                const ImDrawVert &vert = list->VtxBuffer[v];
+                if ((vert.col >> IM_COL32_A_SHIFT) == 0) {
+                    continue; /* the transparent edge of the anti-aliasing fringe */
+                }
+                lo = ImVec2(std::min(lo.x, vert.pos.x), std::min(lo.y, vert.pos.y));
+                hi = ImVec2(std::max(hi.x, vert.pos.x), std::max(hi.y, vert.pos.y));
+            }
+            ImGui::End();
+        };
+        h.frame(0.0f, 0.0f, false);
+        theme::setScale(1.0f);
+        const float longest = std::max(hi.x - lo.x, hi.y - lo.y) / scale;
+        ASSERT_TRUE(longest >= 13.5f && longest <= 15.5f); /* the square: 13 units and a stroke */
+    }
 }
 
 int main()
@@ -130,9 +153,10 @@ int main()
     RUN(the_fit_brings_the_longer_side_to_the_target);
     RUN(the_fit_is_limited_so_a_tiny_glyph_is_not_blown_up);
     RUN(every_glyph_icon_has_about_the_same_ink_length_at_every_scale);
-    RUN(only_the_tool_and_shape_icons_are_bitmaps);
-    RUN(every_bitmap_is_square_has_ink_and_stays_inside_a_14_pixel_box);
-    RUN(the_closed_shapes_are_outlines_of_one_weight);
-    RUN(a_bitmap_cell_is_a_whole_number_of_pixels_and_at_least_one);
+    RUN(only_the_tool_shape_and_replace_icons_are_paths);
+    RUN(every_path_fits_its_grid_with_about_the_same_ink_length);
+    RUN(the_closed_shapes_are_outlines);
+    RUN(the_stroke_follows_the_ui_scale);
+    RUN(a_drawn_path_icon_grows_smoothly_with_the_scale);
     return TEST_SUMMARY();
 }

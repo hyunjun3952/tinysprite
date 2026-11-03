@@ -224,6 +224,26 @@ WindowSize window_minimum(float scale)
                       static_cast<int>(std::lround(MIN_HEIGHT * scale))};
 }
 
+bool parse_window_size(const char *text, WindowSize &size)
+{
+    char *end = nullptr;
+    const long width = std::strtol(text, &end, 10);
+    if (end == text || (*end != 'x' && *end != 'X')) {
+        return false;
+    }
+    const char *rest = end + 1;
+    const long height = std::strtol(rest, &end, 10);
+    if (end == rest || *end != '\0') {
+        return false;
+    }
+    if (width < WINDOW_SIZE_MIN_WIDTH || width > WINDOW_SIZE_MAX ||
+        height < WINDOW_SIZE_MIN_HEIGHT || height > WINDOW_SIZE_MAX) {
+        return false;
+    }
+    size = WindowSize{static_cast<int>(width), static_cast<int>(height)};
+    return true;
+}
+
 float window_max_scale(WindowSize usable)
 {
     constexpr float NO_LIMIT = 1000.0f;

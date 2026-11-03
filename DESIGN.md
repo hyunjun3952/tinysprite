@@ -204,7 +204,7 @@ One family, one size. Hierarchy comes from color (ink, body, mute) and position,
 - Font rendering is tuned for crispness at 14 px: whole-pixel glyph positions, one sample per pixel (`PixelSnapH`, `OversampleH/V = 1`). Do not enable oversampling or fractional positions; letter spacing goes uneven.
 - Numbers that count something show their unit (`100 ms`, `50%`), drawn inside the field so it stays while typing (`theme::input_int`, `theme::slider_int`).
 - Section headers are a hairline above and a plain chevron and title, not a filled bar (`theme::section`).
-- Strings are English, sentence case, no trailing period on labels; tooltips are short imperative phrases with the shortcut in parentheses ("Play the animation (Enter)").
+- Strings are English, sentence case, no trailing period on labels; tooltips are short imperative phrases with the shortcut in parentheses ("Play the animation (Enter)"). A tooltip of one phrase has no period; one that needs a second sentence (a disabled reason, a note on what an option changes) ends each sentence with a period. A tooltip says what a click does now (Play reads "Stop the animation" while playing).
 
 ## Layout
 
@@ -256,7 +256,7 @@ No drop shadows. A popup is told from the panel behind it by its hairline border
 | `{rounded.card}` | 8 px | popups, modals, child areas |
 | `{rounded.full}` | pill / circle | the swap-colors button, dots |
 
-Icons are Material Symbols Outlined (unfilled), except the tool and shape icons, which are 16 x 16 pixel bitmaps (`icon_bitmaps.cpp`): shapes 12-14 px across with a 2 px stroke, tools a 1 px outline. Chevrons are drawn as two strokes (">" closed, "v" open), never as filled triangles.
+Icons are Material Symbols Outlined (unfilled), except the tool and shape icons and the palette's Replace, which are vector paths on a 20-unit grid (`icon_paths.cpp`, one unit a pixel at scale 1): outlines of one 2-unit stroke drawn with ImGui's geometric anti-aliasing, ink about 15 units long like the glyphs, so they read as one set and grow smoothly at any scale (no jump between 1.49 and 1.5). Only the bucket's drop, the wand's sparkle and Replace's new color are filled. Chevrons are drawn as two strokes (">" closed, "v" open), never as filled triangles. A disabled icon is plain `{colors.mute}` (`icons::disabled_color`), not a faded one.
 
 ## Components
 
@@ -291,7 +291,7 @@ Icons are Material Symbols Outlined (unfilled), except the tool and shape icons,
 - The cursor shows the tool's footprint. The loupe (14 px cells) follows the mouse with a 22 px gap.
 
 ### Dialogs
-- Modal, auto-sized, fade in 0.12 s over a 50% dim. Title, content, hairline, buttons right-aligned. Esc cancels, Enter confirms, and neither is eaten by a focused text field.
+- Modal, auto-sized, fade in 0.12 s over a 50% dim. Title, content, hairline, buttons right-aligned. Esc cancels, Enter presses the primary button, and neither is eaten by a focused text field (`theme::dialog_buttons`). The keyboard focus starts on the primary; once the user moves it to another button with Tab, Enter presses that one.
 - Destructive confirmations use the danger primary and name the thing destroyed ("Discard changes to cat.pxa?"). Overwriting a file always asks first.
 - A dropped file is ignored while a dialog is open.
 

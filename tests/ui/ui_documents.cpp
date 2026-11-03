@@ -1,5 +1,7 @@
 /* The open documents of the app (tabs): each has its own Editor, a file is opened in a tab, closing
  * asks about unsaved changes and the tool, colors and clipboard follow the user between tabs. */
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -13,6 +15,7 @@
 #include "imgui_internal.h"
 #include "minitest.hpp"
 #include "recovery.hpp"
+#include "theme.hpp"
 #include "tinysprite/io.hpp"
 
 struct AppTestAccess {
@@ -95,6 +98,11 @@ struct AppTestAccess {
     bool dirty() const
     {
         return app.dirty();
+    }
+    void resizeWindow(int width, int height)
+    {
+        SDL_SetWindowSize(app.window_, width, height);
+        SDL_SyncWindow(app.window_);
     }
     bool addBlank(int width, int height)
     {
@@ -217,6 +225,26 @@ struct AppTestAccess {
     int activePane() const
     {
         return app.activePane_;
+    }
+    bool sideBySide() const
+    {
+        return app.splitSideBySide_;
+    }
+    float splitRatio() const
+    {
+        return app.splitRatio_;
+    }
+    void setSplitRatio(float ratio)
+    {
+        app.splitRatio_ = ratio;
+    }
+    void focusPane(int pane)
+    {
+        app.focusPane(pane);
+    }
+    const std::vector<std::string> &recent() const
+    {
+        return app.recent_;
     }
     /* The index of the document shown in pane `pane` (the first pane shows the active one when
      * there is no split). */
@@ -405,6 +433,22 @@ TEST(an_aseprite_file_opens_as_an_untitled_document)
     std::filesystem::remove(path);
 }
 
+/* A file that is neither a sprite nor an image is refused with a message that names it and says
+ * what can be opened (it used to be "Cannot read <whole path>"). */
+TEST(opening_a_file_that_is_not_an_image_says_what_can_be_opened)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    const std::string path = "tinysprite_doc_notes.txt";
+    std::ofstream(path) << "not an image\n";
+    ASSERT_TRUE(!t.open(path));
+    const std::string error = t.error();
+    ASSERT_TRUE(error.find("tinysprite_doc_notes.txt") != std::string::npos);
+    ASSERT_TRUE(error.find(".pxa") != std::string::npos);
+    ASSERT_TRUE(error.find(".png") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST(an_edited_untitled_tab_is_kept_when_a_file_is_opened)
 {
     AppTestAccess t;
@@ -512,6 +556,44 @@ TEST(quitting_with_nothing_unsaved_leaves_at_once)
     ASSERT_TRUE(t.addBlank(8, 8));
     t.quit();
     ASSERT_TRUE(!t.running());
+}
+
+/* Many tabs in a narrow window shrink only down to a width that still shows a few letters of the
+ * name, then the bar scrolls, and the active tab is always in view (DESIGN.md, Responsive
+ * behavior). They used to shrink until every name was "s...". */
+TEST(many_tabs_keep_a_readable_width_and_the_active_one_in_view)
+{
+    AppTestAccess t;
+    ASSERT_TRUE(t.start());
+    t.resizeWindow(800, 600);
+    for (int i = 0; i < 11; i++) {
+        ASSERT_TRUE(t.addBlank(8, 8));
+    }
+    for (int i = 0; i < 6; i++) {
+        t.frame();
+    }
+    ImPool<ImGuiTabBar> &bars = ImGui::GetCurrentContext()->TabBars;
+    int documents = 0;
+    for (int n = 0; n < bars.GetMapSize(); n++) {
+        const ImGuiTabBar *bar = bars.TryGetMapData(n);
+        if (bar == nullptr || bar->Tabs.Size < 12) {
+            continue;
+        }
+        for (const ImGuiTabItem &tab : bar->Tabs) {
+            if ((tab.Flags & ImGuiTabItemFlags_Button) != 0) {
+                continue; /* the "+" */
+            }
+            documents++;
+            /* not shrunk below its name or the minimum, whichever is narrower */
+            ASSERT_TRUE(tab.Width >= std::min(tab.ContentWidth, theme::px(100.0f)) - 1.0f);
+            if (tab.ID == bar->SelectedTabId) {
+                const float left = bar->BarRect.Min.x + tab.Offset - bar->ScrollingAnim;
+                ASSERT_TRUE(left >= bar->BarRect.Min.x - 1.0f);
+                ASSERT_TRUE(left + tab.Width <= bar->BarRect.Max.x + 1.0f);
+            }
+        }
+    }
+    ASSERT_EQ_INT(12, documents);
 }
 
 TEST(tabs_can_be_reordered_and_the_active_one_stays_the_same_document)
@@ -952,9 +1034,231 @@ TEST(an_autosave_is_written_again_only_after_a_change)
     fs::remove_all(dir);
 }
 
+/* A folder with three small .pxa files for the session tests. */
+struct SessionFiles {
+    std::filesystem::path dir;
+    std::string a;
+    std::string b;
+    std::string c;
+
+    explicit SessionFiles(const char *name) : dir(std::filesystem::temp_directory_path() / name)
+    {
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        a = save("a.pxa", 5);
+        b = save("b.pxa", 6);
+        c = save("c.pxa", 7);
+    }
+    ~SessionFiles()
+    {
+        std::filesystem::remove_all(dir);
+    }
+    SessionFiles(const SessionFiles &) = delete;
+    SessionFiles &operator=(const SessionFiles &) = delete;
+    SessionFiles(SessionFiles &&) = delete;
+    SessionFiles &operator=(SessionFiles &&) = delete;
+
+    std::string save(const char *name, int size) const
+    {
+        const std::string path = (dir / name).string();
+        Sprite sprite(size, size);
+        pxa_save(sprite, path);
+        return path;
+    }
+    std::string config() const
+    {
+        return (dir / "config").string();
+    }
+};
+
+TEST(the_open_files_and_the_front_tab_come_back_in_the_next_run)
+{
+    SessionFiles files("tinysprite_session_tabs_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        ASSERT_TRUE(t.open(files.c));
+        t.activate(1);
+        t.shutdown();
+    }
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(3, t.count());
+    if (t.count() != 3) {
+        return;
+    }
+    ASSERT_TRUE(t.title(0) == "a.pxa");
+    ASSERT_TRUE(t.title(1) == "b.pxa");
+    ASSERT_TRUE(t.title(2) == "c.pxa");
+    ASSERT_EQ_INT(1, t.active());
+    ASSERT_EQ_INT(6, t.editor().sprite().width());
+    ASSERT_TRUE(!t.split());
+}
+
+TEST(a_split_view_comes_back_with_its_direction_ratio_and_active_pane)
+{
+    SessionFiles files("tinysprite_session_split_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        ASSERT_TRUE(t.open(files.c));
+        t.activate(2);
+        ASSERT_TRUE(t.splitView(false)); /* c on top, the next tab (a) under it */
+        t.setSplitRatio(0.3f);
+        t.focusPane(1);
+        ASSERT_EQ_INT(0, t.active());
+        t.shutdown();
+    }
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(3, t.count());
+    ASSERT_TRUE(t.split());
+    if (t.count() != 3 || !t.split()) {
+        return;
+    }
+    ASSERT_TRUE(!t.sideBySide());
+    ASSERT_EQ_INT(2, t.paneDoc(0));
+    ASSERT_EQ_INT(0, t.paneDoc(1));
+    ASSERT_EQ_INT(1, t.activePane());
+    ASSERT_EQ_INT(0, t.active());
+    ASSERT_TRUE(std::fabs(t.splitRatio() - 0.3f) < 0.001f);
+}
+
+TEST(a_tab_that_was_never_saved_is_not_remembered)
+{
+    SessionFiles files("tinysprite_session_untitled_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.addBlank(8, 8));
+        t.shutdown();
+    }
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(1, t.count());
+    ASSERT_TRUE(t.title(0) == "a.pxa");
+}
+
+TEST(an_untitled_tab_in_front_of_the_files_does_not_shift_the_front_tab)
+{
+    SessionFiles files("tinysprite_session_shift_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        t.dot(1, 1); /* an edited untitled tab, so opening a file does not reuse it */
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        ASSERT_EQ_INT(3, t.count());
+        ASSERT_EQ_INT(2, t.active());
+        t.shutdown();
+    }
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(2, t.count());
+    if (t.count() != 2) {
+        return;
+    }
+    ASSERT_TRUE(t.title(t.active()) == "b.pxa");
+}
+
+TEST(a_file_that_is_gone_is_skipped_and_the_rest_open_without_an_error)
+{
+    SessionFiles files("tinysprite_session_gone_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        ASSERT_TRUE(t.open(files.c));
+        t.activate(2);
+        t.shutdown();
+    }
+    std::filesystem::remove(files.a);
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(2, t.count());
+    if (t.count() != 2) {
+        return;
+    }
+    ASSERT_TRUE(t.title(0) == "b.pxa");
+    ASSERT_EQ_INT(1, t.active()); /* c, still the front tab */
+    ASSERT_TRUE(t.error().empty());
+}
+
+TEST(a_split_with_a_file_that_is_gone_ends_up_as_a_single_view)
+{
+    SessionFiles files("tinysprite_session_split_gone_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        t.activate(0);
+        ASSERT_TRUE(t.splitView(true));
+        t.shutdown();
+    }
+    std::filesystem::remove(files.b);
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(1, t.count());
+    ASSERT_TRUE(!t.split());
+}
+
+TEST(restoring_the_tabs_leaves_the_recent_files_in_their_order)
+{
+    SessionFiles files("tinysprite_session_recent_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        ASSERT_TRUE(t.open(files.c)); /* the newest recent file ... */
+        t.close(2);                   /* ... whose tab is closed again */
+        t.shutdown();
+    }
+    AppTestAccess t;
+    ASSERT_TRUE(t.start(files.config()));
+    ASSERT_EQ_INT(2, t.count());
+    ASSERT_TRUE(t.recent().size() == 3);
+    if (t.recent().size() != 3) {
+        return;
+    }
+    ASSERT_TRUE(t.recent()[0] == files.c);
+}
+
+TEST(a_run_without_a_config_folder_neither_reads_nor_writes_a_session)
+{
+    SessionFiles files("tinysprite_session_none_test");
+    {
+        AppTestAccess t;
+        ASSERT_TRUE(t.start(files.config()));
+        ASSERT_TRUE(t.open(files.a));
+        ASSERT_TRUE(t.open(files.b));
+        t.shutdown();
+    }
+    AppTestAccess t;
+    ASSERT_TRUE(t.start()); /* a smoke run: the user's settings are left alone */
+    ASSERT_EQ_INT(1, t.count());
+    ASSERT_TRUE(t.title(0) == "untitled");
+}
+
 int main()
 {
+    RUN(the_open_files_and_the_front_tab_come_back_in_the_next_run);
+    RUN(a_split_view_comes_back_with_its_direction_ratio_and_active_pane);
+    RUN(a_tab_that_was_never_saved_is_not_remembered);
+    RUN(an_untitled_tab_in_front_of_the_files_does_not_shift_the_front_tab);
+    RUN(a_file_that_is_gone_is_skipped_and_the_rest_open_without_an_error);
+    RUN(a_split_with_a_file_that_is_gone_ends_up_as_a_single_view);
+    RUN(restoring_the_tabs_leaves_the_recent_files_in_their_order);
+    RUN(a_run_without_a_config_folder_neither_reads_nor_writes_a_session);
     RUN(an_aseprite_file_opens_as_an_untitled_document);
+    RUN(opening_a_file_that_is_not_an_image_says_what_can_be_opened);
     RUN(the_sheet_dialog_asks_before_overwriting_the_json_it_writes_beside_the_image);
     RUN(a_file_dropped_while_a_dialog_is_open_is_ignored);
     RUN(each_document_with_changes_gets_its_own_autosave_copy);
@@ -975,6 +1279,7 @@ int main()
     RUN(picking_a_tab_fills_the_active_pane_and_a_tab_in_the_other_pane_just_focuses_it);
     RUN(closing_a_tab_that_is_shown_in_a_pane_ends_the_split);
     RUN(closing_a_tab_that_is_not_shown_keeps_the_split);
+    RUN(many_tabs_keep_a_readable_width_and_the_active_one_in_view);
     RUN(tabs_can_be_reordered_and_the_active_one_stays_the_same_document);
     RUN(the_app_starts_with_one_untitled_document);
     RUN(a_new_document_is_a_new_tab_and_is_shown);

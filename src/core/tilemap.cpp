@@ -224,6 +224,16 @@ void drawTile(Cel &picture, const Tileset &tileset, uint32_t cell, int x, int y)
 
 } // namespace
 
+std::optional<Cel> tile_render(const Tileset &tileset, uint32_t cell)
+{
+    if (!tileset_valid(tileset) || tile_number(cell) == 0 || !tile_cell_valid(tileset, cell)) {
+        return std::nullopt;
+    }
+    Cel picture(tileset.tileWidth, tileset.tileHeight);
+    drawTile(picture, tileset, cell, 0, 0);
+    return picture;
+}
+
 std::optional<Cel> tilemap_render(const Tileset &tileset, const TileMap &map)
 {
     if (!tileset_valid(tileset) ||

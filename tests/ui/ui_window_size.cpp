@@ -58,6 +58,25 @@ TEST(an_unknown_screen_allows_every_scale)
     ASSERT_TRUE(window_max_scale(WindowSize{0, 0}) >= 3.0f);
 }
 
+/* --window WxH: a size taken as given (a headless run wants 1100 x 720 on a small display). */
+TEST(a_window_size_is_read_as_width_x_height)
+{
+    WindowSize size = {0, 0};
+    ASSERT_TRUE(parse_window_size("1100x720", size));
+    ASSERT_EQ_INT(1100, size.width);
+    ASSERT_EQ_INT(720, size.height);
+    ASSERT_TRUE(parse_window_size("1920X1260", size));
+    ASSERT_EQ_INT(1260, size.height);
+    size = {5, 6};
+    ASSERT_TRUE(!parse_window_size("1100", size));
+    ASSERT_TRUE(!parse_window_size("x720", size));
+    ASSERT_TRUE(!parse_window_size("1100x", size));
+    ASSERT_TRUE(!parse_window_size("1100x720px", size));
+    ASSERT_TRUE(!parse_window_size("100x720", size)); /* below the smallest window */
+    ASSERT_TRUE(!parse_window_size("99999x720", size));
+    ASSERT_EQ_INT(5, size.width); /* a refused text leaves it alone */
+}
+
 int main()
 {
     RUN(a_window_that_fits_is_left_alone);
@@ -67,5 +86,6 @@ int main()
     RUN(the_largest_scale_is_the_one_whose_minimum_window_still_fits_the_screen);
     RUN(a_screen_smaller_than_the_minimum_still_allows_scale_one);
     RUN(an_unknown_screen_allows_every_scale);
+    RUN(a_window_size_is_read_as_width_x_height);
     return TEST_SUMMARY();
 }

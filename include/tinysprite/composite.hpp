@@ -19,20 +19,23 @@ Rgba composite_pixel(const Sprite &sprite, int frame, int x, int y);
  * be lined up with the last one. `before` previous and `after` following frames are shown (fewer at
  * the ends of the animation), each as its flattened image mixed half and half with a tint (past
  * frames red, future frames blue). `opacity` (0..255) is how strongly the nearest ghost shows; the
- * ones further away fade out linearly. */
+ * ones further away fade out linearly. With `above`, the ghosts go over the current frame instead,
+ * each made only of the layers whose pixels differ from the current frame's, so an opaque
+ * background (the same on every frame) neither hides them nor tints the whole sprite. */
 inline constexpr int ONION_MAX_FRAMES = 8; /* ghosts per side the UI allows */
 
 struct OnionSkin {
     int before = 1;
     int after = 1;
     uint8_t opacity = 96;
+    bool above = false; /* over the current frame, of the changed layers only */
 };
 inline constexpr Rgba ONION_PAST_TINT = {230, 60, 60, 255};
 inline constexpr Rgba ONION_FUTURE_TINT = {60, 120, 230, 255};
 
-/* Like composite_sprite, but with the onion skin ghosts of `frame` below it: the current frame is
- * drawn over them, so they show through its transparent and translucent pixels. Does nothing if out
- * is null or the frame is out of range. */
+/* Like composite_sprite, but with the onion skin ghosts of `frame` below it (the current frame is
+ * drawn over them, so they show through its transparent and translucent pixels) or, with
+ * skin.above, over it. Does nothing if out is null or the frame is out of range. */
 void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rect region,
                      Rgba *out);
 

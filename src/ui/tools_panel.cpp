@@ -529,8 +529,8 @@ void ToolsPanel::show(Panels &panels, float height)
     panels.end();
 }
 
-/* "Reset palette?": Reset replaces the palette with the defaults, Cancel (or Escape) keeps it. The
- * default button is Cancel, so a stray Enter does not destroy anything. */
+/* "Reset palette?": Reset (the danger primary, so Enter) replaces the palette with the defaults,
+ * Cancel (or Escape) keeps it. Ctrl+Z brings the colors back, as the dialog says. */
 void ToolsPanel::resetDialog()
 {
     constexpr const char *TITLE = "Reset palette";
@@ -543,16 +543,12 @@ void ToolsPanel::resetDialog()
         return;
     }
     ImGui::TextUnformatted("Reset the palette to the default colors?");
-    ImGui::TextDisabled("Colors you added are lost. This cannot be undone.");
-    /* Cancel is drawn last, so it is the button that gets the keyboard focus below */
-    const int clicked = theme::dialog_buttons({"Reset", "Cancel"}, 0, true);
-    bool close = theme::dialog_cancelled(clicked, 1);
-    if (clicked == 0) {
+    ImGui::TextDisabled("Ctrl+Z brings the colors you added back.");
+    const int clicked = theme::dialog_buttons({"Cancel", "Reset"}, 1, true);
+    bool close = theme::dialog_cancelled(clicked, 0);
+    if (clicked == 1) {
         editor_->paletteReset();
         close = true;
-    }
-    if (ImGui::IsWindowAppearing()) {
-        ImGui::SetKeyboardFocusHere(-1); /* the Cancel button */
     }
     theme::end_modal(close);
 }
@@ -619,7 +615,7 @@ void ToolsPanel::paletteSwatches()
         editor_->paletteRemove(editor_->paletteSelected());
     }
     ImGui::SameLine();
-    if (icons::button(icons::Icon::Swap, "##palette_replace",
+    if (icons::button(icons::Icon::Replace, "##palette_replace",
                       "Replace the selected swatch with the foreground color", size,
                       editor_->paletteCanReplace(),
                       editor_->paletteSelected() < 0
@@ -629,9 +625,8 @@ void ToolsPanel::paletteSwatches()
     }
     ImGui::SameLine();
     if (icons::button(icons::Icon::Reset, "##palette_reset",
-                      "Reset the palette to the default colors (cannot be undone)", size,
-                      !editor_->paletteIsDefault(),
+                      "Reset the palette to the default colors", size, !editor_->paletteIsDefault(),
                       "The palette already has the default colors.")) {
-        openReset_ = true; /* asks first: it throws the palette's colors away */
+        openReset_ = true; /* asks first: it throws the palette's colors away (undoably) */
     }
 }

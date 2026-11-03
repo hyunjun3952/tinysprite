@@ -116,13 +116,23 @@ bool begin_combo(const char *id, const char *preview);
  * px at each side. */
 float dialog_button_width(float textWidth);
 
-/* The buttons at the foot of a dialog: under a hairline, right-aligned, each as wide as
+/*
+ * The buttons at the foot of a dialog: under a hairline, right-aligned, each as wide as
  * dialog_button_width with a gap between, so they read as separate buttons. The one at index
  * `primary` is filled with the accent (red when `danger`: a button that destroys something); a
  * negative `primary` fills none. A set bit `i` of `disabled` greys out button `i`. Returns the
- * index of the button clicked this frame, or -1. */
+ * index of the button clicked this frame, or -1.
+ *
+ * Enter is a click on the primary (DESIGN.md, Dialogs), unless it is disabled, the user moved the
+ * keyboard focus to another button of the row (then Enter presses that one), or `enterConfirms`
+ * is false (a field of the dialog takes the Enter itself). The keyboard focus starts on the
+ * primary.
+ */
 int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool danger = false,
-                   unsigned disabled = 0);
+                   unsigned disabled = 0, bool enterConfirms = true);
+
+/* Whether Enter or the keypad's Enter went down this frame. */
+bool enter_pressed();
 
 /* A color as hex text for the picker: RRGGBB, with AA after it only when the color is translucent.
  * `rgba` are four floats in 0..1. */

@@ -18,7 +18,8 @@ constexpr int CHECKER_TILE = 8;
 constexpr float GRID_MIN_ZOOM = 4.0f;
 constexpr float FIT_MARGIN = 16.0f;
 constexpr double MIDDLE_HOLD_SECONDS = 0.25; /* a middle press this long is the eyedropper */
-constexpr float MIDDLE_DRAG_PIXELS = 4.0f;   /* ... unless the mouse moves this far first: pan */
+constexpr float PAN_KEEP = 32.0f;          /* the strip of the sprite a pan leaves on the canvas */
+constexpr float MIDDLE_DRAG_PIXELS = 4.0f; /* ... unless the mouse moves this far first: pan */
 
 void drawCheckerboard(ImDrawList *draw, float vx0, float vy0, float vx1, float vy1, float sx0,
                       float sy0)
@@ -51,29 +52,30 @@ void drawRectOutline(ImDrawList *draw, ImVec2 p0, ImVec2 p1, ImU32 color)
 
 constexpr int LOUPE_RADIUS = 4;
 constexpr int LOUPE_CELLS = 2 * LOUPE_RADIUS + 1;
-constexpr float LOUPE_CELL = 14.0f;
-constexpr float LOUPE_SIZE = static_cast<float>(LOUPE_CELLS) * LOUPE_CELL;
-constexpr float LOUPE_LABEL = 20.0f;
-constexpr float LOUPE_GAP = 22.0f; /* from the cursor */
+constexpr float LOUPE_CELL = 14.0f;  /* at UI scale 1, like the four below */
+constexpr float LOUPE_LABEL = 20.0f; /* the row of the hex value under the cells */
+constexpr float LOUPE_GAP = 22.0f;   /* from the cursor */
 constexpr float LOUPE_PAD = 4.0f;
+constexpr float LOUPE_TEXT_TOP = 3.0f; /* from the cells to the hex value */
+constexpr float LOUPE_ROUNDING = 3.0f; /* the corners of its background */
 
 /* Top-left of the loupe: above and right of the cursor, flipped or clamped to stay inside the
  * canvas. */
 ImVec2 loupePosition(ImVec2 mouse, ImVec2 origin, ImVec2 avail)
 {
-    float x = mouse.x + LOUPE_GAP;
-    float y = mouse.y - LOUPE_GAP - LOUPE_SIZE - LOUPE_LABEL;
-    if (x + LOUPE_SIZE + LOUPE_PAD > origin.x + avail.x) {
-        x = mouse.x - LOUPE_GAP - LOUPE_SIZE;
+    const LoupeLayout l = loupe_layout();
+    float x = mouse.x + l.gap;
+    float y = mouse.y - l.gap - l.size - l.label;
+    if (x + l.size + l.pad > origin.x + avail.x) {
+        x = mouse.x - l.gap - l.size;
     }
-    if (y - LOUPE_PAD < origin.y) {
-        y = mouse.y + LOUPE_GAP;
+    if (y - l.pad < origin.y) {
+        y = mouse.y + l.gap;
     }
-    x = std::clamp(x, origin.x + LOUPE_PAD,
-                   std::max(origin.x + avail.x - LOUPE_SIZE - LOUPE_PAD, origin.x + LOUPE_PAD));
-    y = std::clamp(
-        y, origin.y + LOUPE_PAD,
-        std::max(origin.y + avail.y - LOUPE_SIZE - LOUPE_LABEL - LOUPE_PAD, origin.y + LOUPE_PAD));
+    x = std::clamp(x, origin.x + l.pad,
+                   std::max(origin.x + avail.x - l.size - l.pad, origin.x + l.pad));
+    y = std::clamp(y, origin.y + l.pad,
+                   std::max(origin.y + avail.y - l.size - l.label - l.pad, origin.y + l.pad));
     return {x, y};
 }
 
@@ -280,15 +282,30 @@ void Canvas::setEditor(Editor &editor)
 
 /*
  * The canvas origin moves by the ruler's width when the rulers are shown or hidden; the pan is
- * kept in step so the sprite stays where it is on screen.
+ * kept in step so the sprite stays where it is on screen. The canvas shrinks or grows by the same
+ * width, which updateFit must not take for a resize of the window (a fitted sprite would be fitted
+ * again and move), so the size it compares with changes too.
  */
 void Canvas::keepSpriteInPlace(float ruler)
 {
     if (lastRuler_ >= 0.0f && ruler != lastRuler_) {
-        editor_->view().viewport.pan_x -= ruler - lastRuler_;
-        editor_->view().viewport.pan_y -= ruler - lastRuler_;
+        const float change = ruler - lastRuler_;
+        Editor::ViewState &view = editor_->view();
+        view.viewport.pan_x -= change;
+        view.viewport.pan_y -= change;
+        view.canvas_w -= change;
+        view.canvas_h -= change;
     }
     lastRuler_ = ruler;
+}
+
+/* After a pan or a zoom: a strip of the sprite stays on the canvas (DESIGN.md, Responsive
+ * behavior), so it cannot be lost off screen. */
+void Canvas::keepSpriteInView()
+{
+    Editor::ViewState &view = editor_->view();
+    view.viewport.clampPan(editor_->sprite().width(), editor_->sprite().height(), view.canvas_w,
+                           view.canvas_h, theme::px(PAN_KEEP));
 }
 
 /* The width of the rulers on screen; 0 while they are hidden. */
@@ -300,15 +317,17 @@ float Canvas::rulerSize() const
 /*
  * Starts dragging a guide: the one at `index` of the vertical or horizontal list, or, for -1, a
  * new one that begins under the mouse. A new guide switches the guides on so it can be seen.
+ * The guides are edited in place while the mouse is down; dragGuide records one undo step when
+ * it is let go.
  */
 void Canvas::beginGuide(bool vertical, int index, ImVec2 origin)
 {
+    guideDrag_.before = editor_->guides();
     if (index < 0) {
         const Viewport &view = editor_->view().viewport;
         const ImVec2 mouse = ImGui::GetMousePos();
         std::vector<int> &lines =
             vertical ? editor_->guides().vertical : editor_->guides().horizontal;
-        editor_->markModified();
         lines.push_back(vertical ? guide_snap(view.pan_x, view.zoom, mouse.x - origin.x)
                                  : guide_snap(view.pan_y, view.zoom, mouse.y - origin.y));
         index = static_cast<int>(lines.size()) - 1;
@@ -320,7 +339,8 @@ void Canvas::beginGuide(bool vertical, int index, ImVec2 origin)
 
 /*
  * Follows the mouse with the guide being dragged, snapped to the cel edges. Letting go with the
- * mouse over the ruler (or past it) deletes the guide, which is how a guide is taken away.
+ * mouse over the ruler (or past it) deletes the guide, which is how a guide is taken away. The
+ * whole drag, however it ends, is one undo step.
  */
 void Canvas::dragGuide(ImVec2 origin)
 {
@@ -329,10 +349,10 @@ void Canvas::dragGuide(ImVec2 origin)
         guideDrag_.vertical ? editor_->guides().vertical : editor_->guides().horizontal;
     const auto index = static_cast<size_t>(guideDrag_.index);
     if (index >= lines.size()) {
+        editor_->commitGuides(guideDrag_.before);
         guideDrag_ = GuideDrag();
         return;
     }
-    editor_->markModified();
     const ImVec2 mouse = ImGui::GetMousePos();
     const float local = guideDrag_.vertical ? mouse.x - origin.x : mouse.y - origin.y;
     ImGui::SetMouseCursor(guideDrag_.vertical ? ImGuiMouseCursor_ResizeEW
@@ -344,6 +364,7 @@ void Canvas::dragGuide(ImVec2 origin)
     if (local < 0.0f) {
         lines.erase(lines.begin() + static_cast<std::ptrdiff_t>(index));
     }
+    editor_->commitGuides(guideDrag_.before);
     guideDrag_ = GuideDrag();
 }
 
@@ -377,6 +398,7 @@ bool Canvas::grabGuide(ImVec2 mouse, ImVec2 origin)
         return false;
     }
     guideDrag_ = over;
+    guideDrag_.before = editor_->guides();
     return true;
 }
 
@@ -465,6 +487,7 @@ bool Canvas::applyPan(ImVec2 pan, bool active)
     }
     editor_->view().viewport.pan_x += pan.x;
     editor_->view().viewport.pan_y += pan.y;
+    keepSpriteInView();
     editor_->view().auto_fit = false;
     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     return true;
@@ -503,6 +526,7 @@ void Canvas::handleInput(ImVec2 origin, ImVec2 avail, bool hovered, bool active)
         float zoom =
             Viewport::nextZoom(editor_->view().viewport.zoom, io.MouseWheel > 0.0f ? 1 : -1);
         editor_->view().viewport.zoomAt(zoom, localX, localY);
+        keepSpriteInView();
         editor_->view().auto_fit = false;
     }
     /* Middle button: a long press without moving is the eyedropper (as long as it is held), a
@@ -749,23 +773,29 @@ void Canvas::drawMirrorAxes(ImDrawList *draw, const ScreenRect &sprite) const
     }
 }
 
+LoupeLayout loupe_layout()
+{
+    const float cell = theme::px(LOUPE_CELL);
+    return LoupeLayout{cell, static_cast<float>(LOUPE_CELLS) * cell, theme::px(LOUPE_LABEL),
+                       theme::px(LOUPE_GAP), theme::px(LOUPE_PAD)};
+}
+
 /* While the eyedropper is picking: a magnifier beside the cursor showing the cels around it, the
  * cel being picked outlined in the middle, and its color underneath. */
 void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
 {
     ImDrawList *draw = ImGui::GetForegroundDrawList();
+    const LoupeLayout l = loupe_layout();
     ImVec2 at = loupePosition(ImGui::GetMousePos(), origin, avail);
-    draw->AddRectFilled(
-        ImVec2(at.x - LOUPE_PAD, at.y - LOUPE_PAD),
-        ImVec2(at.x + LOUPE_SIZE + LOUPE_PAD, at.y + LOUPE_SIZE + LOUPE_LABEL + LOUPE_PAD),
-        theme::overlay::LOUPE_BACKGROUND, 3.0f);
+    draw->AddRectFilled(ImVec2(at.x - l.pad, at.y - l.pad),
+                        ImVec2(at.x + l.size + l.pad, at.y + l.size + l.label + l.pad),
+                        theme::overlay::LOUPE_BACKGROUND, theme::px(LOUPE_ROUNDING));
     const int cx = editor_->hoverX();
     const int cy = editor_->hoverY();
     for (int j = 0; j < LOUPE_CELLS; j++) {
         for (int i = 0; i < LOUPE_CELLS; i++) {
-            ImVec2 p0(at.x + static_cast<float>(i) * LOUPE_CELL,
-                      at.y + static_cast<float>(j) * LOUPE_CELL);
-            ImVec2 p1(p0.x + LOUPE_CELL, p0.y + LOUPE_CELL);
+            ImVec2 p0(at.x + static_cast<float>(i) * l.cell, at.y + static_cast<float>(j) * l.cell);
+            ImVec2 p1(p0.x + l.cell, p0.y + l.cell);
             std::optional<Rgba> color = eyedropper_pick_sprite(
                 editor_->sprite(), editor_->frame(), cx - LOUPE_RADIUS + i, cy - LOUPE_RADIUS + j);
             if (!color) {
@@ -778,9 +808,9 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
             draw->AddRectFilled(p0, p1, IM_COL32(color->r, color->g, color->b, color->a));
         }
     }
-    ImVec2 c0(at.x + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL,
-              at.y + static_cast<float>(LOUPE_RADIUS) * LOUPE_CELL);
-    ImVec2 c1(c0.x + LOUPE_CELL, c0.y + LOUPE_CELL);
+    ImVec2 c0(at.x + static_cast<float>(LOUPE_RADIUS) * l.cell,
+              at.y + static_cast<float>(LOUPE_RADIUS) * l.cell);
+    ImVec2 c1(c0.x + l.cell, c0.y + l.cell);
     draw->AddRect(ImVec2(c0.x - 1.0f, c0.y - 1.0f), ImVec2(c1.x + 1.0f, c1.y + 1.0f),
                   theme::overlay::LINE_DARK);
     draw->AddRect(c0, c1, theme::overlay::LINE_LIGHT);
@@ -792,7 +822,8 @@ void Canvas::drawLoupe(ImVec2 origin, ImVec2 avail) const
     } else {
         std::snprintf(text, sizeof(text), "-");
     }
-    draw->AddText(ImVec2(at.x, at.y + LOUPE_SIZE + 3.0f), theme::overlay::LINE_LIGHT, text);
+    draw->AddText(ImVec2(at.x, at.y + l.size + theme::px(LOUPE_TEXT_TOP)),
+                  theme::overlay::LINE_LIGHT, text);
 }
 
 /* Re-fits the sprite when asked to, or when the canvas was resized while it follows the window. */

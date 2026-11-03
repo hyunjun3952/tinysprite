@@ -178,6 +178,28 @@ TEST(fit_shrinks_to_a_power_of_two_for_large_sprites)
     ASSERT_TRUE(v.zoom == 0.25f);
 }
 
+/* A pan past the canvas edge stops with `keep` pixels of the sprite still inside, so the sprite
+ * cannot be lost off screen; a pan that leaves enough in view is not touched. */
+TEST(clamp_pan_keeps_a_strip_of_the_sprite_in_the_area)
+{
+    Viewport v;
+    v.zoom = 4.0f; /* a 64 x 32 sprite is 256 x 128 on screen */
+    v.pan_x = 5000.0f;
+    v.pan_y = -5000.0f;
+    v.clampPan(64, 32, 400.0f, 300.0f, 32.0f);
+    ASSERT_TRUE(v.pan_x == 400.0f - 32.0f); /* its left 32 px at the right edge */
+    ASSERT_TRUE(v.pan_y == 32.0f - 128.0f); /* its bottom 32 px at the top edge */
+    v.pan_x = 10.0f;
+    v.pan_y = 20.0f;
+    v.clampPan(64, 32, 400.0f, 300.0f, 32.0f);
+    ASSERT_TRUE(v.pan_x == 10.0f && v.pan_y == 20.0f);
+    /* a sprite smaller on screen than `keep` stays wholly inside */
+    v.zoom = 1.0f;
+    v.pan_x = -100.0f;
+    v.clampPan(8, 8, 400.0f, 300.0f, 32.0f);
+    ASSERT_TRUE(v.pan_x == 0.0f);
+}
+
 int main()
 {
     RUN(default_view_maps_origin_to_screen_origin);
@@ -198,5 +220,6 @@ int main()
     RUN(zoom_can_go_below_one);
     RUN(fractional_zoom_maps_many_cels_per_screen_pixel);
     RUN(fit_shrinks_to_a_power_of_two_for_large_sprites);
+    RUN(clamp_pan_keeps_a_strip_of_the_sprite_in_the_area);
     return TEST_SUMMARY();
 }

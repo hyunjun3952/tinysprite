@@ -1,6 +1,7 @@
 /* The icons are Material Symbols glyphs from the embedded font (Apache 2.0). Check the table is
  * well formed, that every glyph is really in the font, and that an icon is centered by the ink of
  * its glyph, not by the glyph's em box (which would sit most icons off to one side). */
+#include <algorithm>
 #include <cmath>
 #include <set>
 
@@ -11,16 +12,17 @@
 #include "theme.hpp"
 #include "ui_harness.hpp"
 
-/* The 17 tool and shape icons are bitmaps and the folder and the two chevrons are drawn with lines
- * (they would need glyphs added to the font subset); they have no codepoint, every other icon is a
- * glyph. */
-TEST(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons)
+/* The 17 tool and shape icons and Replace are paths and the folder and the two chevrons are drawn
+ * with lines (they would need glyphs added to the font subset); they have no codepoint, every
+ * other icon is a glyph. */
+TEST(the_tool_and_shape_paths_the_folder_and_the_chevrons_are_the_drawn_icons)
 {
     int drawn = 0;
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
         drawn += icons::is_drawn(static_cast<icons::Icon>(i)) ? 1 : 0;
     }
-    ASSERT_EQ_INT(20, drawn);
+    ASSERT_EQ_INT(21, drawn);
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Replace));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Diamond));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Folder));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Pan));
@@ -171,11 +173,52 @@ TEST(a_disabled_icon_button_with_a_reason_says_it)
     ASSERT_TRUE(ImGui::GetMouseCursor() == ImGuiMouseCursor_NotAllowed);
 }
 
+namespace
+{
+
+/* WCAG relative luminance of an ImGui color. */
+double relativeLuminance(const ImVec4 &c)
+{
+    auto lin = [](float v) {
+        return v <= 0.04045f ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * lin(c.x) + 0.7152 * lin(c.y) + 0.0722 * lin(c.z);
+}
+
+/* `top` with its alpha over the opaque `bottom`. */
+ImVec4 over(const ImVec4 &top, const ImVec4 &bottom)
+{
+    auto mix = [&](float a, float b) { return a * top.w + b * (1.0f - top.w); };
+    return {mix(top.x, bottom.x), mix(top.y, bottom.y), mix(top.z, bottom.z), 1.0f};
+}
+
+} // namespace
+
+/* A disabled icon button still shows what it is: its icon keeps the 3:1 DESIGN.md asks of icons
+ * against the button as it is drawn disabled (the soft fill faded by DisabledAlpha over the panel).
+ * It was mute at 45% alpha, about 2.1:1. */
+TEST(a_disabled_icon_keeps_the_icon_contrast)
+{
+    ImGui::CreateContext();
+    theme::apply();
+    const ImVec4 *c = ImGui::GetStyle().Colors;
+    ImVec4 fill = c[ImGuiCol_Button];
+    fill.w *= ImGui::GetStyle().DisabledAlpha;
+    const ImVec4 button = over(fill, c[ImGuiCol_WindowBg]);
+    const ImVec4 icon = over(ImGui::ColorConvertU32ToFloat4(icons::disabled_color()), button);
+    const double a = relativeLuminance(icon);
+    const double b = relativeLuminance(button);
+    const double ratio = (std::max(a, b) + 0.05) / (std::min(a, b) + 0.05);
+    ImGui::DestroyContext();
+    ASSERT_TRUE(ratio >= 3.0);
+}
+
 int main()
 {
+    RUN(a_disabled_icon_keeps_the_icon_contrast);
     RUN(a_chevron_icon_points_at_its_side_and_is_centered);
     RUN(a_disabled_icon_button_with_a_reason_says_it);
-    RUN(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons);
+    RUN(the_tool_and_shape_paths_the_folder_and_the_chevrons_are_the_drawn_icons);
     RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_ones);
     RUN(every_icon_glyph_is_in_the_embedded_font);
     RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);

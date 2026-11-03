@@ -8,10 +8,15 @@
 #include <vector>
 
 #include "editor.hpp"
+#include "imgui.h"
 #include "layer/layer_thumbnails.hpp"
 #include "panels.hpp"
 #include "slices_panel.hpp"
 #include "tilemap/tilemap_panel.hpp"
+
+/* What the Properties say about the linked cels of the active layer: "none in this layer",
+ * "1 cel in this layer", "3 cels in this layer". */
+std::string linked_cels_text(int linked);
 
 /*
  * Layer list (top layer first): each row shows what is painted on the layer, with visibility and
@@ -31,6 +36,11 @@ class LayersPanel
     void setEditor(Editor &editor);
 
     void show(const Panels &panels);
+
+    /* The box a layer's thumbnail is fitted into, and the height of a row, in whole pixels at the
+     * UI scale. */
+    static ImVec2 thumbnailSize();
+    static float rowHeight();
 
     /* What the right-click menu of the list holds: `body` draws its menu items (the App passes the
      * items of its Layer menu, so the two cannot differ). With none set there is no menu. */

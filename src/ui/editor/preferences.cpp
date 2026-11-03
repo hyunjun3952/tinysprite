@@ -59,6 +59,7 @@ void Editor::store(SettingsMap &settings) const
     settings_set_int(settings, "onion.before", onion_.before);
     settings_set_int(settings, "onion.after", onion_.after);
     settings_set_int(settings, "onion.opacity", onion_.opacity);
+    settings_set_bool(settings, "onion.above", onion_.above);
     settings_set_int(settings, "brush.size", options_.brush_size);
     settings_set_bool(settings, "brush.round", options_.brush_round);
     settings_set_bool(settings, "brush.pixel_perfect", options_.pixel_perfect);
@@ -114,6 +115,7 @@ void Editor::load(const SettingsMap &settings)
     if (settings_get_int(settings, "onion.opacity", 0, 255, value)) {
         onion.opacity = static_cast<uint8_t>(value);
     }
+    settings_get_bool(settings, "onion.above", onion.above);
     setOnion(onionOn, onion);
     settings_get_int(settings, "brush.size", 1, PENCIL_BRUSH_MAX, options_.brush_size);
     settings_get_bool(settings, "brush.round", options_.brush_round);

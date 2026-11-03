@@ -159,6 +159,9 @@ void apply()
     style.GrabRounding = ROUND_SMALL;
     style.ScrollbarRounding = ROUND_SMALL;
     style.TabRounding = ROUND_SMALL;
+#if IMGUI_VERSION_NUM >= 19220
+    style.TabMinWidthShrink = 110.0f; /* about eight letters of a name and the close button */
+#endif
     style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
 
     ImVec4 *c = style.Colors;
@@ -181,6 +184,11 @@ void apply()
     c[ImGuiCol_ScrollbarGrabHovered] = rgb(MUTE, 0.6f);
     c[ImGuiCol_ScrollbarGrabActive] = rgb(MUTE);
     c[ImGuiCol_CheckMark] = rgb(ACCENT);
+#if IMGUI_VERSION_NUM >= 19290
+    /* the box of a checked checkbox (ImGui 1.92.9 made it blue): the same soft fill, the check in
+     * the accent */
+    c[ImGuiCol_CheckboxSelectedBg] = rgb(CANVAS_SOFT);
+#endif
     c[ImGuiCol_SliderGrab] = rgb(BODY); /* slider_int draws its own */
     c[ImGuiCol_SliderGrabActive] = rgb(ACCENT);
     c[ImGuiCol_Button] = rgb(CANVAS_SOFT);
@@ -214,6 +222,12 @@ void apply()
     c[ImGuiCol_NavWindowingHighlight] = rgb(INK, 0.7f);
     c[ImGuiCol_NavWindowingDimBg] = rgb(0x000000, 0.4f);
     c[ImGuiCol_ModalWindowDimBg] = rgb(0x000000, 0.5f);
+    /* not drawn by the app today; set so nothing in the chrome can show ImGui's default hues */
+    c[ImGuiCol_TextLink] = rgb(INK);
+    c[ImGuiCol_PlotLines] = rgb(BODY);
+    c[ImGuiCol_PlotLinesHovered] = rgb(INK);
+    c[ImGuiCol_PlotHistogram] = rgb(BODY);
+    c[ImGuiCol_PlotHistogramHovered] = rgb(INK);
 
     style.ScaleAllSizes(uiScale);
     style.FontScaleMain = uiScale;
@@ -460,7 +474,7 @@ float dialogRowWidth(std::initializer_list<const char *> labels)
 } // namespace
 
 int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool danger,
-                   unsigned disabled)
+                   unsigned disabled, bool enterConfirms)
 {
     ImGui::Dummy(ImVec2(0.0f, px(4.0f)));
     ImGui::Separator();
@@ -471,6 +485,7 @@ int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool
     }
     int clicked = -1;
     int index = 0;
+    bool chosenByKeyboard = false; /* a button the user moved the keyboard focus to */
     for (const char *label : labels) {
         if (index > 0) {
             ImGui::SameLine(0.0f, px(DIALOG_BUTTON_GAP));
@@ -479,9 +494,24 @@ int dialog_buttons(std::initializer_list<const char *> labels, int primary, bool
         if (dialogButton(label, index == primary, danger, off)) {
             clicked = index;
         }
+        if (index == primary) {
+            ImGui::SetItemDefaultFocus(); /* the keyboard starts on the primary, never on Discard */
+        }
+        chosenByKeyboard =
+            chosenByKeyboard || (ImGui::IsItemFocused() && ImGui::GetIO().NavVisible);
         index++;
     }
+    const bool primaryOn = primary >= 0 && (disabled & (1u << static_cast<unsigned>(primary))) == 0;
+    if (clicked < 0 && primaryOn && enterConfirms && !chosenByKeyboard && enter_pressed()) {
+        clicked = primary;
+    }
     return clicked;
+}
+
+bool enter_pressed()
+{
+    return ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
+           ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
 }
 
 std::string color_hex(const float *rgba)
@@ -732,9 +762,11 @@ void field_label(const char *text)
 
 bool begin_list(const char *id, size_t count, float maxRows)
 {
+    /* the rows with the spacing between them, and the child's padding above and below */
     const float rows = std::min(static_cast<float>(count), maxRows);
-    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows +
-                                ImGui::GetStyle().WindowPadding.y);
+    const ImGuiStyle &style = ImGui::GetStyle();
+    const ImVec2 size(0.0f, ImGui::GetTextLineHeightWithSpacing() * rows - style.ItemSpacing.y +
+                                2.0f * style.WindowPadding.y);
     if (ImGui::BeginChild(id, size, ImGuiChildFlags_Borders)) {
         return true;
     }

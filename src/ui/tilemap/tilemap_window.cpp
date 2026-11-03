@@ -13,6 +13,7 @@ namespace
 
 constexpr float PICKER_HEIGHT = 130.0f; /* at UI scale 1 */
 constexpr int PREVIEW_SIDE = 2048; /* pixels, of the picture of a map too big for tilemap_render */
+constexpr float BRUSH_PREVIEW_SIDE = 28.0f; /* the box of the brush tile's picture, at scale 1 */
 
 ImTextureRef textureRef(const CelTexture &t)
 {
@@ -41,13 +42,35 @@ void TilemapWindow::release()
 {
     atlas_.release();
     picture_.release();
+    brush_.release();
     shownEditor_ = nullptr;
+    brushEditor_ = nullptr;
+    brushAtlas_ = nullptr;
+}
+
+/* Makes the picture of the brush tile again when the cell the brush paints, its tileset's atlas or
+ * the document has changed since. The eraser (cell 0) has no picture. */
+void TilemapWindow::refreshBrush(SDL_Renderer *renderer, const Editor &editor,
+                                 const Tileset &tileset)
+{
+    const uint32_t cell = editor.selectedCell();
+    if (brushEditor_ == &editor && brushAtlas_ == tileset.atlas.get() && shownCell_ == cell) {
+        return;
+    }
+    brushEditor_ = &editor;
+    brushAtlas_ = tileset.atlas.get();
+    shownCell_ = cell;
+    const std::optional<Cel> tile = tile_render(tileset, cell);
+    if (!tile || !brush_.set(renderer, *tile)) {
+        brush_.release();
+    }
 }
 
 /* Uploads the pictures again when the document, the map or any tile has changed since. */
 void TilemapWindow::refresh(SDL_Renderer *renderer, const Editor &editor, const Tileset &tileset,
                             const TileMap &map)
 {
+    refreshBrush(renderer, editor, tileset);
     const int index = editor.selectedTilemap();
     if (shownEditor_ == &editor && shownRevision_ == editor.tilesRevision() && shownMap_ == index &&
         shownAtlas_ == tileset.atlas.get()) {
@@ -109,6 +132,35 @@ void TilemapWindow::turnButtons(Editor &editor, const Tileset &tileset)
     ImGui::EndDisabled();
     theme::tip("Turns the picked tile a quarter clockwise (Z; Shift+Z the other way). Square tiles "
                "only.");
+    ImGui::SameLine();
+    brushPreview();
+}
+
+/*
+ * The tile the brush paints, turned as the buttons left it, in a small frame beside them: the
+ * picked tile in the picker below shows it unturned. The picture is fitted to the frame, in whole
+ * pixels per tile pixel where it can be, and the frame stays empty for the eraser.
+ */
+void TilemapWindow::brushPreview()
+{
+    const float side = theme::px(BRUSH_PREVIEW_SIDE);
+    const ImVec2 min = ImGui::GetCursorScreenPos();
+    const ImVec2 max(min.x + side, min.y + side);
+    ImGui::Dummy(ImVec2(side, side));
+    ImDrawList *draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(min, max, ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::CANVAS_SOFT)));
+    if (brush_.texture()) {
+        float scale = std::min(side / static_cast<float>(brush_.width()),
+                               side / static_cast<float>(brush_.height()));
+        scale = scale >= 1.0f ? std::floor(scale) : scale;
+        const float w = static_cast<float>(brush_.width()) * scale;
+        const float h = static_cast<float>(brush_.height()) * scale;
+        const ImVec2 a(min.x + std::floor((side - w) / 2.0f),
+                       min.y + std::floor((side - h) / 2.0f));
+        theme::pixel_image(draw, textureRef(brush_), a, ImVec2(a.x + w, a.y + h));
+    }
+    draw->AddRect(min, max, theme::overlay::TILE_GRID);
+    theme::tip("The picked tile as the brush paints it, with its flip and turn.");
 }
 
 /*
@@ -247,7 +299,7 @@ void TilemapWindow::show(SDL_Renderer *renderer, Editor &editor)
         return;
     }
     ImGui::SetNextWindowSize(ImVec2(theme::px(520.0f), theme::px(460.0f)), ImGuiCond_FirstUseEver);
-    const bool visible = ImGui::Begin("Tilemap", &open);
+    const bool visible = ImGui::Begin("Tilemap", &open, ImGuiWindowFlags_NoCollapse);
     focused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     if (focused_) {
         tileKeys(editor);

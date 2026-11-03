@@ -28,18 +28,26 @@ class TilemapWindow
     }
 
   private:
+    friend struct TilemapWindowTestAccess; /* tests/ui read what was drawn */
+
     void tileKeys(Editor &editor);
     void refresh(SDL_Renderer *renderer, const Editor &editor, const Tileset &tileset,
                  const TileMap &map);
     void toolbar(Editor &editor, const Tileset &tileset, const TileMap &map);
     void turnButtons(Editor &editor, const Tileset &tileset);
+    void refreshBrush(SDL_Renderer *renderer, const Editor &editor, const Tileset &tileset);
+    void brushPreview();
     void picker(Editor &editor, const Tileset &tileset);
     void mapView(Editor &editor, const Tileset &tileset, const TileMap &map);
     void paint(Editor &editor, const Tileset &tileset, const TileMap &map, float x0, float y0);
 
     CelTexture atlas_;
     CelTexture picture_;
+    CelTexture brush_; /* the tile the brush paints, turned as picked */
     const Editor *shownEditor_ = nullptr;
+    const Editor *brushEditor_ = nullptr; /* whose brush_ shows */
+    const Cel *brushAtlas_ = nullptr;     /* the atlas brush_ was cut from */
+    uint32_t shownCell_ = 0;              /* the cell brush_ shows: tile number + 1 and its turn */
     uint64_t shownRevision_ = 0;
     int shownMap_ = -1;
     const Cel *shownAtlas_ = nullptr;

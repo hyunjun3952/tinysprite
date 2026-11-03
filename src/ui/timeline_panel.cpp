@@ -54,18 +54,17 @@ bool modeCombo(const char *id, PlayMode &mode, float width)
     return changed;
 }
 
-/* The tag whose band shows on `frame`: the selected tag wins where tags overlap, else the first
- * one; -1 for a frame outside every tag. */
-int tagShownAt(const std::vector<Sprite::Tag> &tags, int frame, int selected)
+/* The tag of lane `lane` over `frame`, or -1. */
+int tagInLane(const std::vector<Sprite::Tag> &tags, const std::vector<int> &lanes, int lane,
+              int frame)
 {
-    int shown = -1;
     for (int t = 0; t < static_cast<int>(tags.size()); t++) {
         const Sprite::Tag &tag = tags[static_cast<size_t>(t)];
-        if (frame >= tag.from && frame <= tag.to && (shown < 0 || t == selected)) {
-            shown = t;
+        if (lanes[static_cast<size_t>(t)] == lane && frame >= tag.from && frame <= tag.to) {
+            return t;
         }
     }
-    return shown;
+    return -1;
 }
 
 } // namespace
@@ -78,6 +77,7 @@ void TimelinePanel::setEditor(Editor &editor)
     cells_.clear();
     headers_.clear();
     tagCells_.clear();
+    tagFrames_ = 0;
     drawnFrames_ = 0;
 }
 
@@ -118,6 +118,11 @@ bool TimelinePanel::filled(int layer, int frame) const
                    static_cast<size_t>(frame)] != 0;
 }
 
+TimelinePanel::Rect TimelinePanel::tagRangeRect(bool to, bool label) const
+{
+    return tagRange_[to ? 1 : 0][label ? 0 : 1];
+}
+
 TimelinePanel::Rect TimelinePanel::cellRect(int layer, int frame) const
 {
     if (layer < 0 || frame < 0 || frame >= drawnFrames_) {
@@ -135,10 +140,12 @@ TimelinePanel::Rect TimelinePanel::headerRect(int frame) const
                : Rect{};
 }
 
-TimelinePanel::Rect TimelinePanel::tagCellRect(int frame) const
+TimelinePanel::Rect TimelinePanel::tagCellRect(int frame, int lane) const
 {
-    return frame >= 0 && static_cast<size_t>(frame) < tagCells_.size()
-               ? tagCells_[static_cast<size_t>(frame)]
+    const size_t index =
+        static_cast<size_t>(lane) * static_cast<size_t>(tagFrames_) + static_cast<size_t>(frame);
+    return frame >= 0 && frame < tagFrames_ && lane >= 0 && index < tagCells_.size()
+               ? tagCells_[index]
                : Rect{};
 }
 
@@ -151,7 +158,7 @@ void TimelinePanel::toolbar()
     ImVec2 iconSize(theme::px(30.0f), ImGui::GetFrameHeight());
 
     if (theme::actionButton(editor_->playing() ? "Stop" : "Play",
-                            "Play the animation (Enter); any edit stops it", theme::px(54.0f))) {
+                            play_button_tip(editor_->playing()), theme::px(54.0f))) {
         editor_->togglePlayback();
     }
     ImGui::SameLine();
@@ -224,7 +231,7 @@ void TimelinePanel::onionControls()
     bool on = editor_->onionEnabled();
     OnionSkin skin = editor_->onionSkin();
     bool changed = ImGui::Checkbox("Onion skin", &on);
-    theme::tip("Show the neighbouring frames faintly under this one (not while playing).");
+    theme::tip("Show the neighbouring frames faintly with this one (not while playing).");
     ImGui::BeginDisabled(!on);
     /* Each label stands before its field, so the reading order matches the layout. */
     ImGui::SameLine();
@@ -254,6 +261,11 @@ void TimelinePanel::onionControls()
         changed = true;
     }
     onionTip("How strongly the nearest ghost shows; farther ones fade out.", on);
+    ImGui::SameLine();
+    changed |= ImGui::Checkbox("On top", &skin.above);
+    onionTip("Draw the ghosts over the frame, from the layers that change. Off, they go under it, "
+             "where an opaque background hides them.",
+             on);
     ImGui::EndDisabled();
     if (changed) {
         editor_->setOnion(on, skin);
@@ -295,6 +307,7 @@ void TimelinePanel::tagControls()
         editor_->addTag();
     }
     int selected = editor_->selectedTag();
+    tagRange_[0][0] = tagRange_[0][1] = tagRange_[1][0] = tagRange_[1][1] = Rect{};
     if (selected < 0 || selected >= static_cast<int>(sprite.tags().size())) {
         const char *hint = tagHint(sprite.tags().size());
         if (hint != nullptr) {
@@ -310,22 +323,28 @@ void TimelinePanel::tagControls()
 
     changed |= tagNameField(tag);
 
-    auto frameField = [&](const char *id, int &value) {
-        int shown = value + 1;
+    /* "From [n]": the label before its field, as in the options bar */
+    auto frameField = [&](int which, const char *label, const char *id, int &value) {
         ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", label);
+        tagRange_[which][0] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
+        ImGui::SameLine();
+        int shown = value + 1;
         ImGui::SetNextItemWidth(theme::px(60.0f));
         bool edited = ImGui::InputInt(id, &shown, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue) ||
                       ImGui::IsItemDeactivatedAfterEdit();
+        tagRange_[which][1] = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
         if (edited) {
             value = std::clamp(shown, 1, frames) - 1;
         }
         return edited;
     };
-    if (frameField("From##tag", tag.from)) {
+    if (frameField(0, "From", "##tag_from", tag.from)) {
         tag.to = std::max(tag.to, tag.from);
         changed = true;
     }
-    if (frameField("To##tag", tag.to)) {
+    if (frameField(1, "To", "##tag_to", tag.to)) {
         tag.from = std::min(tag.from, tag.to);
         changed = true;
     }
@@ -370,18 +389,21 @@ void TimelinePanel::tagBand(int frame, int shown, ImVec2 min, ImVec2 max)
     }
 }
 
-/* The tag row of the grid: a band over the frames of each tag, its name on the first frame. */
-void TimelinePanel::tagRow(int frames)
+/* One tag row of the grid (lane `lane`): a band over the frames of each of its tags, the name on
+ * the first frame. The first lane is labeled. */
+void TimelinePanel::tagRow(int frames, int lane, const std::vector<int> &lanes)
 {
     const std::vector<Sprite::Tag> &tags = editor_->sprite().tags();
-    tagCells_.assign(static_cast<size_t>(frames), Rect{});
     ImGui::TableNextRow(0, cellHeight() - theme::px(4.0f));
     ImGui::TableSetColumnIndex(0);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextDisabled("Tags");
+    if (lane == 0) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Tags");
+    }
+    ImGui::PushID(lane);
     for (int f = 0; f < frames; f++) {
         ImGui::TableSetColumnIndex(f + 1);
-        int shown = tagShownAt(tags, f, editor_->selectedTag());
+        int shown = tagInLane(tags, lanes, lane, f);
         ImGui::PushID(f);
         ImVec2 min = ImGui::GetCursorScreenPos();
         if (ImGui::InvisibleButton("##tag", ImVec2(cellWidth(), cellHeight() - theme::px(4.0f))) &&
@@ -389,12 +411,14 @@ void TimelinePanel::tagRow(int frames)
             editor_->selectTag(shown == editor_->selectedTag() ? -1 : shown);
         }
         ImVec2 max = ImGui::GetItemRectMax();
-        tagCells_[static_cast<size_t>(f)] = Rect{min, max};
+        tagCells_[static_cast<size_t>(lane) * static_cast<size_t>(frames) +
+                  static_cast<size_t>(f)] = Rect{min, max};
         if (shown >= 0) {
             tagBand(f, shown, min, max);
         }
         ImGui::PopID();
     }
+    ImGui::PopID();
 }
 
 /* The frame number as a drag source, and as a target a frame can be dropped on. */
@@ -528,7 +552,9 @@ void TimelinePanel::grid()
     if (!ImGui::BeginTable("cels", frames + 1, FLAGS)) {
         return;
     }
-    ImGui::TableSetupScrollFreeze(1, 2);
+    const std::vector<int> lanes = tag_lanes(sprite.tags());
+    const int laneCount = lanes.empty() ? 1 : *std::max_element(lanes.begin(), lanes.end()) + 1;
+    ImGui::TableSetupScrollFreeze(1, laneCount + 1); /* the tag rows and the frame numbers */
     ImGui::TableSetupColumn("##layer", ImGuiTableColumnFlags_WidthFixed, nameColumn());
     for (int f = 0; f < frames; f++) {
         ImGui::TableSetupColumn(("##f" + std::to_string(f)).c_str(),
@@ -536,7 +562,11 @@ void TimelinePanel::grid()
     }
 
     FrameMove move;
-    tagRow(frames);
+    tagFrames_ = frames;
+    tagCells_.assign(static_cast<size_t>(laneCount) * static_cast<size_t>(frames), Rect{});
+    for (int lane = 0; lane < laneCount; lane++) {
+        tagRow(frames, lane, lanes);
+    }
     frameHeaders(frames, move);
     for (int l = layers - 1; l >= 0; l--) {
         layerRow(l, frames);
@@ -545,6 +575,31 @@ void TimelinePanel::grid()
     if (move.from >= 0 && move.from != move.to) {
         editor_->moveFrame(move.from, move.to);
     }
+}
+
+std::vector<int> tag_lanes(const std::vector<Sprite::Tag> &tags)
+{
+    std::vector<int> lanes(tags.size(), 0);
+    for (size_t t = 0; t < tags.size(); t++) {
+        auto clashes = [&](int lane) {
+            for (size_t o = 0; o < t; o++) {
+                if (lanes[o] == lane && tags[o].from <= tags[t].to && tags[t].from <= tags[o].to) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        while (clashes(lanes[t])) {
+            lanes[t]++;
+        }
+    }
+    return lanes;
+}
+
+const char *play_button_tip(bool playing)
+{
+    return playing ? "Stop the animation (Enter or Esc)"
+                   : "Play the animation (Enter); any edit stops it";
 }
 
 TimelineSize timeline_drag(float requested, float previous, float minHeight, float maxHeight,

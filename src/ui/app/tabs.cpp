@@ -14,8 +14,14 @@ namespace
 constexpr float TAB_PADDING_X = 6.0f; /* the bar's own padding */
 constexpr float TAB_PADDING_Y = 3.0f;
 
-constexpr ImGuiTabBarFlags TAB_BAR_FLAGS =
-    ImGuiTabBarFlags_FittingPolicyResizeDown | ImGuiTabBarFlags_Reorderable;
+/* Many tabs shrink to style.TabMinWidthShrink (a few letters of the name, see theme::apply), then
+ * the bar scrolls and keeps the active tab in view; older ImGui has only shrinking or scrolling. */
+#if IMGUI_VERSION_NUM >= 19220
+constexpr ImGuiTabBarFlags TAB_FITTING = ImGuiTabBarFlags_FittingPolicyMixed;
+#else
+constexpr ImGuiTabBarFlags TAB_FITTING = ImGuiTabBarFlags_FittingPolicyScroll;
+#endif
+constexpr ImGuiTabBarFlags TAB_BAR_FLAGS = TAB_FITTING | ImGuiTabBarFlags_Reorderable;
 constexpr ImGuiTabItemFlags NEW_TAB_BUTTON_FLAGS =
     ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip;
 

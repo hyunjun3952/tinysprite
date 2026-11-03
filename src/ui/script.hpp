@@ -13,9 +13,14 @@ struct ScriptInput {
     std::string key;  /* an ImGui key name ("Z", "Enter", "Escape"); "" = no key event */
     std::string text; /* characters typed, UTF-8; "" = none */
     std::string shot; /* save the rendered frame to this image; "" = do not */
+    std::string drop; /* a file dropped on the window before this frame; "" = none */
     float x = 0.0f;   /* the mouse position, valid when moved */
     float y = 0.0f;
-    int button = -1;         /* the mouse button that changes: 0 left, 1 right, -1 none */
+    float wheelX = 0.0f; /* the wheel turned this frame, in notches (+y away from the user) */
+    float wheelY = 0.0f;
+    int button = -1;     /* the mouse button that changes: 0 left, 1 right, 2 middle, -1 none */
+    int resizeWidth = 0; /* resize the window to this before the frame; 0 = do not */
+    int resizeHeight = 0;
     int sleepMs = 0;         /* real time to wait after this frame, for the animations to settle */
     bool moved = false;      /* the mouse is at (x, y) */
     bool buttonDown = false; /* with button: pressed or released */
@@ -29,10 +34,20 @@ struct ScriptInput {
  * A list of input commands for a run without a display (`--script FILE`), one per line:
  *
  *     move X Y             put the mouse there
- *     click X Y            move, press and release the left button (rclick: the right one)
- *     drag X0 Y0 X1 Y1     press at the start, move in steps, release at the end
- *     path X0 Y0 X1 Y1 ... press at the first point, move through the others, release at the
+ *     click X Y [BUTTON]   move, press and release a button: left (the default), right or middle
+ *                          (rclick X Y: the right one)
+ *     drag X0 Y0 X1 Y1 [BUTTON]
+ *                          press at the start, move in steps, release at the end
+ *     path X0 Y0 X1 Y1 ... [BUTTON]
+ *                          press at the first point, move through the others, release at the
  *                          last (a lasso, a curve)
+ *     press X Y [BUTTON]   move and press, one frame (a shot after it sees the button held)
+ *     release X Y [BUTTON] move and release, one frame
+ *     wheel X Y DX DY [MODS]
+ *                          turn the wheel at X Y by DX DY notches, with modifiers (ctrl, shift,
+ *                          alt, joined by +) held a frame before and let go a frame after
+ *     drop PATH            drop the file PATH on the window (the rest of the line)
+ *     resize W H           resize the window to W x H pixels
  *     key ctrl+shift+Z     press and release a key, with modifiers held (ctrl, shift, alt); a
  *                          modified key takes 4 frames (ImGui reads a modifier change and the
  *                          key of one frame apart, so the modifiers go down first, up last)
@@ -41,8 +56,8 @@ struct ScriptInput {
  *     sleep MS             after this frame, wait MS milliseconds (a 0.12 s fade to finish)
  *     shot PATH            save the rendered frame to PATH (the rest of the line)
  *
- * A line starting with # is a comment, and so is the end of a line after " #", except for type
- * and shot, whose argument is the rest of the line. parse expands the commands into one
+ * A line starting with # is a comment, and so is the end of a line after " #", except for type,
+ * shot and drop, whose argument is the rest of the line. parse expands the commands into one
  * ScriptInput per frame, which next hands out in order.
  */
 class Script

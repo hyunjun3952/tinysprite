@@ -62,14 +62,16 @@ static WindowSize usableArea()
     return WindowSize{area.w, area.h};
 }
 
-bool App::createWindow(int width, int height)
+/* A window bigger than the screen (a small display, a large UI scale) would have its edges and the
+ * status bar off screen, so the size is fitted to the usable area unless it was asked for. */
+bool App::createWindow(int width, int height, bool fit)
 {
-    /* A window bigger than the screen (a small display, a large UI scale) would have its edges and
-     * the status bar off screen, so the size is fitted to the usable area. */
     const WindowSize usable = usableArea();
-    WindowSize fitted = window_fit(WindowSize{width, height}, usable);
-    width = fitted.width;
-    height = fitted.height;
+    if (fit) {
+        WindowSize fitted = window_fit(WindowSize{width, height}, usable);
+        width = fitted.width;
+        height = fitted.height;
+    }
     window_ = SDL_CreateWindow("tinysprite", width, height, SDL_WINDOW_RESIZABLE);
     if (window_) {
         WindowSize smallest = window_fit(window_minimum(theme::scale()), usable);
@@ -161,8 +163,8 @@ static void initialWindowSize(const SettingsMap &settings, int &width, int &heig
 {
     width = WINDOW_WIDTH;
     height = WINDOW_HEIGHT;
-    settings_get_int(settings, "window.width", 320, 16384, width);
-    settings_get_int(settings, "window.height", 240, 16384, height);
+    settings_get_int(settings, "window.width", WINDOW_SIZE_MIN_WIDTH, WINDOW_SIZE_MAX, width);
+    settings_get_int(settings, "window.height", WINDOW_SIZE_MIN_HEIGHT, WINDOW_SIZE_MAX, height);
     if (settings.count("window.width") == 0) {
         width = static_cast<int>(theme::px(static_cast<float>(width)));
         height = static_cast<int>(theme::px(static_cast<float>(height)));
@@ -211,7 +213,12 @@ bool App::init(const AppOptions &options)
     int windowWidth = 0;
     int windowHeight = 0;
     initialWindowSize(settings, windowWidth, windowHeight);
-    if (!createWindow(windowWidth, windowHeight)) {
+    const bool asked = options.window.width > 0;
+    if (asked) {
+        windowWidth = options.window.width;
+        windowHeight = options.window.height;
+    }
+    if (!createWindow(windowWidth, windowHeight, !asked)) {
         return false;
     }
     if (!startEditor(options)) {
@@ -225,6 +232,9 @@ bool App::init(const AppOptions &options)
     layersPanel_->setContextMenu([this] { layerMenuItems(); });
     timelinePanel_ = std::make_unique<TimelinePanel>(*editor_);
     lastTick_ = SDL_GetTicks();
+    if (persist_) {
+        restoreSession(settings);
+    }
     if (!options.file.empty() && !openPath(options.file)) {
         std::fprintf(stderr, "%s\n", fileError_.c_str());
         return false;
@@ -310,6 +320,7 @@ void App::shutdown()
     SDL_GetWindowSize(window_, &width, &height);
     settings_set_int(settings, "window.width", width);
     settings_set_int(settings, "window.height", height);
+    storeSession(settings);
     settings_save(configDir_, settings);
     if (recovered_.empty()) {
         /* only the open tabs' copies go: one kept for the next start stays */
@@ -378,6 +389,17 @@ static void focusPanelForTab()
             ImGui::SetWindowFocus("Tools");
             return;
         }
+    }
+}
+
+void App::applyScriptWindow(const ScriptInput &input)
+{
+    if (!input.drop.empty()) {
+        dropFile(input.drop);
+    }
+    if (input.resizeWidth > 0) {
+        SDL_SetWindowSize(window_, input.resizeWidth, input.resizeHeight);
+        SDL_SyncWindow(window_);
     }
 }
 
@@ -558,6 +580,7 @@ void App::run(const AppOptions &options)
     while (running_) {
         pollEvents();
         ScriptInput input = scripted ? script.next() : ScriptInput();
+        applyScriptWindow(input);
         script_feed(ImGui::GetIO(), input);
         focusPanelForTab();
         ImGui_ImplSDLRenderer3_NewFrame();

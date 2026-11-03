@@ -73,12 +73,33 @@ const Cel *drawnCel(const Layer &layer, int frame)
     return layer.visible() ? layer.cel(frame) : nullptr;
 }
 
+/* Whether the cels of `layer` in frames `a` and `b` have the same pixels over `r` (a linked cel
+ * is one cel in both). */
+bool sameInRegion(const Layer &layer, int a, int b, const Rect &r)
+{
+    const Cel *one = layer.cel(a);
+    const Cel *two = layer.cel(b);
+    if (one == two) {
+        return true;
+    }
+    for (int y = 0; y < r.h; y++) {
+        const Rgba *p = one->pixels() + one->indexOf(r.x, r.y + y);
+        const Rgba *q = two->pixels() + two->indexOf(r.x, r.y + y);
+        if (!std::equal(p, p + r.w, q)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /*
  * Flattens `frame` over the cels of `r`, which lies inside the sprite, into `out`: its first pixel
  * is the top-left of `r` and its rows are `stride` pixels apart. It walks the cels' rows directly,
- * because every cel of a sprite has the sprite's size.
+ * because every cel of a sprite has the sprite's size. With `except` >= 0 a layer whose cel there
+ * is the same as in frame `except` is left out (an onion ghost of the changes only).
  */
-void flatten(const Sprite &sprite, int frame, const Rect &r, Rgba *out, size_t stride)
+void flatten(const Sprite &sprite, int frame, const Rect &r, Rgba *out, size_t stride,
+             int except = -1)
 {
     for (int y = 0; y < r.h; y++) {
         std::fill_n(out + static_cast<size_t>(y) * stride, r.w, Rgba{});
@@ -86,7 +107,7 @@ void flatten(const Sprite &sprite, int frame, const Rect &r, Rgba *out, size_t s
     for (int i = 0; i < sprite.layerCount(); i++) {
         const Layer &layer = *sprite.layer(i);
         const Cel *cel = drawnCel(layer, frame);
-        if (!cel) {
+        if (!cel || (except >= 0 && sameInRegion(layer, frame, except, r))) {
             continue;
         }
         for (int y = 0; y < r.h; y++) {
@@ -185,11 +206,12 @@ struct OnionRegion {
 
 /* Puts `frame`, each of its pixels made by `pixel` from the flattened one, over the region. */
 template <class Pixel>
-void overRegion(OnionRegion &region, const Sprite &sprite, int frame, uint8_t opacity, Pixel pixel)
+void overRegion(OnionRegion &region, const Sprite &sprite, int frame, uint8_t opacity, Pixel pixel,
+                int except = -1)
 {
     const Rect &r = region.rect;
     const auto width = static_cast<size_t>(r.w);
-    flatten(sprite, frame, r, region.flat.data(), width);
+    flatten(sprite, frame, r, region.flat.data(), width, except);
     for (int y = 0; y < r.h; y++) {
         const Rgba *from = region.flat.data() + static_cast<size_t>(y) * width;
         Rgba *to = region.out + static_cast<size_t>(y) * region.stride;
@@ -199,18 +221,20 @@ void overRegion(OnionRegion &region, const Sprite &sprite, int frame, uint8_t op
     }
 }
 
-/* The ghosts of the frame, far to near so the nearest ends up on top. */
+/* The ghosts of the frame, far to near so the nearest ends up on top; on top of the frame each is
+ * made of the layers that differ from it. */
 void drawGhosts(OnionRegion &region, const Sprite &sprite, int frame, const OnionPlan &plan)
 {
     auto tinted = [](Rgba tint) { return [tint](Rgba p) { return ghostPixel(p, tint); }; };
+    const int except = plan.skin.above ? frame : -1;
     for (int d = std::max(plan.before, plan.after); d >= 1; d--) {
         if (d <= plan.after) {
             overRegion(region, sprite, frame + d, ghostOpacity(plan.skin, d, plan.wantAfter),
-                       tinted(ONION_FUTURE_TINT));
+                       tinted(ONION_FUTURE_TINT), except);
         }
         if (d <= plan.before) {
             overRegion(region, sprite, frame - d, ghostOpacity(plan.skin, d, plan.wantBefore),
-                       tinted(ONION_PAST_TINT));
+                       tinted(ONION_PAST_TINT), except);
         }
     }
 }
@@ -281,6 +305,12 @@ void composite_onion(const Sprite &sprite, int frame, const OnionSkin &skin, Rec
     for (int y = 0; y < r.h; y++) {
         std::fill_n(area.out + static_cast<size_t>(y) * width, r.w, Rgba{});
     }
+    const auto plain = [](Rgba p) { return p; };
+    if (skin.above) {
+        overRegion(area, sprite, frame, 255, plain);
+        drawGhosts(area, sprite, frame, plan);
+        return;
+    }
     drawGhosts(area, sprite, frame, plan);
-    overRegion(area, sprite, frame, 255, [](Rgba p) { return p; });
+    overRegion(area, sprite, frame, 255, plain);
 }

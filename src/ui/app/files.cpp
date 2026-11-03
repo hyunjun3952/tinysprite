@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <functional>
@@ -16,13 +17,33 @@
 #include "file/file_paths.hpp"
 #include "icons.hpp"
 #include "imgui.h"
+#include "imgui_internal.h"
+#include "native_dialog.hpp"
 #include "theme.hpp"
 #include "tinysprite/io.hpp"
 
 namespace
 {
 
-constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the browse button after it */
+constexpr float PATH_FIELD_WIDTH = 360.0f; /* the field and the two buttons after it, at scale 1 */
+
+constexpr float DOT_SIZE = 2.0f;    /* the side of one dot of the system window button */
+constexpr float DOT_SPACING = 3.0f; /* the gap between two of them */
+
+/* Three square dots in a row, centered in [min, max]: the label of the button that opens the
+ * system's file window (the font's "..." sits on the baseline and reads as an underscore). */
+void drawDots(ImDrawList *list, ImVec2 min, ImVec2 max)
+{
+    const float size = std::max(1.0f, std::floor(theme::px(DOT_SIZE)));
+    const float pitch = size + std::max(1.0f, std::floor(theme::px(DOT_SPACING)));
+    const float x0 = std::floor((min.x + max.x - (2.0f * pitch + size)) / 2.0f);
+    const float y0 = std::floor((min.y + max.y - size) / 2.0f);
+    const ImU32 color = ImGui::GetColorU32(ImGui::GetStyle().Colors[ImGuiCol_Text]);
+    for (int i = 0; i < 3; i++) {
+        const float x = x0 + static_cast<float>(i) * pitch;
+        list->AddRectFilled(ImVec2(x, y0), ImVec2(x + size, y0 + size), color);
+    }
+}
 
 /* The extensions the file list shows for each kind of file. */
 constexpr const char *OPEN_FILTER = ".pxa .aseprite .ase .png .jpg .jpeg .bmp .tga .gif";
@@ -30,6 +51,11 @@ constexpr const char *IMAGE_FILTER = ".png .jpg .jpeg .bmp .tga";
 constexpr const char *PALETTE_FILTER = ".gpl .hex";
 
 } // namespace
+
+float App::pathRowWidth()
+{
+    return theme::px(PATH_FIELD_WIDTH);
+}
 
 /* One row per FileAction, in enum order: how the dialog is titled, the extension it adds to a name
  * typed without one ("" for the actions that read), what the toast says once it worked, the step
@@ -68,7 +94,8 @@ void App::askForPath(FileAction action)
     openFileDialog_ = true;
     fileError_.clear();
     overwritePath_.clear();
-    browseRoot_.clear(); /* the tree starts again from the folder of the path */
+    native_dialog_take(); /* an answer of a system window that outlived the last dialog */
+    browseRoot_.clear();  /* the tree starts again from the folder of the path */
     browseCache_.clear();
     browseFoundKey_.clear();
     browseSearch_[0] = '\0';
@@ -165,7 +192,10 @@ bool App::openPath(const std::string &path)
         sprite = image_import(path);
     }
     if (!sprite) {
-        fileError_ = "Cannot read " + path;
+        /* the path is in the dialog's field already; say what this program opens instead */
+        fileError_ = "Cannot open " + file_name_of(path) +
+                     ": tinysprite opens .pxa and .aseprite files and images (.gif, " +
+                     image_write_formats() + ")";
     } else if (!addDocument(std::move(*sprite), isPxa ? path : "", true)) {
         fileError_ = "Cannot open " + path + " right now";
     } else {
@@ -406,17 +436,42 @@ void App::closeFileDialog()
     }
 }
 
-/* The "Path" field, focused when the dialog opens; true when Enter was pressed in it. */
+/*
+ * Opens the system's own file window for the dialog's action, starting at the path typed (or the
+ * folder of the last file) and listing the files the dialog lists. The choice comes back through
+ * native_dialog_take and lands in the path field.
+ */
+void App::systemFileWindow()
+{
+    const FileActionInfo &info = fileInfo(fileAction_);
+    const std::string typed = expand_home(pathInput_);
+    const std::string start = typed.empty() ? startDirectory() : typed;
+    const char *extensions = info.filter[0] != '\0' ? info.filter : info.extension;
+    native_dialog_show(window_, info.writes() ? NativeDialogKind::Save : NativeDialogKind::Open,
+                       start, extensions);
+}
+
+/*
+ * The "Path" field, focused when the dialog opens; true when Enter was pressed in it. Beside it
+ * are the folder tree button and the button that opens the system's file window. A file that
+ * window answered with goes into the field; a field being edited keeps its own copy of the text,
+ * so it is left first to show the new one.
+ */
 bool App::pathField()
 {
     if (ImGui::IsWindowAppearing()) {
         ImGui::SetKeyboardFocusHere();
     }
+    if (const std::optional<std::string> chosen = native_dialog_take()) {
+        std::snprintf(pathInput_, sizeof(pathInput_), "%s", chosen->c_str());
+        ImGui::ClearActiveID();
+    }
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Path");
     ImGui::SameLine();
     const float button = ImGui::GetFrameHeight();
-    ImGui::SetNextItemWidth(PATH_FIELD_WIDTH - button - ImGui::GetStyle().ItemSpacing.x);
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    ImGui::SetNextItemWidth(pathRowWidth() - 2.0f * button - 2.0f * gap);
     const bool enter = ImGui::InputText("##path", pathInput_, sizeof(pathInput_),
                                         ImGuiInputTextFlags_EnterReturnsTrue);
     ImGui::SameLine();
@@ -428,6 +483,14 @@ bool App::pathField()
         browserOpen_ = !browserOpen_;
     }
     ImGui::PopStyleColor();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(native_dialog_open());
+    if (ImGui::Button("##system", ImVec2(button, button))) {
+        systemFileWindow();
+    }
+    drawDots(ImGui::GetWindowDrawList(), ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    ImGui::EndDisabled();
+    theme::tip("Choose with the system's file window");
     return enter;
 }
 

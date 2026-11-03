@@ -31,13 +31,21 @@ constexpr const char *BLEND_HINTS[BLEND_MODE_COUNT] = {
 /* A three letter tag for the layer rows (Normal shows none). */
 constexpr const char *BLEND_TAGS[BLEND_MODE_COUNT] = {"",    "Mul", "Scr", "Ovr",
                                                       "Drk", "Lgt", "Add", "Dif"};
-constexpr float EDGE_MARGIN = 8.0f; /* keeps the eye and the lock off the panel edges */
-constexpr int THUMB_WIDTH = 36;     /* the box a layer's thumbnail is fitted into */
-constexpr int THUMB_HEIGHT = 24;
-constexpr float THUMB_COLUMN = static_cast<float>(THUMB_WIDTH) + 6.0f;
-constexpr int THUMB_CHECKER = 4;
+/* All at UI scale 1: drawn through theme::px */
+constexpr float EDGE_MARGIN = 8.0f;  /* keeps the eye and the lock off the panel edges */
+constexpr float THUMB_WIDTH = 36.0f; /* the box a layer's thumbnail is fitted into */
+constexpr float THUMB_HEIGHT = 24.0f;
+constexpr float THUMB_SPACE = 6.0f;   /* between the thumbnail and the name */
+constexpr float ROW_PADDING = 8.0f;   /* a row is the thumbnail and this */
+constexpr float THUMB_CHECKER = 4.0f; /* the squares behind a transparent thumbnail */
 constexpr float DROP_LINE_THICKNESS = 2.0f;
 constexpr float ACTIVE_BAR = 3.0f;
+
+/* A size of the list in whole pixels at the UI scale. */
+float wholePx(float base)
+{
+    return std::round(theme::px(base));
+}
 
 /* Moves the cursor down so an item of `itemHeight` sits in the middle of a row `rowHeight` tall. */
 void centerInRow(float rowHeight, float itemHeight)
@@ -53,7 +61,7 @@ void drawDropLine(ImVec2 rowMin, ImVec2 rowMax, bool fromBelow)
     float y = fromBelow ? rowMin.y : rowMax.y;
     ImGui::GetForegroundDrawList()->AddLine(
         ImVec2(rowMin.x, y), ImVec2(rowMax.x, y),
-        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), DROP_LINE_THICKNESS);
+        ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)), theme::px(DROP_LINE_THICKNESS));
 }
 
 /* The blend tag and the opacity of a layer, shown after its name; empty for a plain layer. */
@@ -80,6 +88,24 @@ void LayersPanel::setEditor(Editor &editor)
     openDelete_ = false;
     slices_.setEditor(editor);
     tilemaps_.setEditor(editor);
+}
+
+std::string linked_cels_text(int linked)
+{
+    if (linked == 0) {
+        return "none in this layer";
+    }
+    return std::to_string(linked) + (linked == 1 ? " cel" : " cels") + " in this layer";
+}
+
+ImVec2 LayersPanel::thumbnailSize()
+{
+    return {wholePx(THUMB_WIDTH), wholePx(THUMB_HEIGHT)};
+}
+
+float LayersPanel::rowHeight()
+{
+    return thumbnailSize().y + wholePx(ROW_PADDING);
 }
 
 LayersPanel::LayersPanel(Editor &editor)
@@ -114,28 +140,28 @@ void LayersPanel::renameField(int index, Layer &layer)
  * cell (dimmed while the layer is hidden). */
 void LayersPanel::thumbnail(const Layer &layer, float rowHeight)
 {
-    LayerThumbnails::Thumb thumb =
-        thumbs_.get(layer, editor_->frame(), THUMB_WIDTH, THUMB_HEIGHT, editor_->revision());
+    const ImVec2 box = thumbnailSize();
+    LayerThumbnails::Thumb thumb = thumbs_.get(layer, editor_->frame(), static_cast<int>(box.x),
+                                               static_cast<int>(box.y), editor_->revision());
     ImVec2 cell = ImGui::GetCursorScreenPos();
-    ImGui::Dummy(ImVec2(THUMB_COLUMN, rowHeight));
+    ImGui::Dummy(ImVec2(box.x + wholePx(THUMB_SPACE), rowHeight));
     if (!thumb.texture) {
         return;
     }
-    ImVec2 min(std::floor(cell.x + (static_cast<float>(THUMB_WIDTH - thumb.width)) / 2.0f),
+    const int checker = static_cast<int>(wholePx(THUMB_CHECKER));
+    ImVec2 min(std::floor(cell.x + (box.x - static_cast<float>(thumb.width)) / 2.0f),
                std::floor(cell.y + (rowHeight - static_cast<float>(thumb.height)) / 2.0f));
     ImVec2 max(min.x + static_cast<float>(thumb.width), min.y + static_cast<float>(thumb.height));
     ImDrawList *draw = ImGui::GetWindowDrawList();
     float alpha = layer.visible() ? 1.0f : 0.4f;
     draw->PushClipRect(min, max, true);
     draw->AddRectFilled(min, max, theme::overlay::CHECKER_LIGHT);
-    for (int y = 0; y < thumb.height; y += THUMB_CHECKER) {
-        for (int x = (y / THUMB_CHECKER) % 2 == 0 ? THUMB_CHECKER : 0; x < thumb.width;
-             x += 2 * THUMB_CHECKER) {
+    for (int y = 0; y < thumb.height; y += checker) {
+        for (int x = (y / checker) % 2 == 0 ? checker : 0; x < thumb.width; x += 2 * checker) {
             ImVec2 p(min.x + static_cast<float>(x), min.y + static_cast<float>(y));
-            draw->AddRectFilled(p,
-                                ImVec2(p.x + static_cast<float>(THUMB_CHECKER),
-                                       p.y + static_cast<float>(THUMB_CHECKER)),
-                                theme::overlay::CHECKER_DARK);
+            draw->AddRectFilled(
+                p, ImVec2(p.x + static_cast<float>(checker), p.y + static_cast<float>(checker)),
+                theme::overlay::CHECKER_DARK);
         }
     }
     draw->PopClipRect();
@@ -176,7 +202,7 @@ void LayersPanel::rowSelectable(int index, const RowContext &ctx)
     if (ctx.multiple && index == editor_->activeLayer()) {
         ImGui::GetForegroundDrawList()->AddRectFilled(
             ImGui::GetItemRectMin(),
-            ImVec2(ImGui::GetItemRectMin().x + ACTIVE_BAR, ImGui::GetItemRectMax().y),
+            ImVec2(ImGui::GetItemRectMin().x + theme::px(ACTIVE_BAR), ImGui::GetItemRectMax().y),
             ImGui::ColorConvertFloat4ToU32(theme::rgb(theme::ACCENT)));
     }
 }
@@ -329,7 +355,7 @@ void LayersPanel::row(int index, const RowContext &ctx, Drop &drop)
     rowSelectable(index, ctx);
     rowDragDrop(index, layer, ctx, drop);
     rowHintAndRename(index, layer);
-    ImGui::SameLine(0.0f, EDGE_MARGIN);
+    ImGui::SameLine(0.0f, theme::px(EDGE_MARGIN));
     visibilityToggle(index, layer, ctx);
 
     ImGui::TableSetColumnIndex(1);
@@ -358,14 +384,15 @@ void LayersPanel::rows()
     thumbs_.prune(editor_->sprite());
     RowContext ctx;
     ctx.frameHeight = ImGui::GetFrameHeight();
-    ctx.rowHeight = static_cast<float>(THUMB_HEIGHT) + 8.0f;
+    ctx.rowHeight = rowHeight();
     ctx.multiple = editor_->selectedLayers().size() > 1;
     ImGui::TableSetupColumn("##visible", ImGuiTableColumnFlags_WidthFixed,
-                            ctx.frameHeight + EDGE_MARGIN);
-    ImGui::TableSetupColumn("##thumbnail", ImGuiTableColumnFlags_WidthFixed, THUMB_COLUMN);
+                            ctx.frameHeight + theme::px(EDGE_MARGIN));
+    ImGui::TableSetupColumn("##thumbnail", ImGuiTableColumnFlags_WidthFixed,
+                            thumbnailSize().x + wholePx(THUMB_SPACE));
     ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("##lock", ImGuiTableColumnFlags_WidthFixed,
-                            ctx.frameHeight + EDGE_MARGIN);
+                            ctx.frameHeight + theme::px(EDGE_MARGIN));
     Drop drop; /* applied after the loop: the list must not change under it */
     for (int i = editor_->sprite().layerCount() - 1; i >= 0; i--) {
         row(i, ctx, drop);
@@ -459,7 +486,8 @@ void LayersPanel::propertyInfo(const Layer &layer)
     }
     propertyValue("Size",
                   std::to_string(sprite.width()) + " x " + std::to_string(sprite.height()) + " px");
-    propertyValue("Frames", std::to_string(frames) + "  (" + std::to_string(linked) + " linked)");
+    propertyValue("Frames", std::to_string(frames));
+    propertyValue("Linked", linked_cels_text(linked));
     theme::tip("A linked cel is shared with another frame: drawing on one changes them all.");
     propertyValue("Palette", std::to_string(sprite.palette().count()) + " colors");
 }
@@ -524,7 +552,7 @@ void LayersPanel::deleteDialog()
     ImGui::TextDisabled("Ctrl+Z brings it back.");
     const int clicked = theme::dialog_buttons({"Cancel", "Delete"}, 1, true);
     bool close = theme::dialog_cancelled(clicked, 0);
-    if (clicked == 1 || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+    if (clicked == 1) {
         editor_->removeSelectedLayers();
         close = true;
     }
