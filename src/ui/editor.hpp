@@ -855,7 +855,7 @@ class Editor
     PlayMode playMode_ = PlayMode::Forward;
     int selectedTag_ = -1;
     bool onionOn_ = false;
-    OnionSkin onion_;
+    OnionSkin onion_ = {1, 1, 96, true}; /* on top: an opaque background would hide the ghosts */
     ToolOptions options_;
     ViewState view_;
     int hoverX_ = 0;

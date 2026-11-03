@@ -29,7 +29,9 @@ the backlog at the end. Rules: `.rules`. How the code is put together: [ARCHITEC
       `FRAM` chunk.
 - [x] **10. Timeline and playback**: a current frame and a `Playback` advanced by `tick()`; a strip with a cel grid, frame
       buttons, duration and play mode; `,` `.` `Enter` and a Frame menu.
-- [x] **11. Onion skin**: `composite_onion` draws the neighbouring frames tinted and fading under the current one.
+- [x] **11. Onion skin**: `composite_onion` draws the neighbouring frames tinted and fading under the current one, or (the
+      default, "On top") over it, each ghost made only of the layers that change, so an opaque background neither hides
+      the ghosts nor tints the whole sprite.
 - [x] **12. Tags**: named frame ranges with a direction (`tag_ops.hpp`, `TAGS`); a selected tag limits playback.
 - [x] **13. Linked cels**: frames of a layer share one cel (`cel_ops.hpp`, `LINK`).
 - [x] **14. Export**: `gif_encode` (our own LZW encoder) and `spritesheet_render`, with File menu dialogs; animated GIF import.

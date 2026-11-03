@@ -243,8 +243,34 @@ TEST(a_far_ghost_fades_by_the_count_wanted_on_its_side)
     ASSERT_TRUE(out[2 * 5 + 3] == expected);
 }
 
+/* A sprite with an opaque background layer hides ghosts drawn under the frame. On top, a ghost is
+ * made of the layers that change from that frame to the current one, so the background (the same on
+ * both) adds nothing: the old dot shows over the background, and the current frame's own pixels are
+ * left as they are where the old frame had nothing new. */
+TEST(on_top_a_ghost_shows_over_an_opaque_background)
+{
+    Sprite s = strip(2);
+    for (int x = 0; x < 4; x++) {
+        s.layer(0)->cel(0)->set(x, 0, WHITE);
+        s.layer(0)->cel(1)->set(x, 0, WHITE);
+    }
+    Layer &dot = s.addLayer("dot");
+    dot.cel(0)->set(1, 0, RED);
+    dot.cel(1)->set(2, 0, RED);
+    OnionSkin under{1, 0, 255};
+    ASSERT_TRUE(onion(s, 1, under)[1] == WHITE); /* under the frame: hidden by the background */
+    OnionSkin onTop{1, 0, 255};
+    onTop.above = true;
+    std::vector<Rgba> out = onion(s, 1, onTop);
+    ASSERT_TRUE(out[0] == WHITE);    /* nothing changed there */
+    ASSERT_TRUE(!(out[1] == WHITE)); /* the old dot, tinted */
+    ASSERT_TRUE(out[2] == RED);      /* the current dot, untouched */
+    ASSERT_TRUE(out[3] == WHITE);
+}
+
 int main()
 {
+    RUN(on_top_a_ghost_shows_over_an_opaque_background);
     RUN(without_ghosts_it_is_the_plain_frame);
     RUN(a_previous_frame_shows_tinted_and_faint);
     RUN(a_next_frame_uses_the_other_tint);

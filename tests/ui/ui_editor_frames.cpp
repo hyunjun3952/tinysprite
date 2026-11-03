@@ -316,10 +316,18 @@ TEST(onion_skin_is_hidden_while_playing)
     delete e;
 }
 
+/* Ghosts go on top by default, so a sprite with an opaque background still shows them. */
+TEST(onion_skin_is_drawn_on_top_by_default)
+{
+    Editor *e = make_editor();
+    ASSERT_TRUE(e->onionSkin().above);
+    delete e;
+}
+
 TEST(onion_skin_settings_survive_a_settings_round_trip)
 {
     Editor *e = make_editor();
-    e->setOnion(true, OnionSkin{3, 2, 40});
+    e->setOnion(true, OnionSkin{3, 2, 40, false});
     SettingsMap settings;
     e->store(settings);
     Editor *f = make_editor();
@@ -328,6 +336,7 @@ TEST(onion_skin_settings_survive_a_settings_round_trip)
     ASSERT_EQ_INT(3, f->onionSkin().before);
     ASSERT_EQ_INT(2, f->onionSkin().after);
     ASSERT_EQ_INT(40, f->onionSkin().opacity);
+    ASSERT_TRUE(!f->onionSkin().above);
     delete e;
     delete f;
 }
@@ -692,6 +701,7 @@ int main()
     RUN(onion_skin_shows_the_previous_frame_under_the_current_one);
     RUN(onion_skin_follows_edits_of_the_current_frame);
     RUN(onion_skin_is_hidden_while_playing);
+    RUN(onion_skin_is_drawn_on_top_by_default);
     RUN(onion_skin_settings_survive_a_settings_round_trip);
     RUN(onion_skin_settings_are_limited);
     RUN(frames_stop_at_the_limit_and_say_so);

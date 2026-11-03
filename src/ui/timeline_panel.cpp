@@ -229,7 +229,7 @@ void TimelinePanel::onionControls()
     bool on = editor_->onionEnabled();
     OnionSkin skin = editor_->onionSkin();
     bool changed = ImGui::Checkbox("Onion skin", &on);
-    theme::tip("Show the neighbouring frames faintly under this one (not while playing).");
+    theme::tip("Show the neighbouring frames faintly with this one (not while playing).");
     ImGui::BeginDisabled(!on);
     /* Each label stands before its field, so the reading order matches the layout. */
     ImGui::SameLine();
@@ -259,6 +259,11 @@ void TimelinePanel::onionControls()
         changed = true;
     }
     onionTip("How strongly the nearest ghost shows; farther ones fade out.", on);
+    ImGui::SameLine();
+    changed |= ImGui::Checkbox("On top", &skin.above);
+    onionTip("Draw the ghosts over the frame, from the layers that change. Off, they go under it, "
+             "where an opaque background hides them.",
+             on);
     ImGui::EndDisabled();
     if (changed) {
         editor_->setOnion(on, skin);
