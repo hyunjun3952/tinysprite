@@ -25,31 +25,32 @@ constexpr std::array<unsigned, ICON_COUNT> CODEPOINTS = {
     0xe14d, /* Copy: content_copy */
     0xe92e, /* Trash: delete */
     0xe258, /* Merge: vertical_align_bottom */
-    0,      /* Line: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Rect: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Ellipse: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Triangle: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Diamond: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Hexagon: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Star: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Cross: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Line: a path (icon_paths.cpp) */
+    0,      /* Rect: a path (icon_paths.cpp) */
+    0,      /* Ellipse: a path (icon_paths.cpp) */
+    0,      /* Triangle: a path (icon_paths.cpp) */
+    0,      /* Diamond: a path (icon_paths.cpp) */
+    0,      /* Hexagon: a path (icon_paths.cpp) */
+    0,      /* Star: a path (icon_paths.cpp) */
+    0,      /* Cross: a path (icon_paths.cpp) */
     0xe15b, /* Minus: remove */
     0xe5d5, /* Reset: refresh */
     0xe5d8, /* ArrowUp: arrow_upward */
     0xe5db, /* ArrowDown: arrow_downward */
-    0,      /* Pencil: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Eraser: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Bucket: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Eyedropper: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Select: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Pencil: a path (icon_paths.cpp) */
+    0,      /* Eraser: a path (icon_paths.cpp) */
+    0,      /* Bucket: a path (icon_paths.cpp) */
+    0,      /* Eyedropper: a path (icon_paths.cpp) */
+    0,      /* Select: a path (icon_paths.cpp) */
     0xe8d4, /* Swap: swap_horiz */
     0,      /* Folder: drawn with lines */
-    0,      /* Slice: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Pan: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Wand: a bitmap (icon_bitmaps.cpp) */
-    0,      /* Lasso: a bitmap (icon_bitmaps.cpp) */
+    0,      /* Slice: a path (icon_paths.cpp) */
+    0,      /* Pan: a path (icon_paths.cpp) */
+    0,      /* Wand: a path (icon_paths.cpp) */
+    0,      /* Lasso: a path (icon_paths.cpp) */
     0,      /* ChevronLeft: drawn with lines */
     0,      /* ChevronRight: drawn with lines */
+    0,      /* Replace: a path (icon_paths.cpp) */
 };
 
 /*
@@ -109,7 +110,7 @@ unsigned codepoint(Icon icon)
 bool is_drawn(Icon icon)
 {
     return icon == Icon::Folder || icon == Icon::ChevronLeft || icon == Icon::ChevronRight ||
-           bitmap(icon) != nullptr;
+           path(icon) != nullptr;
 }
 
 void chevron_points(Icon icon, ImVec2 min, ImVec2 max, ImVec2 (&points)[3])
@@ -123,11 +124,6 @@ void chevron_points(Icon icon, ImVec2 min, ImVec2 max, ImVec2 (&points)[3])
     points[0] = ImVec2(cx - toward * reach, cy - rise);
     points[1] = ImVec2(cx + toward * reach, cy);
     points[2] = ImVec2(cx - toward * reach, cy + rise);
-}
-
-float bitmap_cell(float uiScale)
-{
-    return std::max(1.0f, std::round(uiScale));
 }
 
 float glyph_size(float uiScale)
@@ -169,31 +165,82 @@ void drawFolder(ImDrawList *list, ImVec2 min, ImVec2 max, ImU32 color)
 namespace
 {
 
-/*
- * Draws `picture` centered in [min, max], one square per cell of ink, a row of ink as one
- * rectangle. Every corner is a whole pixel, so the edges are sharp.
- */
-void drawBitmap(ImDrawList *list, const Bitmap &picture, ImVec2 min, ImVec2 max, ImU32 color)
+/* The outline through `points` (closed) as dashes DASH_ON grid units long, DASH_OFF apart along
+ * each side. */
+void drawDashes(ImDrawList *list, const ImVec2 *points, int count, float unit, ImU32 color,
+                float width)
 {
-    const float cell = bitmap_cell(theme::scale());
-    const float left = std::floor((min.x + max.x) / 2.0f - cell * BITMAP_SIZE / 2.0f);
-    const float top = std::floor((min.y + max.y) / 2.0f - cell * BITMAP_SIZE / 2.0f);
-    for (int y = 0; y < BITMAP_SIZE; y++) {
-        int x = 0;
-        while (x < BITMAP_SIZE) {
-            if (picture.rows[y][x] != '#') {
-                x++;
-                continue;
-            }
-            const int start = x;
-            while (x < BITMAP_SIZE && picture.rows[y][x] == '#') {
-                x++;
-            }
-            const float y0 = top + cell * static_cast<float>(y);
-            list->AddRectFilled(ImVec2(left + cell * static_cast<float>(start), y0),
-                                ImVec2(left + cell * static_cast<float>(x), y0 + cell), color);
+    constexpr float DASH_ON = 1.6f;
+    constexpr float DASH_OFF = 1.4f;
+    for (int i = 0; i < count; i++) {
+        const ImVec2 a = points[i];
+        const ImVec2 b = points[(i + 1) % count];
+        const float length = std::hypot(b.x - a.x, b.y - a.y);
+        const float period = (DASH_ON + DASH_OFF) * unit;
+        const int dashes = static_cast<int>(std::ceil(length / period));
+        for (int d = 0; d < dashes; d++) {
+            const float t = static_cast<float>(d) * period;
+            const float end = std::min(t + DASH_ON * unit, length);
+            const ImVec2 from(a.x + (b.x - a.x) * t / length, a.y + (b.y - a.y) * t / length);
+            const ImVec2 to(a.x + (b.x - a.x) * end / length, a.y + (b.y - a.y) * end / length);
+            list->AddLine(from, to, color, width);
         }
     }
+}
+
+/* Draws one stroke of a path whose grid starts at `at`, `unit` pixels to a grid unit. */
+void drawStroke(ImDrawList *list, const Stroke &stroke, ImVec2 at, float unit, ImU32 color,
+                float width)
+{
+    if (stroke.kind == StrokeKind::Circle) {
+        list->AddCircle(ImVec2(at.x + stroke.xy[0] * unit, at.y + stroke.xy[1] * unit),
+                        stroke.xy[2] * unit, color, 0, width);
+        return;
+    }
+    constexpr int MAX_POINTS = 16;
+    ImVec2 points[MAX_POINTS];
+    const int count = std::min(stroke.count, MAX_POINTS);
+    for (int i = 0; i < count; i++) {
+        const size_t x = 2 * static_cast<size_t>(i);
+        points[i] = ImVec2(at.x + stroke.xy[x] * unit, at.y + stroke.xy[x + 1] * unit);
+    }
+    switch (stroke.kind) {
+    case StrokeKind::Open:
+        list->AddPolyline(points, count, color, ImDrawFlags_None, width);
+        return;
+    case StrokeKind::Closed:
+        list->AddPolyline(points, count, color, ImDrawFlags_Closed, width);
+        return;
+    case StrokeKind::Fill:
+        list->AddConcavePolyFilled(points, count, color);
+        return;
+    case StrokeKind::Dashed:
+        drawDashes(list, points, count, unit, color, width);
+        return;
+    case StrokeKind::Circle:
+        return;
+    }
+}
+
+/*
+ * Draws `path` centered in [min, max]: its grid is PATH_GRID units of `scale` pixels, on a whole
+ * pixel, and every line PATH_STROKE units wide, so the icons grow with the scale without jumps.
+ * ImGui draws a line of a whole-pixel width from a baked texture, which reads heavier than the
+ * geometry it uses for other widths, so the texture is off while a path is drawn: every scale
+ * then gets the same edge.
+ */
+void drawPath(ImDrawList *list, const Path &path, ImVec2 min, ImVec2 max, ImU32 color)
+{
+    const float unit = theme::scale();
+    const float side = PATH_GRID * unit;
+    const ImVec2 at(std::floor((min.x + max.x - side) / 2.0f),
+                    std::floor((min.y + max.y - side) / 2.0f));
+    const ImDrawListFlags flags = list->Flags;
+    list->Flags &= ~ImDrawListFlags_AntiAliasedLinesUseTex;
+    for (int s = 0; s < path.count; s++) {
+        drawStroke(list, path.strokes[s], at, unit, color, path_stroke(unit));
+    }
+    list->Flags = flags;
 }
 
 /* The glyph of `icon` at about `size` pixels (see fitted_glyph_size), centered in [min, max] by its
@@ -216,8 +263,8 @@ void drawGlyph(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color,
 
 void draw(ImDrawList *list, Icon icon, ImVec2 min, ImVec2 max, ImU32 color)
 {
-    if (const Bitmap *picture = bitmap(icon)) {
-        drawBitmap(list, *picture, min, max, color);
+    if (const Path *shape = path(icon)) {
+        drawPath(list, *shape, min, max, color);
         return;
     }
     if (icon == Icon::Folder) {

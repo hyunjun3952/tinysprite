@@ -615,7 +615,7 @@ void ToolsPanel::paletteSwatches()
         editor_->paletteRemove(editor_->paletteSelected());
     }
     ImGui::SameLine();
-    if (icons::button(icons::Icon::Swap, "##palette_replace",
+    if (icons::button(icons::Icon::Replace, "##palette_replace",
                       "Replace the selected swatch with the foreground color", size,
                       editor_->paletteCanReplace(),
                       editor_->paletteSelected() < 0

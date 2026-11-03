@@ -12,16 +12,17 @@
 #include "theme.hpp"
 #include "ui_harness.hpp"
 
-/* The 17 tool and shape icons are bitmaps and the folder and the two chevrons are drawn with lines
- * (they would need glyphs added to the font subset); they have no codepoint, every other icon is a
- * glyph. */
-TEST(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons)
+/* The 17 tool and shape icons and Replace are paths and the folder and the two chevrons are drawn
+ * with lines (they would need glyphs added to the font subset); they have no codepoint, every
+ * other icon is a glyph. */
+TEST(the_tool_and_shape_paths_the_folder_and_the_chevrons_are_the_drawn_icons)
 {
     int drawn = 0;
     for (int i = 0; i < static_cast<int>(icons::Icon::Count); i++) {
         drawn += icons::is_drawn(static_cast<icons::Icon>(i)) ? 1 : 0;
     }
-    ASSERT_EQ_INT(20, drawn);
+    ASSERT_EQ_INT(21, drawn);
+    ASSERT_TRUE(icons::is_drawn(icons::Icon::Replace));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Diamond));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Folder));
     ASSERT_TRUE(icons::is_drawn(icons::Icon::Pan));
@@ -217,7 +218,7 @@ int main()
     RUN(a_disabled_icon_keeps_the_icon_contrast);
     RUN(a_chevron_icon_points_at_its_side_and_is_centered);
     RUN(a_disabled_icon_button_with_a_reason_says_it);
-    RUN(the_tool_and_shape_bitmaps_the_folder_and_the_chevrons_are_the_drawn_icons);
+    RUN(the_tool_and_shape_paths_the_folder_and_the_chevrons_are_the_drawn_icons);
     RUN(every_icon_has_its_own_private_use_codepoint_except_the_drawn_ones);
     RUN(every_icon_glyph_is_in_the_embedded_font);
     RUN(a_glyph_is_centered_by_its_ink_on_whole_pixels);

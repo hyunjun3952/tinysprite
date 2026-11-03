@@ -7,7 +7,8 @@
  * merges into the UI font, so they scale with the UI, take any color and add no image files. They
  * are used where a picture reads faster than a word: the tools, the layer rows and buttons, the
  * palette buttons. To add one, add an Icon and its codepoint (the names are in the Material
- * Symbols codepoints list) and put the codepoint in the subset in thirdparty/material-symbols. */
+ * Symbols codepoints list) and put the codepoint in the subset in thirdparty/material-symbols. The
+ * tool and shape icons are paths instead (icon_paths.cpp). */
 namespace icons
 {
 
@@ -45,6 +46,7 @@ enum class Icon {
     Lasso,
     ChevronLeft,
     ChevronRight,
+    Replace,
     Count
 };
 
@@ -52,8 +54,8 @@ enum class Icon {
  * drawn with lines instead (see is_drawn). */
 unsigned codepoint(Icon icon);
 
-/* Whether `icon` is drawn by this module and has no glyph: the tool and shape icons (bitmaps) and
- * the Folder and the two chevrons (lines). */
+/* Whether `icon` is drawn by this module and has no glyph: the tool and shape icons and Replace
+ * (paths) and the Folder and the two chevrons (lines). */
 bool is_drawn(Icon icon);
 
 /* The three points of a ChevronLeft or ChevronRight (the two strokes meet at the middle one) for
@@ -61,21 +63,52 @@ bool is_drawn(Icon icon);
  * icon is named. */
 void chevron_points(Icon icon, ImVec2 min, ImVec2 max, ImVec2 (&points)[3]);
 
-/* The side of a tool icon bitmap, in cells. */
-inline constexpr int BITMAP_SIZE = 16;
+/*
+ * The tool and shape icons (and Replace) are strokes on a PATH_GRID square grid, one grid unit a
+ * pixel at UI scale 1, drawn with ImGui's anti-aliased lines: one weight and any size, so they
+ * match the glyph icons beside them and grow smoothly with the scale. PATH_STROKE is 2 because
+ * ImGui spends about a pixel of a line's width on its soft edge: 2 leaves a solid pixel in the
+ * middle with soft sides, like a Material Symbols line at 20 px (measured 1.7 px across), where
+ * 1.75 left a straight line on a pixel's center a grey blur.
+ */
+inline constexpr float PATH_GRID = 20.0f;
+inline constexpr float PATH_STROKE = 2.0f;
 
-/* A tool icon as a picture on a BITMAP_SIZE square grid: row y, column x is ink when
- * rows[y][x] == '#'. */
-struct Bitmap {
-    const char *rows[BITMAP_SIZE];
+enum class StrokeKind {
+    Open,   /* a polyline */
+    Closed, /* a polygon outline */
+    Fill,   /* a filled polygon (may be concave) */
+    Dashed, /* a polygon outline in dashes */
+    Circle  /* an outline; xy holds the center and the radius */
 };
 
-/* The bitmap of `icon`, or null for an icon that is a font glyph or drawn with lines. */
-const Bitmap *bitmap(Icon icon);
+/* One stroke: `count` points, x and y in grid units in `xy` (the Circle has one point and a
+ * radius). */
+struct Stroke {
+    const float *xy;
+    StrokeKind kind;
+    int count;
+};
 
-/* The side of one bitmap cell for a UI scale: whole pixels (at least one), so the picture keeps
- * its pixel grid and every icon of the set is the same size. */
-float bitmap_cell(float uiScale);
+struct Path {
+    const Stroke *strokes;
+    int count;
+};
+
+/* The path of `icon`, or null for an icon that is a font glyph or drawn with lines. */
+const Path *path(Icon icon);
+
+/* The box the ink of a path covers, in grid units, the half stroke around a line included. */
+struct InkBox {
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+};
+InkBox path_ink(const Path &path);
+
+/* The stroke width in pixels at a UI scale. */
+float path_stroke(float uiScale);
 
 /*
  * The nominal pixel size of an icon glyph for a UI scale: 20 px at scale 1, in whole pixels so

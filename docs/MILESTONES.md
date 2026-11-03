@@ -82,8 +82,11 @@ What exists and why. The look itself is in `DESIGN.md`; the structure is in `ARC
   texts).
 - **Icons** are Material Symbols glyphs (a 4 KB subset) merged into the UI font, so they scale, take any color and are
   added by one codepoint. Each is centered by the ink of its glyph and drawn at the size that gives its ink the same
-  length (`icons::fitted_glyph_size`). The diamond, the folder and the slice are drawn with lines (not in the set). 16 x 16
-  bitmaps were tried first and read worse next to the Material set.
+  length (`icons::fitted_glyph_size`). The folder and the chevrons are drawn with lines (not in the set). The tool and
+  shape icons and Replace are vector paths on a 20-unit grid (`icon_paths.cpp`) at a 2 px stroke: 16 x 16 bitmaps
+  (1 px tools, 2 px shapes) read thinner or heavier than the glyphs beside them and jumped in size between whole UI
+  scales. Gotcha: ImGui draws a whole-pixel-wide anti-aliased line from a baked texture that reads heavier, so
+  `drawPath` turns `ImDrawListFlags_AntiAliasedLinesUseTex` off while it draws.
 - **Font**: Geist Regular, a 23 KB subset, 14 px. stb_truetype does not hint, so glyphs are pixel-snapped with no
   oversampling (Inter looked soft at 14 px).
 - **Layout**: a 52 px tool bar, an options bar above the canvas, and an Inspector (Color with the recent colors, Layers,

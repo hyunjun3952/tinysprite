@@ -256,7 +256,7 @@ No drop shadows. A popup is told from the panel behind it by its hairline border
 | `{rounded.card}` | 8 px | popups, modals, child areas |
 | `{rounded.full}` | pill / circle | the swap-colors button, dots |
 
-Icons are Material Symbols Outlined (unfilled), except the tool and shape icons, which are 16 x 16 pixel bitmaps (`icon_bitmaps.cpp`): shapes 12-14 px across with a 2 px stroke, tools a 1 px outline. Chevrons are drawn as two strokes (">" closed, "v" open), never as filled triangles.
+Icons are Material Symbols Outlined (unfilled), except the tool and shape icons and the palette's Replace, which are vector paths on a 20-unit grid (`icon_paths.cpp`, one unit a pixel at scale 1): outlines of one 2-unit stroke drawn with ImGui's geometric anti-aliasing, ink about 15 units long like the glyphs, so they read as one set and grow smoothly at any scale (no jump between 1.49 and 1.5). Only the bucket's drop, the wand's sparkle and Replace's new color are filled. Chevrons are drawn as two strokes (">" closed, "v" open), never as filled triangles. A disabled icon is plain `{colors.mute}` (`icons::disabled_color`), not a faded one.
 
 ## Components
 
